@@ -19,12 +19,16 @@ function App() {
   const [error, setError] = useState(null);
   const [language, setLanguage] = useState('');
 
+  const COPYRIGHT_NOTICE = "© Bazı hakları saklıdır. Bu çalışma, orijinal yazar ve kaynağın belirtilmesi koşuluyla, yalnızca akademik araştırma amaçlarına, dağıtıma ve herhangi bir ortamda çoğaltmaya izin vermektedir.";
+
   const exportToCSV = () => {
     if (!data || !data.results) return;
     const headers = ['Rank', 'Title', 'Year', 'Cited By', 'URL', 'AHP Score'];
     const csvContent = [
       headers.join(','),
-      ...data.results.map((item, i) => `"${i+1}","${item.title ? item.title.replace(/"/g, '""') : ''}",${item.year},${item.citedBy},"${item.url || ''}",${item.scores?.total || 0}`)
+      ...data.results.map((item, i) => `"${i+1}","${item.title ? item.title.replace(/"/g, '""') : ''}",${item.year},${item.citedBy},"${item.url || ''}",${item.scores?.total || 0}`),
+      "",
+      `"${COPYRIGHT_NOTICE}"`
     ].join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -57,7 +61,11 @@ function App() {
       body: tableData,
       startY: 30,
       styles: { fontSize: 8 },
-      columnStyles: { 1: { cellWidth: 100 } }
+      columnStyles: { 1: { cellWidth: 100 } },
+      didDrawPage: (dataArg) => {
+        doc.setFontSize(7);
+        doc.text(COPYRIGHT_NOTICE, 14, doc.internal.pageSize.height - 10);
+      }
     });
 
     doc.save("literature_results.pdf");
@@ -104,6 +112,11 @@ function App() {
             new Table({
               rows: tableRows,
               width: { size: 100, type: WidthType.PERCENTAGE },
+            }),
+            new Paragraph({ text: "" }),
+            new Paragraph({
+              text: COPYRIGHT_NOTICE,
+              italics: true,
             }),
           ],
         },
