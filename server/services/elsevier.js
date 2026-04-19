@@ -33,12 +33,11 @@ async function fetchPage(query, start, count) {
 
         let resetDate = "Bilinmiyor";
         if (quotaInfo.reset) {
-            // Eğer reset bir sayıysa (Epoch) tarihe çevir, değilse olduğu gibi yaz (Retry-After saniye olabilir)
-            if (!isNaN(quotaInfo.reset)) {
-                resetDate = new Date(parseInt(quotaInfo.reset) * 1000).toLocaleString('tr-TR');
-            } else {
-                resetDate = quotaInfo.reset + " saniye sonra";
-            }
+            const resetValue = parseInt(quotaInfo.reset);
+            const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
+            resetDate = new Date(resetTime).toLocaleString('tr-TR', {
+                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
         }
 
         const cleanStatus = (quotaInfo.status || "Hız Sınırı").split('-')[0].trim();
@@ -114,7 +113,11 @@ export async function searchLiterature(query, count, weights = null) {
 
         let resetDate = "Bilinmiyor";
         if (lastQuota && lastQuota.reset) {
-            resetDate = new Date(parseInt(lastQuota.reset) * 1000).toLocaleString('tr-TR');
+            const resetValue = parseInt(lastQuota.reset);
+            const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
+            resetDate = new Date(resetTime).toLocaleString('tr-TR', {
+                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
         }
 
         return {
@@ -130,7 +133,11 @@ export async function searchLiterature(query, count, weights = null) {
     } catch (error) {
         let resetDate = "Bilinmiyor";
         if (lastQuota && lastQuota.reset) {
-            resetDate = new Date(parseInt(lastQuota.reset) * 1000).toLocaleString('tr-TR');
+            const resetValue = parseInt(lastQuota.reset);
+            const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
+            resetDate = new Date(resetTime).toLocaleString('tr-TR', {
+                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
         }
 
         // Hatayı yukarı fırlatırken kota bilgisini de içine gömelim
