@@ -1,0 +1,25 @@
+{
+  "name": "ahp_soft",
+  "version": "1.0.0",
+  "description": "",
+  "main": "normalize.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "box-plot": "^1.0.0",
+    "compute-skewness": "^1.0.1",
+    "inquirer": "^9.2.11",
+    "mathjs": "^12.2.1",
+    "ml-kmeans": "^6.0.0",
+    "natural": "^6.10.4",
+    "node-kmeans": "^1.1.9",
+    "plotly.js-dist-min": "^2.27.1",
+    "prompt-sync": "^4.2.0",
+    "undici": "^5.25.4"
+  }
+}
