@@ -75,7 +75,13 @@ app.get('/api/search', async (req, res) => {
         
     } catch (error) {
         console.error('Search error:', error);
-        res.status(500).json({ error: error.message || 'Internal Server Error' });
+        
+        const isQuotaError = error.message.includes('429') || error.message.includes('Kota');
+        
+        res.status(isQuotaError ? 429 : 500).json({ 
+            error: error.message || 'Internal Server Error',
+            quota: error.quota || null // Hata objesinden kotayı alıp gönderiyoruz
+        });
     }
 });
 

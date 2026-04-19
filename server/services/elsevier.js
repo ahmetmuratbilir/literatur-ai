@@ -68,62 +68,77 @@ export async function searchLiterature(query, count, weights = null) {
     let rawListings = [];
     let lastQuota = null;
 
-    // Initial fetch to get total results
-    const { data: firstPage, quotaInfo } = await fetchPage(query, 0, chunkSize);
-    lastQuota = quotaInfo;
+    try {
+        // Initial fetch to get total results
+        const { data: firstPage, quotaInfo } = await fetchPage(query, 0, chunkSize);
+        lastQuota = quotaInfo;
 
-    if (!firstPage["search-results"]) {
-        throw new Error("Invalid API response from Elsevier");
-    }
-
-    const totalResults = parseInt(firstPage["search-results"]["opensearch:totalResults"]) || 0;
-    const initialEntry = firstPage["search-results"].entry || [];
-    rawListings.push(...initialEntry);
-
-    console.log(`Total found: ${totalResults}. Requested: ${count}`);
-
-    // Fetch more pages if needed
-    const numItemsNeeded = Math.min(count, totalResults, 5000); // Scopus limit
-    const maxPages = Math.ceil(numItemsNeeded / chunkSize);
-
-    for (let i = 1; i < maxPages; i++) {
-        const start = i * chunkSize;
-
-        try {
-            const { data: pageData, quotaInfo: pQuota } = await fetchPage(query, start, chunkSize);
-            lastQuota = pQuota;
-
-            if (pageData["search-results"] && pageData["search-results"].entry) {
-                rawListings.push(...pageData["search-results"].entry);
-            }
-            await new Promise(resolve => setTimeout(resolve, 800));
-        } catch (err) {
-            console.error("Pagination error:", err);
-            break; 
+        if (!firstPage["search-results"]) {
+            throw new Error("Invalid API response from Elsevier");
         }
-    }
 
-    // Normalize Data
-    console.log(`Normalizing ${rawListings.length} raw items...`);
-    let cleanData = await normalizeData(rawListings, query);
+        const totalResults = parseInt(firstPage["search-results"]["opensearch:totalResults"]) || 0;
+        const initialEntry = firstPage["search-results"].entry || [];
+        rawListings.push(...initialEntry);
 
-    // Apply AHP
-    console.log("Calculating AHP scores...");
-    const rankedData = await calculateAHP(cleanData, weights);
+        console.log(`Total found: ${totalResults}. Requested: ${count}`);
 
-    let resetDate = "Bilinmiyor";
-    if (lastQuota && lastQuota.reset) {
-        resetDate = new Date(parseInt(lastQuota.reset) * 1000).toLocaleString('tr-TR');
-    }
+        // Fetch more pages if needed
+        const numItemsNeeded = Math.min(count, totalResults, 5000); // Scopus limit
+        const maxPages = Math.ceil(numItemsNeeded / chunkSize);
 
-    return {
-        totalFound: totalResults,
-        analyzedCount: rankedData.length,
-        results: rankedData.slice(0, 500), 
-        quota: {
+        for (let i = 1; i < maxPages; i++) {
+            const start = i * chunkSize;
+
+            try {
+                const { data: pageData, quotaInfo: pQuota } = await fetchPage(query, start, chunkSize);
+                lastQuota = pQuota;
+
+                if (pageData["search-results"] && pageData["search-results"].entry) {
+                    rawListings.push(...pageData["search-results"].entry);
+                }
+                await new Promise(resolve => setTimeout(resolve, 800));
+            } catch (err) {
+                console.error("Pagination error:", err);
+                break; 
+            }
+        }
+
+        // Normalize Data
+        console.log(`Normalizing ${rawListings.length} raw items...`);
+        let cleanData = await normalizeData(rawListings, query);
+
+        // Apply AHP
+        console.log("Calculating AHP scores...");
+        const rankedData = await calculateAHP(cleanData, weights);
+
+        let resetDate = "Bilinmiyor";
+        if (lastQuota && lastQuota.reset) {
+            resetDate = new Date(parseInt(lastQuota.reset) * 1000).toLocaleString('tr-TR');
+        }
+
+        return {
+            totalFound: totalResults,
+            analyzedCount: rankedData.length,
+            results: rankedData.slice(0, 500), 
+            quota: {
+                limit: lastQuota?.limit,
+                remaining: lastQuota?.remaining,
+                reset: resetDate
+            }
+        };
+    } catch (error) {
+        let resetDate = "Bilinmiyor";
+        if (lastQuota && lastQuota.reset) {
+            resetDate = new Date(parseInt(lastQuota.reset) * 1000).toLocaleString('tr-TR');
+        }
+
+        // Hatayı yukarı fırlatırken kota bilgisini de içine gömelim
+        error.quota = {
             limit: lastQuota?.limit,
             remaining: lastQuota?.remaining,
             reset: resetDate
-        }
-    };
+        };
+        throw error;
+    }
 }

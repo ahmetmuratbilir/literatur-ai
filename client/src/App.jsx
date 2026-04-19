@@ -114,6 +114,8 @@ function App() {
     saveAs(blob, "literature_results.docx");
   };
 
+  const [quota, setQuota] = useState(null);
+
   const handleSearch = async (e) => {
     e.preventDefault();
     
@@ -131,13 +133,15 @@ function App() {
           mainTopic: mainTopic.trim(),
           authorName: authorName.trim(),
           keywords: JSON.stringify(validKeywords),
-          language,
           count: count || 10 
         }
       });
       setData(response.data);
+      if (response.data.quota) setQuota(response.data.quota);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to fetch results. Ensure backend is running.');
+      const errorData = err.response?.data;
+      setError(errorData?.error || 'Failed to fetch results. Ensure backend is running.');
+      if (errorData?.quota) setQuota(errorData.quota);
     } finally {
       setLoading(false);
     }
@@ -145,6 +149,7 @@ function App() {
 
   return (
     <div className="container">
+      {/* ... header ... */}
       <header style={{ marginBottom: '3rem', textAlign: 'center' }}>
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -218,25 +223,11 @@ function App() {
           <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', marginTop: '1rem', flexWrap: 'wrap', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Dil Seçimi</label>
-                <select
-                  className="input"
-                  style={{ width: '160px', paddingLeft: '1rem' }}
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                >
-                  <option value="">Tümü</option>
-                  <option value="eng">İngilizce</option>
-                  <option value="tur">Türkçe</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Makale Sayısı</label>
                 <input
                   type="number"
                   className="input"
-                  style={{ width: '100px', paddingLeft: '1rem' }}
+                  style={{ width: '150px', paddingLeft: '1rem' }}
                   value={count}
                   onChange={(e) => setCount(e.target.value)}
                   min="10"
@@ -269,9 +260,14 @@ function App() {
         {error && <p style={{ color: '#ef4444', marginTop: '1rem' }}>{error}</p>}
       </div>
 
-      {data && (
+      {(data || quota) && (
         <>
-          <GlobalStats totalFound={data.totalFound} analyzed={data.analyzedCount} quota={data.quota} />
+          <GlobalStats 
+            totalFound={data?.totalFound || 0} 
+            analyzed={data?.analyzedCount || 0} 
+            quota={quota} 
+          />
+
 
           <div className="grid">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '2rem 0 1rem 0', flexWrap: 'wrap', gap: '1rem' }}>
