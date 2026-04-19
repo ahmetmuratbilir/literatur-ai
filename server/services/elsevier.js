@@ -20,32 +20,43 @@ async function fetchPage(query, start, count) {
     });
 
     const quotaInfo = {
-        limit: resp.headers.get("X-RateLimit-Limit"),
-        remaining: resp.headers.get("X-RateLimit-Remaining"),
-        reset: resp.headers.get("X-RateLimit-Reset"),
-        status: resp.headers.get("X-ELS-Status")
+        limit: resp.headers.get("X-RateLimit-Limit") || resp.headers.get("x-ratelimit-limit"),
+        remaining: resp.headers.get("X-RateLimit-Remaining") || resp.headers.get("x-ratelimit-remaining"),
+        reset: resp.headers.get("X-RateLimit-Reset") || resp.headers.get("x-ratelimit-reset") || resp.headers.get("retry-after"),
+        status: resp.headers.get("X-ELS-Status") || resp.headers.get("x-els-status")
     };
 
     if (resp.status !== 200) {
+        // Debug için tüm başlıkları terminale basalım
+        console.log("--- TÜM API BAŞLIKLARI (DEBUG) ---");
+        resp.headers.forEach((v, k) => console.log(`${k}: ${v}`));
+
         let resetDate = "Bilinmiyor";
         if (quotaInfo.reset) {
-            resetDate = new Date(parseInt(quotaInfo.reset) * 1000).toLocaleString('tr-TR');
+            // Eğer reset bir sayıysa (Epoch) tarihe çevir, değilse olduğu gibi yaz (Retry-After saniye olabilir)
+            if (!isNaN(quotaInfo.reset)) {
+                resetDate = new Date(parseInt(quotaInfo.reset) * 1000).toLocaleString('tr-TR');
+            } else {
+                resetDate = quotaInfo.reset + " saniye sonra";
+            }
         }
 
+        const cleanStatus = (quotaInfo.status || "Hız Sınırı").split('-')[0].trim();
+
         console.error(`\n--- ELSEVIER API HATASI (${resp.status}) ---`);
-        console.error(`Durum Mesajı: ${quotaInfo.status || "Hız Sınırı (Throttling)"}`);
+        console.error(`Durum: ${cleanStatus}`);
         console.error(`Kalan Kota: ${quotaInfo.remaining || 0} / ${quotaInfo.limit || "Bilinmiyor"}`);
-        console.error(`Sıfırlanma Zamanı: ${resetDate}`);
+        console.error(`Sıfırlanma: ${resetDate}`);
         
         let errBody = "";
         try { errBody = await resp.text(); } catch(e){}
-        console.error(`Ham Hata Çıktısı:`, errBody);
+        console.error(`Hata Body:`, errBody);
         console.error(`--------------------------------------\n`);
 
-        if (quotaInfo.status === "QUOTA_EXCEEDED") {
-            throw new Error(`Elsevier Haftalık Kotanız Dolmuş! Sıfırlanma: ${resetDate}`);
+        if (cleanStatus === "QUOTA_EXCEEDED") {
+            throw new Error(`Kotanız Dolmuş. Yenilenme: ${resetDate}`);
         }
-        throw new Error(`Elsevier Hatası (${resp.status}): ${quotaInfo.status || "Çok fazla istek"}. Sıfırlanma: ${resetDate}`);
+        throw new Error(`API Hatası (${resp.status}): ${cleanStatus}. Yenilenme: ${resetDate}`);
     }
 
     const data = await resp.json();
