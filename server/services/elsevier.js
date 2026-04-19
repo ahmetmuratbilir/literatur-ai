@@ -19,23 +19,47 @@ async function fetchPage(query, start, count) {
         }
     });
 
+    const quotaInfo = {
+        limit: resp.headers.get("X-RateLimit-Limit"),
+        remaining: resp.headers.get("X-RateLimit-Remaining"),
+        reset: resp.headers.get("X-RateLimit-Reset"),
+        status: resp.headers.get("X-ELS-Status")
+    };
+
     if (resp.status !== 200) {
+        let resetDate = "Bilinmiyor";
+        if (quotaInfo.reset) {
+            resetDate = new Date(parseInt(quotaInfo.reset) * 1000).toLocaleString('tr-TR');
+        }
+
+        console.error(`\n--- ELSEVIER API HATASI (${resp.status}) ---`);
+        console.error(`Durum Mesajı: ${quotaInfo.status || "Hız Sınırı (Throttling)"}`);
+        console.error(`Kalan Kota: ${quotaInfo.remaining || 0} / ${quotaInfo.limit || "Bilinmiyor"}`);
+        console.error(`Sıfırlanma Zamanı: ${resetDate}`);
+        
         let errBody = "";
         try { errBody = await resp.text(); } catch(e){}
-        console.error(`Elsevier API ${resp.status} Error Body:`, errBody);
-        throw new Error(`Error fetching page starting at ${start}: ${resp.status}`);
+        console.error(`Ham Hata Çıktısı:`, errBody);
+        console.error(`--------------------------------------\n`);
+
+        if (quotaInfo.status === "QUOTA_EXCEEDED") {
+            throw new Error(`Elsevier Haftalık Kotanız Dolmuş! Sıfırlanma: ${resetDate}`);
+        }
+        throw new Error(`Elsevier Hatası (${resp.status}): ${quotaInfo.status || "Çok fazla istek"}. Sıfırlanma: ${resetDate}`);
     }
 
-    return await resp.json();
+    const data = await resp.json();
+    return { data, quotaInfo };
 }
 
 export async function searchLiterature(query, count, weights = null) {
-    // Scopus API allows max 25 items per page for standard keys.
     const chunkSize = 25;
-    
-    // Initial fetch to get total results
     let rawListings = [];
-    const firstPage = await fetchPage(query, 0, chunkSize);
+    let lastQuota = null;
+
+    // Initial fetch to get total results
+    const { data: firstPage, quotaInfo } = await fetchPage(query, 0, chunkSize);
+    lastQuota = quotaInfo;
 
     if (!firstPage["search-results"]) {
         throw new Error("Invalid API response from Elsevier");
@@ -48,22 +72,23 @@ export async function searchLiterature(query, count, weights = null) {
     console.log(`Total found: ${totalResults}. Requested: ${count}`);
 
     // Fetch more pages if needed
-    const numItemsNeeded = Math.min(count, totalResults);
+    const numItemsNeeded = Math.min(count, totalResults, 5000); // Scopus limit
     const maxPages = Math.ceil(numItemsNeeded / chunkSize);
 
     for (let i = 1; i < maxPages; i++) {
         const start = i * chunkSize;
 
         try {
-            const pageData = await fetchPage(query, start, chunkSize);
+            const { data: pageData, quotaInfo: pQuota } = await fetchPage(query, start, chunkSize);
+            lastQuota = pQuota;
+
             if (pageData["search-results"] && pageData["search-results"].entry) {
                 rawListings.push(...pageData["search-results"].entry);
             }
-            // Bekleme süresi ekleyerek 429 (Too Many Requests) hatasını önleyelim
             await new Promise(resolve => setTimeout(resolve, 800));
         } catch (err) {
             console.error("Pagination error:", err);
-            break; // Stop fetching more pages if one fails
+            break; 
         }
     }
 
@@ -75,9 +100,19 @@ export async function searchLiterature(query, count, weights = null) {
     console.log("Calculating AHP scores...");
     const rankedData = await calculateAHP(cleanData, weights);
 
+    let resetDate = "Bilinmiyor";
+    if (lastQuota && lastQuota.reset) {
+        resetDate = new Date(parseInt(lastQuota.reset) * 1000).toLocaleString('tr-TR');
+    }
+
     return {
         totalFound: totalResults,
         analyzedCount: rankedData.length,
-        results: rankedData.slice(0, 100) // Return top 100
+        results: rankedData.slice(0, 500), 
+        quota: {
+            limit: lastQuota?.limit,
+            remaining: lastQuota?.remaining,
+            reset: resetDate
+        }
     };
 }

@@ -246,8 +246,22 @@ function App() {
             </div>
 
             <button type="submit" disabled={loading} className="btn" style={{ padding: '0.875rem 2.5rem' }}>
-              {loading ? <Loader2 className="animate-spin" /> : <Search size={18} />}
-              {loading ? 'Aranıyor...' : 'Akıllı Arama Başlat'}
+              {loading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Loader2 className="animate-spin" size={18} />
+                    <span>Aranıyor...</span>
+                  </div>
+                  <span style={{ fontSize: '0.7rem', opacity: 0.8, fontWeight: 'normal' }}>
+                    Tahmini süre: {Math.ceil((count / 25) * 1.5) + 1} saniye
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <Search size={18} />
+                  <span>Akıllı Arama Başlat</span>
+                </>
+              )}
             </button>
           </div>
         </form>
@@ -257,7 +271,7 @@ function App() {
 
       {data && (
         <>
-          <GlobalStats totalFound={data.totalFound} analyzed={data.analyzedCount} />
+          <GlobalStats totalFound={data.totalFound} analyzed={data.analyzedCount} quota={data.quota} />
 
           <div className="grid">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '2rem 0 1rem 0', flexWrap: 'wrap', gap: '1rem' }}>
