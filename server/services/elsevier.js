@@ -82,6 +82,8 @@ export async function searchLiterature(query, count, weights = null) {
             if (pageData["search-results"].entry) {
                 rawListings.push(...pageData["search-results"].entry);
             }
+            // Bekleme süresi ekleyerek 429 (Too Many Requests) hatasını önleyelim
+            await new Promise(resolve => setTimeout(resolve, 500));
         } catch (err) {
             console.error("Pagination error:", err);
             break; // Stop fetching more pages if one fails

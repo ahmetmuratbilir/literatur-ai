@@ -1,0 +1,6 @@
+node_modules/
+.env
+.DS_Store
+exdata.json
+exdata - Kopya.json
+cleardata2.json

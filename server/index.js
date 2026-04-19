@@ -66,7 +66,7 @@ app.get('/api/search', async (req, res) => {
             return res.status(400).json({ error: 'At least one search parameter is required' });
         }
 
-        const limit = count ? parseInt(count) : 100;
+        const limit = count ? parseInt(count) : 25;
         
         console.log(`Received search request. Final Query: ${finalQuery}, limit: ${limit}`);
         

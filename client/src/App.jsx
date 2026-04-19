@@ -13,7 +13,7 @@ function App() {
   const [mainTopic, setMainTopic] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [keywords, setKeywords] = useState(['', '', '']);
-  const [count, setCount] = useState(100);
+  const [count, setCount] = useState(25);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -132,7 +132,7 @@ function App() {
           authorName: authorName.trim(),
           keywords: JSON.stringify(validKeywords),
           language,
-          count: count || 100 
+          count: count || 25 
         }
       });
       setData(response.data);
