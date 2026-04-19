@@ -268,42 +268,43 @@ function App() {
             quota={quota} 
           />
 
-
-          <div className="grid">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '2rem 0 1rem 0', flexWrap: 'wrap', gap: '1rem' }}>
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <BarChart2 /> Top Ranked Articles (AHP)
-              </h2>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button 
-                  onClick={exportToPDF}
-                  className="pill-btn"
-                  style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }}
-                >
-                  <FileText size={16} /> PDF
-                </button>
-                <button 
-                  onClick={exportToCSV}
-                  className="pill-btn"
-                  style={{ background: '#ecfdf5', color: '#10b981', border: '1px solid #6ee7b7' }}
-                >
-                  <BarChart2 size={16} /> Excel
-                </button>
-                <button 
-                  onClick={exportToWord}
-                  className="pill-btn"
-                  style={{ background: '#eff6ff', color: '#3b82f6', border: '1px solid #93c5fd' }}
-                >
-                  <BookOpen size={16} /> Word
-                </button>
+          {data && (
+            <div className="grid">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '2rem 0 1rem 0', flexWrap: 'wrap', gap: '1rem' }}>
+                <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <BarChart2 /> Top Ranked Articles (AHP)
+                </h2>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    onClick={exportToPDF}
+                    className="pill-btn"
+                    style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }}
+                  >
+                    <FileText size={16} /> PDF
+                  </button>
+                  <button 
+                    onClick={exportToCSV}
+                    className="pill-btn"
+                    style={{ background: '#ecfdf5', color: '#10b981', border: '1px solid #6ee7b7' }}
+                  >
+                    <BarChart2 size={16} /> Excel
+                  </button>
+                  <button 
+                    onClick={exportToWord}
+                    className="pill-btn"
+                    style={{ background: '#eff6ff', color: '#3b82f6', border: '1px solid #93c5fd' }}
+                  >
+                    <BookOpen size={16} /> Word
+                  </button>
+                </div>
               </div>
+              <AnimatePresence>
+                {data.results && data.results.map((item, index) => (
+                  <ResultCard key={item.id} item={item} rank={index + 1} />
+                ))}
+              </AnimatePresence>
             </div>
-            <AnimatePresence>
-              {data.results.map((item, index) => (
-                <ResultCard key={item.id} item={item} rank={index + 1} />
-              ))}
-            </AnimatePresence>
-          </div>
+          )}
         </>
       )}
     </div>
