@@ -179,41 +179,58 @@ function App() {
         </motion.div>
       </header>
 
-      <div className="glass-panel" style={{ maxWidth: '800px', margin: '0 auto 3rem auto' }}>
-        <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
-            
-            <div style={{ flex: '1', minWidth: '250px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Ana Konu / Makale Adı</label>
-              <div className="input-wrapper">
-                <Search className="input-icon" size={18} />
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="Örn: Artificial Intelligence"
-                  value={mainTopic}
-                  onChange={(e) => setMainTopic(e.target.value)}
-                />
-              </div>
+      <div className="glass-panel" style={{ maxWidth: '900px', margin: '0 auto 3rem auto' }}>
+        <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          
+          {/* Hero Search Section */}
+          <div className="hero-input-wrapper">
+            <label style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)', display: 'block', marginBottom: '0.75rem' }}>
+              Ana Konu veya Makale Adı
+            </label>
+            <div className="input-wrapper">
+              <Search className="input-icon" size={24} />
+              <input
+                type="text"
+                className="hero-input"
+                placeholder="Örn: Artificial Intelligence in Healthcare"
+                value={mainTopic}
+                onChange={(e) => setMainTopic(e.target.value)}
+              />
             </div>
-            
-            <div style={{ flex: '1', minWidth: '250px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          </div>
+
+          {/* Secondary Filters */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <label style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Yazar Adı</label>
               <div className="input-wrapper">
                 <User className="input-icon" size={18} />
                 <input
                   type="text"
                   className="input"
-                  placeholder="Örn: Smith"
+                  placeholder="Yazar adı (Opsiyonel)"
                   value={authorName}
                   onChange={(e) => setAuthorName(e.target.value)}
                 />
               </div>
             </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Makale Sayısı</label>
+              <input
+                type="number"
+                className="input"
+                style={{ paddingLeft: '1.25rem' }}
+                value={count}
+                onChange={(e) => setCount(e.target.value)}
+                min="10"
+                max="500"
+              />
+            </div>
           </div>
           
           <div style={{ width: '100%' }}>
-            <label style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.5rem' }}>Ek Anahtar Kelimeler (İsteğe Bağlı)</label>
+            <label style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.75rem' }}>Filtreleme Anahtar Kelimeleri</label>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               {keywords.map((kw, idx) => (
                 <div key={idx} className="input-wrapper" style={{ flex: '1', minWidth: '150px' }}>
@@ -233,48 +250,64 @@ function App() {
               ))}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', marginTop: '1rem', flexWrap: 'wrap', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Makale Sayısı</label>
-                <input
-                  type="number"
-                  className="input"
-                  style={{ width: '150px', paddingLeft: '1rem' }}
-                  value={count}
-                  onChange={(e) => setCount(e.target.value)}
-                  min="10"
-                  max="500"
-                />
-              </div>
-            </div>
 
-            <button type="submit" disabled={loading} className="btn" style={{ padding: '0.875rem 2.5rem' }}>
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+            <button type="submit" disabled={loading} className="btn">
               {loading ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Loader2 className="animate-spin" size={18} />
-                    <span>Aranıyor...</span>
+                    <Loader2 className="animate-spin" size={20} />
+                    <span>Araştırma Başlatıldı...</span>
                   </div>
-                  <span style={{ fontSize: '0.7rem', opacity: 0.8, fontWeight: 'normal' }}>
-                    Tahmini süre: {Math.ceil((count / 25) * 1.5) + 1} saniye
+                  <span style={{ fontSize: '0.8rem', opacity: 0.8, fontWeight: 'normal' }}>
+                    Tahmini {Math.ceil((count / 25) * 1.5) + 1} saniye içinde sonuçlanacak
                   </span>
                 </div>
               ) : (
                 <>
-                  <Search size={18} />
-                  <span>Akıllı Arama Başlat</span>
+                  <Search size={20} />
+                  <span>Akıllı Literatür Taraması Yap</span>
                 </>
               )}
             </button>
           </div>
         </form>
 
-        {error && <p style={{ color: '#ef4444', marginTop: '1rem' }}>{error}</p>}
+        {error && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            style={{ 
+              marginTop: '1.5rem', 
+              padding: '1.25rem', 
+              background: '#fff1f2', 
+              border: '1px solid #fecaca', 
+              borderRadius: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              color: '#991b1b'
+            }}
+          >
+            <div style={{ background: '#f87171', color: 'white', padding: '0.4rem', borderRadius: '50%', display: 'flex' }}>
+              <Loader2 size={16} />
+            </div>
+            <div style={{ fontSize: '0.95rem', fontWeight: '500' }}>
+              {error.includes('Kotanız') ? (
+                <>
+                  <strong>Erişim Sınırı:</strong> {error.split('Yenilenme:')[0]} 
+                  <span style={{ display: 'block', fontSize: '0.85rem', opacity: 0.8 }}>
+                    Yenilenme Tarihi: {error.split('Yenilenme:')[1] || 'Sistem tarafından belirleniyor'}
+                  </span>
+                </>
+              ) : error}
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {(data || quota) && (
-        <>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
           <GlobalStats 
             totalFound={data?.totalFound || 0} 
             analyzed={data?.analyzedCount || 0} 
@@ -283,30 +316,18 @@ function App() {
 
           {data && (
             <div className="grid">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '2rem 0 1rem 0', flexWrap: 'wrap', gap: '1rem' }}>
-                <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <BarChart2 /> Top Ranked Articles (AHP)
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '1rem 0', flexWrap: 'wrap', gap: '1rem' }}>
+                <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0 }}>
+                  <BarChart2 color="var(--accent)" /> En İyi Eşleşen Makaleler (AHP Skorlaması)
                 </h2>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button 
-                    onClick={exportToPDF}
-                    className="pill-btn"
-                    style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }}
-                  >
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button onClick={exportToPDF} className="pill-btn" style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }}>
                     <FileText size={16} /> PDF
                   </button>
-                  <button 
-                    onClick={exportToCSV}
-                    className="pill-btn"
-                    style={{ background: '#ecfdf5', color: '#10b981', border: '1px solid #6ee7b7' }}
-                  >
+                  <button onClick={exportToCSV} className="pill-btn" style={{ background: '#ecfdf5', color: '#10b981', border: '1px solid #6ee7b7' }}>
                     <BarChart2 size={16} /> Excel
                   </button>
-                  <button 
-                    onClick={exportToWord}
-                    className="pill-btn"
-                    style={{ background: '#eff6ff', color: '#3b82f6', border: '1px solid #93c5fd' }}
-                  >
+                  <button onClick={exportToWord} className="pill-btn" style={{ background: '#eff6ff', color: '#3b82f6', border: '1px solid #93c5fd' }}>
                     <BookOpen size={16} /> Word
                   </button>
                 </div>
@@ -318,9 +339,8 @@ function App() {
               </AnimatePresence>
             </div>
           )}
-        </>
+        </div>
       )}
-    </div>
   );
 }
 
