@@ -19,6 +19,29 @@ function App() {
   const [error, setError] = useState(null);
   const [language, setLanguage] = useState('');
   const [showBanner, setShowBanner] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+
+  const loadingMessages = [
+    "Scopus Veritabanına Bağlanılıyor...",
+    "Akademik Veriler Çekiliyor...",
+    "Makaleler Filtreleniyor...",
+    "AHP Skorlaması Hesaplanıyor...",
+    "Literatür Haritası Çıkarılıyor...",
+    "Sonuçlar Hazırlanıyor..."
+  ];
+
+  useEffect(() => {
+    let interval;
+    if (loading) {
+      setLoadingStep(0);
+      interval = setInterval(() => {
+        setLoadingStep(prev => (prev + 1) % loadingMessages.length);
+      }, 2000);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [loading]);
 
   useEffect(() => {
     if (data?.demoMode) {
@@ -178,7 +201,7 @@ function App() {
   };
 
   return (
-    <div className="container">
+    <main className="container">
       <AnimatePresence>
         {showBanner && data?.demoMode && (
           <motion.div
@@ -215,6 +238,7 @@ function App() {
             <button 
               onClick={() => setShowBanner(false)} 
               style={{ background: 'none', border: 'none', color: '#9a3412', padding: '0.5rem', marginLeft: 'auto' }}
+              aria-label="Uyarıyı Kapat"
             >
               <Tag size={20} />
             </button>
@@ -234,7 +258,7 @@ function App() {
           </h1>
           <p style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             AI-Powered Research Assistant • Powered by
-            <img src="https://upload.wikimedia.org/wikipedia/commons/2/26/Scopus_logo.svg" alt="Scopus" style={{ height: '20px' }} />
+            <img src="/scopus_logo.svg" alt="Scopus" style={{ height: '20px' }} />
           </p>
         </motion.div>
       </header>
@@ -244,12 +268,13 @@ function App() {
           
           {/* Hero Search Section */}
           <div className="hero-input-wrapper">
-            <label style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)', display: 'block', marginBottom: '0.75rem' }}>
+            <label htmlFor="mainTopic" style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)', display: 'block', marginBottom: '0.75rem' }}>
               Ana Konu veya Makale Adı
             </label>
             <div className="input-wrapper">
-              <Search className="input-icon" size={24} />
+              <Search className="input-icon" size={24} aria-hidden="true" />
               <input
+                id="mainTopic"
                 type="text"
                 className="hero-input"
                 placeholder="Örn: Artificial Intelligence in Healthcare"
@@ -262,10 +287,11 @@ function App() {
           {/* Secondary Filters */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Yazar Adı</label>
+              <label htmlFor="authorName" style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Yazar Adı</label>
               <div className="input-wrapper">
-                <User className="input-icon" size={18} />
+                <User className="input-icon" size={18} aria-hidden="true" />
                 <input
+                  id="authorName"
                   type="text"
                   className="input"
                   placeholder="Yazar adı (Opsiyonel)"
@@ -276,8 +302,9 @@ function App() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Makale Sayısı</label>
+              <label htmlFor="articleCount" style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Makale Sayısı</label>
               <input
+                id="articleCount"
                 type="number"
                 className="input"
                 style={{ paddingLeft: '1.25rem' }}
@@ -294,11 +321,12 @@ function App() {
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               {keywords.map((kw, idx) => (
                 <div key={idx} className="input-wrapper" style={{ flex: '1', minWidth: '150px' }}>
-                  <Tag className="input-icon" size={16} />
+                  <Tag className="input-icon" size={16} aria-hidden="true" />
                   <input
                     type="text"
                     className="input"
                     placeholder={`Etiket ${idx + 1}`}
+                    aria-label={`Filtreleme anahtar kelimesi ${idx + 1}`}
                     value={kw}
                     onChange={(e) => {
                       const newKws = [...keywords];
@@ -317,10 +345,10 @@ function App() {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Loader2 className="animate-spin" size={20} />
-                    <span>Araştırma Başlatıldı...</span>
+                    <span>{loadingMessages[loadingStep]}</span>
                   </div>
                   <span style={{ fontSize: '0.8rem', opacity: 0.8, fontWeight: 'normal' }}>
-                    Tahmini {Math.ceil((count / 25) * 1.5) + 1} saniye içinde sonuçlanacak
+                    İşlem {Math.max(1, Math.ceil((count / 25) * 1.5))} - {Math.ceil((count / 25) * 2) + 2} saniye sürebilir
                   </span>
                 </div>
               ) : (
@@ -420,7 +448,7 @@ function App() {
           )}
         </div>
       )}
-    </div>
+    </main>
   );
 }
 

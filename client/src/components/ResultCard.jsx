@@ -50,7 +50,7 @@ const ResultCard = ({ item, rank }) => {
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><FileText size={14} /> {item.publicationName}</span>
                 </div>
 
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.6', margin: 0, opacity: 0.8 }}>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.6', margin: 0 }}>
                     {item.description ? item.description.substring(0, 160) + '...' : 'No description available for this article.'}
                 </p>
             </div>

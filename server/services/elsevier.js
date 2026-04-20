@@ -155,6 +155,10 @@ export async function searchLiterature(query, count, weights = null) {
                 
                 console.log(`Demo modu aktif: ${exData.length} yerel kayıt yüklendi.`);
                 
+                // Realistic delay for demo mode (1.5s - 2.5s)
+                const delay = Math.floor(Math.random() * 1000) + 1500;
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
                 const cleanData = await normalizeData(exData, query);
                 const rankedData = await calculateAHP(cleanData, weights);
 
