@@ -340,7 +340,7 @@ function App() {
                             border: '1px solid rgba(245, 158, 11, 0.2)'
                         }}>
                             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#d97706', animation: 'pulse 2s infinite' }}></div>
-                            Demo Modu Aktif (Örnek Veriler Gösteriliyor)
+                            API Kotası Dolduğu İçin Demo Modu Aktif - Şu an sadece örnek makaleler gösteriliyor
                         </div>
                     )}
                 </div>
