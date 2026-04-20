@@ -153,6 +153,11 @@ function App() {
       if (response.data.quota) setQuota(response.data.quota);
     } catch (err) {
       const errorData = err.response?.data;
+      if (errorData?.demoMode) {
+        setData(errorData);
+        if (errorData.quota) setQuota(errorData.quota);
+        return; // Don't show error if we got demo data
+      }
       setError(errorData?.error || 'Failed to fetch results. Ensure backend is running.');
       if (errorData?.quota) setQuota(errorData.quota);
     } finally {
@@ -317,9 +322,28 @@ function App() {
           {data && (
             <div className="grid">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '1rem 0', flexWrap: 'wrap', gap: '1rem' }}>
-                <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0 }}>
-                  <BarChart2 color="var(--accent)" /> En İyi Eşleşen Makaleler (AHP Skorlaması)
-                </h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0 }}>
+                    <BarChart2 color="var(--accent)" /> En İyi Eşleşen Makaleler (AHP Skorlaması)
+                    </h2>
+                    {data.demoMode && (
+                        <div style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '0.5rem', 
+                            padding: '0.4rem 0.8rem', 
+                            background: 'rgba(245, 158, 11, 0.1)', 
+                            color: '#d97706', 
+                            borderRadius: '20px',
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            border: '1px solid rgba(245, 158, 11, 0.2)'
+                        }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#d97706', animation: 'pulse 2s infinite' }}></div>
+                            Demo Modu Aktif (Örnek Veriler Gösteriliyor)
+                        </div>
+                    )}
+                </div>
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
                   <button onClick={exportToPDF} className="pill-btn" style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }}>
                     <FileText size={16} /> PDF
@@ -341,6 +365,7 @@ function App() {
           )}
         </div>
       )}
+    </div>
   );
 }
 

@@ -1,6 +1,11 @@
 import { fetch } from "undici";
 import { normalizeData } from "../utils/normalization.js";
 import { calculateAHP } from "./ahp.js";
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const REQUEST_TYPE = "GET";
 const API_URL = "https://api.elsevier.com";
@@ -141,6 +146,30 @@ export async function searchLiterature(query, count, weights = null) {
         }
 
         // Hatayı yukarı fırlatırken kota bilgisini de içine gömelim
+        if (error.message.includes("429") || error.message.includes("Kotanız")) {
+            console.log("--- KOTA DOLU: DEMO MODUNA GEÇİLİYOR ---");
+            try {
+                const exDataPath = path.join(__dirname, "../../exdata.json");
+                const rawExData = await fs.readFile(exDataPath, "utf-8");
+                const exData = JSON.parse(rawExData);
+                
+                console.log(`Demo modu aktif: ${exData.length} yerel kayıt yüklendi.`);
+                
+                const cleanData = await normalizeData(exData, query);
+                const rankedData = await calculateAHP(cleanData, weights);
+
+                return {
+                    totalFound: exData.length,
+                    analyzedCount: rankedData.length,
+                    results: rankedData.slice(0, count || 10),
+                    demoMode: true,
+                    quota: error.quota || { limit: 1000, remaining: 0, reset: resetDate }
+                };
+            } catch (fsErr) {
+                console.error("Demo verisi yüklenirken hata:", fsErr);
+            }
+        }
+
         error.quota = {
             limit: lastQuota?.limit,
             remaining: lastQuota?.remaining,

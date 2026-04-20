@@ -41,7 +41,7 @@ const GlobalStats = ({ totalFound, analyzed, quota }) => {
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '1rem' }}>
+    <div className="stats-grid">
       {stats.map((stat, idx) => (
         <motion.div
           key={idx}
