@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, BookOpen, BarChart2, Loader2, User, Tag, FileText } from 'lucide-react';
+import { Search, BookOpen, BarChart2, Loader2, User, Tag, FileText, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ResultCard from './components/ResultCard';
 import GlobalStats from './components/GlobalStats';
@@ -18,6 +18,18 @@ function App() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [language, setLanguage] = useState('');
+  const [showBanner, setShowBanner] = useState(false);
+
+  useEffect(() => {
+    if (data?.demoMode) {
+      setShowBanner(true);
+      const timer = setTimeout(() => {
+        setShowBanner(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [data]);
+
 
   const COPYRIGHT_NOTICE = "© Bazı hakları saklıdır. Bu çalışma, orijinal yazar ve kaynağın belirtilmesi koşuluyla, yalnızca akademik araştırma amaçlarına, dağıtıma ve herhangi bir ortamda çoğaltmaya izin vermektedir.";
 
@@ -167,6 +179,49 @@ function App() {
 
   return (
     <div className="container">
+      <AnimatePresence>
+        {showBanner && data?.demoMode && (
+          <motion.div
+            initial={{ y: -100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -100, opacity: 0 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9999,
+              width: '90%',
+              maxWidth: '600px',
+              background: '#fff7ed',
+              border: '2px solid #fb923c',
+              borderRadius: '16px',
+              padding: '1rem 1.5rem',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem'
+            }}
+          >
+            <div style={{ background: '#fb923c', color: 'white', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}>
+              <Activity size={20} />
+            </div>
+            <div>
+              <h4 style={{ margin: 0, color: '#9a3412', fontSize: '1rem', fontWeight: '700' }}>Önemli: Demo Modu Aktif</h4>
+              <p style={{ margin: '2px 0 0 0', color: '#c2410c', fontSize: '0.85rem', fontWeight: '500', lineHeight: '1.4' }}>
+                Elsevier API günlük kotası dolduğu için şu an gerçek aramalar yapılamıyor. Aşağıdaki sonuçlar sistemdeki <strong>örnek veritabanından</strong> getirilmiştir.
+              </p>
+            </div>
+            <button 
+              onClick={() => setShowBanner(false)} 
+              style={{ background: 'none', border: 'none', color: '#9a3412', padding: '0.5rem', marginLeft: 'auto' }}
+            >
+              <Tag size={20} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ... header ... */}
       <header style={{ marginBottom: '3rem', textAlign: 'center' }}>
         <motion.div
