@@ -123,9 +123,9 @@ function App() {
             <tr style="background-color: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">
               <th style="padding: 6px 8px; text-align: left; width: 25px; color: #475569;">#</th>
               <th style="padding: 6px 8px; text-align: left; color: #475569;">Makale Başlığı ve Özet</th>
-              <th style="padding: 6px 8px; text-align: left; width: 110px; color: #475569;">Yazar / Yıl</th>
-              <th style="padding: 6px 8px; text-align: center; width: 50px; color: #475569;">Atıf</th>
-              <th style="padding: 6px 8px; text-align: right; width: 70px; color: #475569;">AHP Skoru</th>
+              <th style="padding: 6px 8px; text-align: left; width: 100px; color: #475569;">Yazar / Yıl</th>
+              <th style="padding: 6px 8px; text-align: center; width: 40px; color: #475569;">Atıf</th>
+              <th style="padding: 6px 8px; text-align: right; width: 65px; color: #475569;">AHP Skoru</th>
             </tr>
           </thead>
           <tbody>
@@ -136,7 +136,7 @@ function App() {
                 <td style="padding: 6px 8px; font-weight: 800; color: #6366f1;">${index + 1}</td>
                 <td style="padding: 6px 8px;">
                   <div style="font-weight: 700; color: #1e293b; margin-bottom: 2px; font-size: 9.5px;">${item.title}</div>
-                  <div style="font-size: 8.5px; color: #64748b; line-height: 1.25;">${item.description ? item.description.substring(0, 160) + '...' : 'Özet bulunmuyor.'}</div>
+                  ${item.description ? `<div style="font-size: 8.5px; color: #64748b; line-height: 1.25;">${item.description.substring(0, 160)}...</div>` : ''}
                 </td>
                 <td style="padding: 6px 8px; color: #475569;">
                   <div style="font-weight: 600;">${item.creator || 'Bilinmeyen'}</div>
