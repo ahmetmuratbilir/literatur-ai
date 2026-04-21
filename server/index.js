@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import translate from 'google-translate-api-x';
 import { searchLiterature } from './services/elsevier.js';
 
 dotenv.config();
@@ -11,80 +12,99 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-import translate from 'google-translate-api-x';
-
-// Main search endpoint
 app.get('/api/search', async (req, res) => {
+  try {
+    const { mainTopic, authorName, keywords, language, count } = req.query;
+
+    let keywordList = [];
+
     try {
-        const { mainTopic, authorName, keywords, language, count } = req.query;
-        
-        let kwList = [];
-        try {
-            if (keywords) kwList = JSON.parse(keywords);
-        } catch(e){}
-
-        const queryParts = [];
-        
-        // Translate and build query
-        if (mainTopic) {
-            let topicQuery = `title(${mainTopic}) OR key(${mainTopic})`;
-            try {
-                const tr = await translate(mainTopic, { to: 'en' });
-                if (tr && tr.text && tr.text.toLowerCase() !== mainTopic.toLowerCase()) {
-                    topicQuery += ` OR title(${tr.text}) OR key(${tr.text})`;
-                }
-            } catch(e) { console.error("Translate error:", e); }
-            queryParts.push(`(${topicQuery})`);
-        }
-
-        if (authorName) {
-            queryParts.push(`aut(${authorName})`);
-        }
-
-        if (kwList.length > 0) {
-            let kwQueries = [];
-            for (let k of kwList) {
-                let kQuery = `key(${k})`;
-                try {
-                    const tr = await translate(k, { to: 'en' });
-                    if (tr && tr.text && tr.text.toLowerCase() !== k.toLowerCase()) {
-                        kQuery += ` OR key(${tr.text})`;
-                    }
-                } catch(e) { console.error("Translate error:", e); }
-                kwQueries.push(`(${kQuery})`);
-            }
-            queryParts.push(kwQueries.join(' AND '));
-        }
-
-        if (language) {
-            queryParts.push(`language(${language})`);
-        }
-
-        const finalQuery = queryParts.join(' AND ');
-
-        if (!finalQuery) {
-            return res.status(400).json({ error: 'At least one search parameter is required' });
-        }
-
-        const limit = count ? parseInt(count) : 10;
-        
-        console.log(`Received search request. Final Query: ${finalQuery}, limit: ${limit}`);
-        
-        const results = await searchLiterature(finalQuery, limit, null);
-        res.json(results);
-        
-    } catch (error) {
-        console.error('Search error:', error);
-        
-        const isQuotaError = error.message.includes('429') || error.message.includes('Kota');
-        
-        res.status(isQuotaError ? 429 : 500).json({ 
-            error: error.message || 'Internal Server Error',
-            quota: error.quota || null // Hata objesinden kotayı alıp gönderiyoruz
-        });
+      if (keywords) {
+        keywordList = JSON.parse(keywords);
+      }
+    } catch {
+      keywordList = [];
     }
+
+    const queryParts = [];
+
+    if (mainTopic) {
+      let topicQuery = `title(${mainTopic}) OR key(${mainTopic})`;
+
+      try {
+        const translated = await translate(mainTopic, { to: 'en' });
+
+        if (
+          translated?.text &&
+          translated.text.toLowerCase() !== String(mainTopic).toLowerCase()
+        ) {
+          topicQuery += ` OR title(${translated.text}) OR key(${translated.text})`;
+        }
+      } catch (error) {
+        console.error('Translate error:', error);
+      }
+
+      queryParts.push(`(${topicQuery})`);
+    }
+
+    if (authorName) {
+      queryParts.push(`aut(${authorName})`);
+    }
+
+    if (keywordList.length > 0) {
+      const keywordQueries = [];
+
+      for (const keyword of keywordList) {
+        let keywordQuery = `key(${keyword})`;
+
+        try {
+          const translated = await translate(keyword, { to: 'en' });
+
+          if (
+            translated?.text &&
+            translated.text.toLowerCase() !== String(keyword).toLowerCase()
+          ) {
+            keywordQuery += ` OR key(${translated.text})`;
+          }
+        } catch (error) {
+          console.error('Translate error:', error);
+        }
+
+        keywordQueries.push(`(${keywordQuery})`);
+      }
+
+      queryParts.push(keywordQueries.join(' AND '));
+    }
+
+    if (language) {
+      queryParts.push(`language(${language})`);
+    }
+
+    const finalQuery = queryParts.join(' AND ');
+
+    if (!finalQuery) {
+      return res.status(400).json({ error: 'At least one search parameter is required.' });
+    }
+
+    const limit = Number.isFinite(parseInt(count, 10)) ? parseInt(count, 10) : 10;
+
+    console.log(`Received search request. Final Query: ${finalQuery}, limit: ${limit}`);
+
+    const results = await searchLiterature(finalQuery, limit, null);
+    return res.json(results);
+  } catch (error) {
+    console.error('Search error:', error);
+
+    const message = error instanceof Error ? error.message : 'Dahili Sunucu Hatası';
+    const isQuotaError = message.includes('429') || message.includes('Kotanız');
+
+    return res.status(isQuotaError ? 429 : 500).json({
+      error: message,
+      quota: error?.quota || null,
+    });
+  }
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

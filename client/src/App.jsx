@@ -1,44 +1,76 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Search, BookOpen, BarChart2, Loader2, User, Tag, FileText, Activity } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import ResultCard from './components/ResultCard';
-import GlobalStats from './components/GlobalStats';
+import { AnimatePresence, motion } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Document, Packer, Paragraph, Table, TableRow, TableCell, HeadingLevel, WidthType } from 'docx';
+import {
+  Activity,
+  BarChart2,
+  BookOpen,
+  FileText,
+  Loader2,
+  Search,
+  Tag,
+  User,
+  Download,
+  AlertCircle,
+  X,
+  Zap,
+} from 'lucide-react';
+import {
+  Document,
+  HeadingLevel,
+  Packer,
+  Paragraph,
+  Table,
+  TableCell,
+  TableRow,
+  WidthType,
+  AlignmentType,
+} from 'docx';
 import { saveAs } from 'file-saver';
+import html2canvas from 'html2canvas';
+import ResultCard from './components/ResultCard';
+import GlobalStats from './components/GlobalStats';
+
+const MotionDiv = motion.div;
+
+const LOADING_MESSAGES = [
+  'Scopus veritabanına bağlanılıyor...',
+  'Akademik veriler çekiliyor...',
+  'Makaleler filtreleniyor...',
+  'AHP skorlaması hesaplanıyor...',
+  'Literatür haritası çıkarılıyor...',
+  'Sonuçlar hazırlanıyor...',
+];
+
+const COPYRIGHT_NOTICE =
+  '© LiteratureAI. Bu rapor akademik araştırma amacıyla oluşturulmuştur. Kaynak belirtilerek kullanılabilir.';
+
+const formatScore = (value) => {
+  const numeric = Number(value) || 0;
+  return Math.round(numeric * 100);
+};
 
 function App() {
   const [mainTopic, setMainTopic] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [keywords, setKeywords] = useState(['', '', '']);
-  const [count, setCount] = useState(10);
+  const [count, setCount] = useState(25);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [language, setLanguage] = useState('');
   const [showBanner, setShowBanner] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
-
-  const loadingMessages = [
-    "Scopus Veritabanına Bağlanılıyor...",
-    "Akademik Veriler Çekiliyor...",
-    "Makaleler Filtreleniyor...",
-    "AHP Skorlaması Hesaplanıyor...",
-    "Literatür Haritası Çıkarılıyor...",
-    "Sonuçlar Hazırlanıyor..."
-  ];
+  const [quota, setQuota] = useState(null);
 
   useEffect(() => {
     let interval;
     if (loading) {
       setLoadingStep(0);
       interval = setInterval(() => {
-        setLoadingStep(prev => (prev + 1) % loadingMessages.length);
+        setLoadingStep((prev) => (prev + 1) % LOADING_MESSAGES.length);
       }, 2000);
-    } else {
-      clearInterval(interval);
     }
     return () => clearInterval(interval);
   }, [loading]);
@@ -46,144 +78,179 @@ function App() {
   useEffect(() => {
     if (data?.demoMode) {
       setShowBanner(true);
-      const timer = setTimeout(() => {
-        setShowBanner(false);
-      }, 5000);
+      const timer = setTimeout(() => setShowBanner(false), 8000);
       return () => clearTimeout(timer);
     }
   }, [data]);
 
-
-  const COPYRIGHT_NOTICE = "© Bazı hakları saklıdır. Bu çalışma, orijinal yazar ve kaynağın belirtilmesi koşuluyla, yalnızca akademik araştırma amaçlarına, dağıtıma ve herhangi bir ortamda çoğaltmaya izin vermektedir.";
-
   const exportToCSV = () => {
-    if (!data || !data.results) return;
-    const headers = ['Rank', 'Title', 'Year', 'Cited By', 'URL', 'AHP Score'];
-    const csvContent = [
-      headers.join(','),
-      ...data.results.map((item, i) => `"${i+1}","${item.title ? item.title.replace(/"/g, '""') : ''}",${item.year},${item.citedBy},"${item.url || ''}",${item.scores?.total || 0}`),
-      "",
+    if (!data?.results?.length) return;
+
+    const headers = ['Sıra', 'Başlık', 'Yıl', 'Atıf Sayısı', 'URL', 'AHP Skoru (%)'];
+    const csvRows = [
+      headers.join(';'),
+      ...data.results.map((item, index) => {
+        const title = (item.title || '').replace(/;/g, ',');
+        return `${index + 1};"${title}";${item.year || ''};${item.citedBy || 0};"${item.url || ''}";${formatScore(item.scores?.total)}`;
+      }),
+      '',
       `"${COPYRIGHT_NOTICE}"`
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", "literature_results.csv");
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    ];
+
+    const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `literature_results_${new Date().getTime()}.csv`);
   };
 
-  const exportToPDF = () => {
-    if (!data || !data.results) return;
-    const doc = new jsPDF();
-    doc.setFont("helvetica");
-    doc.text("Literature AI Search Results", 14, 20);
 
-    const tableData = data.results.map((item, i) => [
-      i + 1,
-      item.title || "No Title",
-      item.year,
-      item.citedBy,
-      item.scores?.total || 0
-    ]);
+  const exportToPDF = async () => {
+    if (!data?.results?.length) return;
 
-    autoTable(doc, {
-      head: [['Rank', 'Title', 'Year', 'Citations', 'AHP Score']],
-      body: tableData,
-      startY: 30,
-      styles: { fontSize: 8 },
-      columnStyles: { 1: { cellWidth: 100 } },
-      didDrawPage: (dataArg) => {
-        doc.setFontSize(7);
-        doc.text(COPYRIGHT_NOTICE, 14, doc.internal.pageSize.height - 10);
-      }
-    });
+    const exportContainer = document.createElement('div');
+    exportContainer.style.position = 'fixed';
+    exportContainer.style.left = '-9999px';
+    exportContainer.style.top = '0';
+    exportContainer.style.width = '800px';
+    exportContainer.style.padding = '40px';
+    exportContainer.style.background = 'white';
+    exportContainer.style.fontFamily = "'Inter', sans-serif";
 
-    doc.save("literature_results.pdf");
+    exportContainer.innerHTML = `
+      <div style="color: #4f46e5; font-size: 28px; font-weight: 800; margin-bottom: 8px;">LiteratureAI Araştırma Raporu</div>
+      <div style="color: #64748b; font-size: 14px; font-weight: 600; margin-bottom: 30px;">
+        Konu: ${mainTopic || 'Genel Arama'} | Tarih: ${new Date().toLocaleDateString('tr-TR')}
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+        <thead>
+          <tr style="background: #4f46e5; color: white; text-align: left;">
+            <th style="padding: 12px; border: 1px solid #e2e8f0;">Sıra</th>
+            <th style="padding: 12px; border: 1px solid #e2e8f0;">Makale Başlığı</th>
+            <th style="padding: 12px; border: 1px solid #e2e8f0;">Yıl</th>
+            <th style="padding: 12px; border: 1px solid #e2e8f0;">Atıf</th>
+            <th style="padding: 12px; border: 1px solid #e2e8f0;">Skor</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.results.map((item, index) => `
+            <tr style="background: ${index % 2 === 0 ? '#f8fafc' : 'white'};">
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">${index + 1}</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">${item.title || 'Başlıksız'}</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">${item.year || '-'}</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">${item.citedBy || 0}</td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 800; color: #4f46e5;">%${formatScore(item.scores?.total)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div style="margin-top: 30px; color: #94a3b8; font-size: 10px; text-align: center; font-style: italic;">
+        ${COPYRIGHT_NOTICE}
+      </div>
+    `;
+
+    document.body.appendChild(exportContainer);
+
+    try {
+      const canvas = await html2canvas(exportContainer, {
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`literature_results_${new Date().getTime()}.pdf`);
+    } catch (err) {
+      console.error('PDF Export Error:', err);
+    } finally {
+      document.body.removeChild(exportContainer);
+    }
   };
 
   const exportToWord = async () => {
-    if (!data || !data.results) return;
+    if (!data?.results?.length) return;
 
     const tableRows = [
       new TableRow({
-        children: [
-          new TableCell({ children: [new Paragraph({ text: "Rank", bold: true })] }),
-          new TableCell({ children: [new Paragraph({ text: "Title", bold: true })] }),
-          new TableCell({ children: [new Paragraph({ text: "Year", bold: true })] }),
-          new TableCell({ children: [new Paragraph({ text: "Citations", bold: true })] }),
-          new TableCell({ children: [new Paragraph({ text: "AHP Score", bold: true })] }),
-        ],
+        children: ['Sıra', 'Başlık', 'Yıl', 'Atıf', 'AHP Skoru'].map(text => 
+          new TableCell({ 
+            children: [new Paragraph({ text, bold: true })],
+            shading: { fill: '4F46E5' }
+          })
+        ),
       }),
     ];
 
-    data.results.forEach((item, i) => {
+    data.results.forEach((item, index) => {
       tableRows.push(
         new TableRow({
           children: [
-            new TableCell({ children: [new Paragraph(String(i + 1))] }),
-            new TableCell({ children: [new Paragraph(item.title || "No Title")] }),
-            new TableCell({ children: [new Paragraph(String(item.year))] }),
-            new TableCell({ children: [new Paragraph(String(item.citedBy))] }),
-            new TableCell({ children: [new Paragraph(String(item.scores?.total || 0))] }),
+            new TableCell({ children: [new Paragraph(String(index + 1))] }),
+            new TableCell({ children: [new Paragraph(item.title || 'Başlıksız')] }),
+            new TableCell({ children: [new Paragraph(String(item.year || '-'))] }),
+            new TableCell({ children: [new Paragraph(String(item.citedBy || 0))] }),
+            new TableCell({ children: [new Paragraph(`%${formatScore(item.scores?.total)}`)] }),
           ],
         })
       );
     });
 
     const doc = new Document({
-      sections: [
-        {
-          properties: {},
-          children: [
-            new Paragraph({
-              text: "Literature AI Search Results",
-              heading: HeadingLevel.HEADING_1,
-            }),
-            new Table({
-              rows: tableRows,
-              width: { size: 100, type: WidthType.PERCENTAGE },
-            }),
-            new Paragraph({ text: "" }),
-            new Paragraph({
-              text: COPYRIGHT_NOTICE,
-              italics: true,
-            }),
-          ],
-        },
-      ],
+      sections: [{
+        properties: {},
+        children: [
+          new Paragraph({
+            text: 'LiteratureAI Akademik Tarama Raporu',
+            heading: HeadingLevel.HEADING_1,
+            alignment: AlignmentType.CENTER
+          }),
+          new Paragraph({ text: '' }),
+          new Table({
+            rows: tableRows,
+            width: { size: 100, type: WidthType.PERCENTAGE },
+          }),
+          new Paragraph({ text: '' }),
+          new Paragraph({
+            text: COPYRIGHT_NOTICE,
+            italics: true,
+            alignment: AlignmentType.CENTER
+          }),
+        ],
+      }],
     });
 
     const blob = await Packer.toBlob(doc);
-    saveAs(blob, "literature_results.docx");
+    saveAs(blob, `literature_results_${new Date().getTime()}.docx`);
   };
 
-  const [quota, setQuota] = useState(null);
+  const handleSearch = async (event) => {
+    event.preventDefault();
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    
-    if (!mainTopic.trim() && !authorName.trim() && !keywords.some(k => k.trim() !== '')) return;
+    if (!mainTopic.trim() && !authorName.trim()) {
+      setError('Lütfen en az bir ana konu veya yazar ismi giriniz.');
+      return;
+    }
+
+    const validKeywords = keywords.filter((k) => k.trim() !== '');
+    const normalizedCount = Math.min(500, Math.max(10, Number(count) || 25));
 
     setLoading(true);
     setError(null);
     setData(null);
 
     try {
-      const validKeywords = keywords.filter(k => k.trim() !== '');
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const response = await axios.get(`${API_URL}/api/search`, {
-        params: { 
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await axios.get(`${apiUrl}/api/search`, {
+        params: {
           mainTopic: mainTopic.trim(),
           authorName: authorName.trim(),
           keywords: JSON.stringify(validKeywords),
-          count: count || 10 
-        }
+          count: normalizedCount,
+        },
       });
+
       setData(response.data);
       if (response.data.quota) setQuota(response.data.quota);
     } catch (err) {
@@ -191,10 +258,9 @@ function App() {
       if (errorData?.demoMode) {
         setData(errorData);
         if (errorData.quota) setQuota(errorData.quota);
-        return; // Don't show error if we got demo data
+        return;
       }
-      setError(errorData?.error || 'Failed to fetch results. Ensure backend is running.');
-      if (errorData?.quota) setQuota(errorData.quota);
+      setError(errorData?.error || 'Sonuçlar alınamadı. Sunucu bağlantısını kontrol edin.');
     } finally {
       setLoading(false);
     }
@@ -203,251 +269,162 @@ function App() {
   return (
     <main className="container">
       <AnimatePresence>
-        {showBanner && data?.demoMode && (
-          <motion.div
-            initial={{ y: -100, opacity: 0 }}
+        {showBanner && (
+          <MotionDiv
+            initial={{ y: -50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -100, opacity: 0 }}
+            exit={{ y: -50, opacity: 0 }}
+            className="glass-panel"
             style={{
               position: 'fixed',
-              top: '20px',
+              top: '24px',
               left: '50%',
               transform: 'translateX(-50%)',
-              zIndex: 9999,
-              width: '90%',
-              maxWidth: '600px',
-              background: '#fff7ed',
-              border: '2px solid #fb923c',
-              borderRadius: '16px',
-              padding: '1rem 1.5rem',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              zIndex: 1000,
+              width: 'min(90%, 600px)',
+              padding: '1.25rem',
+              borderLeft: '6px solid var(--score-med)',
               display: 'flex',
               alignItems: 'center',
-              gap: '1rem'
+              gap: '1.25rem',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
             }}
           >
-            <div style={{ background: '#fb923c', color: 'white', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}>
-              <Activity size={20} />
+            <div style={{ background: 'var(--score-med-bg)', padding: '0.75rem', borderRadius: '12px' }}>
+              <Zap size={24} color="var(--score-med)" />
             </div>
-            <div>
-              <h4 style={{ margin: 0, color: '#9a3412', fontSize: '1rem', fontWeight: '700' }}>Önemli: Demo Modu Aktif</h4>
-              <p style={{ margin: '2px 0 0 0', color: '#c2410c', fontSize: '0.85rem', fontWeight: '500', lineHeight: '1.4' }}>
-                Elsevier API günlük kotası dolduğu için şu an gerçek aramalar yapılamıyor. Aşağıdaki sonuçlar sistemdeki <strong>örnek veritabanından</strong> getirilmiştir.
+            <div style={{ flex: 1 }}>
+              <h4 style={{ margin: 0, color: 'var(--score-med)', fontWeight: '800' }}>Demo Modu Aktif</h4>
+              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '500' }}>
+                API kotası dolduğu için sistem örnek veritabanı üzerinden sonuç üretiyor.
               </p>
             </div>
-            <button 
-              onClick={() => setShowBanner(false)} 
-              style={{ background: 'none', border: 'none', color: '#9a3412', padding: '0.5rem', marginLeft: 'auto' }}
-              aria-label="Uyarıyı Kapat"
-            >
-              <Tag size={20} />
+            <button onClick={() => setShowBanner(false)} className="pill-btn" style={{ border: 'none', background: 'none' }}>
+              <X size={20} />
             </button>
-          </motion.div>
+          </MotionDiv>
         )}
       </AnimatePresence>
 
-      {/* ... header ... */}
-      <header style={{ marginBottom: '3rem', textAlign: 'center' }}>
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
-            <BookOpen size={40} color="#3b82f6" />
-            Literature<span style={{ color: '#3b82f6' }}>AI</span>
+      <header style={{ marginBottom: '4rem', textAlign: 'center' }}>
+        <MotionDiv initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+          <h1 style={{ fontSize: '3.5rem', marginBottom: '0.5rem', letterSpacing: '-0.04em', background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-secondary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            LiteratureAI
           </h1>
-          <p style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            AI-Powered Research Assistant • Powered by
-            <img src="/scopus_logo.svg" alt="Scopus" style={{ height: '20px' }} />
+          <p style={{ color: 'var(--text-muted)', fontWeight: '600', fontSize: '1.1rem' }}>
+            Akademik Literatür Analiz ve AHP Skorlama Sistemi
           </p>
-        </motion.div>
+        </MotionDiv>
       </header>
 
-      <div className="glass-panel" style={{ maxWidth: '900px', margin: '0 auto 3rem auto' }}>
+      <section className="glass-panel" style={{ marginBottom: '4rem' }}>
         <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          
-          {/* Hero Search Section */}
           <div className="hero-input-wrapper">
-            <label htmlFor="mainTopic" style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)', display: 'block', marginBottom: '0.75rem' }}>
-              Ana Konu veya Makale Adı
+            <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '800', color: 'var(--text-main)', fontSize: '0.9rem', textTransform: 'uppercase' }}>
+              Ana Araştırma Konusu
             </label>
             <div className="input-wrapper">
-              <Search className="input-icon" size={24} aria-hidden="true" />
-              <input
-                id="mainTopic"
-                type="text"
-                className="hero-input"
-                placeholder="Örn: Artificial Intelligence in Healthcare"
+              <Search className="input-icon" size={24} />
+              <input 
+                type="text" 
+                className="hero-input" 
+                placeholder="Örn: Yapay Zeka ve Etik Sorunları"
                 value={mainTopic}
                 onChange={(e) => setMainTopic(e.target.value)}
               />
             </div>
           </div>
 
-          {/* Secondary Filters */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label htmlFor="authorName" style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Yazar Adı</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', fontSize: '0.85rem' }}>Yazar Adı (Opsiyonel)</label>
               <div className="input-wrapper">
-                <User className="input-icon" size={18} aria-hidden="true" />
-                <input
-                  id="authorName"
-                  type="text"
-                  className="input"
-                  placeholder="Yazar adı (Opsiyonel)"
-                  value={authorName}
-                  onChange={(e) => setAuthorName(e.target.value)}
-                />
+                <User className="input-icon" size={18} />
+                <input type="text" className="input" placeholder="Yazar ismi..." value={authorName} onChange={(e) => setAuthorName(e.target.value)} />
               </div>
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label htmlFor="articleCount" style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Makale Sayısı</label>
-              <input
-                id="articleCount"
-                type="number"
-                className="input"
-                style={{ paddingLeft: '1.25rem' }}
-                value={count}
-                onChange={(e) => setCount(e.target.value)}
-                min="10"
-                max="500"
-              />
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', fontSize: '0.85rem' }}>Makale Sayısı</label>
+              <input type="number" className="input" style={{ paddingLeft: '1.25rem' }} value={count} onChange={(e) => setCount(e.target.value)} min="10" max="500" />
             </div>
           </div>
-          
-          <div style={{ width: '100%' }}>
-            <label style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.75rem' }}>Filtreleme Anahtar Kelimeleri</label>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '700', fontSize: '0.85rem' }}>Filtreleme Etiketleri</label>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              {keywords.map((kw, idx) => (
-                <div key={idx} className="input-wrapper" style={{ flex: '1', minWidth: '150px' }}>
-                  <Tag className="input-icon" size={16} aria-hidden="true" />
-                  <input
-                    type="text"
-                    className="input"
-                    placeholder={`Etiket ${idx + 1}`}
-                    aria-label={`Filtreleme anahtar kelimesi ${idx + 1}`}
-                    value={kw}
-                    onChange={(e) => {
-                      const newKws = [...keywords];
-                      newKws[idx] = e.target.value;
-                      setKeywords(newKws);
-                    }}
-                  />
+              {keywords.map((k, i) => (
+                <div key={i} className="input-wrapper" style={{ flex: 1, minWidth: '140px' }}>
+                  <Tag className="input-icon" size={16} />
+                  <input type="text" className="input" placeholder={`Etiket ${i+1}`} value={k} onChange={(e) => {
+                    const nk = [...keywords]; nk[i] = e.target.value; setKeywords(nk);
+                  }} />
                 </div>
               ))}
             </div>
           </div>
 
-          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
-            <button type="submit" disabled={loading} className="btn">
-              {loading ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Loader2 className="animate-spin" size={20} />
-                    <span>{loadingMessages[loadingStep]}</span>
-                  </div>
-                  <span style={{ fontSize: '0.8rem', opacity: 0.8, fontWeight: 'normal' }}>
-                    İşlem {Math.max(1, Math.ceil((count / 25) * 1.5))} - {Math.ceil((count / 25) * 2) + 2} saniye sürebilir
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <Search size={20} />
-                  <span>Akıllı Literatür Taraması Yap</span>
-                </>
-              )}
-            </button>
-          </div>
+          <button type="submit" disabled={loading} className="btn">
+            {loading ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Loader2 className="animate-spin" size={24} />
+                <span style={{ fontWeight: '800' }}>{LOADING_MESSAGES[loadingStep]}</span>
+              </div>
+            ) : (
+              <>
+                <Zap size={22} />
+                <span style={{ fontWeight: '800' }}>ANALİZİ BAŞLAT</span>
+              </>
+            )}
+          </button>
         </form>
 
         {error && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            style={{ 
-              marginTop: '1.5rem', 
-              padding: '1.25rem', 
-              background: '#fff1f2', 
-              border: '1px solid #fecaca', 
-              borderRadius: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              color: '#991b1b'
-            }}
-          >
-            <div style={{ background: '#f87171', color: 'white', padding: '0.4rem', borderRadius: '50%', display: 'flex' }}>
-              <Loader2 size={16} />
-            </div>
-            <div style={{ fontSize: '0.95rem', fontWeight: '500' }}>
-              {error.includes('Kotanız') ? (
-                <>
-                  <strong>Erişim Sınırı:</strong> {error.split('Yenilenme:')[0]} 
-                  <span style={{ display: 'block', fontSize: '0.85rem', opacity: 0.8 }}>
-                    Yenilenme Tarihi: {error.split('Yenilenme:')[1] || 'Sistem tarafından belirleniyor'}
-                  </span>
-                </>
-              ) : error}
-            </div>
-          </motion.div>
+          <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--score-low-bg)', border: '1px solid #fecaca', borderRadius: '12px', color: 'var(--score-low)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <AlertCircle size={20} />
+            <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{error}</span>
+          </MotionDiv>
         )}
-      </div>
+      </section>
 
       {(data || quota) && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-          <GlobalStats 
-            totalFound={data?.totalFound || 0} 
-            analyzed={data?.analyzedCount || 0} 
-            quota={quota} 
-          />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4rem' }}>
+          <GlobalStats totalFound={data?.totalFound || 0} analyzed={data?.analyzedCount || 0} quota={quota} />
 
           {data && (
-            <div className="grid">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '1rem 0', flexWrap: 'wrap', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0 }}>
-                    <BarChart2 color="var(--accent)" /> En İyi Eşleşen Makaleler (AHP Skorlaması)
-                    </h2>
-                    {data.demoMode && (
-                        <div style={{ 
-                            display: 'inline-flex', 
-                            alignItems: 'center', 
-                            gap: '0.5rem', 
-                            padding: '0.4rem 0.8rem', 
-                            background: 'rgba(245, 158, 11, 0.1)', 
-                            color: '#d97706', 
-                            borderRadius: '20px',
-                            fontSize: '0.85rem',
-                            fontWeight: '600',
-                            border: '1px solid rgba(245, 158, 11, 0.2)'
-                        }}>
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#d97706', animation: 'pulse 2s infinite' }}></div>
-                            API Kotası Dolduğu İçin Demo Modu Aktif - Şu an sadece örnek makaleler gösteriliyor
-                        </div>
-                    )}
+            <section>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem', flexWrap: 'wrap', gap: '1.5rem' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <BarChart2 size={32} color="var(--brand-primary)" />
+                    Sıralanmış Literatür Listesi
+                  </h2>
+                  <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-muted)', fontWeight: '600' }}>
+                    AHP algoritması ile en yüksek verimliliğe sahip makaleler sıralanmıştır.
+                  </p>
                 </div>
+
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <button onClick={exportToPDF} className="pill-btn" style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }}>
-                    <FileText size={16} /> PDF
-                  </button>
-                  <button onClick={exportToCSV} className="pill-btn" style={{ background: '#ecfdf5', color: '#10b981', border: '1px solid #6ee7b7' }}>
-                    <BarChart2 size={16} /> Excel
-                  </button>
-                  <button onClick={exportToWord} className="pill-btn" style={{ background: '#eff6ff', color: '#3b82f6', border: '1px solid #93c5fd' }}>
-                    <BookOpen size={16} /> Word
-                  </button>
+                  <button onClick={exportToPDF} className="pill-btn"><Download size={16} /> PDF İndir</button>
+                  <button onClick={exportToCSV} className="pill-btn"><Download size={16} /> CSV Dışa Aktar</button>
+                  <button onClick={exportToWord} className="pill-btn"><Download size={16} /> Word Kaydet</button>
                 </div>
               </div>
-              <AnimatePresence>
-                {data.results && data.results.map((item, index) => (
-                  <ResultCard key={item.id} item={item} rank={index + 1} />
-                ))}
-              </AnimatePresence>
-            </div>
+
+              <div className="grid">
+                <AnimatePresence>
+                  {data.results?.map((item, index) => (
+                    <ResultCard key={item.id || index} item={item} rank={index + 1} />
+                  ))}
+                </AnimatePresence>
+              </div>
+            </section>
           )}
         </div>
       )}
+
+      <footer style={{ marginTop: '6rem', paddingBottom: '3rem', textAlign: 'center', borderTop: '1px solid var(--border-light)', paddingTop: '2rem' }}>
+        <p style={{ color: 'var(--text-light)', fontSize: '0.85rem', fontWeight: '600' }}>{COPYRIGHT_NOTICE}</p>
+      </footer>
     </main>
   );
 }

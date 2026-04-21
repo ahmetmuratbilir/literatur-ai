@@ -1,184 +1,190 @@
-import { fetch } from "undici";
-import { normalizeData } from "../utils/normalization.js";
-import { calculateAHP } from "./ahp.js";
-import fs from "fs/promises";
-import path from "path";
-import { fileURLToPath } from "url";
+import { fetch } from 'undici';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { normalizeData } from '../utils/normalization.js';
+import { calculateAHP } from './ahp.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const REQUEST_TYPE = "GET";
-const API_URL = "https://api.elsevier.com";
+const REQUEST_TYPE = 'GET';
+const API_URL = 'https://api.elsevier.com';
 
 async function fetchPage(query, start, count) {
-    const apiKey = process.env.ELSEVIER_API_KEY;
-    const url = `${API_URL}/content/search/scopus?query=${encodeURIComponent(query)}&view=STANDARD&sort=relevance&count=${count}&start=${start}`;
+  const apiKey = process.env.ELSEVIER_API_KEY;
+  const url = `${API_URL}/content/search/scopus?query=${encodeURIComponent(query)}&view=STANDARD&sort=relevance&count=${count}&start=${start}`;
 
-    console.log("Fetching Scopus URL:", url);
-    const resp = await fetch(url, {
-        method: REQUEST_TYPE,
-        headers: {
-            "Accept": "application/json",
-            "X-ELS-APIKey": apiKey,
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
-        }
-    });
+  console.log('Scopus API isteği yapılıyor:', url);
 
-    const quotaInfo = {
-        limit: resp.headers.get("X-RateLimit-Limit") || resp.headers.get("x-ratelimit-limit"),
-        remaining: resp.headers.get("X-RateLimit-Remaining") || resp.headers.get("x-ratelimit-remaining"),
-        reset: resp.headers.get("X-RateLimit-Reset") || resp.headers.get("x-ratelimit-reset") || resp.headers.get("retry-after"),
-        status: resp.headers.get("X-ELS-Status") || resp.headers.get("x-els-status")
-    };
+  const response = await fetch(url, {
+    method: REQUEST_TYPE,
+    headers: {
+      Accept: 'application/json',
+      'X-ELS-APIKey': apiKey,
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+    },
+  });
 
-    if (resp.status !== 200) {
-        // Debug için tüm başlıkları terminale basalım
-        console.log("--- TÜM API BAŞLIKLARI (DEBUG) ---");
-        resp.headers.forEach((v, k) => console.log(`${k}: ${v}`));
+  const quotaInfo = {
+    limit: response.headers.get('X-RateLimit-Limit') || response.headers.get('x-ratelimit-limit'),
+    remaining:
+      response.headers.get('X-RateLimit-Remaining') || response.headers.get('x-ratelimit-remaining'),
+    reset:
+      response.headers.get('X-RateLimit-Reset') ||
+      response.headers.get('x-ratelimit-reset') ||
+      response.headers.get('retry-after'),
+    status: response.headers.get('X-ELS-Status') || response.headers.get('x-els-status'),
+  };
 
-        let resetDate = "Bilinmiyor";
-        if (quotaInfo.reset) {
-            const resetValue = parseInt(quotaInfo.reset);
-            const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
-            resetDate = new Date(resetTime).toLocaleString('tr-TR', {
-                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-            });
-        }
-
-        const cleanStatus = (quotaInfo.status || "Hız Sınırı").split('-')[0].trim();
-
-        console.error(`\n--- ELSEVIER API HATASI (${resp.status}) ---`);
-        console.error(`Durum: ${cleanStatus}`);
-        console.error(`Kalan Kota: ${quotaInfo.remaining || 0} / ${quotaInfo.limit || "Bilinmiyor"}`);
-        console.error(`Sıfırlanma: ${resetDate}`);
-        
-        let errBody = "";
-        try { errBody = await resp.text(); } catch(e){}
-        console.error(`Hata Body:`, errBody);
-        console.error(`--------------------------------------\n`);
-
-        if (cleanStatus === "QUOTA_EXCEEDED") {
-            throw new Error(`Kotanız Dolmuş. Yenilenme: ${resetDate}`);
-        }
-        throw new Error(`API Hatası (${resp.status}): ${cleanStatus}. Yenilenme: ${resetDate}`);
+  if (response.status !== 200) {
+    let resetDate = 'Bilinmiyor';
+    if (quotaInfo.reset) {
+      const resetValue = parseInt(quotaInfo.reset, 10);
+      const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
+      resetDate = new Date(resetTime).toLocaleString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
     }
 
-    const data = await resp.json();
-    return { data, quotaInfo };
+    const cleanStatus = (quotaInfo.status || 'Hız Sınırı').split('-')[0].trim();
+
+    console.error(`\n--- ELSEVIER API HATASI (${response.status}) ---`);
+    console.error(`Durum: ${cleanStatus}`);
+    console.error(`Kalan Kota: ${quotaInfo.remaining || 0} / ${quotaInfo.limit || 'Bilinmiyor'}`);
+    console.error(`Sıfırlanma: ${resetDate}`);
+
+    if (cleanStatus === 'QUOTA_EXCEEDED' || response.status === 429) {
+      throw new Error(`Kotanız dolmuş. Yenilenme: ${resetDate}`);
+    }
+
+    throw new Error(`API Hatası (${response.status}): ${cleanStatus}. Yenilenme: ${resetDate}`);
+  }
+
+  const data = await response.json();
+  return { data, quotaInfo };
 }
 
 export async function searchLiterature(query, count, weights = null) {
-    const chunkSize = 25;
-    let rawListings = [];
-    let lastQuota = null;
+  const chunkSize = 25;
+  const rawListings = [];
+  let lastQuota = null;
 
-    try {
-        // Initial fetch to get total results
-        const { data: firstPage, quotaInfo } = await fetchPage(query, 0, chunkSize);
-        lastQuota = quotaInfo;
+  try {
+    const { data: firstPage, quotaInfo } = await fetchPage(query, 0, chunkSize);
+    lastQuota = quotaInfo;
 
-        if (!firstPage["search-results"]) {
-            throw new Error("Invalid API response from Elsevier");
+    if (!firstPage['search-results']) {
+      throw new Error('Elsevier API\'sinden geçersiz yanıt alındı.');
+    }
+
+    const totalResults = parseInt(firstPage['search-results']['opensearch:totalResults'], 10) || 0;
+    const initialEntry = firstPage['search-results'].entry || [];
+    rawListings.push(...initialEntry);
+
+    console.log(`Toplam bulunan: ${totalResults}. İstenen: ${count}`);
+
+    const numItemsNeeded = Math.min(count, totalResults, 5000);
+    const maxPages = Math.ceil(numItemsNeeded / chunkSize);
+
+    for (let index = 1; index < maxPages; index += 1) {
+      const start = index * chunkSize;
+
+      try {
+        const { data: pageData, quotaInfo: pageQuota } = await fetchPage(query, start, chunkSize);
+        lastQuota = pageQuota;
+
+        if (pageData['search-results']?.entry) {
+          rawListings.push(...pageData['search-results'].entry);
         }
 
-        const totalResults = parseInt(firstPage["search-results"]["opensearch:totalResults"]) || 0;
-        const initialEntry = firstPage["search-results"].entry || [];
-        rawListings.push(...initialEntry);
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      } catch (error) {
+        console.error('Sayfalama hatası:', error);
+        break;
+      }
+    }
 
-        console.log(`Total found: ${totalResults}. Requested: ${count}`);
+    console.log(`${rawListings.length} öğe normalize ediliyor...`);
+    const cleanData = await normalizeData(rawListings, query);
 
-        // Fetch more pages if needed
-        const numItemsNeeded = Math.min(count, totalResults, 5000); // Scopus limit
-        const maxPages = Math.ceil(numItemsNeeded / chunkSize);
+    console.log('AHP skorları hesaplanıyor...');
+    const rankedData = await calculateAHP(cleanData, weights);
 
-        for (let i = 1; i < maxPages; i++) {
-            const start = i * chunkSize;
+    let resetDate = 'Bilinmiyor';
+    if (lastQuota?.reset) {
+      const resetValue = parseInt(lastQuota.reset, 10);
+      const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
+      resetDate = new Date(resetTime).toLocaleString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
 
-            try {
-                const { data: pageData, quotaInfo: pQuota } = await fetchPage(query, start, chunkSize);
-                lastQuota = pQuota;
+    return {
+      totalFound: totalResults,
+      analyzedCount: rankedData.length,
+      results: rankedData.slice(0, 500),
+      quota: {
+        limit: lastQuota?.limit,
+        remaining: lastQuota?.remaining,
+        reset: resetDate,
+      },
+    };
+  } catch (error) {
+    let resetDate = 'Bilinmiyor';
+    if (lastQuota?.reset) {
+      const resetValue = parseInt(lastQuota.reset, 10);
+      const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
+      resetDate = new Date(resetTime).toLocaleString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
 
-                if (pageData["search-results"] && pageData["search-results"].entry) {
-                    rawListings.push(...pageData["search-results"].entry);
-                }
-                await new Promise(resolve => setTimeout(resolve, 800));
-            } catch (err) {
-                console.error("Pagination error:", err);
-                break; 
-            }
-        }
+    if (error.message.includes('429') || error.message.includes('Kotanız')) {
+      console.log('--- KOTA DOLU: DEMO MODUNA GEÇİLİYOR ---');
 
-        // Normalize Data
-        console.log(`Normalizing ${rawListings.length} raw items...`);
-        let cleanData = await normalizeData(rawListings, query);
+      try {
+        const exDataPath = path.join(__dirname, '../../exdata.json');
+        const rawExData = await fs.readFile(exDataPath, 'utf-8');
+        const exData = JSON.parse(rawExData);
 
-        // Apply AHP
-        console.log("Calculating AHP scores...");
+        console.log(`Demo modu aktif: ${exData.length} yerel kayıt yüklendi.`);
+
+        const delay = Math.floor(Math.random() * 1000) + 1500;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+
+        const cleanData = await normalizeData(exData, query);
         const rankedData = await calculateAHP(cleanData, weights);
 
-        let resetDate = "Bilinmiyor";
-        if (lastQuota && lastQuota.reset) {
-            const resetValue = parseInt(lastQuota.reset);
-            const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
-            resetDate = new Date(resetTime).toLocaleString('tr-TR', {
-                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-            });
-        }
-
         return {
-            totalFound: totalResults,
-            analyzedCount: rankedData.length,
-            results: rankedData.slice(0, 500), 
-            quota: {
-                limit: lastQuota?.limit,
-                remaining: lastQuota?.remaining,
-                reset: resetDate
-            }
+          totalFound: exData.length,
+          analyzedCount: rankedData.length,
+          results: rankedData.slice(0, count || 10),
+          demoMode: true,
+          quota: { limit: 1000, remaining: 0, reset: resetDate },
         };
-    } catch (error) {
-        let resetDate = "Bilinmiyor";
-        if (lastQuota && lastQuota.reset) {
-            const resetValue = parseInt(lastQuota.reset);
-            const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
-            resetDate = new Date(resetTime).toLocaleString('tr-TR', {
-                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-            });
-        }
-
-        // Hatayı yukarı fırlatırken kota bilgisini de içine gömelim
-        if (error.message.includes("429") || error.message.includes("Kotanız")) {
-            console.log("--- KOTA DOLU: DEMO MODUNA GEÇİLİYOR ---");
-            try {
-                const exDataPath = path.join(__dirname, "../../exdata.json");
-                const rawExData = await fs.readFile(exDataPath, "utf-8");
-                const exData = JSON.parse(rawExData);
-                
-                console.log(`Demo modu aktif: ${exData.length} yerel kayıt yüklendi.`);
-                
-                // Realistic delay for demo mode (1.5s - 2.5s)
-                const delay = Math.floor(Math.random() * 1000) + 1500;
-                await new Promise(resolve => setTimeout(resolve, delay));
-                
-                const cleanData = await normalizeData(exData, query);
-                const rankedData = await calculateAHP(cleanData, weights);
-
-                return {
-                    totalFound: exData.length,
-                    analyzedCount: rankedData.length,
-                    results: rankedData.slice(0, count || 10),
-                    demoMode: true,
-                    quota: error.quota || { limit: 1000, remaining: 0, reset: resetDate }
-                };
-            } catch (fsErr) {
-                console.error("Demo verisi yüklenirken hata:", fsErr);
-            }
-        }
-
-        error.quota = {
-            limit: lastQuota?.limit,
-            remaining: lastQuota?.remaining,
-            reset: resetDate
-        };
-        throw error;
+      } catch (fileError) {
+        console.error('Demo verisi yüklenirken hata:', fileError);
+      }
     }
+
+    error.quota = {
+      limit: lastQuota?.limit,
+      remaining: lastQuota?.remaining,
+      reset: resetDate,
+    };
+
+    throw error;
+  }
 }
