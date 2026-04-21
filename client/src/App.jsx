@@ -123,9 +123,9 @@ function App() {
             <tr style="background-color: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">
               <th style="padding: 6px 8px; text-align: left; width: 25px; color: #475569;">#</th>
               <th style="padding: 6px 8px; text-align: left; color: #475569;">Makale Başlığı ve Özet</th>
-              <th style="padding: 6px 8px; text-align: left; width: 100px; color: #475569;">Yazar / Yıl</th>
-              <th style="padding: 6px 8px; text-align: center; width: 40px; color: #475569;">Atıf</th>
-              <th style="padding: 6px 8px; text-align: right; width: 65px; color: #475569;">AHP Skoru</th>
+              <th style="padding: 6px 8px; text-align: left; width: 120px; color: #475569;">Yazar / Yıl</th>
+              <th style="padding: 6px 8px; text-align: center; width: 50px; color: #475569;">Atıf</th>
+              <th style="padding: 6px 8px; text-align: right; width: 70px; color: #475569;">AHP Skoru</th>
             </tr>
           </thead>
           <tbody>
