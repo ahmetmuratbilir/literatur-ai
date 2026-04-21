@@ -102,53 +102,67 @@ function App() {
     if (!data?.results?.length) return;
 
     const element = document.createElement('div');
-    element.style.padding = '20px';
     element.style.background = 'white';
     element.style.color = '#0f172a';
     element.style.fontFamily = "'Outfit', 'Inter', sans-serif";
 
     element.innerHTML = `
-      <div style="padding: 20px;">
-        <h1 style="color: #4f46e5; font-size: 24px; margin-bottom: 4px; border-bottom: 2px solid #4f46e5; padding-bottom: 8px;">
-          LiteratureAI Akademik Tarama Raporu
-        </h1>
-        <p style="color: #64748b; font-size: 12px; margin-bottom: 24px;">
-          Konu: ${mainTopic || 'Genel Arama'} | Tarih: ${new Date().toLocaleDateString('tr-TR')}
-        </p>
-
-        <div style="display: grid; gap: 20px;">
-          ${data.results
-            .map(
-              (item, index) => `
-            <div style="padding: 15px; border: 1px solid #e2e8f0; border-radius: 12px; page-break-inside: avoid; margin-bottom: 10px;">
-              <div style="display: flex; gap: 10px; align-items: start;">
-                <span style="background: #f1f5f9; padding: 4px 8px; border-radius: 6px; font-weight: 800; color: #4f46e5; font-size: 12px;">#${index + 1}</span>
-                <div style="flex: 1;">
-                  <div style="font-size: 14px; font-weight: 800; color: #1e293b; margin-bottom: 4px;">${item.title}</div>
-                  <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">
-                    ${item.creator || 'Bilinmeyen Yazar'} | ${item.year} | ${item.publicationName}
-                  </div>
-                  <div style="font-size: 12px; color: #475569; line-height: 1.5;">${item.description || 'Özet bulunmuyor.'}</div>
-                  <div style="margin-top: 8px; display: flex; gap: 15px; font-size: 11px; font-weight: 700;">
-                    <span style="color: #4f46e5;">Atıf: ${item.citedBy || 0}</span>
-                    <span style="color: #059669;">AHP Skoru: %${formatScore(item.scores?.total)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `,
-            )
-            .join('')}
+      <div style="padding: 5px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #4f46e5; padding-bottom: 8px;">
+          <div>
+            <h1 style="color: #4f46e5; font-size: 20px; margin: 0;">LiteratureAI Araştırma Raporu</h1>
+            <p style="color: #64748b; font-size: 10px; margin: 3px 0 0 0;">Konu: ${mainTopic || 'Genel Arama'} | Tarih: ${new Date().toLocaleDateString('tr-TR')}</p>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 9px; color: #94a3b8;">${new Date().toLocaleTimeString('tr-TR')}</div>
+          </div>
         </div>
 
-        <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+          <thead>
+            <tr style="background-color: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">
+              <th style="padding: 6px 8px; text-align: left; width: 25px; color: #475569;">#</th>
+              <th style="padding: 6px 8px; text-align: left; color: #475569;">Makale Başlığı ve Özet</th>
+              <th style="padding: 6px 8px; text-align: left; width: 110px; color: #475569;">Yazar / Yıl</th>
+              <th style="padding: 6px 8px; text-align: center; width: 50px; color: #475569;">Atıf</th>
+              <th style="padding: 6px 8px; text-align: right; width: 70px; color: #475569;">AHP Skoru</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.results
+              .map(
+                (item, index) => `
+              <tr style="border-bottom: 1px solid #f1f5f9; page-break-inside: avoid;">
+                <td style="padding: 6px 8px; font-weight: 800; color: #6366f1;">${index + 1}</td>
+                <td style="padding: 6px 8px;">
+                  <div style="font-weight: 700; color: #1e293b; margin-bottom: 2px; font-size: 9.5px;">${item.title}</div>
+                  <div style="font-size: 8.5px; color: #64748b; line-height: 1.25;">${item.description ? item.description.substring(0, 160) + '...' : 'Özet bulunmuyor.'}</div>
+                </td>
+                <td style="padding: 6px 8px; color: #475569;">
+                  <div style="font-weight: 600;">${item.creator || 'Bilinmeyen'}</div>
+                  <div style="font-size: 8.5px;">${item.year} | ${item.publicationName?.substring(0, 30) || ''}</div>
+                </td>
+                <td style="padding: 6px 8px; text-align: center; font-weight: 600; color: #475569;">${item.citedBy || 0}</td>
+                <td style="padding: 6px 8px; text-align: right;">
+                  <span style="background: #ecfdf5; color: #059669; padding: 2px 5px; border-radius: 4px; font-weight: 800; font-size: 8.5px;">
+                    %${formatScore(item.scores?.total)}
+                  </span>
+                </td>
+              </tr>
+            `,
+              )
+              .join('')}
+          </tbody>
+        </table>
+
+        <div style="margin-top: 20px; text-align: center; font-size: 8.5px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 8px;">
           ${COPYRIGHT_NOTICE}
         </div>
       </div>
     `;
 
     const opt = {
-      margin: 10,
+      margin: 8,
       filename: `literature_results_${new Date().getTime()}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, logging: false },
