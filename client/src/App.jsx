@@ -1,12 +1,8 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
-import { jsPDF } from 'jspdf';
 import {
-  Activity,
   BarChart2,
-  BookOpen,
-  FileText,
   Loader2,
   Search,
   Tag,
@@ -28,7 +24,6 @@ import {
   AlignmentType,
 } from 'docx';
 import { saveAs } from 'file-saver';
-import html2canvas from 'html2canvas';
 import html2pdf from 'html2pdf.js';
 import ResultCard from './components/ResultCard';
 import GlobalStats from './components/GlobalStats';
@@ -94,14 +89,14 @@ function App() {
         return `${index + 1};"${title}";${item.year || ''};${item.citedBy || 0};"${item.url || ''}";${formatScore(item.scores?.total)}`;
       }),
       '',
-      `"${COPYRIGHT_NOTICE}"`
+      `"${COPYRIGHT_NOTICE}"`,
     ];
 
-    const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([`\ufeff${csvRows.join('\n')}`], {
+      type: 'text/csv;charset=utf-8;',
+    });
     saveAs(blob, `literature_results_${new Date().getTime()}.csv`);
   };
-
-
 
   const exportToPDF = () => {
     if (!data?.results?.length) return;
@@ -120,9 +115,11 @@ function App() {
         <p style="color: #64748b; font-size: 12px; margin-bottom: 24px;">
           Konu: ${mainTopic || 'Genel Arama'} | Tarih: ${new Date().toLocaleDateString('tr-TR')}
         </p>
-        
+
         <div style="display: grid; gap: 20px;">
-          ${data.results.map((item, index) => `
+          ${data.results
+            .map(
+              (item, index) => `
             <div style="padding: 15px; border: 1px solid #e2e8f0; border-radius: 12px; page-break-inside: avoid; margin-bottom: 10px;">
               <div style="display: flex; gap: 10px; align-items: start;">
                 <span style="background: #f1f5f9; padding: 4px 8px; border-radius: 6px; font-weight: 800; color: #4f46e5; font-size: 12px;">#${index + 1}</span>
@@ -139,9 +136,11 @@ function App() {
                 </div>
               </div>
             </div>
-          `).join('')}
+          `,
+            )
+            .join('')}
         </div>
-        
+
         <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px;">
           ${COPYRIGHT_NOTICE}
         </div>
@@ -154,7 +153,7 @@ function App() {
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, logging: false },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
     };
 
     html2pdf().set(opt).from(element).save();
@@ -165,11 +164,11 @@ function App() {
 
     const tableRows = [
       new TableRow({
-        children: ['Sıra', 'Başlık', 'Yıl', 'Atıf', 'AHP Skoru'].map(text => 
-          new TableCell({ 
+        children: ['Sıra', 'Başlık', 'Yıl', 'Atıf', 'AHP Skoru'].map((text) =>
+          new TableCell({
             children: [new Paragraph({ text, bold: true })],
-            shading: { fill: '4F46E5' }
-          })
+            shading: { fill: '4F46E5' },
+          }),
         ),
       }),
     ];
@@ -182,34 +181,38 @@ function App() {
             new TableCell({ children: [new Paragraph(item.title || 'Başlıksız')] }),
             new TableCell({ children: [new Paragraph(String(item.year || '-'))] }),
             new TableCell({ children: [new Paragraph(String(item.citedBy || 0))] }),
-            new TableCell({ children: [new Paragraph(`%${formatScore(item.scores?.total)}`)] }),
+            new TableCell({
+              children: [new Paragraph(`%${formatScore(item.scores?.total)}`)],
+            }),
           ],
-        })
+        }),
       );
     });
 
     const doc = new Document({
-      sections: [{
-        properties: {},
-        children: [
-          new Paragraph({
-            text: 'LiteratureAI Akademik Tarama Raporu',
-            heading: HeadingLevel.HEADING_1,
-            alignment: AlignmentType.CENTER
-          }),
-          new Paragraph({ text: '' }),
-          new Table({
-            rows: tableRows,
-            width: { size: 100, type: WidthType.PERCENTAGE },
-          }),
-          new Paragraph({ text: '' }),
-          new Paragraph({
-            text: COPYRIGHT_NOTICE,
-            italics: true,
-            alignment: AlignmentType.CENTER
-          }),
-        ],
-      }],
+      sections: [
+        {
+          properties: {},
+          children: [
+            new Paragraph({
+              text: 'LiteratureAI Akademik Tarama Raporu',
+              heading: HeadingLevel.HEADING_1,
+              alignment: AlignmentType.CENTER,
+            }),
+            new Paragraph({ text: '' }),
+            new Table({
+              rows: tableRows,
+              width: { size: 100, type: WidthType.PERCENTAGE },
+            }),
+            new Paragraph({ text: '' }),
+            new Paragraph({
+              text: COPYRIGHT_NOTICE,
+              italics: true,
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        },
+      ],
     });
 
     const blob = await Packer.toBlob(doc);
@@ -224,7 +227,7 @@ function App() {
       return;
     }
 
-    const validKeywords = keywords.filter((k) => k.trim() !== '');
+    const validKeywords = keywords.filter((keyword) => keyword.trim() !== '');
     const normalizedCount = Math.min(500, Math.max(10, Number(count) || 25));
 
     setLoading(true);
@@ -278,19 +281,38 @@ function App() {
               display: 'flex',
               alignItems: 'center',
               gap: '1.25rem',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
             }}
           >
-            <div style={{ background: 'var(--score-med-bg)', padding: '0.75rem', borderRadius: '12px' }}>
+            <div
+              style={{
+                background: 'var(--score-med-bg)',
+                padding: '0.75rem',
+                borderRadius: '12px',
+              }}
+            >
               <Zap size={24} color="var(--score-med)" />
             </div>
             <div style={{ flex: 1 }}>
-              <h4 style={{ margin: 0, color: 'var(--score-med)', fontWeight: '800' }}>Demo Modu Aktif</h4>
-              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '500' }}>
+              <h4 style={{ margin: 0, color: 'var(--score-med)', fontWeight: '800' }}>
+                Demo Modu Aktif
+              </h4>
+              <p
+                style={{
+                  margin: '0.25rem 0 0 0',
+                  fontSize: '0.85rem',
+                  color: 'var(--text-muted)',
+                  fontWeight: '500',
+                }}
+              >
                 API kotası dolduğu için sistem örnek veritabanı üzerinden sonuç üretiyor.
               </p>
             </div>
-            <button onClick={() => setShowBanner(false)} className="pill-btn" style={{ border: 'none', background: 'none' }}>
+            <button
+              onClick={() => setShowBanner(false)}
+              className="pill-btn"
+              style={{ border: 'none', background: 'none' }}
+            >
               <X size={20} />
             </button>
           </MotionDiv>
@@ -299,7 +321,16 @@ function App() {
 
       <header style={{ marginBottom: '4rem', textAlign: 'center' }}>
         <MotionDiv initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-          <h1 style={{ fontSize: '3.5rem', marginBottom: '0.5rem', letterSpacing: '-0.04em', background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-secondary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <h1
+            style={{
+              fontSize: '3.5rem',
+              marginBottom: '0.5rem',
+              letterSpacing: '-0.04em',
+              background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-secondary))',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
             LiteratureAI
           </h1>
           <p style={{ color: 'var(--text-muted)', fontWeight: '600', fontSize: '1.1rem' }}>
@@ -311,14 +342,23 @@ function App() {
       <section className="glass-panel" style={{ marginBottom: '4rem' }}>
         <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           <div className="hero-input-wrapper">
-            <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '800', color: 'var(--text-main)', fontSize: '0.9rem', textTransform: 'uppercase' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '0.75rem',
+                fontWeight: '800',
+                color: 'var(--text-main)',
+                fontSize: '0.9rem',
+                textTransform: 'uppercase',
+              }}
+            >
               Ana Araştırma Konusu
             </label>
             <div className="input-wrapper">
               <Search className="input-icon" size={24} />
-              <input 
-                type="text" 
-                className="hero-input" 
+              <input
+                type="text"
+                className="hero-input"
                 placeholder="Örn: Yapay Zeka ve Etik Sorunları"
                 value={mainTopic}
                 onChange={(e) => setMainTopic(e.target.value)}
@@ -328,27 +368,61 @@ function App() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', fontSize: '0.85rem' }}>Yazar Adı (Opsiyonel)</label>
+              <label
+                style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', fontSize: '0.85rem' }}
+              >
+                Yazar Adı (Opsiyonel)
+              </label>
               <div className="input-wrapper">
                 <User className="input-icon" size={18} />
-                <input type="text" className="input" placeholder="Yazar ismi..." value={authorName} onChange={(e) => setAuthorName(e.target.value)} />
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Yazar ismi..."
+                  value={authorName}
+                  onChange={(e) => setAuthorName(e.target.value)}
+                />
               </div>
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', fontSize: '0.85rem' }}>Makale Sayısı</label>
-              <input type="number" className="input" style={{ paddingLeft: '1.25rem' }} value={count} onChange={(e) => setCount(e.target.value)} min="10" max="500" />
+              <label
+                style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', fontSize: '0.85rem' }}
+              >
+                Makale Sayısı
+              </label>
+              <input
+                type="number"
+                className="input"
+                style={{ paddingLeft: '1.25rem' }}
+                value={count}
+                onChange={(e) => setCount(e.target.value)}
+                min="10"
+                max="500"
+              />
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '700', fontSize: '0.85rem' }}>Filtreleme Etiketleri</label>
+            <label
+              style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '700', fontSize: '0.85rem' }}
+            >
+              Filtreleme Etiketleri
+            </label>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              {keywords.map((k, i) => (
-                <div key={i} className="input-wrapper" style={{ flex: 1, minWidth: '140px' }}>
+              {keywords.map((keyword, index) => (
+                <div key={index} className="input-wrapper" style={{ flex: 1, minWidth: '140px' }}>
                   <Tag className="input-icon" size={16} />
-                  <input type="text" className="input" placeholder={`Etiket ${i+1}`} value={k} onChange={(e) => {
-                    const nk = [...keywords]; nk[i] = e.target.value; setKeywords(nk);
-                  }} />
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder={`Etiket ${index + 1}`}
+                    value={keyword}
+                    onChange={(e) => {
+                      const nextKeywords = [...keywords];
+                      nextKeywords[index] = e.target.value;
+                      setKeywords(nextKeywords);
+                    }}
+                  />
                 </div>
               ))}
             </div>
@@ -370,7 +444,21 @@ function App() {
         </form>
 
         {error && (
-          <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--score-low-bg)', border: '1px solid #fecaca', borderRadius: '12px', color: 'var(--score-low)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <MotionDiv
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            style={{
+              marginTop: '1.5rem',
+              padding: '1rem',
+              background: 'var(--score-low-bg)',
+              border: '1px solid #fecaca',
+              borderRadius: '12px',
+              color: 'var(--score-low)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+            }}
+          >
             <AlertCircle size={20} />
             <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{error}</span>
           </MotionDiv>
@@ -383,9 +471,26 @@ function App() {
 
           {data && (
             <section>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem', flexWrap: 'wrap', gap: '1.5rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-end',
+                  marginBottom: '2rem',
+                  flexWrap: 'wrap',
+                  gap: '1.5rem',
+                }}
+              >
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '1.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontSize: '1.75rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                    }}
+                  >
                     <BarChart2 size={32} color="var(--brand-primary)" />
                     Sıralanmış Literatür Listesi
                   </h2>
@@ -394,10 +499,16 @@ function App() {
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <button onClick={exportToPDF} className="pill-btn"><Download size={16} /> PDF İndir</button>
-                  <button onClick={exportToCSV} className="pill-btn"><Download size={16} /> CSV Dışa Aktar</button>
-                  <button onClick={exportToWord} className="pill-btn"><Download size={16} /> Word Kaydet</button>
+                <div style={{ display: 'flex', gap: '0.75rem' }} className="export-actions">
+                  <button onClick={exportToPDF} className="pill-btn">
+                    <Download size={16} /> PDF İndir
+                  </button>
+                  <button onClick={exportToCSV} className="pill-btn">
+                    <Download size={16} /> CSV Dışa Aktar
+                  </button>
+                  <button onClick={exportToWord} className="pill-btn">
+                    <Download size={16} /> Word Kaydet
+                  </button>
                 </div>
               </div>
 
@@ -413,8 +524,18 @@ function App() {
         </div>
       )}
 
-      <footer style={{ marginTop: '6rem', paddingBottom: '3rem', textAlign: 'center', borderTop: '1px solid var(--border-light)', paddingTop: '2rem' }}>
-        <p style={{ color: 'var(--text-light)', fontSize: '0.85rem', fontWeight: '600' }}>{COPYRIGHT_NOTICE}</p>
+      <footer
+        style={{
+          marginTop: '6rem',
+          paddingBottom: '3rem',
+          textAlign: 'center',
+          borderTop: '1px solid var(--border-light)',
+          paddingTop: '2rem',
+        }}
+      >
+        <p style={{ color: 'var(--text-light)', fontSize: '0.85rem', fontWeight: '600' }}>
+          {COPYRIGHT_NOTICE}
+        </p>
       </footer>
     </main>
   );

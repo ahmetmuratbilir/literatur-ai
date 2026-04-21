@@ -33,11 +33,19 @@ const GlobalStats = ({ totalFound, analyzed, quota }) => {
       color: 'var(--brand-secondary)',
     },
     {
-      label: 'Kalan API Kotası',
-      value: quota?.remaining !== undefined ? quota.remaining.toLocaleString() : 'Veri bekleniyor...',
+      label: 'API KALAN KOTA',
+      value:
+        quota?.remaining !== undefined
+          ? `${quota.remaining.toLocaleString()} / ${quota.limit?.toLocaleString() || '20.000'}`
+          : 'Veri bekleniyor...',
       icon: <Zap size={24} />,
-      color: quota?.remaining === undefined ? '#64748b' : (parseInt(quota.remaining) > 100 ? '#059669' : '#dc2626'),
-      subValue: quota?.limit ? `Limit: ${quota.limit.toLocaleString()}` : 'Bağlantı kuruluyor',
+      color:
+        quota?.remaining === undefined
+          ? '#64748b'
+          : Number.parseInt(quota.remaining, 10) > 100
+            ? '#059669'
+            : '#dc2626',
+      progress: quota?.limit ? (quota.remaining / quota.limit) * 100 : 0,
     },
     {
       label: 'Sıfırlanma Tarihi',
@@ -49,46 +57,44 @@ const GlobalStats = ({ totalFound, analyzed, quota }) => {
   ];
 
   return (
-    <MotionDiv
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
-      className="stats-grid"
-    >
+    <MotionDiv variants={containerVariants} initial="hidden" animate="show" className="stats-grid">
       {stats.map((stat, index) => (
-        <MotionDiv key={index} variants={itemVariants} className="stat-card">
+        <MotionDiv key={index} variants={itemVariants} className="stat-card" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div
               className="stat-icon"
               style={{
                 background: `${stat.color}15`,
                 color: stat.color,
-                padding: '1rem',
-                borderRadius: '16px',
+                padding: '0.75rem',
+                borderRadius: '12px',
                 display: 'flex',
               }}
             >
               {stat.icon}
             </div>
-            <div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <p
                 style={{
                   margin: 0,
-                  fontSize: '0.85rem',
-                  fontWeight: '700',
+                  fontSize: '0.75rem',
+                  fontWeight: '800',
                   color: 'var(--text-muted)',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.025em',
+                  letterSpacing: '0.05em',
                 }}
               >
                 {stat.label}
               </p>
               <h3
                 style={{
-                  margin: '0.25rem 0 0 0',
-                  fontSize: '1.5rem',
+                  margin: '0.15rem 0 0 0',
+                  fontSize: stat.label.includes('API') ? '1.15rem' : '1.4rem',
                   fontWeight: '900',
                   color: 'var(--text-main)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
                 }}
               >
                 {stat.value}
@@ -96,14 +102,25 @@ const GlobalStats = ({ totalFound, analyzed, quota }) => {
               {stat.subValue && (
                 <p
                   style={{
-                    margin: '0.25rem 0 0 0',
-                    fontSize: '0.75rem',
+                    margin: '0.15rem 0 0 0',
+                    fontSize: '0.7rem',
                     color: 'var(--text-light)',
                     fontWeight: '600',
                   }}
                 >
                   {stat.subValue}
                 </p>
+              )}
+              {stat.progress !== undefined && (
+                <div style={{ marginTop: '0.5rem', width: '100%' }}>
+                  <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${stat.progress}%` }}
+                      style={{ height: '100%', background: stat.color, borderRadius: '3px' }}
+                    />
+                  </div>
+                </div>
               )}
             </div>
           </div>

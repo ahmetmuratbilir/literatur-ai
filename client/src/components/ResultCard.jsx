@@ -1,6 +1,14 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, FileText, User as UserIcon, ExternalLink, ChevronDown, ChevronUp, Quote } from 'lucide-react';
+import { motion } from 'framer-motion';
+import {
+  Calendar,
+  FileText,
+  User as UserIcon,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Quote,
+} from 'lucide-react';
 
 const MotionDiv = motion.div;
 
@@ -25,14 +33,13 @@ const ResultCard = ({ item, rank }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="card"
-      style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'auto 1fr auto', 
-        gap: '1.5rem', 
-        alignItems: 'start' 
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'auto 1fr auto',
+        gap: '1.5rem',
+        alignItems: 'start',
       }}
     >
-      {/* Sıralama & Atıf Rozeti */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
         <div
           style={{
@@ -51,25 +58,27 @@ const ResultCard = ({ item, rank }) => {
         >
           {rank}
         </div>
-        
-        <div title="Atıf Sayısı" style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          fontSize: '0.7rem', 
-          fontWeight: '700', 
-          color: '#64748b',
-          background: '#f8fafc',
-          padding: '6px',
-          borderRadius: '8px',
-          border: '1px solid #e2e8f0'
-        }}>
+
+        <div
+          title="Atıf Sayısı"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            fontSize: '0.7rem',
+            fontWeight: '700',
+            color: '#64748b',
+            background: '#f8fafc',
+            padding: '6px',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+          }}
+        >
           <Quote size={12} color="var(--brand-primary)" />
           {item.citedBy || 0}
         </div>
       </div>
 
-      {/* İçerik */}
       <div style={{ minWidth: 0 }}>
         <h3
           style={{
@@ -78,12 +87,12 @@ const ResultCard = ({ item, rank }) => {
             fontWeight: '800',
             color: 'var(--text-main)',
             lineHeight: '1.4',
-            letterSpacing: '-0.01em'
+            letterSpacing: '-0.01em',
           }}
         >
           {item.title}
         </h3>
-        
+
         <div
           style={{
             margin: '0 0 1rem 0',
@@ -107,53 +116,63 @@ const ResultCard = ({ item, rank }) => {
         </div>
 
         <div style={{ position: 'relative' }}>
-          <p style={{ 
-            fontSize: '0.95rem', 
-            color: 'var(--text-muted)', 
-            lineHeight: '1.6', 
-            margin: 0,
-            display: expanded ? 'block' : '-webkit-box',
-            WebkitLineClamp: '3',
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden'
-          }}>
+          <p
+            style={{
+              fontSize: '0.95rem',
+              color: 'var(--text-muted)',
+              lineHeight: '1.6',
+              margin: 0,
+              display: expanded ? 'block' : '-webkit-box',
+              WebkitLineClamp: '3',
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
             {item.description || 'Bu makale için özet bilgisi bulunmuyor.'}
           </p>
-          
+
           <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem', alignItems: 'center' }}>
             {item.description && item.description.length > 200 && (
-              <button 
+              <button
                 onClick={() => setExpanded(!expanded)}
-                style={{ 
-                  background: 'none', 
-                  border: 'none', 
-                  color: 'var(--brand-primary)', 
-                  fontWeight: '700', 
-                  fontSize: '0.85rem', 
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--brand-primary)',
+                  fontWeight: '700',
+                  fontSize: '0.85rem',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
-                  padding: 0
+                  padding: 0,
                 }}
               >
-                {expanded ? <><ChevronUp size={16} /> Daha az</> : <><ChevronDown size={16} /> Özeti gör</>}
+                {expanded ? (
+                  <>
+                    <ChevronUp size={16} /> Daha az
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown size={16} /> Özeti gör
+                  </>
+                )}
               </button>
             )}
 
             {item.url && (
-              <a 
-                href={item.url} 
-                target="_blank" 
+              <a
+                href={item.url}
+                target="_blank"
                 rel="noopener noreferrer"
-                style={{ 
-                  color: 'var(--brand-secondary)', 
-                  fontWeight: '700', 
-                  fontSize: '0.85rem', 
+                style={{
+                  color: 'var(--brand-secondary)',
+                  fontWeight: '700',
+                  fontSize: '0.85rem',
                   textDecoration: 'none',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px'
+                  gap: '4px',
                 }}
               >
                 <ExternalLink size={16} /> Makaleye Git
@@ -163,18 +182,19 @@ const ResultCard = ({ item, rank }) => {
         </div>
       </div>
 
-      {/* Skor Göstergesi */}
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        gap: '0.5rem',
-        minWidth: '80px',
-        padding: '0.5rem',
-        background: '#f8fafc',
-        borderRadius: '16px',
-        border: '1px solid #e2e8f0'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '0.5rem',
+          minWidth: '80px',
+          padding: '0.5rem',
+          background: '#f8fafc',
+          borderRadius: '16px',
+          border: '1px solid #e2e8f0',
+        }}
+      >
         <div
           style={{
             width: '56px',

@@ -39,7 +39,7 @@ async function fetchPage(query, start, count) {
   if (response.status !== 200) {
     let resetDate = 'Bilinmiyor';
     if (quotaInfo.reset) {
-      const resetValue = parseInt(quotaInfo.reset, 10);
+      const resetValue = Number.parseInt(quotaInfo.reset, 10);
       const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
       resetDate = new Date(resetTime).toLocaleString('tr-TR', {
         day: '2-digit',
@@ -78,10 +78,10 @@ export async function searchLiterature(query, count, weights = null) {
     lastQuota = quotaInfo;
 
     if (!firstPage['search-results']) {
-      throw new Error('Elsevier API\'sinden geçersiz yanıt alındı.');
+      throw new Error("Elsevier API'sinden geçersiz yanıt alındı.");
     }
 
-    const totalResults = parseInt(firstPage['search-results']['opensearch:totalResults'], 10) || 0;
+    const totalResults = Number.parseInt(firstPage['search-results']['opensearch:totalResults'], 10) || 0;
     const initialEntry = firstPage['search-results'].entry || [];
     rawListings.push(...initialEntry);
 
@@ -116,7 +116,7 @@ export async function searchLiterature(query, count, weights = null) {
 
     let resetDate = 'Bilinmiyor';
     if (lastQuota?.reset) {
-      const resetValue = parseInt(lastQuota.reset, 10);
+      const resetValue = Number.parseInt(lastQuota.reset, 10);
       const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
       resetDate = new Date(resetTime).toLocaleString('tr-TR', {
         day: '2-digit',
@@ -140,7 +140,7 @@ export async function searchLiterature(query, count, weights = null) {
   } catch (error) {
     let resetDate = 'Bilinmiyor';
     if (lastQuota?.reset) {
-      const resetValue = parseInt(lastQuota.reset, 10);
+      const resetValue = Number.parseInt(lastQuota.reset, 10);
       const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
       resetDate = new Date(resetTime).toLocaleString('tr-TR', {
         day: '2-digit',
