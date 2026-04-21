@@ -1,11 +1,12 @@
-import { motion } from 'framer-motion';
-import { Calendar, FileText, User as UserIcon } from 'lucide-react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Calendar, FileText, User as UserIcon, ExternalLink, ChevronDown, ChevronUp, Quote } from 'lucide-react';
 
 const MotionDiv = motion.div;
 
 const ResultCard = ({ item, rank }) => {
+  const [expanded, setExpanded] = useState(false);
   const score = item.scores?.total || 0;
-  // Skor her zaman 0-1 aralığında gelir, % olarak gösteriyoruz
   const scorePercent = Math.round(score * 100);
 
   let badgeColor = 'var(--score-low)';
@@ -31,24 +32,41 @@ const ResultCard = ({ item, rank }) => {
         alignItems: 'start' 
       }}
     >
-      {/* Sıralama Badge */}
-      <div
-        style={{
-          background: rank <= 3 ? 'linear-gradient(135deg, #6366f1, #4338ca)' : '#f1f5f9',
-          width: '42px',
-          height: '42px',
-          borderRadius: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '1.1rem',
-          fontWeight: '800',
-          color: rank <= 3 ? 'white' : '#64748b',
-          boxShadow: rank <= 3 ? '0 4px 12px rgba(99, 102, 241, 0.25)' : 'none',
-          marginTop: '4px'
-        }}
-      >
-        {rank}
+      {/* Sıralama & Atıf Rozeti */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
+        <div
+          style={{
+            background: rank <= 3 ? 'linear-gradient(135deg, #6366f1, #4338ca)' : '#f1f5f9',
+            width: '42px',
+            height: '42px',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.1rem',
+            fontWeight: '800',
+            color: rank <= 3 ? 'white' : '#64748b',
+            boxShadow: rank <= 3 ? '0 4px 12px rgba(99, 102, 241, 0.25)' : 'none',
+          }}
+        >
+          {rank}
+        </div>
+        
+        <div title="Atıf Sayısı" style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          fontSize: '0.7rem', 
+          fontWeight: '700', 
+          color: '#64748b',
+          background: '#f8fafc',
+          padding: '6px',
+          borderRadius: '8px',
+          border: '1px solid #e2e8f0'
+        }}>
+          <Quote size={12} color="var(--brand-primary)" />
+          {item.citedBy || 0}
+        </div>
       </div>
 
       {/* İçerik */}
@@ -88,20 +106,61 @@ const ResultCard = ({ item, rank }) => {
           </span>
         </div>
 
-        <p style={{ 
-          fontSize: '0.95rem', 
-          color: 'var(--text-muted)', 
-          lineHeight: '1.6', 
-          margin: 0,
-          display: '-webkit-box',
-          WebkitLineClamp: '3',
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden'
-        }}>
-          {item.description
-            ? item.description
-            : 'Bu makale için özet bilgisi bulunmuyor.'}
-        </p>
+        <div style={{ position: 'relative' }}>
+          <p style={{ 
+            fontSize: '0.95rem', 
+            color: 'var(--text-muted)', 
+            lineHeight: '1.6', 
+            margin: 0,
+            display: expanded ? 'block' : '-webkit-box',
+            WebkitLineClamp: '3',
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden'
+          }}>
+            {item.description || 'Bu makale için özet bilgisi bulunmuyor.'}
+          </p>
+          
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem', alignItems: 'center' }}>
+            {item.description && item.description.length > 200 && (
+              <button 
+                onClick={() => setExpanded(!expanded)}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  color: 'var(--brand-primary)', 
+                  fontWeight: '700', 
+                  fontSize: '0.85rem', 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: 0
+                }}
+              >
+                {expanded ? <><ChevronUp size={16} /> Daha az</> : <><ChevronDown size={16} /> Özeti gör</>}
+              </button>
+            )}
+
+            {item.url && (
+              <a 
+                href={item.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ 
+                  color: 'var(--brand-secondary)', 
+                  fontWeight: '700', 
+                  fontSize: '0.85rem', 
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <ExternalLink size={16} /> Makaleye Git
+              </a>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Skor Göstergesi */}

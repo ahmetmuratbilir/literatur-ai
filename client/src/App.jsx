@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import {
   Activity,
   BarChart2,
@@ -30,6 +29,7 @@ import {
 } from 'docx';
 import { saveAs } from 'file-saver';
 import html2canvas from 'html2canvas';
+import html2pdf from 'html2pdf.js';
 import ResultCard from './components/ResultCard';
 import GlobalStats from './components/GlobalStats';
 
@@ -102,71 +102,62 @@ function App() {
   };
 
 
-  const exportToPDF = async () => {
+
+  const exportToPDF = () => {
     if (!data?.results?.length) return;
 
-    const exportContainer = document.createElement('div');
-    exportContainer.style.position = 'fixed';
-    exportContainer.style.left = '-9999px';
-    exportContainer.style.top = '0';
-    exportContainer.style.width = '800px';
-    exportContainer.style.padding = '40px';
-    exportContainer.style.background = 'white';
-    exportContainer.style.fontFamily = "'Inter', sans-serif";
+    const element = document.createElement('div');
+    element.style.padding = '20px';
+    element.style.background = 'white';
+    element.style.color = '#0f172a';
+    element.style.fontFamily = "'Outfit', 'Inter', sans-serif";
 
-    exportContainer.innerHTML = `
-      <div style="color: #4f46e5; font-size: 28px; font-weight: 800; margin-bottom: 8px;">LiteratureAI Araştırma Raporu</div>
-      <div style="color: #64748b; font-size: 14px; font-weight: 600; margin-bottom: 30px;">
-        Konu: ${mainTopic || 'Genel Arama'} | Tarih: ${new Date().toLocaleDateString('tr-TR')}
-      </div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-        <thead>
-          <tr style="background: #4f46e5; color: white; text-align: left;">
-            <th style="padding: 12px; border: 1px solid #e2e8f0;">Sıra</th>
-            <th style="padding: 12px; border: 1px solid #e2e8f0;">Makale Başlığı</th>
-            <th style="padding: 12px; border: 1px solid #e2e8f0;">Yıl</th>
-            <th style="padding: 12px; border: 1px solid #e2e8f0;">Atıf</th>
-            <th style="padding: 12px; border: 1px solid #e2e8f0;">Skor</th>
-          </tr>
-        </thead>
-        <tbody>
+    element.innerHTML = `
+      <div style="padding: 20px;">
+        <h1 style="color: #4f46e5; font-size: 24px; margin-bottom: 4px; border-bottom: 2px solid #4f46e5; padding-bottom: 8px;">
+          LiteratureAI Akademik Tarama Raporu
+        </h1>
+        <p style="color: #64748b; font-size: 12px; margin-bottom: 24px;">
+          Konu: ${mainTopic || 'Genel Arama'} | Tarih: ${new Date().toLocaleDateString('tr-TR')}
+        </p>
+        
+        <div style="display: grid; gap: 20px;">
           ${data.results.map((item, index) => `
-            <tr style="background: ${index % 2 === 0 ? '#f8fafc' : 'white'};">
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">${index + 1}</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600;">${item.title || 'Başlıksız'}</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">${item.year || '-'}</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0;">${item.citedBy || 0}</td>
-              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 800; color: #4f46e5;">%${formatScore(item.scores?.total)}</td>
-            </tr>
+            <div style="padding: 15px; border: 1px solid #e2e8f0; border-radius: 12px; page-break-inside: avoid; margin-bottom: 10px;">
+              <div style="display: flex; gap: 10px; align-items: start;">
+                <span style="background: #f1f5f9; padding: 4px 8px; border-radius: 6px; font-weight: 800; color: #4f46e5; font-size: 12px;">#${index + 1}</span>
+                <div style="flex: 1;">
+                  <div style="font-size: 14px; font-weight: 800; color: #1e293b; margin-bottom: 4px;">${item.title}</div>
+                  <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">
+                    ${item.creator || 'Bilinmeyen Yazar'} | ${item.year} | ${item.publicationName}
+                  </div>
+                  <div style="font-size: 12px; color: #475569; line-height: 1.5;">${item.description || 'Özet bulunmuyor.'}</div>
+                  <div style="margin-top: 8px; display: flex; gap: 15px; font-size: 11px; font-weight: 700;">
+                    <span style="color: #4f46e5;">Atıf: ${item.citedBy || 0}</span>
+                    <span style="color: #059669;">AHP Skoru: %${formatScore(item.scores?.total)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           `).join('')}
-        </tbody>
-      </table>
-      <div style="margin-top: 30px; color: #94a3b8; font-size: 10px; text-align: center; font-style: italic;">
-        ${COPYRIGHT_NOTICE}
+        </div>
+        
+        <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+          ${COPYRIGHT_NOTICE}
+        </div>
       </div>
     `;
 
-    document.body.appendChild(exportContainer);
+    const opt = {
+      margin: 10,
+      filename: `literature_results_${new Date().getTime()}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
 
-    try {
-      const canvas = await html2canvas(exportContainer, {
-        scale: 2,
-        useCORS: true,
-        logging: false
-      });
-      
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`literature_results_${new Date().getTime()}.pdf`);
-    } catch (err) {
-      console.error('PDF Export Error:', err);
-    } finally {
-      document.body.removeChild(exportContainer);
-    }
+    html2pdf().set(opt).from(element).save();
   };
 
   const exportToWord = async () => {

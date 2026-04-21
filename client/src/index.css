@@ -262,15 +262,88 @@ h1, h2, h3 {
 }
 
 /* Responsive Adjustments */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .container {
     padding: 2rem 1rem;
   }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --radius-lg: 16px;
+    --radius-md: 12px;
+  }
+
   .glass-panel {
     padding: 1.5rem;
   }
+
+  header h1 {
+    font-size: 2.5rem !important;
+  }
+
+  /* Form Mobilde Tek Kolon */
+  form > div {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
+  }
+
   .hero-input {
     font-size: 1rem;
-    padding-left: 3rem;
+    padding: 1.125rem 1.125rem 1.125rem 3rem;
+  }
+
+  /* Export Butonları Wrap */
+  .export-actions {
+    width: 100%;
+    justify-content: center;
+    gap: 0.5rem !important;
+  }
+
+  .pill-btn {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+    font-size: 0.8rem;
+  }
+
+  /* Kart Yapısı Mobilde Dikey */
+  .card {
+    grid-template-columns: 1fr !important;
+    text-align: center;
+    padding: 1.5rem;
+    gap: 1rem !important;
+  }
+
+  .card > div:first-child {
+    margin: 0 auto;
+  }
+
+  .card > div:last-child {
+    flex-direction: row !important;
+    justify-content: center;
+    width: 100%;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  .stat-card {
+    padding: 1.25rem;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}
+
+/* Typography Enhancements for Mobile readability */
+@media (max-width: 480px) {
+  header h1 {
+    font-size: 2rem !important;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
   }
 }

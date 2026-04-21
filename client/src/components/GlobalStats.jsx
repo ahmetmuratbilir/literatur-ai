@@ -34,17 +34,17 @@ const GlobalStats = ({ totalFound, analyzed, quota }) => {
     },
     {
       label: 'Kalan API Kotası',
-      value: quota?.remaining?.toLocaleString() || '0',
+      value: quota?.remaining !== undefined ? quota.remaining.toLocaleString() : 'Veri bekleniyor...',
       icon: <Zap size={24} />,
-      color: parseInt(quota?.remaining) > 100 ? '#059669' : '#dc2626',
-      subValue: `Limit: ${quota?.limit?.toLocaleString() || 'Bilinmiyor'}`,
+      color: quota?.remaining === undefined ? '#64748b' : (parseInt(quota.remaining) > 100 ? '#059669' : '#dc2626'),
+      subValue: quota?.limit ? `Limit: ${quota.limit.toLocaleString()}` : 'Bağlantı kuruluyor',
     },
     {
       label: 'Sıfırlanma Tarihi',
-      value: quota?.reset && quota.reset !== 'Bilinmiyor' ? quota.reset.split(',')[0] : 'Sistem bekleniyor...',
+      value: quota?.reset && quota.reset !== 'Bilinmiyor' ? quota.reset.split(',')[0] : 'Bekleniyor...',
       icon: <Activity size={24} />,
       color: '#6366f1',
-      subValue: quota?.reset?.includes(',') ? quota.reset.split(',')[1] : '',
+      subValue: quota?.reset?.includes(',') ? quota.reset.split(',')[1] : 'Güncellenecek',
     },
   ];
 
