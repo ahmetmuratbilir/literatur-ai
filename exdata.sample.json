@@ -1,0 +1,29 @@
+[
+  {
+    "eid": "2-s2.0-demo-sample-1",
+    "dc:title": "Yapay zeka ve akademik arama sistemleri",
+    "dc:creator": "Örnek, A.",
+    "prism:publicationName": "Demo Dergisi",
+    "prism:coverDate": "2024-03-15",
+    "dc:description": "Bu örnek kayıt, API erişimi olmadığında gösterilir. Yapay zeka ve literatür tarama konularını içerir.",
+    "citedby-count": "128"
+  },
+  {
+    "eid": "2-s2.0-demo-sample-2",
+    "dc:title": "Açık erişim ve atıf analizi",
+    "dc:creator": "Demo, B.",
+    "prism:publicationName": "Bilim ve Teknoloji",
+    "prism:coverDate": "2022-11-01",
+    "dc:description": "Açık erişim yayınları ve atıf sayıları üzerine özet bir metin. Literatür taraması için örnek.",
+    "citedby-count": "45"
+  },
+  {
+    "eid": "2-s2.0-demo-sample-3",
+    "dc:title": "Çok kriterli karar verme ve AHP",
+    "dc:creator": "Örnek, C.",
+    "prism:publicationName": "Yöneylem Araştırması",
+    "prism:coverDate": "2020-06-20",
+    "dc:description": "Analitik hiyerarşi süreci ve çok kriterli skorlama yöntemleri anlatılmaktadır.",
+    "citedby-count": "210"
+  }
+]

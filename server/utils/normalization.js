@@ -3,6 +3,7 @@ const { WordTokenizer } = pkg;
 const tokenizer = new WordTokenizer();
 
 export async function normalizeData(rawData, queryContext) {
+    const ctx = String(queryContext ?? '');
     const cleaned = [];
 
     // Helper to get text from nested structure
@@ -27,26 +28,36 @@ export async function normalizeData(rawData, queryContext) {
             normalized.publicationName = getText(item["prism:publicationName"]);
             normalized.coverDate = getText(item["prism:coverDate"]);
             normalized.description = getText(item["dc:description"]);
+            normalized.source = 'Scopus';
 
-            // Extract Year
-            const dateStr = item["prism:coverDate"] || item["prism:coverDisplayDate"] || "2000";
-            normalized.year = parseInt(dateStr.slice(0, 4)) || 2000;
+            // URL: prefer prism:url or dc:identifier DOI link
+            const rawUrl = getText(item["prism:url"]) || getText(item["dc:identifier"]) || '';
+            normalized.url = rawUrl.startsWith('http') ? rawUrl : (rawUrl ? `https://doi.org/${rawUrl.replace(/^DOI:/i, '').trim()}` : '');
 
-            // Handle Citations (citedby-count) if available, otherwise 0 (User warning: we removed random spawner)
-            // But for AHP to work nicely, we might need some variance if the API doesn't return it.
-            // The API response for metadata often contains 'citedby-count'. Let's check for it.
-            normalized.citedBy = item['citedby-count'] ? parseInt(item['citedby-count']) : 0;
+            // Extract Year — guard against short/null strings
+            const dateStr = String(item["prism:coverDate"] || item["prism:coverDisplayDate"] || '2000');
+            normalized.year = parseInt(dateStr.slice(0, 4), 10) || 2000;
 
-            // Keyword matching Logic
-            // We count how many times the query keywords appear in the description
+            // Handle Citations (citedby-count) if available, otherwise 0
+            normalized.citedBy = item['citedby-count'] ? parseInt(item['citedby-count'], 10) : 0;
+
+            // Keyword matching Logic (AHP Relevance Score)
             let keyCount = 0;
-            if (normalized.description) {
-                const tokens = tokenizer.tokenize(normalized.description.toLowerCase());
-                const queryTokens = tokenizer.tokenize(queryContext.toLowerCase());
+            const queryTokens = tokenizer.tokenize(ctx.toLowerCase());
 
-                // Simple frequency count
-                tokens.forEach(t => {
-                    if (queryTokens.includes(t)) keyCount++;
+            // 1. Check Title (High Weight)
+            if (normalized.title) {
+                const titleTokens = tokenizer.tokenize(normalized.title.toLowerCase());
+                titleTokens.forEach(t => {
+                    if (queryTokens.includes(t)) keyCount += 3;
+                });
+            }
+
+            // 2. Check Abstract (Normal Weight)
+            if (normalized.description) {
+                const descTokens = tokenizer.tokenize(normalized.description.toLowerCase());
+                descTokens.forEach(t => {
+                    if (queryTokens.includes(t)) keyCount += 1;
                 });
             }
             normalized.keyCount = keyCount;

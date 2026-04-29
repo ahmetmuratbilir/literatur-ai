@@ -1,11 +1,6 @@
 import { fetch } from 'undici';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { normalizeData } from '../utils/normalization.js';
-import { calculateAHP } from './ahp.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REQUEST_TYPE = 'GET';
 const API_URL = 'https://api.elsevier.com';
 
@@ -68,10 +63,16 @@ async function fetchPage(query, start, count) {
   return { data, quotaInfo };
 }
 
-export async function searchLiterature(query, count, weights = null) {
+export async function searchLiterature(query, count, weights = null, queryContext) {
+  if (!process.env.ELSEVIER_API_KEY?.trim()) {
+    console.warn('[Scopus] ELSEVIER_API_KEY tanımlı değil; Scopus atlanıyor.');
+    return { totalFound: 0, results: [], quotaInfo: {} };
+  }
+
   const chunkSize = 25;
   const rawListings = [];
   let lastQuota = null;
+  let totalResults = 0;
 
   try {
     const { data: firstPage, quotaInfo } = await fetchPage(query, 0, chunkSize);
@@ -81,11 +82,11 @@ export async function searchLiterature(query, count, weights = null) {
       throw new Error("Elsevier API'sinden geçersiz yanıt alındı.");
     }
 
-    const totalResults = Number.parseInt(firstPage['search-results']['opensearch:totalResults'], 10) || 0;
+    totalResults = Number.parseInt(firstPage['search-results']['opensearch:totalResults'], 10) || 0;
     const initialEntry = firstPage['search-results'].entry || [];
     rawListings.push(...initialEntry);
 
-    console.log(`Toplam bulunan: ${totalResults}. İstenen: ${count}`);
+    console.log(`[Scopus] Toplam bulunan: ${totalResults}. İstenen: ${count}`);
 
     const numItemsNeeded = Math.min(count, totalResults, 5000);
     const maxPages = Math.ceil(numItemsNeeded / chunkSize);
@@ -103,88 +104,22 @@ export async function searchLiterature(query, count, weights = null) {
 
         await new Promise((resolve) => setTimeout(resolve, 800));
       } catch (error) {
-        console.error('Sayfalama hatası:', error);
+        console.error('[Scopus] Sayfalama hatası:', error);
         break;
       }
     }
 
-    console.log(`${rawListings.length} öğe normalize ediliyor...`);
-    const cleanData = await normalizeData(rawListings, query);
-
-    console.log('AHP skorları hesaplanıyor...');
-    const rankedData = await calculateAHP(cleanData, weights);
-
-    let resetDate = 'Bilinmiyor';
-    if (lastQuota?.reset) {
-      const resetValue = Number.parseInt(lastQuota.reset, 10);
-      const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
-      resetDate = new Date(resetTime).toLocaleString('tr-TR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    }
+    console.log(`[Scopus] ${rawListings.length} öğe normalize ediliyor...`);
+    // queryContext (yani salt kelimeler) gönderiyoruz ki AHP için sayabilsin
+    const cleanData = await normalizeData(rawListings, queryContext || query);
 
     return {
       totalFound: totalResults,
-      analyzedCount: rankedData.length,
-      results: rankedData.slice(0, 500),
-      quota: {
-        limit: lastQuota?.limit,
-        remaining: lastQuota?.remaining,
-        reset: resetDate,
-      },
+      results: cleanData,
+      quotaInfo: lastQuota
     };
   } catch (error) {
-    let resetDate = 'Bilinmiyor';
-    if (lastQuota?.reset) {
-      const resetValue = Number.parseInt(lastQuota.reset, 10);
-      const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
-      resetDate = new Date(resetTime).toLocaleString('tr-TR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    }
-
-    if (error.message.includes('429') || error.message.includes('Kotanız')) {
-      console.log('--- KOTA DOLU: DEMO MODUNA GEÇİLİYOR ---');
-
-      try {
-        const exDataPath = path.join(__dirname, '../../exdata.json');
-        const rawExData = await fs.readFile(exDataPath, 'utf-8');
-        const exData = JSON.parse(rawExData);
-
-        console.log(`Demo modu aktif: ${exData.length} yerel kayıt yüklendi.`);
-
-        const delay = Math.floor(Math.random() * 1000) + 1500;
-        await new Promise((resolve) => setTimeout(resolve, delay));
-
-        const cleanData = await normalizeData(exData, query);
-        const rankedData = await calculateAHP(cleanData, weights);
-
-        return {
-          totalFound: exData.length,
-          analyzedCount: rankedData.length,
-          results: rankedData.slice(0, count || 10),
-          demoMode: true,
-          quota: { limit: 1000, remaining: 0, reset: resetDate },
-        };
-      } catch (fileError) {
-        console.error('Demo verisi yüklenirken hata:', fileError);
-      }
-    }
-
-    error.quota = {
-      limit: lastQuota?.limit,
-      remaining: lastQuota?.remaining,
-      reset: resetDate,
-    };
-
+    console.error('[Scopus] Arama hatası:', error.message);
     throw error;
   }
 }
