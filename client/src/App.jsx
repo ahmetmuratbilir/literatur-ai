@@ -482,19 +482,6 @@ function App() {
           <p style={{ color: 'var(--text-muted)', fontWeight: '600', fontSize: '1.1rem' }}>
             Akademik Literatür Analiz ve AHP Skorlama Sistemi
           </p>
-          <p
-            style={{
-              margin: '1rem 0 0 0',
-              fontSize: '0.8rem',
-              fontWeight: '600',
-              color: 'var(--text-light)',
-            }}
-          >
-            API:{' '}
-            <span style={{ color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>
-              {defaultApiUrl}
-            </span>
-          </p>
         </MotionDiv>
       </header>
 
@@ -834,9 +821,6 @@ function App() {
                       <code className="code-chip">VITE_API_URL</code> ile ayarlayın.
                     </li>
                   </ul>
-                  <p className="state-panel__api-hint">
-                    Şu an istemci şu adrese istek atıyor: {defaultApiUrl}
-                  </p>
                 </>
               )}
             </div>
