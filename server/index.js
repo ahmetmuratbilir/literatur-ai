@@ -6,15 +6,26 @@ import { fileURLToPath } from 'url';
 import translate from 'google-translate-api-x';
 import { searchAll } from './services/search.js';
 import { analyzeAndExpandQuery } from './services/llm.js';
+import { withTimeout } from './utils/http.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const TRANSLATE_TIMEOUT_MS = 2500;
+const MAX_SEARCH_COUNT = 100;
 
 app.use(cors());
 app.use(express.json());
+
+async function translateToEnglish(text) {
+  return withTimeout(
+    translate(text, { to: 'en' }),
+    TRANSLATE_TIMEOUT_MS,
+    `Translate timeout after ${TRANSLATE_TIMEOUT_MS}ms`
+  );
+}
 
 app.get('/api/health', (req, res) => {
   // Never return raw secrets. Only surface whether a key exists.
@@ -64,7 +75,7 @@ app.get('/api/search', async (req, res) => {
       let topicQuery = `title(${mainTopic}) OR key(${mainTopic}) OR abs(${mainTopic})`;
 
       try {
-        const translated = await translate(mainTopic, { to: 'en' });
+        const translated = await translateToEnglish(mainTopic);
 
         let topicBoolean = `"${mainTopic}"`;
 
@@ -98,7 +109,7 @@ app.get('/api/search', async (req, res) => {
         let keywordBoolean = `"${keyword}"`;
 
         try {
-          const translated = await translate(keyword, { to: 'en' });
+          const translated = await translateToEnglish(keyword);
 
           if (
             translated?.text &&
@@ -130,7 +141,8 @@ app.get('/api/search', async (req, res) => {
       return res.status(400).json({ error: 'At least one search parameter is required.' });
     }
 
-    const limit = Number.isFinite(Number.parseInt(count, 10)) ? Number.parseInt(count, 10) : 10;
+    const requestedLimit = Number.isFinite(Number.parseInt(count, 10)) ? Number.parseInt(count, 10) : 25;
+    const limit = Math.min(MAX_SEARCH_COUNT, Math.max(10, requestedLimit));
     const queryContext = queryContextWords.join(' ');
     const booleanQuery = booleanQueryParts.join(' AND ');
 
