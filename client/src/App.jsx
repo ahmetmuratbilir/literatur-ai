@@ -293,13 +293,6 @@ function App() {
     saveAs(blob, `literature_results_${new Date().getTime()}.docx`);
   };
 
-  const addKeyword = () => {
-    if (newKeyword.trim() && !keywords.includes(newKeyword.trim())) {
-      setKeywords([...keywords, newKeyword.trim()]);
-      setNewKeyword('');
-    }
-  };
-
   const handleAiSuggest = async () => {
     if (!mainTopic.trim()) {
       setAiError('AI Analizi için lütfen önce "Ana Araştırma Konusu" giriniz.');
@@ -754,7 +747,7 @@ function App() {
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <AnimatePresence>
-                {keywords.map((kw, idx) => (
+                {keywords.map((kw) => (
                   <motion.span
                     key={kw}
                     initial={{ opacity: 0, scale: 0.8 }}

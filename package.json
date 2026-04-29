@@ -5,7 +5,12 @@
   "main": "normalize.js",
   "scripts": {
     "test": "npm run lint --prefix client",
-    "lint": "npm run lint --prefix client"
+    "lint": "npm run lint --prefix client",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build:client": "npm --prefix client run build",
+    "preview:client": "npm --prefix client run preview",
+    "start:server": "npm --prefix server start"
   },
   "keywords": [],
   "author": "",

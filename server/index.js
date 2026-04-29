@@ -13,6 +13,22 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+app.get('/api/health', (req, res) => {
+  // Never return raw secrets. Only surface whether a key exists.
+  const has = (v) => typeof v === 'string' && v.trim().length > 0;
+  return res.json({
+    ok: true,
+    port: Number(PORT),
+    services: {
+      scopus: has(process.env.ELSEVIER_API_KEY),
+      openalex: has(process.env.OPENALEX_API_KEY),
+      core: has(process.env.CORE_API_KEY),
+      groq: has(process.env.GROQ_API_KEY),
+    },
+    demoFallback: true,
+  });
+});
+
 app.get('/api/search', async (req, res) => {
   try {
     const { mainTopic, authorName, keywords, language, count } = req.query;
@@ -141,6 +157,9 @@ app.post('/api/analyze-query', async (req, res) => {
     const { topic } = req.body;
     if (!topic) {
       return res.status(400).json({ error: 'Topic is required' });
+    }
+    if (!process.env.GROQ_API_KEY?.trim()) {
+      return res.status(400).json({ error: 'GROQ_API_KEY is not defined on the server' });
     }
     const analysis = await analyzeAndExpandQuery(topic);
     return res.json(analysis);
