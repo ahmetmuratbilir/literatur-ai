@@ -1,5 +1,5 @@
-import { fetch } from 'undici';
 import pkg from 'natural';
+import { fetchWithTimeout, maskUrlSecret } from '../utils/http.js';
 const { WordTokenizer } = pkg;
 const tokenizer = new WordTokenizer();
 
@@ -64,10 +64,10 @@ export async function searchOpenAlex(queryContext, params, booleanQuery) {
 
   const url = `https://api.openalex.org/works?${urlParams.toString()}`;
 
-  console.log('OpenAlex API isteği yapılıyor:', url);
+  console.log('OpenAlex API isteği yapılıyor:', maskUrlSecret(url));
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       method: 'GET',
       headers: {
         Accept: 'application/json',

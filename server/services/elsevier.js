@@ -1,5 +1,5 @@
-import { fetch } from 'undici';
 import { normalizeData } from '../utils/normalization.js';
+import { fetchWithTimeout } from '../utils/http.js';
 
 const REQUEST_TYPE = 'GET';
 const API_URL = 'https://api.elsevier.com';
@@ -10,7 +10,7 @@ async function fetchPage(query, start, count) {
 
   console.log('Scopus API isteği yapılıyor:', url);
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     method: REQUEST_TYPE,
     headers: {
       Accept: 'application/json',

@@ -1,5 +1,5 @@
-import { fetch } from 'undici';
 import pkg from 'natural';
+import { fetchWithTimeout } from '../utils/http.js';
 const { WordTokenizer } = pkg;
 const tokenizer = new WordTokenizer();
 
@@ -16,7 +16,9 @@ export async function searchCore(queryContext, params, booleanQuery) {
 
   // Yazar varsa fielded olarak ekle
   if (authorName) {
-    searchQuery = `(${searchQuery}) AND authors:"${authorName}"`;
+    searchQuery = searchQuery.trim()
+      ? `(${searchQuery}) AND authors:"${authorName}"`
+      : `authors:"${authorName}"`;
   }
 
   // Hiçbir terim yoksa boş dön
@@ -36,7 +38,7 @@ export async function searchCore(queryContext, params, booleanQuery) {
         headers['Authorization'] = `Bearer ${apiKey}`;
     }
 
-    const response = await fetch(url, { method: 'GET', headers });
+    const response = await fetchWithTimeout(url, { method: 'GET', headers });
 
     const quotaInfo = {
       limit: response.headers.get('x-ratelimit-limit') || 5000,

@@ -5,8 +5,19 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
-    sourcemap: true,
+    sourcemap: false,
     target: 'esnext',
-    minify: 'esbuild'
+    minify: 'esbuild',
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'framer-motion'],
+          charts: ['recharts'],
+          wordExport: ['docx', 'file-saver'],
+          pdfExport: ['html2pdf.js', 'jspdf', 'jspdf-autotable', 'html2canvas'],
+        },
+      },
+    },
   }
 })
