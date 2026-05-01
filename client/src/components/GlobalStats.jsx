@@ -1,125 +1,113 @@
 import { motion } from 'framer-motion';
 const MotionDiv = motion.div;
-import { BarChart, Database, Zap, AlertTriangle, ShieldCheck, Activity, Info } from 'lucide-react';
+import { Database, Zap, ShieldCheck, Activity, Info } from 'lucide-react';
 
 const GlobalStats = ({ totalFound, analyzed, quota, sourceBreakdown, failedSources = [] }) => {
   const scopusQuota = quota?.scopus || quota;
 
   const fmt = (n) => (n != null ? Number(n).toLocaleString('tr-TR') : '—');
 
+  const failed = (n) => failedSources.includes(n) ? 'Hata' : 'Aktif';
   const sources = [
-    { name: 'Scopus', color: '#4f46e5', status: failedSources.includes('Scopus') ? 'Hata' : 'Aktif', count: sourceBreakdown?.scopus },
-    { name: 'OpenAlex', color: '#0ea5e9', status: 'Aktif', count: sourceBreakdown?.openalex },
-    { name: 'CORE', color: '#8b5cf6', status: 'Aktif', count: sourceBreakdown?.core },
-    { name: 'Crossref', color: '#f43f5e', status: 'Aktif', count: sourceBreakdown?.crossref },
-    { name: 'ArXiv', color: '#10b981', status: 'Aktif', count: sourceBreakdown?.arxiv },
-    { name: 'DOAJ', color: '#f59e0b', status: 'Aktif', count: sourceBreakdown?.doaj },
+    { name: 'Scopus', color: '#4f46e5', status: failed('Scopus'), count: sourceBreakdown?.scopus },
+    { name: 'OpenAlex', color: '#0ea5e9', status: failed('OpenAlex'), count: sourceBreakdown?.openalex },
+    { name: 'CORE', color: '#8b5cf6', status: failed('CORE'), count: sourceBreakdown?.core },
+    { name: 'Crossref', color: '#f43f5e', status: failed('Crossref'), count: sourceBreakdown?.crossref },
+    { name: 'S. Scholar', color: '#0891b2', status: failed('SemanticScholar'), count: sourceBreakdown?.s2 },
+    { name: 'ArXiv', color: '#10b981', status: failed('ArXiv'), count: sourceBreakdown?.arxiv },
+    { name: 'DOAJ', color: '#f59e0b', status: failed('DOAJ'), count: sourceBreakdown?.doaj },
   ];
 
+  const Metric = ({ icon, iconBg, iconColor, label, value }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+      <div style={{ background: iconBg, color: iconColor, width: '36px', height: '36px', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</div>
+      <div style={{ minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: 'var(--fs-xs)', fontWeight: '500', color: 'var(--text-muted)' }}>{label}</p>
+        <h4 style={{ margin: 0, fontSize: 'var(--fs-md)', fontWeight: '600', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</h4>
+      </div>
+    </div>
+  );
+
   return (
-    <div style={{ marginBottom: '2.5rem' }}>
+    <div style={{ marginBottom: '1.5rem' }}>
       {/* Üst Özet Bar */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div className="stats-summary-bar" style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
         justifyContent: 'space-between',
-        background: 'rgba(255, 255, 255, 0.8)',
-        backdropFilter: 'blur(12px)',
-        padding: '1.25rem 2.5rem',
-        borderRadius: '24px',
-        border: '1px solid #e2e8f0',
-        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)',
-        marginBottom: '1rem'
+        gap: '1rem',
+        background: 'var(--bg-card)',
+        padding: '1rem 1.25rem',
+        borderRadius: 'var(--radius-lg)',
+        border: '1px solid var(--border-light)',
+        boxShadow: 'var(--shadow-xs)',
+        marginBottom: '0.75rem'
       }}>
-        <div style={{ display: 'flex', gap: '3.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ background: '#eef2ff', color: '#4f46e5', padding: '10px', borderRadius: '12px' }}><Database size={22} /></div>
-            <div>
-              <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Literatür Havuzu</p>
-              <h4 style={{ margin: 0, fontSize: '1.3rem', fontWeight: '900', color: '#1e293b' }}>{fmt(totalFound)} Makale</h4>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ background: '#f0fdf4', color: '#10b981', padding: '10px', borderRadius: '12px' }}><Activity size={22} /></div>
-            <div>
-              <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>AHP Analiz Durumu</p>
-              <h4 style={{ margin: 0, fontSize: '1.3rem', fontWeight: '900', color: '#1e293b' }}>{fmt(analyzed)} Kayıt Skorlandı</h4>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ background: '#fff7ed', color: '#f59e0b', padding: '10px', borderRadius: '12px' }}><Zap size={22} /></div>
-            <div>
-              <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sistem Bağlantısı</p>
-              <h4 style={{ margin: 0, fontSize: '1.3rem', fontWeight: '900', color: '#1e293b' }}>Kesintisiz / Aktif</h4>
-            </div>
-          </div>
+        <div className="stats-summary-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', flex: '1 1 320px', minWidth: 0 }}>
+          <Metric icon={<Database size={18} />} iconBg="var(--brand-primary-soft)" iconColor="var(--brand-primary)" label="Literatür havuzu" value={`${fmt(totalFound)} kayıt`} />
+          <Metric icon={<Activity size={18} />} iconBg="#ecfdf5" iconColor="#059669" label="AHP skorlanan" value={fmt(analyzed)} />
+          <Metric icon={<Zap size={18} />} iconBg="#fffbeb" iconColor="#d97706" label="Sistem durumu" value="Aktif" />
         </div>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
           {scopusQuota && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#eff6ff', borderRadius: '14px', border: '1px solid #dbeafe', marginRight: '10px' }}>
-              <Info size={18} color="#3b82f6" />
-              <div style={{ fontSize: '0.8rem', color: '#1e40af', fontWeight: '700' }}>
-                Kota: {scopusQuota.remaining} / {scopusQuota.limit}
-              </div>
-            </div>
+            <span className="badge badge-info">
+              <Info size={11} />
+              Kota: {scopusQuota.remaining} / {scopusQuota.limit}
+            </span>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', background: '#f0fdf4', borderRadius: '14px', border: '1px solid #dcfce7' }}>
-             <ShieldCheck size={20} color="#10b981" />
-             <span style={{ fontSize: '0.9rem', fontWeight: '800', color: '#166534' }}>Güven Katmanı Aktif</span>
-          </div>
+          <span className="badge badge-success">
+            <ShieldCheck size={11} />
+            Güven katmanı
+          </span>
         </div>
       </div>
 
-      {/* Kaynak Durum Barı - DİKEY İSTİFLEME MODU */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '0.6rem',
+      {/* Kaynak Durum Barı */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+        gap: '0.5rem',
         width: '100%'
       }}>
-        {sources.map((src, i) => (
-          <MotionDiv
-            key={i}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.05 }}
-            style={{
-              flex: 1,
-              padding: '12px 8px',
-              background: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '16px',
-              display: 'flex',
-              flexDirection: 'column', // İsmi üste, sayıyı alta al
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-              minHeight: '64px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: src.status === 'Hata' ? '#ef4444' : src.color, flexShrink: 0 }} />
-              <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#475569', whiteSpace: 'nowrap' }}>{src.name}</span>
-            </div>
-            
-            {src.count != null ? (
-              <span style={{ 
-                fontSize: '0.85rem', 
-                fontWeight: '900', 
-                color: '#1e293b', 
-                background: '#f8fafc', 
-                padding: '2px 10px', 
-                borderRadius: '8px',
-                border: '1px solid #f1f5f9'
-              }}>
-                {fmt(src.count)} <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#64748b' }}>Kayıt</span>
-              </span>
-            ) : (
-              <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#94a3b8' }}>Bekleniyor...</span>
-            )}
-          </MotionDiv>
-        ))}
+        {sources.map((src, i) => {
+          const isError = src.status === 'Hata';
+          return (
+            <MotionDiv
+              key={i}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03 }}
+              style={{
+                padding: '10px 12px',
+                background: 'var(--bg-card)',
+                border: `1px solid ${isError ? '#fecaca' : 'var(--border-light)'}`,
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+                minHeight: '60px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '999px', background: isError ? '#ef4444' : src.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 'var(--fs-xs)', fontWeight: '600', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{src.name}</span>
+                </span>
+              </div>
+
+              {src.count != null ? (
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                  <span style={{ fontSize: 'var(--fs-md)', fontWeight: '700', color: 'var(--text-main)', fontVariantNumeric: 'tabular-nums' }}>{fmt(src.count)}</span>
+                  <span style={{ fontSize: 'var(--fs-xs)', fontWeight: '500', color: 'var(--text-muted)' }}>kayıt</span>
+                </div>
+              ) : (
+                <span style={{ fontSize: 'var(--fs-xs)', fontWeight: '500', color: 'var(--text-light)' }}>{isError ? 'Hata' : 'Bekleniyor…'}</span>
+              )}
+            </MotionDiv>
+          );
+        })}
       </div>
     </div>
   );

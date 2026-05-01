@@ -6,21 +6,26 @@ import axios from 'axios';
  * Rate Limit: 2 requests per second.
  */
 export const searchDOAJ = async (query, count = 10) => {
+  if (!query || !String(query).trim()) {
+    return { results: [], totalFound: 0 };
+  }
   try {
-    // DOAJ uses Elasticsearch syntax. /search/articles/{query}
+    console.log(`[DOAJ] İstek: q="${String(query).slice(0, 80)}" pageSize=${count}`);
     const response = await axios.get(`https://doaj.org/api/search/articles/${encodeURIComponent(query)}`, {
       params: {
-        pageSize: count,
+        pageSize: Math.min(count, 100),
         page: 1
       },
       timeout: 8000
     });
 
     if (!response.data || !response.data.results) {
+      console.warn('[DOAJ] Yanıtta results alanı yok');
       return { results: [], totalFound: 0 };
     }
 
     const totalFound = response.data.total || 0;
+    console.log(`[DOAJ] Toplam havuz: ${Number(totalFound).toLocaleString()}. Çekilen: ${response.data.results.length}`);
 
     const results = response.data.results.map(item => {
       const bib = item.bibjson || {};
@@ -38,17 +43,21 @@ export const searchDOAJ = async (query, count = 10) => {
       const links = bib.link || [];
       const fullTextLink = links.find(l => l.type === 'fulltext')?.url || (links[0] ? links[0].url : '');
 
+      const yearNum = parseInt(bib.year, 10) || 2024;
       return {
         id: `doaj-${item.id}`,
         title: bib.title || 'Untitled Paper',
+        creator: authors,
         authors: authors,
         publicationName: bib.journal ? bib.journal.title : 'DOAJ Indexed Journal',
-        year: bib.year ? bib.year.toString() : (bib.month ? bib.month.toString() : 'N/A'),
+        year: yearNum,
         doi: doi,
-        url: fullTextLink,
-        description: bib.abstract ? bib.abstract.substring(0, 500) : 'No abstract available.',
+        url: fullTextLink || (doi ? `https://doi.org/${doi}` : ''),
+        citedBy: 0,
+        description: bib.abstract ? bib.abstract.substring(0, 500) : '',
         source: 'DOAJ',
-        relevanceScore: 0.95 // DOAJ is peer-reviewed and high quality
+        keyCount: 0,
+        relevanceScore: 0.95
       };
     });
 

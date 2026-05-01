@@ -12,6 +12,22 @@ import fs from 'fs/promises';
 import { performance } from 'perf_hooks';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import pkg from 'natural';
+const { WordTokenizer } = pkg;
+const tokenizer = new WordTokenizer();
+
+function recomputeKeyCount(item, queryTokens) {
+  let keyCount = 0;
+  if (item.title) {
+    const titleTokens = tokenizer.tokenize(String(item.title).toLowerCase()) || [];
+    titleTokens.forEach(t => { if (queryTokens.includes(t)) keyCount += 3; });
+  }
+  if (item.description) {
+    const descTokens = tokenizer.tokenize(String(item.description).toLowerCase()) || [];
+    descTokens.forEach(t => { if (queryTokens.includes(t)) keyCount += 1; });
+  }
+  return keyCount;
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -141,7 +157,10 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   console.log(`API Çekim Süresi: ${((apiFetchTime - startTime) / 1000).toFixed(2)} sn`);
 
   console.log(`Kaynak da\u011f\u0131l\u0131m\u0131: Scopus=${sourceBreakdown.scopus}, OpenAlex=${sourceBreakdown.openalex}, CORE=${sourceBreakdown.core}, Crossref=${sourceBreakdown.crossref}, S2=${sourceBreakdown.s2}, ArXiv=${sourceBreakdown.arxiv}, DOAJ=${sourceBreakdown.doaj}`);
-  console.log(`API toplam havuzlar\u0131: Scopus=${totalFromAPIs.scopus.toLocaleString()}, OpenAlex=${totalFromAPIs.openalex.toLocaleString()}, CORE=${totalFromAPIs.core.toLocaleString()}, Crossref=${totalFromAPIs.crossref.toLocaleString()}, S2=${totalFromAPIs.s2.toLocaleString()}`);
+  console.log(`API toplam havuzlar\u0131: Scopus=${totalFromAPIs.scopus.toLocaleString()}, OpenAlex=${totalFromAPIs.openalex.toLocaleString()}, CORE=${totalFromAPIs.core.toLocaleString()}, Crossref=${totalFromAPIs.crossref.toLocaleString()}, S2=${totalFromAPIs.s2.toLocaleString()}, ArXiv=${totalFromAPIs.arxiv.toLocaleString()}, DOAJ=${totalFromAPIs.doaj.toLocaleString()}`);
+  if (failedSources.length > 0) {
+    console.warn(`Ba\u015far\u0131s\u0131z kaynaklar: ${failedSources.join(', ')}`);
+  }
 
   // E\u011fer hepsi \u00e7\u00f6kt\u00fcyse Demo moduna ge\u00e7
   if (allResults.length === 0) {
@@ -219,9 +238,18 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   
   const uniqueCleanData = Array.from(uniqueResultsMap.values());
 
-  // --- AKILLI VERİ ZENGİNLEŞTİRME (ENRICHMENT) ---
-  // Eğer sonuçlar çok azsa veya özetler boşsa, aramayı esnetebiliriz (Gelecek sürüm için hazırlandı)
-  
+  // --- keyCount yeniden hesaplama: bazı kaynaklar (Crossref/ArXiv/S2/DOAJ/Lens)
+  // bunu set etmiyor; AHP relevance skoru hep 0 olmasın diye burada tek standartla hesaplıyoruz.
+  const queryTokens = (tokenizer.tokenize(String(queryContext || '').toLowerCase()) || [])
+    .filter(t => t && t.length > 2 && t !== 'or' && t !== 'and');
+  if (queryTokens.length > 0) {
+    for (const item of uniqueCleanData) {
+      if (!item.keyCount || item.keyCount === 0) {
+        item.keyCount = recomputeKeyCount(item, queryTokens);
+      }
+    }
+  }
+
   const totalFoundBeforeAHP = uniqueCleanData.length;
 
   // --- OpenCitations Entegrasyonu (At\u0131f Do\u011frulama) ---

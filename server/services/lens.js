@@ -46,17 +46,21 @@ export const searchLens = async (query, count = 10) => {
       // DOI handling
       const doi = item.external_ids?.find(id => id.type === 'doi')?.value || '';
 
+      const yearNum = parseInt(item.year_published, 10) || 2024;
       return {
         id: `lens-${item.lens_id}`,
         title: item.title || 'Untitled Work',
+        creator: authors,
         authors: authors,
         publicationName: item.source?.title || 'Lens.org Indexed',
-        year: item.year_published ? item.year_published.toString() : 'N/A',
+        year: yearNum,
         doi: doi,
         url: `https://www.lens.org/lens/scholar/article/${item.lens_id}`,
-        description: item.abstract ? item.abstract.substring(0, 500) : 'No abstract available.',
+        citedBy: item.scholarly_citations_count || 0,
+        description: item.abstract ? item.abstract.substring(0, 500) : '',
         source: 'Lens.org',
-        relevanceScore: 0.98 // Lens.org metadata is very high quality
+        keyCount: 0,
+        relevanceScore: 0.98
       };
     });
 

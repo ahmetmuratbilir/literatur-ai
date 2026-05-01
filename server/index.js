@@ -78,24 +78,26 @@ app.get('/api/search', async (req, res) => {
     if (req.query.aiQuery) {
       // Convert single quotes to double quotes for Scopus/Academic engines
       let aiQuery = req.query.aiQuery.replace(/'/g, '"');
-      
-      // Auto-translate if AI hallucinated and provided Turkish in the query text
-      const hasTurkish = /[çğıöşüİĞÖŞÜ]/i.test(aiQuery);
-      if (hasTurkish) {
-        try {
-          const translatedAi = await translateToEnglish(aiQuery);
-          if (translatedAi?.text) {
-             aiQuery = translatedAi.text;
-             console.log(`AI sorgusu İngilizce'ye çevrildi: ${aiQuery}`);
-          }
-        } catch (transErr) {
-          console.warn('AI Query translation failed', transErr);
+
+      // AI prompt İngilizce sorgu üretmesi için zorlanıyor ama her zaman doğrulayalım:
+      // ASCII-Türkçe (yapay zeka, elektrikli arac vb.) veya tam Türkçe karakterler olabilir.
+      // Operatörler ("OR", "AND", parantezler, tırnaklar) Google Translate'i çoğunlukla bozmaz;
+      // yine de çevirinin orijinalden anlamlı şekilde farklı olduğu durumda çeviriyi kullanırız.
+      try {
+        const translatedAi = await translateToEnglish(aiQuery);
+        const original = aiQuery.trim().toLowerCase();
+        const translated = translatedAi?.text?.trim();
+        if (translated && translated.toLowerCase() !== original) {
+          console.log(`AI sorgusu İngilizce'ye çevrildi: "${aiQuery}" → "${translated}"`);
+          aiQuery = translated;
         }
+      } catch (transErr) {
+        console.warn('AI Query translation failed', transErr?.message || transErr);
       }
 
       const words = aiQuery.replace(/[()"]/g, ' ').split(/\s+/).filter(w => w.length > 2 && w !== 'OR' && w !== 'AND');
       queryContextWords.push(...words);
-      
+
       queryParts.push(`TITLE-ABS-KEY(${aiQuery})`);
       booleanQueryParts.push(`(${aiQuery})`);
     } else if (mainTopic) {
@@ -304,10 +306,23 @@ app.post('/api/history', async (req, res) => {
   }
 });
 
+const requireDb = (res) => {
+  if (mongoose.connection.readyState !== 1) {
+    res.status(503).json({ error: 'DB not connected' });
+    return false;
+  }
+  return true;
+};
+
+const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
+
 app.delete('/api/history/entry/:id', async (req, res) => {
   try {
+    if (!requireDb(res)) return;
     const { id } = req.params;
-    await SearchHistory.findByIdAndDelete(id);
+    if (!isValidId(id)) return res.status(400).json({ error: 'Geçersiz id' });
+    const result = await SearchHistory.findByIdAndDelete(id);
+    if (!result) return res.status(404).json({ error: 'Entry not found' });
     return res.json({ message: 'Entry deleted' });
   } catch (error) {
     console.error('Entry delete error:', error);
@@ -317,6 +332,7 @@ app.delete('/api/history/entry/:id', async (req, res) => {
 
 app.delete('/api/history/:userId', async (req, res) => {
   try {
+    if (!requireDb(res)) return;
     const { userId } = req.params;
     await SearchHistory.deleteMany({ userId });
     return res.json({ message: 'History cleared' });
@@ -346,12 +362,27 @@ app.get('/api/collections', async (req, res) => {
   }
 });
 
+const MAX_COLLECTIONS_PER_USER = 25;
+
 app.post('/api/collections', async (req, res) => {
   try {
-    const { userId, name } = req.body;
+    const { userId, name } = req.body || {};
     if (!userId || !name) return res.status(400).json({ error: 'Missing data' });
 
-    const newCollection = new Collection({ userId, name, papers: [] });
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: 'DB not connected' });
+    }
+
+    const total = await Collection.countDocuments({ userId });
+    if (total >= MAX_COLLECTIONS_PER_USER) {
+      return res.status(400).json({ error: `En fazla ${MAX_COLLECTIONS_PER_USER} koleksiyon oluşturulabilir.` });
+    }
+
+    const newCollection = new Collection({
+      userId,
+      name: String(name).trim().slice(0, 60),
+      papers: []
+    });
     await newCollection.save();
     return res.status(201).json(newCollection);
   } catch (error) {
@@ -359,47 +390,90 @@ app.post('/api/collections', async (req, res) => {
       return res.status(400).json({ error: 'Bu isimde bir koleksiyon zaten var' });
     }
     console.error('Collection save error:', error);
-    return res.status(500).json({ error: 'Failed to create collection' });
+    return res.status(500).json({ error: error?.message || 'Failed to create collection' });
   }
 });
 
+const MAX_PAPERS_PER_COLLECTION = 100;
+
+const truncate = (s, n) => (typeof s === 'string' ? s.trim().slice(0, n) : '');
+
 app.post('/api/collections/:id/add', async (req, res) => {
   try {
+    if (!requireDb(res)) return;
     const { id } = req.params;
-    const { paper } = req.body;
-    
+    if (!isValidId(id)) return res.status(400).json({ error: 'Geçersiz id' });
+    const { paper } = req.body || {};
+
+    if (!paper || (!paper.title && !paper.doi)) {
+      return res.status(400).json({ error: 'Paper data eksik' });
+    }
+
     const collection = await Collection.findById(id);
     if (!collection) return res.status(404).json({ error: 'Collection not found' });
 
-    // Data Minimization: Store only essential info and truncate long text
+    // KB-minimize: schema maxlength sınırlarına paralel kısaltma
     const minimizedPaper = {
-      title: paper.title?.slice(0, 300),
-      year: String(paper.year),
-      authors: paper.authors?.slice(0, 200),
-      url: paper.url,
-      doi: paper.doi,
-      publicationName: paper.publicationName?.slice(0, 150),
-      citedBy: Number(paper.citedBy) || 0,
-      description: paper.description ? (paper.description.slice(0, 200) + '...') : ''
+      title: truncate(paper.title, 200),
+      year: truncate(String(paper.year ?? ''), 8),
+      authors: truncate(paper.authors || paper.creator, 100),
+      url: truncate(paper.url, 200),
+      doi: truncate(paper.doi, 80),
+      publicationName: truncate(paper.publicationName, 100),
+      citedBy: Math.max(0, Number(paper.citedBy) || 0),
+      description: truncate(paper.description, 150)
     };
 
-    // Check if paper already exists in collection
-    const exists = collection.papers.some(p => p.title === minimizedPaper.title || (p.doi && p.doi === minimizedPaper.doi));
+    // Mükerrer kontrolü
+    const exists = collection.papers.some(p =>
+      (minimizedPaper.doi && p.doi === minimizedPaper.doi) ||
+      (!minimizedPaper.doi && p.title === minimizedPaper.title)
+    );
     if (exists) return res.status(400).json({ error: 'Bu makale zaten koleksiyonda' });
+
+    // 100 kayıt sınırı: en eski paper'ı düşür
+    if (collection.papers.length >= MAX_PAPERS_PER_COLLECTION) {
+      collection.papers.sort((a, b) => new Date(a.savedAt || 0) - new Date(b.savedAt || 0));
+      collection.papers.shift();
+    }
 
     collection.papers.push(minimizedPaper);
     await collection.save();
     return res.json(collection);
   } catch (error) {
     console.error('Add to collection error:', error);
-    return res.status(500).json({ error: 'Failed to add paper' });
+    return res.status(500).json({ error: error?.message || 'Failed to add paper' });
+  }
+});
+
+// Bir koleksiyondan tek bir paper'ı çıkar
+app.delete('/api/collections/:id/papers/:paperId', async (req, res) => {
+  try {
+    if (!requireDb(res)) return;
+    const { id, paperId } = req.params;
+    if (!isValidId(id)) return res.status(400).json({ error: 'Geçersiz collection id' });
+    const collection = await Collection.findById(id);
+    if (!collection) return res.status(404).json({ error: 'Collection not found' });
+    const before = collection.papers.length;
+    collection.papers = collection.papers.filter(p => String(p._id) !== String(paperId));
+    if (collection.papers.length === before) {
+      return res.status(404).json({ error: 'Paper not found in collection' });
+    }
+    await collection.save();
+    return res.json(collection);
+  } catch (error) {
+    console.error('Remove paper error:', error);
+    return res.status(500).json({ error: 'Failed to remove paper' });
   }
 });
 
 app.delete('/api/collections/:id', async (req, res) => {
   try {
+    if (!requireDb(res)) return;
     const { id } = req.params;
-    await Collection.findByIdAndDelete(id);
+    if (!isValidId(id)) return res.status(400).json({ error: 'Geçersiz id' });
+    const result = await Collection.findByIdAndDelete(id);
+    if (!result) return res.status(404).json({ error: 'Collection not found' });
     return res.json({ message: 'Collection deleted' });
   } catch (error) {
     console.error('Collection delete error:', error);
@@ -424,24 +498,59 @@ app.get('/api/analyses', async (req, res) => {
   }
 });
 
+const MAX_ANALYSES_PER_USER = 100;
+
 app.post('/api/analyses', async (req, res) => {
   try {
-    const { userId, topic, explanation, queries } = req.body;
+    const { userId, topic, explanation, queries } = req.body || {};
     if (!userId || !topic) return res.status(400).json({ error: 'Missing analysis data' });
 
-    const newAnalysis = new Analysis({ userId, topic, explanation, queries });
+    if (mongoose.connection.readyState !== 1) {
+      return res.json({ message: 'DB not connected, analysis not saved' });
+    }
+
+    const cleanQueries = Array.isArray(queries)
+      ? queries.slice(0, 10).map(q => ({
+          text: typeof q?.text === 'string' ? q.text.trim().slice(0, 180) : '',
+          relevanceScore: Math.max(0, Math.min(100, Number(q?.relevanceScore) || 0))
+        }))
+      : [];
+
+    const newAnalysis = new Analysis({
+      userId,
+      topic: String(topic).trim().slice(0, 150),
+      explanation: typeof explanation === 'string' ? explanation.trim().slice(0, 500) : '',
+      queries: cleanQueries
+    });
     await newAnalysis.save();
+
+    // Auto-cleanup: 100 kayıt cap'i, en eskileri sil
+    try {
+      const total = await Analysis.countDocuments({ userId });
+      if (total > MAX_ANALYSES_PER_USER) {
+        const overflow = await Analysis.find({ userId })
+          .sort({ createdAt: 1 })
+          .limit(total - MAX_ANALYSES_PER_USER);
+        await Analysis.deleteMany({ _id: { $in: overflow.map(a => a._id) } });
+      }
+    } catch (cleanupErr) {
+      console.warn('Analysis cleanup failed', cleanupErr);
+    }
+
     return res.status(201).json(newAnalysis);
   } catch (error) {
     console.error('Analysis save error:', error);
-    return res.status(500).json({ error: 'Failed to save analysis' });
+    return res.status(500).json({ error: error?.message || 'Failed to save analysis' });
   }
 });
 
 app.delete('/api/analyses/:id', async (req, res) => {
   try {
+    if (!requireDb(res)) return;
     const { id } = req.params;
-    await Analysis.findByIdAndDelete(id);
+    if (!isValidId(id)) return res.status(400).json({ error: 'Geçersiz id' });
+    const result = await Analysis.findByIdAndDelete(id);
+    if (!result) return res.status(404).json({ error: 'Analysis not found' });
     return res.json({ message: 'Analysis deleted' });
   } catch (error) {
     console.error('Analysis delete error:', error);

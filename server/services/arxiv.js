@@ -7,9 +7,12 @@ import { XMLParser } from 'fast-xml-parser';
  * Rate Limit: Max 1 request per 3 seconds.
  */
 export const searchArXiv = async (query, count = 10) => {
+  if (!query || !String(query).trim()) {
+    return { results: [], totalFound: 0 };
+  }
   try {
-    // ArXiv search URL construction
-    const response = await axios.get('http://export.arxiv.org/api/query', {
+    console.log(`[ArXiv] İstek: q="${String(query).slice(0, 80)}" max=${count}`);
+    const response = await axios.get('https://export.arxiv.org/api/query', {
       params: {
         search_query: `all:${query}`,
         start: 0,
@@ -37,6 +40,7 @@ export const searchArXiv = async (query, count = 10) => {
       : [jsonObj.feed.entry];
 
     const totalFound = parseInt(jsonObj.feed['opensearch:totalResults'] || 0);
+    console.log(`[ArXiv] Toplam havuz: ${Number(totalFound).toLocaleString()}. Çekilen: ${entries.length}`);
 
     const results = entries.map(entry => {
       // Authors handling
@@ -54,18 +58,22 @@ export const searchArXiv = async (query, count = 10) => {
       const pdfLink = links.find(l => l['@_title'] === 'pdf' || l['@_type'] === 'application/pdf')?.['@_href'] || '';
       const abstractLink = links.find(l => l['@_rel'] === 'alternate')?.['@_href'] || entry.id;
 
+      const yearNum = entry.published ? new Date(entry.published).getFullYear() : 2024;
       return {
         id: `arxiv-${entry.id.split('/').pop()}`,
         title: entry.title ? entry.title.replace(/\n/g, ' ').trim() : 'Untitled Paper',
+        creator: authorList,
         authors: authorList,
         publicationName: 'ArXiv Pre-print',
-        year: entry.published ? new Date(entry.published).getFullYear().toString() : 'N/A',
+        year: yearNum,
         doi: entry['arxiv:doi'] || '',
         url: abstractLink,
         pdfUrl: pdfLink,
-        description: entry.summary ? entry.summary.replace(/\n/g, ' ').trim().substring(0, 500) : 'No abstract available.',
+        citedBy: 0,
+        description: entry.summary ? entry.summary.replace(/\n/g, ' ').trim().substring(0, 500) : '',
         source: 'ArXiv',
-        relevanceScore: 0.8 // Pre-prints are valuable but slightly lower weight than peer-reviewed
+        keyCount: 0,
+        relevanceScore: 0.8
       };
     });
 

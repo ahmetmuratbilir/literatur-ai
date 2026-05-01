@@ -55,7 +55,7 @@ function App() {
   const [mainTopic, setMainTopic] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [keywords, setKeywords] = useState([]);
-  const [count, setCount] = useState(50);
+  const [count, setCount] = useState(25);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -67,19 +67,24 @@ function App() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [deviceId, setDeviceId] = useState('');
   const [collections, setCollections] = useState([]);
-  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isTablet, setIsTablet] = useState(window.innerWidth >= 768 && window.innerWidth < 1024);
   const [loadingStep, setLoadingStep] = useState(0);
 
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth < 768;
+      const w = window.innerWidth;
+      const mobile = w < 768;
       setIsMobile(mobile);
+      setIsTablet(w >= 768 && w < 1024);
       if (mobile) setSidebarOpen(false);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  const isCompact = isMobile || isTablet;
 
   const fetchCollections = async (id) => {
     try {
@@ -308,48 +313,55 @@ function App() {
         }}
       />
 
-      <main style={{ 
-        marginLeft: (isMobile || !sidebarOpen) ? '0px' : '280px', 
-        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)', 
-        padding: isMobile ? '4rem 1rem' : '4rem 2rem' 
+      <main style={{
+        marginLeft: isMobile ? '0px' : (sidebarOpen ? '280px' : '72px'),
+        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+        padding: isMobile ? '3.5rem 1rem 2rem' : (isTablet ? '3.5rem 1.5rem' : '4rem 2rem')
       }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
           
-          <header style={{ textAlign: 'center', marginBottom: '5rem' }}>
-            <MotionH1 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              style={{ fontSize: isMobile ? '2.5rem' : '4.5rem', fontWeight: '900', letterSpacing: '-0.05em', background: 'linear-gradient(135deg, #4f46e5, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '1rem' }}
+          <header style={{ textAlign: 'center', marginBottom: isMobile ? '2rem' : '3rem' }}>
+            <MotionDiv
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', background: 'var(--brand-primary-soft)', color: 'var(--brand-primary)', fontSize: 'var(--fs-xs)', fontWeight: '600', marginBottom: '1.25rem', letterSpacing: '0.02em' }}
             >
-              LiteratureAI
+              <Sparkles size={12} /> 7 akademik veri kaynağı, 810M+ makale
+            </MotionDiv>
+            <MotionH1
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+              style={{ fontSize: isMobile ? '1.875rem' : (isTablet ? '2.5rem' : '3rem'), fontWeight: '700', letterSpacing: '-0.03em', color: 'var(--text-main)', margin: '0 0 0.75rem 0', lineHeight: 1.1 }}
+            >
+              Akademik literatürü <span style={{ background: 'linear-gradient(135deg, #4f46e5, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>saniyeler</span> içinde analiz et.
             </MotionH1>
-            <p style={{ fontSize: isMobile ? '1rem' : '1.25rem', color: '#64748b', fontWeight: '600' }}>Profesyonel Akademik Literatür Analiz Merkezi</p>
+            <p style={{ fontSize: isMobile ? '0.95rem' : '1.0625rem', color: 'var(--text-muted)', fontWeight: '500', maxWidth: '640px', margin: '0 auto', lineHeight: 1.55 }}>
+              Konunuzu yazın; AHP skorlamasıyla en alakalı, en güncel ve en çok atıf alan makaleleri tek ekranda görün.
+            </p>
           </header>
 
-          <section className="glass-panel" style={{ padding: isMobile ? '1.5rem' : '3.5rem', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)', borderRadius: '32px', marginBottom: '4rem' }}>
-            <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+          <section className="glass-panel" style={{ padding: isMobile ? '1.25rem' : (isTablet ? '1.75rem' : '2rem'), marginBottom: isMobile ? '2rem' : '3rem' }}>
+            <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               
               <div style={{ position: 'relative' }}>
-                <label style={{ display: 'block', fontWeight: '800', color: '#1e293b', fontSize: '0.85rem', textTransform: 'uppercase', marginBottom: '1rem', letterSpacing: '0.05em' }}>
+                <label style={{ display: 'block', fontWeight: '600', color: 'var(--text-main)', fontSize: 'var(--fs-sm)', marginBottom: '0.5rem' }}>
                   Araştırma Konusu
                 </label>
                 <div className="input-wrapper" style={{ position: 'relative' }}>
-                  <Search style={{ position: 'absolute', left: '24px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} size={24} />
+                  <Search style={{ position: 'absolute', left: '16px', top: isCompact ? '24px' : '50%', transform: isCompact ? 'none' : 'translateY(-50%)', color: 'var(--slate-400)' }} size={18} />
                   <input
                     type="text"
                     className="input"
-                    style={{ 
-                      height: '72px', 
-                      paddingLeft: '64px', 
-                      paddingRight: isMobile ? '64px' : '260px', 
-                      fontSize: isMobile ? '1rem' : '1.2rem', 
-                      borderRadius: '20px', 
-                      border: '2px solid #e2e8f0', 
-                      width: '100%', 
-                      fontWeight: '500',
-                      transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+                    style={{
+                      height: '52px',
+                      paddingLeft: '46px',
+                      paddingRight: isCompact ? '16px' : '210px',
+                      fontSize: 'var(--fs-md)',
+                      borderRadius: 'var(--radius-md)',
+                      width: '100%'
                     }}
-                    placeholder="Konunuzu buraya yazın..."
+                    placeholder="Örn: Yapay zeka destekli tıbbi görüntü analizi"
                     value={mainTopic}
                     onChange={(e) => setMainTopic(e.target.value)}
                   />
@@ -357,155 +369,161 @@ function App() {
                     type="button"
                     onClick={handleAiSuggest}
                     disabled={aiLoading}
+                    className={isCompact ? '' : 'btn-secondary'}
                     style={{
-                      position: isMobile ? 'static' : 'absolute',
-                      marginTop: isMobile ? '1rem' : '0',
-                      right: '12px',
+                      position: isCompact ? 'static' : 'absolute',
+                      marginTop: isCompact ? '0.5rem' : '0',
+                      right: '8px',
                       top: '50%',
-                      transform: isMobile ? 'none' : 'translateY(-50%)',
-                      background: 'rgba(99, 102, 241, 0.1)',
-                      border: '1px solid rgba(99, 102, 241, 0.2)',
-                      borderRadius: '14px',
-                      padding: '10px 20px',
-                      color: '#6366f1',
-                      fontSize: '0.9rem',
-                      fontWeight: '800',
-                      display: 'flex',
+                      transform: isCompact ? 'none' : 'translateY(-50%)',
+                      background: isCompact ? 'var(--brand-primary-soft)' : '#ffffff',
+                      border: isCompact ? '1px solid #dbe1ff' : '1px solid var(--border-light)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '8px 14px',
+                      color: 'var(--brand-primary)',
+                      fontSize: 'var(--fs-sm)',
+                      fontWeight: '600',
+                      fontFamily: 'inherit',
+                      display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '10px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      width: isMobile ? '100%' : 'auto'
+                      gap: '6px',
+                      cursor: aiLoading ? 'not-allowed' : 'pointer',
+                      transition: 'background 0.15s ease, border-color 0.15s ease',
+                      width: isCompact ? '100%' : 'auto',
+                      height: isCompact ? '44px' : '36px'
                     }}
                   >
-                    {aiLoading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-                    {aiLoading ? 'Analiz Ediliyor...' : 'Konuyu Geliştir ✨'}
+                    {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                    {aiLoading ? 'Analiz ediliyor…' : 'AI ile geliştir'}
                   </button>
                 </div>
                 {aiError && (
-                  <div style={{ marginTop: '1rem', color: '#ef4444', fontSize: '0.85rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ marginTop: '0.625rem', color: '#b91c1c', fontSize: 'var(--fs-sm)', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <AlertCircle size={14} /> {aiError}
                   </div>
                 )}
               </div>
 
-              <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-                <button 
-                  type="button" 
-                  onClick={() => setShowAdvanced(!showAdvanced)}
-                  style={{ 
-                    background: 'none', 
-                    border: 'none', 
-                    color: '#6366f1', 
-                    fontSize: '0.85rem', 
-                    fontWeight: '800', 
-                    cursor: 'pointer', 
-                    display: 'inline-flex', 
-                    alignItems: 'center', 
-                    gap: '6px',
-                    padding: '8px 16px',
-                    borderRadius: '10px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseOver={e => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.05)'}
-                  onMouseOut={e => e.currentTarget.style.background = 'none'}
-                >
-                  <Settings size={14} />
-                  {showAdvanced ? 'Gelişmiş Seçenekleri Gizle' : 'Gelişmiş Seçenekleri Göster'}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="btn-ghost"
+                style={{
+                  alignSelf: 'flex-start',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: 'var(--fs-sm)',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 0',
+                  margin: '-0.5rem 0 -0.25rem'
+                }}
+              >
+                <Settings size={14} />
+                {showAdvanced ? 'Gelişmiş seçenekleri gizle' : 'Gelişmiş seçenekler'}
+              </button>
 
               <AnimatePresence>
                 {showAdvanced && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    style={{ overflow: 'hidden', marginBottom: '1.5rem' }}
+                    style={{ overflow: 'hidden' }}
                   >
-                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr', gap: '2rem', padding: '1rem', background: '#f8fafc', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isCompact ? '1fr' : '1.5fr 1fr', gap: '1rem', padding: '1.25rem', background: 'var(--slate-50)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)' }}>
                       <div>
-                        <label style={{ display: 'block', fontWeight: '800', color: '#1e293b', fontSize: '0.8rem', marginBottom: '0.75rem', textTransform: 'uppercase' }}>Yazar Adı (Opsiyonel)</label>
+                        <label style={{ display: 'block', fontWeight: '600', color: 'var(--text-main)', fontSize: 'var(--fs-sm)', marginBottom: '0.5rem' }}>Yazar (opsiyonel)</label>
                         <div style={{ position: 'relative' }}>
-                          <User style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} size={18} />
-                          <input type="text" className="input" placeholder="Örn: John Doe..." value={authorName} onChange={e => setAuthorName(e.target.value)} style={{ height: '52px', borderRadius: '12px', paddingLeft: '48px', width: '100%', fontSize: '0.9rem' }} />
+                          <User style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-400)' }} size={16} />
+                          <input type="text" className="input" placeholder="Örn: John Doe" value={authorName} onChange={e => setAuthorName(e.target.value)} style={{ height: '44px', paddingLeft: '40px' }} />
                         </div>
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontWeight: '800', color: '#1e293b', fontSize: '0.8rem', marginBottom: '0.75rem', textTransform: 'uppercase' }}>Makale Sayısı</label>
-                        <input type="number" className="input" value={count} onChange={e => setCount(e.target.value)} style={{ height: '52px', borderRadius: '12px', paddingLeft: '20px', width: '100%', fontSize: '0.9rem' }} min="10" max="100" />
+                        <label style={{ display: 'block', fontWeight: '600', color: 'var(--text-main)', fontSize: 'var(--fs-sm)', marginBottom: '0.5rem' }}>Makale sayısı</label>
+                        <input type="number" className="input" value={count} onChange={e => setCount(e.target.value)} style={{ height: '44px', paddingLeft: '14px' }} min="10" max="100" />
                       </div>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              <button 
-                type="submit" 
-                disabled={loading} 
+              <button
+                type="submit"
+                disabled={loading}
                 className="btn"
                 style={{
-                  height: '72px',
-                  borderRadius: '24px',
-                  fontSize: '1.25rem',
-                  fontWeight: '900',
-                  background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-                  boxShadow: '0 15px 35px -10px rgba(79, 70, 229, 0.6)',
-                  marginTop: '1rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '14px',
-                  color: 'white',
-                  border: 'none',
-                  cursor: 'pointer'
+                  height: '52px',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: 'var(--fs-md)',
+                  fontWeight: '600',
+                  marginTop: '0.25rem',
+                  width: '100%'
                 }}
               >
                 {loading ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    <Loader2 className="animate-spin" size={isMobile ? 24 : 32} />
-                    <span style={{ fontSize: isMobile ? '0.9rem' : '1.25rem' }}>{LOADING_MESSAGES[loadingStep]}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                    <Loader2 className="animate-spin" size={18} style={{ flexShrink: 0 }} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: isMobile ? 'var(--fs-sm)' : 'var(--fs-md)' }}>{LOADING_MESSAGES[loadingStep]}</span>
                   </div>
                 ) : (
                   <>
-                    <Zap size={28} fill="white" />
-                    <span>LİTERATÜRÜ ANALİZ ET</span>
+                    <Zap size={18} />
+                    <span>Literatürü analiz et</span>
                   </>
                 )}
               </button>
 
 
 
-              {!loading && !data && (
-                <MotionDiv 
-                  initial={{ opacity: 0, y: 10 }} 
-                  animate={{ opacity: 1, y: 0 }} 
-                  style={{ marginTop: '3rem', textAlign: 'center' }}
-                >
-                  <p style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: '600', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                    Yapay Zeka Destekli Literatür Analiz Laboratuvarı
-                  </p>
-                </MotionDiv>
-              )}
             </form>
           </section>
 
+          {!loading && !data && !aiAnalysis && (
+            <MotionDiv
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{ display: 'grid', gridTemplateColumns: isCompact ? '1fr' : 'repeat(3, 1fr)', gap: '1rem', marginBottom: isMobile ? '2rem' : '3rem' }}
+            >
+              {[
+                { icon: <Sparkles size={18} />, title: 'AI sorgu genişletme', body: 'Türkçe konunuz İngilizce Boolean sorguya çevrilir; 5 alternatif öneri sunulur.' },
+                { icon: <Activity size={18} />, title: 'AHP skorlama', body: 'Alaka, atıf ve güncellik ağırlıklarıyla her makale 0–100 arası puanlanır.' },
+                { icon: <Download size={18} />, title: 'Tek tık dışa aktarım', body: 'Sonuçları PDF, Word veya Excel olarak hazır rapor halinde indirin.' }
+              ].map((f, i) => (
+                <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: 'var(--radius-sm)', background: 'var(--brand-primary-soft)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem' }}>
+                    {f.icon}
+                  </div>
+                  <h3 style={{ margin: '0 0 0.375rem 0', fontSize: 'var(--fs-md)', fontWeight: '600', color: 'var(--text-main)' }}>{f.title}</h3>
+                  <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', lineHeight: 1.5 }}>{f.body}</p>
+                </div>
+              ))}
+            </MotionDiv>
+          )}
+
           <AnimatePresence>
             {aiAnalysis && (
-              <MotionDiv initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={{ marginBottom: '4rem' }}>
-                <div style={{ background: 'white', borderRadius: '32px', padding: '3rem', border: '1px solid #e2e8f0', boxShadow: '0 25px 40px -10px rgba(0,0,0,0.1)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '2rem' }}>
-                    <Sparkles color="#a855f7" size={32} />
-                    <h3 style={{ margin: 0, fontSize: '1.75rem', fontWeight: '900' }}>AI Analiz Raporu</h3>
+              <MotionDiv initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: isMobile ? '2rem' : '3rem' }}>
+                <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', padding: isMobile ? '1.25rem' : '1.75rem', border: '1px solid var(--border-light)', boxShadow: 'var(--shadow-sm)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.75rem' }}>
+                    <span className="badge" style={{ background: 'var(--brand-primary-soft)', color: 'var(--brand-primary)', borderColor: '#dbe1ff' }}>
+                      <Sparkles size={11} /> AI önerisi
+                    </span>
                   </div>
-                  <p style={{ color: '#475569', lineHeight: '1.7', fontSize: '1.1rem', marginBottom: '2.5rem' }}>{aiAnalysis.explanation}</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    <p style={{ fontWeight: '800', color: '#1e293b', fontSize: '0.9rem', textTransform: 'uppercase' }}>Önerilen Gelişmiş Sorgular:</p>
+                  <h3 style={{ margin: '0 0 0.5rem 0', fontSize: 'var(--fs-xl)', fontWeight: '600', color: 'var(--text-main)' }}>Sorgu önerileri</h3>
+                  <p style={{ color: 'var(--text-muted)', lineHeight: 1.6, fontSize: 'var(--fs-sm)', marginTop: 0, marginBottom: '1.25rem' }}>{aiAnalysis.explanation}</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {aiAnalysis.queries?.map((q, i) => (
-                      <button key={i} onClick={() => { setMainTopic(q.text); setSelectedAiQuery(q.text); handleSearch(null, q.text); setAiAnalysis(null); }} style={{ textAlign: 'left', padding: '1.5rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '20px', cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative', overflow: 'hidden' }} onMouseOver={e => e.currentTarget.style.borderColor = '#6366f1'}>
-                        <div style={{ fontSize: '1.05rem', fontWeight: '700', marginBottom: '0.5rem', color: '#1e293b' }}>{q.text}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#6366f1', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}><Activity size={12} /> Alaka Skoru: %{q.relevanceScore}</div>
+                      <button key={i} className="ai-query-btn" onClick={() => { setMainTopic(q.text); setSelectedAiQuery(q.text); handleSearch(null, q.text); setAiAnalysis(null); }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '1rem' }}>
+                          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: '500', color: 'var(--text-main)', wordBreak: 'break-word', textAlign: 'left' }}>{q.text}</span>
+                          <span className="badge badge-info" style={{ flexShrink: 0 }}>%{q.relevanceScore}</span>
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -524,19 +542,26 @@ function App() {
                 failedSources={data.failedSources}
               />
               
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginBottom: '1.5rem' }}>
-                <button onClick={exportPDF} style={{ padding: '10px 18px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Download size={16} /> PDF İndir
-                </button>
-                <button onClick={exportExcel} style={{ padding: '10px 18px', background: '#f0fdf4', color: '#10b981', border: '1px solid #dcfce7', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Download size={16} /> Excel (CSV)
-                </button>
-                <button onClick={exportDocx} style={{ padding: '10px 18px', background: '#eff6ff', color: '#3b82f6', border: '1px solid #dbeafe', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Download size={16} /> Word (DOCX)
-                </button>
+              <div className="export-actions" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', fontWeight: '500' }}>
+                    {data.results.length} makale listeleniyor
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <button onClick={exportPDF} className="btn-secondary" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
+                    <Download size={14} /> PDF
+                  </button>
+                  <button onClick={exportExcel} className="btn-secondary" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
+                    <Download size={14} /> CSV
+                  </button>
+                  <button onClick={exportDocx} className="btn-secondary" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
+                    <Download size={14} /> DOCX
+                  </button>
+                </div>
               </div>
 
-              <div id="results-container" style={{ marginTop: '2rem', display: 'grid', gap: '1.5rem' }}>
+              <div id="results-container" style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
                 {data.results.map((item, idx) => {
                   const isFavorited = collections.find(c => c.name === 'Favoriler')?.papers.some(p => p.title === item.title);
                   return (
@@ -556,9 +581,12 @@ function App() {
           )}
 
           {error && (
-            <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: '2rem', background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '20px', textAlign: 'center', marginTop: '2rem' }}>
-              <AlertCircle size={40} color="#ef4444" style={{ margin: '0 auto 1rem auto' }} />
-              <p style={{ color: '#b91c1c', fontWeight: '700' }}>{error}</p>
+            <MotionDiv initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '1rem 1.25rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius-md)', marginTop: '1.5rem' }}>
+              <AlertCircle size={18} color="#dc2626" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <p style={{ margin: '0 0 2px 0', color: '#991b1b', fontWeight: '600', fontSize: 'var(--fs-sm)' }}>Arama tamamlanamadı</p>
+                <p style={{ margin: 0, color: '#b91c1c', fontWeight: '500', fontSize: 'var(--fs-sm)' }}>{error}</p>
+              </div>
             </MotionDiv>
           )}
 
