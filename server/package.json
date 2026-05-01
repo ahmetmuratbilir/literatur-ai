@@ -13,11 +13,14 @@
     "license": "ISC",
     "dependencies": {
         "@google/generative-ai": "^0.24.1",
+        "axios": "^1.15.2",
         "box-plot": "^1.0.0",
         "cors": "^2.8.5",
         "dotenv": "^16.6.1",
         "express": "^4.22.1",
+        "fast-xml-parser": "^5.7.2",
         "google-translate-api-x": "^10.7.2",
+        "mongoose": "^9.6.1",
         "natural": "^6.12.0",
         "undici": "^5.29.0"
     }

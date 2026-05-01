@@ -339,6 +339,7 @@ h1, h2, h3 {
     background: transparent !important;
     border: none !important;
     padding: 0 !important;
+    padding: 0 !important;
   }
 
   .stat-card {
@@ -603,4 +604,45 @@ h1, h2, h3 {
   border: 2px solid var(--brand-primary);
   background-color: #eef2ff;
   color: var(--brand-primary-hover);
+}
+
+/* History Sidebar Styles */
+.history-item-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+}
+
+.history-item-card:hover {
+  border-color: var(--brand-primary) !important;
+  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.1), 0 4px 6px -4px rgba(99, 102, 241, 0.1) !important;
+}
+
+.history-item-card:active {
+  transform: scale(0.98) !important;
+}
+
+.history-item-card:hover .delete-history-btn {
+  opacity: 1 !important;
+}
+
+.history-item-card-dark:hover .delete-btn-dark {
+  opacity: 1 !important;
+}
+
+/* Scrollbar styling for history sidebar */
+aside div::-webkit-scrollbar {
+  width: 5px;
+}
+
+aside div::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+aside div::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+aside div::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
 }

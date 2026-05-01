@@ -31,7 +31,31 @@ const InfiniteTicker = () => {
       <span className="ticker-dot">•</span>
 
       <span className="ticker-item">
-        <span className="ticker-text bold">Toplamda 500 Milyondan Fazla Makale Anlık Olarak Taranmaktadır</span>
+        <Database size={16} className="ticker-icon" />
+        <span className="ticker-text">Crossref (150M+ Metadata)</span>
+      </span>
+      <span className="ticker-dot">•</span>
+
+      <span className="ticker-item">
+        <Zap size={16} className="ticker-icon" />
+        <span className="ticker-text">S. Scholar (215M+ AI Destekli)</span>
+      </span>
+      <span className="ticker-dot">•</span>
+
+      <span className="ticker-item">
+        <Globe size={16} className="ticker-icon" />
+        <span className="ticker-text">ArXiv (2.4M+ Ön Baskı)</span>
+      </span>
+      <span className="ticker-dot">•</span>
+
+      <span className="ticker-item">
+        <Unlock size={16} className="ticker-icon" />
+        <span className="ticker-text">DOAJ (10M+ Hakemli)</span>
+      </span>
+      <span className="ticker-dot">•</span>
+
+      <span className="ticker-item">
+        <span className="ticker-text bold" style={{ color: '#fbbf24' }}>LiteratureAI: 7 Dev Kaynak, 810 Milyondan Fazla Makale</span>
       </span>
       <span className="ticker-dot">•</span>
     </div>
