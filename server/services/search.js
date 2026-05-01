@@ -29,11 +29,33 @@ function recomputeKeyCount(item, queryTokens) {
   return keyCount;
 }
 
+import SearchCache from '../models/SearchCache.js';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export async function searchAll(params, queryContext, scopusQuery, booleanQuery) {
   const startTime = performance.now();
   console.log(`\n--- Yeni Arama Başlatıldı: "${queryContext}" ---`);
+  
+  // --- Önbellek Kontrolü (Smart Cache) ---
+  try {
+    const cached = await SearchCache.findOne({ query: queryContext });
+    if (cached) {
+      console.log(`[Cache] Önbellek bulundu: "${queryContext}". Hızlı yükleme yapılıyor...`);
+      cached.searchCount += 1;
+      await cached.save();
+      
+      const endTime = performance.now();
+      return {
+        ...cached.toObject(),
+        searchTime: ((endTime - startTime) / 1000).toFixed(2),
+        isCached: true
+      };
+    }
+  } catch (cacheError) {
+    console.error('[Cache] Hata:', cacheError.message);
+  }
+
   const { count } = params;
   const displayCount = count || 25;
 
@@ -283,10 +305,11 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   const totalDuration = ((endTime - startTime) / 1000).toFixed(2);
   console.log(`Toplam Arama S\u00fcresi: ${totalDuration} sn\n`);
 
-  return {
-    totalFound: totalFoundBeforeAHP,
-    analyzedCount: rankedData.length,
-    results: rankedData.slice(0, displayCount),
+  const totalPoolSum = Object.values(totalFromAPIs).reduce((a, b) => a + (b || 0), 0);
+  const responseData = {
+    totalFound: totalPoolSum,
+    analyzedCount: totalFoundBeforeAHP,
+    results: rankedData.slice(0, 25),
     searchTime: totalDuration,
     failedSources,
     sourceBreakdown,
@@ -303,4 +326,22 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
         opencitations: { verified: openCitationVerifiedCount || 0 }
     }
   };
+
+  // --- Sonucu Önbelleğe Kaydet ---
+  try {
+    const newCache = new SearchCache({
+      query: queryContext,
+      results: responseData.results,
+      totalFound: responseData.totalFound,
+      analyzedCount: responseData.analyzedCount,
+      sourceBreakdown: responseData.sourceBreakdown,
+      totalFromAPIs: responseData.totalFromAPIs
+    });
+    await newCache.save();
+    console.log(`[Cache] Yeni arama önbelleğe kaydedildi: "${queryContext}"`);
+  } catch (saveError) {
+    console.warn('[Cache] Kayıt hatası (Muhtemelen aynı anda başka bir istek kaydetti):', saveError.message);
+  }
+
+  return responseData;
 }

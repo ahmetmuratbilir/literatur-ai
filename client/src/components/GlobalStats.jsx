@@ -2,20 +2,20 @@ import { motion } from 'framer-motion';
 const MotionDiv = motion.div;
 import { Database, Zap, ShieldCheck, Activity, Info } from 'lucide-react';
 
-const GlobalStats = ({ totalFound, analyzed, quota, sourceBreakdown, failedSources = [] }) => {
+const GlobalStats = ({ totalFound, analyzed, quota, sourceBreakdown, totalFromAPIs, failedSources = [] }) => {
   const scopusQuota = quota?.scopus || quota;
 
   const fmt = (n) => (n != null ? Number(n).toLocaleString('tr-TR') : '—');
 
   const failed = (n) => failedSources.includes(n) ? 'Hata' : 'Aktif';
   const sources = [
-    { name: 'Scopus', color: '#4f46e5', status: failed('Scopus'), count: sourceBreakdown?.scopus },
-    { name: 'OpenAlex', color: '#0ea5e9', status: failed('OpenAlex'), count: sourceBreakdown?.openalex },
-    { name: 'CORE', color: '#8b5cf6', status: failed('CORE'), count: sourceBreakdown?.core },
-    { name: 'Crossref', color: '#f43f5e', status: failed('Crossref'), count: sourceBreakdown?.crossref },
-    { name: 'S. Scholar', color: '#0891b2', status: failed('SemanticScholar'), count: sourceBreakdown?.s2 },
-    { name: 'ArXiv', color: '#10b981', status: failed('ArXiv'), count: sourceBreakdown?.arxiv },
-    { name: 'DOAJ', color: '#f59e0b', status: failed('DOAJ'), count: sourceBreakdown?.doaj },
+    { name: 'Scopus', color: '#4f46e5', status: failed('Scopus'), count: totalFromAPIs?.scopus },
+    { name: 'OpenAlex', color: '#0ea5e9', status: failed('OpenAlex'), count: totalFromAPIs?.openalex },
+    { name: 'CORE', color: '#8b5cf6', status: failed('CORE'), count: totalFromAPIs?.core },
+    { name: 'Crossref', color: '#f43f5e', status: failed('Crossref'), count: totalFromAPIs?.crossref },
+    { name: 'S. Scholar', color: '#0891b2', status: failed('SemanticScholar'), count: totalFromAPIs?.s2 },
+    { name: 'ArXiv', color: '#10b981', status: failed('ArXiv'), count: totalFromAPIs?.arxiv },
+    { name: 'DOAJ', color: '#f59e0b', status: failed('DOAJ'), count: totalFromAPIs?.doaj },
   ];
 
   const Metric = ({ icon, iconBg, iconColor, label, value }) => (
@@ -100,7 +100,7 @@ const GlobalStats = ({ totalFound, analyzed, quota, sourceBreakdown, failedSourc
               {src.count != null ? (
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
                   <span style={{ fontSize: 'var(--fs-md)', fontWeight: '700', color: 'var(--text-main)', fontVariantNumeric: 'tabular-nums' }}>{fmt(src.count)}</span>
-                  <span style={{ fontSize: 'var(--fs-xs)', fontWeight: '500', color: 'var(--text-muted)' }}>kayıt</span>
+                  <span style={{ fontSize: 'var(--fs-xs)', fontWeight: '500', color: 'var(--text-muted)' }}>toplam</span>
                 </div>
               ) : (
                 <span style={{ fontSize: 'var(--fs-xs)', fontWeight: '500', color: 'var(--text-light)' }}>{isError ? 'Hata' : 'Bekleniyor…'}</span>

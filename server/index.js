@@ -283,14 +283,14 @@ app.post('/api/history', async (req, res) => {
 
     await newHistory.save();
 
-    // Auto-Cleanup: Keep only the last 100 searches for this user
+    // Auto-Cleanup: Keep only the last 10 searches for this user
     try {
       const historyCount = await SearchHistory.countDocuments({ userId });
-      if (historyCount > 100) {
+      if (historyCount > 10) {
         // Find and delete the oldest items exceeding the limit
         const oldestItems = await SearchHistory.find({ userId })
           .sort({ createdAt: 1 })
-          .limit(historyCount - 100);
+          .limit(historyCount - 10);
         
         const idsToDelete = oldestItems.map(item => item._id);
         await SearchHistory.deleteMany({ _id: { $in: idsToDelete } });
@@ -362,7 +362,7 @@ app.get('/api/collections', async (req, res) => {
   }
 });
 
-const MAX_COLLECTIONS_PER_USER = 25;
+const MAX_COLLECTIONS_PER_USER = 10;
 
 app.post('/api/collections', async (req, res) => {
   try {
@@ -394,7 +394,7 @@ app.post('/api/collections', async (req, res) => {
   }
 });
 
-const MAX_PAPERS_PER_COLLECTION = 100;
+const MAX_PAPERS_PER_COLLECTION = 10;
 
 const truncate = (s, n) => (typeof s === 'string' ? s.trim().slice(0, n) : '');
 

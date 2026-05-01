@@ -332,13 +332,10 @@ function App() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
-              style={{ fontSize: isMobile ? '1.875rem' : (isTablet ? '2.5rem' : '3rem'), fontWeight: '700', letterSpacing: '-0.03em', color: 'var(--text-main)', margin: '0 0 0.75rem 0', lineHeight: 1.1 }}
+              style={{ fontSize: isMobile ? '2.5rem' : (isTablet ? '3.5rem' : '4.5rem'), fontWeight: '800', letterSpacing: '-0.04em', color: 'var(--text-main)', margin: '0 0 0.75rem 0', lineHeight: 1.1 }}
             >
-              Akademik literatürü <span style={{ background: 'linear-gradient(135deg, #4f46e5, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>saniyeler</span> içinde analiz et.
+              <span style={{ background: 'linear-gradient(135deg, #4f46e5, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Literatur</span> AI
             </MotionH1>
-            <p style={{ fontSize: isMobile ? '0.95rem' : '1.0625rem', color: 'var(--text-muted)', fontWeight: '500', maxWidth: '640px', margin: '0 auto', lineHeight: 1.55 }}>
-              Konunuzu yazın; AHP skorlamasıyla en alakalı, en güncel ve en çok atıf alan makaleleri tek ekranda görün.
-            </p>
           </header>
 
           <section className="glass-panel" style={{ padding: isMobile ? '1.25rem' : (isTablet ? '1.75rem' : '2rem'), marginBottom: isMobile ? '2rem' : '3rem' }}>
@@ -539,6 +536,7 @@ function App() {
                 analyzed={data.analyzedCount} 
                 quota={quota}
                 sourceBreakdown={data.sourceBreakdown}
+                totalFromAPIs={data.totalFromAPIs}
                 failedSources={data.failedSources}
               />
               

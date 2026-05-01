@@ -176,7 +176,7 @@ const HistorySidebar = ({ isOpen, setIsOpen, onSelectHistory, onDeleteHistoryEnt
           background: '#0f172a',
           color: '#f8fafc',
           zIndex: 90,
-          overflow: 'hidden',
+          overflow: 'visible',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: isOpen ? '10px 0 30px -10px rgba(0,0,0,0.5)' : 'none',
@@ -198,24 +198,6 @@ const HistorySidebar = ({ isOpen, setIsOpen, onSelectHistory, onDeleteHistoryEnt
             </div>
           )}
           
-          <button 
-            onClick={() => setIsOpen(!isOpen)} 
-            style={{ 
-              background: 'rgba(255,255,255,0.1)', 
-              border: 'none', 
-              color: 'white', 
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px', 
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}
-          >
-            {isOpen ? <ChevronLeft size={18} /> : <Menu size={18} />}
-          </button>
         </div>
 
         <div style={{ padding: isOpen ? '0 12px 16px 12px' : '12px 12px 16px 12px' }}>
@@ -412,9 +394,41 @@ const HistorySidebar = ({ isOpen, setIsOpen, onSelectHistory, onDeleteHistoryEnt
            <SidebarItem icon={<HelpCircle size={16} />} label="Yardım" isOpen={isOpen} active={false} onClick={() => {}} />
         </div>
 
-        {!isOpen && !isMobile && (
-          <button onClick={() => setIsOpen(true)} style={{ position: 'absolute', top: '100px', left: '50%', transform: 'translateX(-50%)', background: 'none', border: 'none', color: '#475569' }}>
-            <ChevronRight size={20} />
+        {!isMobile && (
+          <button 
+            onClick={() => setIsOpen(!isOpen)} 
+            style={{ 
+              position: 'absolute', 
+              top: '50%', 
+              right: '-14px', 
+              transform: 'translateY(-50%)', 
+              background: '#0f172a', 
+              border: '1px solid rgba(255,255,255,0.15)', 
+              color: 'white',
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              zIndex: 100,
+              boxShadow: '4px 0 10px rgba(0,0,0,0.3)',
+              outline: 'none'
+            }}
+            onMouseOver={(e) => { 
+              e.currentTarget.style.background = '#6366f1'; 
+              e.currentTarget.style.transform = 'translateY(-50%) scale(1.15)'; 
+              e.currentTarget.style.borderColor = '#818cf8';
+            }}
+            onMouseOut={(e) => { 
+              e.currentTarget.style.background = '#0f172a'; 
+              e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
+            }}
+          >
+            {isOpen ? <ChevronLeft size={14} strokeWidth={3} /> : <ChevronRight size={14} strokeWidth={3} />}
           </button>
         )}
       </MotionAside>
