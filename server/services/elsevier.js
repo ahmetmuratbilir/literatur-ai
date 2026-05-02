@@ -6,7 +6,7 @@ const API_URL = 'https://api.elsevier.com';
 
 async function fetchPage(query, start, count) {
   const apiKey = process.env.ELSEVIER_API_KEY;
-  const url = `${API_URL}/content/search/scopus?query=${encodeURIComponent(query)}&view=STANDARD&sort=relevance&count=${count}&start=${start}`;
+  const url = `${API_URL}/content/search/scopus?query=${encodeURIComponent(query)}&sort=relevance&count=${count}&start=${start}&date=2019-2024&field=dc:title,dc:creator,prism:publicationName,prism:coverDate,dc:description,citedby-count,prism:doi,link,subtypeDescription,authkeywords,prism:teaser,prism:aggregationType,openaccessArticle`;
 
   console.log('Scopus API isteği yapılıyor:', url);
 

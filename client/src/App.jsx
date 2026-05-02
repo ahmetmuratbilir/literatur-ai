@@ -41,10 +41,10 @@ import InfiniteTicker from './components/InfiniteTicker';
 import HistorySidebar from './components/HistorySidebar';
 
 const LOADING_MESSAGES = [
-  'Dünyanın en büyük 8 akademik kaynağına güvenli bağlantı kuruluyor...',
+  'Dünyanın en büyük 7 akademik kaynağına güvenli bağlantı kuruluyor...',
   'Scopus, OpenAlex, CORE ve Crossref veri havuzları taranıyor...',
   'OpenCitations ile atıf verileri çapraz kontrolden geçiriliyor...',
-  '800 Milyondan fazla kayıt arasında konu eşleşmesi yapılıyor...',
+  '810 Milyondan fazla kayıt arasında konu eşleşmesi yapılıyor...',
   'AHP algoritması ile en yüksek kaliteli yayınlar önceliklendiriliyor...',
   'Sizin için en güncel ve alakalı literatür listesi hazırlanıyor...',
 ];

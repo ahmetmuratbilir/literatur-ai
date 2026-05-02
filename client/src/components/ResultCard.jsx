@@ -52,23 +52,46 @@ const ResultCard = ({ item, rank, collections = [], onSaveToCollection, onFavori
         padding: '1.25rem'
       }}
     >
-      <div
-        title={`Sıra #${rank}`}
-        style={{
-          background: rank <= 3 ? 'var(--brand-primary)' : 'var(--slate-100)',
-          width: '32px',
-          height: '32px',
-          borderRadius: 'var(--radius-sm)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 'var(--fs-sm)',
-          fontWeight: '600',
-          color: rank <= 3 ? 'white' : 'var(--slate-600)',
-          flexShrink: 0,
-        }}
-      >
-        {rank}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+        <div
+          title={`Sıra #${rank}`}
+          style={{
+            background: rank <= 3 ? 'var(--brand-primary)' : 'var(--slate-100)',
+            width: '32px',
+            height: '32px',
+            borderRadius: 'var(--radius-sm)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 'var(--fs-sm)',
+            fontWeight: '600',
+            color: rank <= 3 ? 'white' : 'var(--slate-600)',
+          }}
+        >
+          {rank}
+        </div>
+        
+        <div
+          title="Toplam Atıf"
+          style={{
+            background: 'rgba(99, 102, 241, 0.08)',
+            border: '1px solid rgba(99, 102, 241, 0.15)',
+            color: 'var(--brand-primary)',
+            padding: '4px 0',
+            borderRadius: 'var(--radius-sm)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '32px',
+            minHeight: '38px',
+            gap: '2px'
+          }}
+        >
+          <Quote size={10} strokeWidth={3} />
+          <span style={{ fontSize: '10px', fontWeight: '800', lineHeight: 1 }}>{item.citedBy || 0}</span>
+          <span style={{ fontSize: '8px', fontWeight: '600', opacity: 0.8, textTransform: 'uppercase' }}>Atıf</span>
+        </div>
       </div>
 
       <div style={{ minWidth: 0 }}>
@@ -132,9 +155,6 @@ const ResultCard = ({ item, rank, collections = [], onSaveToCollection, onFavori
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>{item.publicationName}</span>
             </span>
           )}
-          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <Quote size={13} color="var(--slate-400)" /> {item.citedBy || 0} atıf
-          </span>
         </div>
 
         <p
