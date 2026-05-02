@@ -242,8 +242,10 @@ app.get('/api/history', async (req, res) => {
 app.post('/api/history', async (req, res) => {
   try {
     const { userId, mainTopic, authorName, keywords, aiQuery } = req.body;
+    console.log(`[History] Yeni kayıt isteği: User=${userId}, Topic=${mainTopic || 'AI Sorgusu'}`);
     
     if (!userId || (!mainTopic && !authorName && !aiQuery)) {
+      console.warn('[History] Kayıt başarısız: Eksik veri');
       return res.status(400).json({ error: 'Missing history data' });
     }
 
@@ -282,6 +284,7 @@ app.post('/api/history', async (req, res) => {
     const newHistory = new SearchHistory(cleanHistory);
 
     await newHistory.save();
+    console.log(`[History] Başarıyla kaydedildi: ${newHistory._id}`);
 
     // Auto-Cleanup: Keep only the last 10 searches for this user
     try {

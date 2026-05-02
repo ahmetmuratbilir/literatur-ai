@@ -433,7 +433,7 @@ function App() {
                     exit={{ opacity: 0, height: 0 }}
                     style={{ overflow: 'hidden' }}
                   >
-                    <div style={{ display: 'grid', gridTemplateColumns: isCompact ? '1fr' : '1.5fr 1fr', gap: '1rem', padding: '1.25rem', background: 'var(--slate-50)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isCompact ? '1fr' : 'repeat(3, 1fr)', gap: '1rem', padding: '1.25rem', background: 'var(--slate-50)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)' }}>
                       <div>
                         <label style={{ display: 'block', fontWeight: '600', color: 'var(--text-main)', fontSize: 'var(--fs-sm)', marginBottom: '0.5rem' }}>Yazar (opsiyonel)</label>
                         <div style={{ position: 'relative' }}>
@@ -441,6 +441,40 @@ function App() {
                           <input type="text" className="input" placeholder="Örn: John Doe" value={authorName} onChange={e => setAuthorName(e.target.value)} style={{ height: '44px', paddingLeft: '40px' }} />
                         </div>
                       </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontWeight: '600', color: 'var(--text-main)', fontSize: 'var(--fs-sm)', marginBottom: '0.5rem' }}>Anahtar Kelimeler</label>
+                        <div style={{ position: 'relative' }}>
+                          <Tag style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-400)' }} size={16} />
+                          <input 
+                            type="text" 
+                            className="input" 
+                            placeholder="Virgülle ayırın..." 
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ',') {
+                                e.preventDefault();
+                                const val = e.target.value.trim().replace(',', '');
+                                if (val && !keywords.includes(val)) {
+                                  setKeywords([...keywords, val]);
+                                  e.target.value = '';
+                                }
+                              }
+                            }}
+                            style={{ height: '44px', paddingLeft: '40px' }} 
+                          />
+                        </div>
+                        {keywords.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>
+                            {keywords.map((kw, idx) => (
+                              <span key={idx} style={{ background: 'white', border: '1px solid var(--border-light)', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-main)' }}>
+                                {kw}
+                                <X size={10} style={{ cursor: 'pointer' }} onClick={() => setKeywords(keywords.filter((_, i) => i !== idx))} />
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
                       <div>
                         <label style={{ display: 'block', fontWeight: '600', color: 'var(--text-main)', fontSize: 'var(--fs-sm)', marginBottom: '0.5rem' }}>Makale sayısı</label>
                         <input type="number" className="input" value={count} onChange={e => setCount(e.target.value)} style={{ height: '44px', paddingLeft: '14px' }} min="10" max="100" />

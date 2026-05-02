@@ -11,7 +11,6 @@ const SearchHistorySchema = new mongoose.Schema({
   },
   mainTopic: {
     type: String,
-    required: true,
     trim: true,
     maxlength: 150
   },

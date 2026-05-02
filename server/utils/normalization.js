@@ -35,20 +35,6 @@ const SUBTYPE_MAP = {
     'Article in Press': 'Baskıdaki Makale'
 };
 
-export async function normalizeData(rawData, queryContext) {
-    const ctx = String(queryContext ?? '');
-    const cleaned = [];
-
-    const getText = (obj) => {
-        if (!obj) return "";
-        if (typeof obj === 'string') return obj;
-        if (Array.isArray(obj)) {
-            return obj.map(item => getText(item)).filter(Boolean).join(', ');
-        }
-        if (obj["$"]) return obj["$"];
-        return "";
-    };
-
 const AGGREGATION_MAP = {
     'Journal': 'Akademik Dergi',
     'Book': 'Kitap',
@@ -80,86 +66,56 @@ export async function normalizeData(rawData, queryContext) {
             normalized.title = getText(item["dc:title"]) || item.title || item.display_name || "";
             if (!normalized.title) continue;
 
-            // Evrensel Yazar Kontrolü (Fallback dahil)
-            let creators = getText(item["dc:creator"]) || item.author || "";
-            if (!creators && item.authorships) {
-                creators = item.authorships.map(a => a.author?.display_name).filter(Boolean).join(', ');
-            }
-            normalized.creator = creators || "Bilinmeyen Yazar";
-            
-            // Evrensel Yayın Adı
-            normalized.publicationName = getText(item["prism:publicationName"]) || item.publisher || item.host_venue?.display_name || item.container_title || "";
-            
-            // Evrensel Tarih
-            const rawDate = getText(item["prism:coverDate"]) || item.publication_date || item.year || item.created || "2024";
-            const yearMatch = String(rawDate).match(/\d{4}/);
-            normalized.year = yearMatch ? parseInt(yearMatch[0], 10) : 2024;
+            // Yıl ve Tarih
+            const rawDate = item["prism:coverDate"] || item.publication_date || item.published || item.created || "";
+            normalized.year = rawDate ? new Date(rawDate).getFullYear() : (item.year || "");
 
-            // Yayın Türü ve Kaynak Tipi
-            const rawType = item.subtypeDescription || item.type || "";
-            normalized.type = SUBTYPE_MAP[rawType] || rawType || "Makale";
-            
-            const rawAgg = item['prism:aggregationType'] || "";
-            normalized.aggregationType = AGGREGATION_MAP[rawAgg] || rawAgg || "Dergi";
+            // DOI
+            normalized.doi = item["prism:doi"] || item.doi || (item.external_ids?.doi) || "";
 
-            // Açık Erişim Durumu
-            normalized.openAccess = item.openaccessArticle === "1" || item.openaccess === true || !!item.is_oa;
+            // URL/Link
+            normalized.url = (item.link && item.link[0] && item.link[0]["@href"]) || 
+                            item.url || 
+                            item.landing_page_url || 
+                            (item.ids?.url) || "";
 
-            // ÖZET VE TEASER KURTARMA
-            normalized.teaser = getText(item["prism:teaser"]) || "";
-            let description = getText(item["dc:description"]) || item.abstract || item.snippet || "";
-            if (!description && item.abstract_inverted_index) {
-                description = reconstructAbstract(item.abstract_inverted_index);
-            }
-            normalized.description = description;
+            // Kaynak Adı
+            normalized.publicationName = getText(item["prism:publicationName"]) || 
+                                       (item.host_venue?.display_name) || 
+                                       (item.container_title) || "";
 
-            // URL & DOI
-            normalized.doi = item.doi || item.ids?.doi || item['prism:doi'] || "";
-            
-            let url = "";
-            if (Array.isArray(item.link)) {
-                const scopusLink = item.link.find(l => l['@ref'] === 'scopus' || l['@rel'] === 'scopus');
-                if (scopusLink) url = scopusLink['@href'];
-            }
-            if (!url) {
-                url = getText(item["prism:url"]) || item.url || item.id || "";
-            }
-            normalized.url = url.startsWith('http') ? url : (normalized.doi ? `https://doi.org/${normalized.doi.replace(/^https?:\/\/doi.org\//, '')}` : '');
+            // Yazarlar
+            const creator = getText(item["dc:creator"]) || item.author_names?.join(', ') || "";
+            const authors = Array.isArray(item.authors) ? item.authors.map(a => a.name || a.display_name).join(', ') : "";
+            normalized.authors = creator || authors || "Bilinmeyen Yazar";
 
             // Atıf Sayısı
-            normalized.citedBy = parseInt(item['citedby-count'] || item.cited_by_count || item.citations_count || 0, 10);
-            
-            normalized.source = item.source || (item.eid ? 'Scopus' : 'Global Havuz');
+            normalized.citedBy = parseInt(item["citedby-count"] || item.cited_by_count || item.citations_count || 0);
 
-            // AHP ve Alaka Skoru İçin Kelime Sayımı
-            let keyCount = 0;
-            const queryTokens = tokenizer.tokenize(ctx.toLowerCase());
-
-            if (normalized.title) {
-                const titleTokens = tokenizer.tokenize(normalized.title.toLowerCase());
-                titleTokens.forEach(t => { if (queryTokens.includes(t)) keyCount += 3; });
+            // Özet (Teaser)
+            let abstract = item.description || item["dc:description"] || item.abstract || "";
+            if (!abstract && item.abstract_inverted_index) {
+                abstract = reconstructAbstract(item.abstract_inverted_index);
             }
+            normalized.description = abstract ? abstract.slice(0, 500) : "";
 
-            if (normalized.description) {
-                const descTokens = tokenizer.tokenize(normalized.description.toLowerCase());
-                descTokens.forEach(t => { if (queryTokens.includes(t)) keyCount += 1; });
-            }
-            
-            normalized.keyCount = keyCount;
-            
-            // Otomatik Alaka Skoru (0-100)
-            const keywordString = getText(item.authkeywords) || "";
-            const keywords = keywordString.split('|').map(k => k.trim().toLowerCase());
-            let matchCount = 0;
-            queryTokens.forEach(qt => {
-                if (keywords.some(kw => kw.includes(qt))) matchCount++;
-            });
-            normalized.relevanceScore = keywords.length > 0 ? Math.min(100, Math.round((matchCount / keywords.length) * 100)) : 0;
+            // Yayın Tipi
+            const subType = item["subtypeDescription"] || item.type || "";
+            normalized.pubTypeLabel = SUBTYPE_MAP[subType] || subType || "Makale";
+
+            // Kaynak Tipi
+            const aggregationType = item["prism:aggregationType"] || item.host_venue?.type || "";
+            normalized.sourceTypeLabel = AGGREGATION_MAP[aggregationType] || aggregationType || "Akademik Dergi";
+
+            // Alaka Skoru Hesaplama (Basit)
+            const titleTokens = tokenizer.tokenize(normalized.title.toLowerCase());
+            const ctxTokens = tokenizer.tokenize(ctx.toLowerCase());
+            const matchCount = titleTokens.filter(t => ctxTokens.includes(t)).length;
+            normalized.relevance = matchCount / Math.max(1, titleTokens.length);
 
             cleaned.push(normalized);
-
-        } catch (e) {
-            console.warn("Normalize Hatası (Öğe Atlanıyor):", e.message);
+        } catch (err) {
+            console.warn("Normalize hatası (atlandı):", err.message);
         }
     }
 

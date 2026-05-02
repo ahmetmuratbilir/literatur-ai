@@ -32,7 +32,7 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited }) => {
     badgeBg = 'var(--score-med-bg)';
   }
 
-  const author = item.creator || item.authors || 'Bilinmeyen Yazar';
+  const author = item.creator || (Array.isArray(item.authors) ? item.authors.join(', ') : item.authors) || 'Bilinmeyen Yazar';
 
   return (
     <MotionDiv
@@ -169,7 +169,7 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited }) => {
           )}
         </div>
 
-        <p
+        <div
           style={{
             fontSize: 'var(--fs-sm)',
             color: 'var(--text-muted)',
@@ -183,17 +183,17 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited }) => {
           }}
         >
           {item.teaserTR ? (
-            <span style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontStyle: 'italic', color: 'var(--text-main)' }}>{item.teaserTR}</span>
-              <span style={{ fontSize: '9px', fontWeight: '600', color: 'var(--slate-400)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ fontStyle: 'italic', color: 'var(--text-main)' }}>{item.teaserTR}</div>
+              <div style={{ fontSize: '9px', fontWeight: '600', color: '#10b981', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#10b981' }}></span>
                 Yapay Zeka Çevirisi
-              </span>
-            </span>
+              </div>
+            </div>
           ) : (
             item.description || 'Bu makale için özet bilgisi bulunmuyor.'
           )}
-        </p>
+        </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginTop: '0.875rem', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.875rem' }}>
