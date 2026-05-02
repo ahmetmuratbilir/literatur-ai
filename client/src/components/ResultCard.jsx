@@ -8,18 +8,13 @@ import {
   ChevronDown,
   ChevronUp,
   Quote,
-  Bookmark,
-  FolderHeart,
-  CheckCircle2,
   Star
 } from 'lucide-react';
 
 const MotionDiv = motion.div;
 
-const ResultCard = ({ item, rank, collections = [], onSaveToCollection, onFavorite, isFavorited }) => {
+const ResultCard = ({ item, rank, onFavorite, isFavorited }) => {
   const [expanded, setExpanded] = useState(false);
-  const [showSaveMenu, setShowSaveMenu] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
 
   if (!item) return null;
 
@@ -201,77 +196,28 @@ const ResultCard = ({ item, rank, collections = [], onSaveToCollection, onFavori
               </a>
             )}
           </div>
-
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onFavorite(item); }}
               className={`icon-btn ${isFavorited ? 'is-active' : ''}`}
-              title={isFavorited ? 'Favorilerde' : 'Favorilere ekle'}
+              title={isFavorited ? 'Favorilerden çıkar' : 'Favorilere ekle'}
               style={{
                 color: isFavorited ? '#d97706' : 'var(--text-muted)',
-                background: isFavorited ? 'rgba(245, 158, 11, 0.1)' : 'transparent'
+                background: isFavorited ? 'rgba(245, 158, 11, 0.1)' : 'transparent',
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: isFavorited ? '1px solid rgba(217, 119, 6, 0.2)' : '1px solid transparent',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
               }}
             >
-              <Star size={16} fill={isFavorited ? '#f59e0b' : 'none'} color={isFavorited ? '#f59e0b' : 'currentColor'} />
+              <Star size={18} fill={isFavorited ? '#f59e0b' : 'none'} color={isFavorited ? '#f59e0b' : 'currentColor'} />
             </button>
-
-            <button
-              type="button"
-              onClick={() => setShowSaveMenu(!showSaveMenu)}
-              disabled={isSaved}
-              className={`icon-btn ${isSaved ? 'is-active' : ''}`}
-              title={isSaved ? 'Kaydedildi' : 'Koleksiyona kaydet'}
-              style={{
-                color: isSaved ? '#059669' : 'var(--text-muted)',
-                background: isSaved ? '#ecfdf5' : 'transparent',
-                cursor: isSaved ? 'default' : 'pointer'
-              }}
-            >
-              {isSaved ? <CheckCircle2 size={16} /> : <Bookmark size={16} />}
-            </button>
-
-            <AnimatePresence>
-              {showSaveMenu && !isSaved && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 6 }}
-                  style={{
-                    position: 'absolute',
-                    bottom: '100%',
-                    right: 0,
-                    marginBottom: '8px',
-                    width: '220px',
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-light)',
-                    borderRadius: 'var(--radius-md)',
-                    boxShadow: 'var(--shadow-lg)',
-                    zIndex: 20,
-                    padding: '6px',
-                  }}
-                >
-                  <p style={{ margin: '6px 8px 4px 8px', fontSize: 'var(--fs-xs)', fontWeight: '600', color: 'var(--slate-500)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Koleksiyon seç</p>
-                  {collections.length === 0 ? (
-                    <p style={{ margin: '8px', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>Henüz koleksiyon yok.</p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      {collections.map(col => (
-                        <button
-                          key={col._id}
-                          onClick={() => { onSaveToCollection(col._id, item); setIsSaved(true); setShowSaveMenu(false); }}
-                          style={{ textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none', borderRadius: 'var(--radius-xs)', fontSize: 'var(--fs-sm)', fontWeight: '500', color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'inherit' }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = 'var(--slate-100)'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                        >
-                          <FolderHeart size={14} color="var(--brand-primary)" /> {col.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         </div>
       </div>

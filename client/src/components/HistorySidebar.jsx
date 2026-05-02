@@ -231,19 +231,12 @@ const HistorySidebar = ({ isOpen, setIsOpen, onSelectHistory, onDeleteHistoryEnt
 
         <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <SidebarItem
-            icon={<FolderHeart size={18} />}
-            label="Projeler"
+            icon={<Star size={18} />}
+            label="Favoriler"
             isOpen={isOpen}
-            active={activeTab === 'collections'}
-            onClick={() => setActiveTab('collections')}
-            badge={(() => { const n = collections.filter(c => c.name !== 'Favoriler').length; return n > 0 ? n : null; })()}
-          />
-          <SidebarItem
-            icon={<FileSearch size={18} />}
-            label="Analizler"
-            isOpen={isOpen}
-            active={activeTab === 'analyses'}
-            onClick={() => setActiveTab('analyses')}
+            active={activeTab === 'favorites'}
+            onClick={() => setActiveTab('favorites')}
+            badge={(() => { const fav = collections.find(c => c.name === 'Favoriler'); return fav?.papers?.length > 0 ? fav.papers.length : null; })()}
           />
           <SidebarItem
             icon={<History size={18} />}
@@ -254,16 +247,23 @@ const HistorySidebar = ({ isOpen, setIsOpen, onSelectHistory, onDeleteHistoryEnt
             badge={history.length > 0 ? history.length : null}
           />
           <SidebarItem
-            icon={<Bookmark size={18} />}
-            label="Favoriler"
+            icon={<FileSearch size={18} />}
+            label="Analizler"
             isOpen={isOpen}
-            active={activeTab === 'favorites'}
-            onClick={() => setActiveTab('favorites')}
-            badge={(() => { const fav = collections.find(c => c.name === 'Favoriler'); return fav?.papers?.length > 0 ? fav.papers.length : null; })()}
+            active={activeTab === 'analyses'}
+            onClick={() => setActiveTab('analyses')}
+          />
+          <SidebarItem
+            icon={<FolderHeart size={18} />}
+            label="Koleksiyonlar"
+            isOpen={isOpen}
+            active={activeTab === 'collections'}
+            onClick={() => setActiveTab('collections')}
+            badge={(() => { const n = collections.filter(c => c.name !== 'Favoriler').length; return n > 0 ? n : null; })()}
           />
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: isOpen ? '32px 16px' : '20px 0' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: isOpen ? '24px 16px' : '20px 0' }}>
           {isOpen && (
             <AnimatePresence mode="wait">
               {activeTab === 'history' && (
@@ -272,44 +272,47 @@ const HistorySidebar = ({ isOpen, setIsOpen, onSelectHistory, onDeleteHistoryEnt
                   {history.length === 0 ? (
                     <div style={{ padding: '20px 12px', textAlign: 'center', color: '#64748b', fontSize: '0.75rem', lineHeight: 1.5, background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px dashed rgba(255,255,255,0.08)' }}>Henüz arama yapılmadı. İlk aramanız burada listelenecek.</div>
                   ) : (
-                    history.slice(0, 15).map(item => (
-                      <div
-                        key={item._id}
-                        onClick={() => onSelectHistory(item)}
-                        className="history-item-card-dark"
-                        style={{ padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', background: 'transparent', border: '1px solid transparent', position: 'relative', transition: 'background 0.15s ease, border-color 0.15s ease' }}
-                        onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
-                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
-                      >
-                        <button
-                          className="delete-btn-dark"
-                          onClick={(e) => { e.stopPropagation(); onDeleteHistoryEntry(item._id); }}
-                          style={{
-                            position: 'absolute',
-                            top: '6px',
-                            right: '6px',
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#64748b',
-                            width: '22px',
-                            height: '22px',
-                            borderRadius: '6px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            opacity: 0,
-                            transition: 'opacity 0.15s ease, background 0.15s ease, color 0.15s ease',
-                            zIndex: 10
-                          }}
-                          onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(244, 63, 94, 0.12)'; e.currentTarget.style.color = '#fb7185'; }}
-                          onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
+                    history.slice(0, 15).map(item => {
+                      const displayTitle = item.mainTopic || item.aiQuery || (Array.isArray(item.keywords) && item.keywords.length > 0 ? item.keywords.join(', ') : 'İsimsiz Arama');
+                      return (
+                        <div
+                          key={item._id}
+                          onClick={() => onSelectHistory(item)}
+                          className="history-item-card-dark"
+                          style={{ padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', background: 'transparent', border: '1px solid transparent', position: 'relative', transition: 'background 0.15s ease, border-color 0.15s ease' }}
+                          onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
+                          onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
                         >
-                          <Trash2 size={12} />
-                        </button>
-                        <div style={{ fontSize: '0.8125rem', fontWeight: '500', color: '#cbd5e1', paddingRight: '24px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.mainTopic || item.aiQuery}</div>
-                      </div>
-                    ))
+                          <button
+                            className="delete-btn-dark"
+                            onClick={(e) => { e.stopPropagation(); onDeleteHistoryEntry(item._id); }}
+                            style={{
+                              position: 'absolute',
+                              top: '6px',
+                              right: '6px',
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#64748b',
+                              width: '22px',
+                              height: '22px',
+                              borderRadius: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              opacity: 0,
+                              transition: 'opacity 0.15s ease, background 0.15s ease, color 0.15s ease',
+                              zIndex: 10
+                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(244, 63, 94, 0.12)'; e.currentTarget.style.color = '#fb7185'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                          <div style={{ fontSize: '0.8125rem', fontWeight: '500', color: '#cbd5e1', paddingRight: '24px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayTitle}</div>
+                        </div>
+                      );
+                    })
                   )}
                 </MotionDiv>
               )}
