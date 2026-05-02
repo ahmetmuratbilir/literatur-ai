@@ -9,7 +9,7 @@ import { enrichWithCitations } from './opencitations.js';
 import { calculateAHP } from './ahp.js';
 import { normalizeData } from '../utils/normalization.js';
 import { normalizeAndClean } from '../utils/dataUtils.js';
-import { batchTranslateTeasers } from '../utils/translation.js';
+import { batchTranslateAcademic } from '../utils/translation.js';
 import fs from 'fs/promises';
 import { performance } from 'perf_hooks';
 import path from 'path';
@@ -212,8 +212,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
        const cleanData = normalizeAndClean(exData).map(r => ({ ...r, source: 'Demo Havuzu' }));
        const rankedData = await calculateAHP(cleanData, null);
        
-       // İlk 25 için Türkçe çeviri
-       const finalResults = await batchTranslateTeasers(rankedData.slice(0, displayCount));
+       // Tüm başlıklar ve ilk 10 özet için akademik Türkçe çeviri
+       const finalResults = await batchTranslateAcademic(rankedData.slice(0, displayCount));
 
        return {
          totalFound: exData.length,
@@ -283,9 +283,9 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   const rankedData = await calculateAHP(enrichedResults, null);
   console.log('AHP tamamlandı.');
 
-  // --- Otomatik Türkçe Çeviri (Top 25) ---
-  console.log('Top 25 sonuç için Türkçe özetler hazırlanıyor...');
-  const finalResults = await batchTranslateTeasers(rankedData.slice(0, 25));
+  // --- Otomatik Akademik Türkçe Çeviri (Top 25 Başlık + Top 10 Özet) ---
+  console.log('Akademik Türkçe çeviriler hazırlanıyor...');
+  const finalResults = await batchTranslateAcademic(rankedData.slice(0, 25));
   console.log('Çeviri tamamlandı.');
 
   const formatResetDate = (quotaObj) => {

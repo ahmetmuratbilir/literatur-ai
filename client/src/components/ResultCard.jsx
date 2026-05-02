@@ -103,7 +103,7 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited }) => {
               minWidth: 0
             }}
           >
-            {item.title}
+            {item.titleTR || item.title || 'İsimsiz Makale'}
           </h3>
           <div
             title={`AHP skoru: %${scorePercent}`}
