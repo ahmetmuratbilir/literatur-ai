@@ -150,6 +150,23 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited }) => {
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>{item.publicationName}</span>
             </span>
           )}
+          {item.source && (
+            <span 
+              style={{ 
+                background: 'rgba(99, 102, 241, 0.1)', 
+                color: 'var(--brand-primary)', 
+                padding: '2px 8px', 
+                borderRadius: '99px', 
+                fontSize: '10px', 
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: '0.02em',
+                border: '1px solid rgba(99, 102, 241, 0.2)'
+              }}
+            >
+              {item.source}
+            </span>
+          )}
         </div>
 
         <p
@@ -162,9 +179,20 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited }) => {
             WebkitLineClamp: '2',
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
+            position: 'relative'
           }}
         >
-          {item.description || 'Bu makale için özet bilgisi bulunmuyor.'}
+          {item.teaserTR ? (
+            <span style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontStyle: 'italic', color: 'var(--text-main)' }}>{item.teaserTR}</span>
+              <span style={{ fontSize: '9px', fontWeight: '600', color: 'var(--slate-400)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#10b981' }}></span>
+                Yapay Zeka Çevirisi
+              </span>
+            </span>
+          ) : (
+            item.description || 'Bu makale için özet bilgisi bulunmuyor.'
+          )}
         </p>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginTop: '0.875rem', justifyContent: 'space-between' }}>

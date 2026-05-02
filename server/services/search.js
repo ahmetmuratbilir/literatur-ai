@@ -9,6 +9,7 @@ import { enrichWithCitations } from './opencitations.js';
 import { calculateAHP } from './ahp.js';
 import { normalizeData } from '../utils/normalization.js';
 import { normalizeAndClean } from '../utils/dataUtils.js';
+import { batchTranslateTeasers } from '../utils/translation.js';
 import fs from 'fs/promises';
 import { performance } from 'perf_hooks';
 import path from 'path';
@@ -83,7 +84,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   if (scopusResult.status === 'fulfilled' && scopusResult.value) {
     const val = scopusResult.value;
     if (val.results?.length) {
-      allResults = [...allResults, ...val.results];
+      const resultsWithSource = val.results.map(r => ({ ...r, source: 'Scopus' }));
+      allResults = [...allResults, ...resultsWithSource];
       sourceBreakdown.scopus = val.results.length;
     }
     totalFromAPIs.scopus = val.totalFound || 0;
@@ -97,7 +99,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   if (openAlexResult.status === 'fulfilled' && openAlexResult.value) {
     const val = openAlexResult.value;
     if (val.results?.length) {
-      allResults = [...allResults, ...val.results];
+      const resultsWithSource = val.results.map(r => ({ ...r, source: 'OpenAlex' }));
+      allResults = [...allResults, ...resultsWithSource];
       sourceBreakdown.openalex = val.results.length;
     }
     totalFromAPIs.openalex = val.totalFound || 0;
@@ -111,7 +114,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   if (coreResult.status === 'fulfilled' && coreResult.value) {
     const val = coreResult.value;
     if (val.results?.length) {
-      allResults = [...allResults, ...val.results];
+      const resultsWithSource = val.results.map(r => ({ ...r, source: 'CORE' }));
+      allResults = [...allResults, ...resultsWithSource];
       sourceBreakdown.core = val.results.length;
     }
     totalFromAPIs.core = val.totalFound || 0;
@@ -125,7 +129,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   if (crossrefResult.status === 'fulfilled' && crossrefResult.value) {
     const val = crossrefResult.value;
     if (val.results?.length) {
-      allResults = [...allResults, ...val.results];
+      const resultsWithSource = val.results.map(r => ({ ...r, source: 'Crossref' }));
+      allResults = [...allResults, ...resultsWithSource];
       sourceBreakdown.crossref = val.results.length;
     }
     totalFromAPIs.crossref = val.totalFound || 0; 
@@ -138,7 +143,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   if (s2Result.status === 'fulfilled' && s2Result.value) {
     const val = s2Result.value;
     if (val.results?.length) {
-      allResults = [...allResults, ...val.results];
+      const resultsWithSource = val.results.map(r => ({ ...r, source: 'Semantic Scholar' }));
+      allResults = [...allResults, ...resultsWithSource];
       sourceBreakdown.s2 = val.results.length;
     }
     totalFromAPIs.s2 = val.totalFound || 0; 
@@ -151,7 +157,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   if (arxivResult.status === 'fulfilled' && arxivResult.value) {
     const val = arxivResult.value;
     if (val.results?.length) {
-      allResults = [...allResults, ...val.results];
+      const resultsWithSource = val.results.map(r => ({ ...r, source: 'ArXiv' }));
+      allResults = [...allResults, ...resultsWithSource];
       sourceBreakdown.arxiv = val.results.length;
     }
     totalFromAPIs.arxiv = val.totalFound || 0; 
@@ -164,7 +171,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   if (doajResult.status === 'fulfilled' && doajResult.value) {
     const val = doajResult.value;
     if (val.results?.length) {
-      allResults = [...allResults, ...val.results];
+      const resultsWithSource = val.results.map(r => ({ ...r, source: 'DOAJ' }));
+      allResults = [...allResults, ...resultsWithSource];
       sourceBreakdown.doaj = val.results.length;
     }
     totalFromAPIs.doaj = val.totalFound || 0; 
@@ -201,13 +209,16 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
        console.log(`Demo modu aktif: ${exData.length} yerel kayıt yüklendi.`);
        
        // dataUtils.js kullanarak veriyi temizle ve normalize et
-       const cleanData = normalizeAndClean(exData);
+       const cleanData = normalizeAndClean(exData).map(r => ({ ...r, source: 'Demo Havuzu' }));
        const rankedData = await calculateAHP(cleanData, null);
+       
+       // İlk 25 için Türkçe çeviri
+       const finalResults = await batchTranslateTeasers(rankedData.slice(0, displayCount));
 
        return {
          totalFound: exData.length,
          analyzedCount: rankedData.length,
-         results: rankedData.slice(0, displayCount),
+         results: finalResults,
          demoMode: true,
          failedSources,
          sourceBreakdown,
@@ -272,6 +283,11 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   const rankedData = await calculateAHP(enrichedResults, null);
   console.log('AHP tamamlandı.');
 
+  // --- Otomatik Türkçe Çeviri (Top 25) ---
+  console.log('Top 25 sonuç için Türkçe özetler hazırlanıyor...');
+  const finalResults = await batchTranslateTeasers(rankedData.slice(0, 25));
+  console.log('Çeviri tamamlandı.');
+
   const formatResetDate = (quotaObj) => {
       if (!quotaObj || !quotaObj.reset) return 'Bilinmiyor';
       let resetValue = Number.parseInt(quotaObj.reset, 10);
@@ -294,7 +310,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   const responseData = {
     totalFound: totalPoolSum,
     analyzedCount: totalFoundBeforeAHP,
-    results: rankedData.slice(0, 25),
+    results: finalResults,
     searchTime: totalDuration,
     failedSources,
     sourceBreakdown,
