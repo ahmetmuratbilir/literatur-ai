@@ -84,7 +84,7 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited }) => {
           }}
         >
           <Quote size={10} strokeWidth={3} />
-          <span style={{ fontSize: '10px', fontWeight: '800', lineHeight: 1 }}>{item.citedBy || 0}</span>
+          <span style={{ fontSize: '10px', fontWeight: '800', lineHeight: 1 }}>{item.citedBy || item.citedbyCount || 0}</span>
           <span style={{ fontSize: '8px', fontWeight: '600', opacity: 0.8, textTransform: 'uppercase' }}>Atıf</span>
         </div>
       </div>

@@ -8,13 +8,18 @@ import { searchDOAJ } from './doaj.js';
 import { enrichWithCitations } from './opencitations.js';
 import { calculateAHP } from './ahp.js';
 import { normalizeData } from '../utils/normalization.js';
+import { normalizeAndClean } from '../utils/dataUtils.js';
 import fs from 'fs/promises';
 import { performance } from 'perf_hooks';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pkg from 'natural';
+import SearchCache from '../models/SearchCache.js';
+
 const { WordTokenizer } = pkg;
 const tokenizer = new WordTokenizer();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function recomputeKeyCount(item, queryTokens) {
   let keyCount = 0;
@@ -28,10 +33,6 @@ function recomputeKeyCount(item, queryTokens) {
   }
   return keyCount;
 }
-
-import SearchCache from '../models/SearchCache.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export async function searchAll(params, queryContext, scopusQuery, booleanQuery) {
   const startTime = performance.now();
@@ -59,8 +60,6 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   const { count } = params;
   const displayCount = count || 25;
 
-  // Her API'den kullanıcının istediği kadar çek (25 gibi).
-  // Toplam sayıları (224k) API'nin döndürdüğü meta'dan okuyacağız, hepsini çekmiyoruz.
   const [scopusResult, openAlexResult, coreResult, crossrefResult, s2Result, arxivResult, doajResult] = await Promise.allSettled([
     searchLiterature(scopusQuery, displayCount, null, queryContext),
     searchOpenAlex(queryContext, params, booleanQuery),
@@ -77,7 +76,6 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   let coreQuota = null;
   const failedSources = [];
 
-  // Her kaynak i\u00e7in: ka\u00e7 sonu\u00e7 \u00e7ektik + API'nin ger\u00e7ek toplam\u0131
   const sourceBreakdown = { scopus: 0, openalex: 0, core: 0, crossref: 0, s2: 0, arxiv: 0, doaj: 0 };
   const totalFromAPIs   = { scopus: 0, openalex: 0, core: 0, crossref: 0, s2: 0, arxiv: 0, doaj: 0 };
 
@@ -88,10 +86,10 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
       allResults = [...allResults, ...val.results];
       sourceBreakdown.scopus = val.results.length;
     }
-    totalFromAPIs.scopus = val.totalFound || 0; // 224.000 gibi
+    totalFromAPIs.scopus = val.totalFound || 0;
     if (val.quotaInfo) scopusQuota = val.quotaInfo;
   } else {
-    console.error('Scopus iste\u011fi ba\u015far\u0131s\u0131z oldu:', scopusResult.reason);
+    console.error('Scopus isteği başarısız oldu:', scopusResult.reason);
     failedSources.push('Scopus');
   }
 
@@ -105,7 +103,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     totalFromAPIs.openalex = val.totalFound || 0;
     if (val.quotaInfo) openAlexQuota = val.quotaInfo;
   } else {
-    console.error('OpenAlex iste\u011fi ba\u015far\u0131s\u0131z oldu:', openAlexResult.reason);
+    console.error('OpenAlex isteği başarısız oldu:', openAlexResult.reason);
     failedSources.push('OpenAlex');
   }
 
@@ -119,7 +117,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     totalFromAPIs.core = val.totalFound || 0;
     if (val.quotaInfo) coreQuota = val.quotaInfo;
   } else {
-    console.error('CORE iste\u011fi ba\u015far\u0131s\u0131z oldu:', coreResult.reason);
+    console.error('CORE isteği başarısız oldu:', coreResult.reason);
     failedSources.push('CORE');
   }
 
@@ -132,7 +130,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     }
     totalFromAPIs.crossref = val.totalFound || 0; 
   } else {
-    console.error('Crossref iste\u011fi ba\u015far\u0131s\u0131z oldu:', crossrefResult.reason);
+    console.error('Crossref isteği başarısız oldu:', crossrefResult.reason);
     failedSources.push('Crossref');
   }
 
@@ -145,7 +143,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     }
     totalFromAPIs.s2 = val.totalFound || 0; 
   } else {
-    console.error('Semantic Scholar iste\u011fi ba\u015far\u0131s\u0131z oldu:', s2Result.reason);
+    console.error('Semantic Scholar isteği başarısız oldu:', s2Result.reason);
     failedSources.push('SemanticScholar');
   }
 
@@ -158,7 +156,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     }
     totalFromAPIs.arxiv = val.totalFound || 0; 
   } else {
-    console.error('ArXiv iste\u011fi ba\u015far\u0131s\u0131z oldu:', arxivResult.reason);
+    console.error('ArXiv isteği başarısız oldu:', arxivResult.reason);
     failedSources.push('ArXiv');
   }
 
@@ -171,22 +169,15 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     }
     totalFromAPIs.doaj = val.totalFound || 0; 
   } else {
-    console.error('DOAJ iste\u011fi ba\u015far\u0131s\u0131z oldu:', doajResult.reason);
+    console.error('DOAJ isteği başarısız oldu:', doajResult.reason);
     failedSources.push('DOAJ');
   }
 
   const apiFetchTime = performance.now();
   console.log(`API Çekim Süresi: ${((apiFetchTime - startTime) / 1000).toFixed(2)} sn`);
 
-  console.log(`Kaynak da\u011f\u0131l\u0131m\u0131: Scopus=${sourceBreakdown.scopus}, OpenAlex=${sourceBreakdown.openalex}, CORE=${sourceBreakdown.core}, Crossref=${sourceBreakdown.crossref}, S2=${sourceBreakdown.s2}, ArXiv=${sourceBreakdown.arxiv}, DOAJ=${sourceBreakdown.doaj}`);
-  console.log(`API toplam havuzlar\u0131: Scopus=${totalFromAPIs.scopus.toLocaleString()}, OpenAlex=${totalFromAPIs.openalex.toLocaleString()}, CORE=${totalFromAPIs.core.toLocaleString()}, Crossref=${totalFromAPIs.crossref.toLocaleString()}, S2=${totalFromAPIs.s2.toLocaleString()}, ArXiv=${totalFromAPIs.arxiv.toLocaleString()}, DOAJ=${totalFromAPIs.doaj.toLocaleString()}`);
-  if (failedSources.length > 0) {
-    console.warn(`Ba\u015far\u0131s\u0131z kaynaklar: ${failedSources.join(', ')}`);
-  }
-
-  // E\u011fer hepsi \u00e7\u00f6kt\u00fcyse Demo moduna ge\u00e7
   if (allResults.length === 0) {
-     console.log('--- KOTA DOLU VEYA API HATASI: DEMO MODUNA GE\u00c7\u0130L\u0130YOR ---');
+     console.log('--- KOTA DOLU VEYA API HATASI: DEMO MODUNA GEÇİLİYOR ---');
      try {
        const rootDir = path.join(__dirname, '../..');
        const primaryPath = path.join(rootDir, 'exdata.json');
@@ -204,12 +195,13 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
        const exData = JSON.parse(rawExData);
 
        if (!Array.isArray(exData) || exData.length === 0) {
-         throw new Error('Demo verisi bo\u015f veya ge\u00e7ersiz formatta.');
+         throw new Error('Demo verisi boş veya geçersiz formatta.');
        }
 
-       console.log(`Demo modu aktif: ${exData.length} yerel kay\u0131t y\u00fcklendi.`);
+       console.log(`Demo modu aktif: ${exData.length} yerel kayıt yüklendi.`);
        
-       const cleanData = await normalizeData(exData, queryContext);
+       // dataUtils.js kullanarak veriyi temizle ve normalize et
+       const cleanData = normalizeAndClean(exData);
        const rankedData = await calculateAHP(cleanData, null);
 
        return {
@@ -227,19 +219,16 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
          },
        };
      } catch (fileError) {
-       console.error('Demo verisi y\u00fcklenirken hata:', fileError);
-       throw new Error('Hi\u00e7bir kaynaktan veri al\u0131namad\u0131 ve demo verisi y\u00fcklenemedi.');
+       console.error('Demo verisi yüklenirken hata:', fileError);
+       throw new Error('Hiçbir kaynaktan veri alınamadı ve demo verisi yüklenemedi.');
      }
   }
 
-  // Sonuçları birleştirirken mükerrer kayıtları temizle (Deduplication)
   const uniqueResultsMap = new Map();
   for (const item of allResults) {
       let key = '';
       if (item.doi && String(item.doi).trim().length > 5) {
-          // Eğer DOI varsa kesinlikle benzersiz anahtar olarak onu kullan
           let doiStr = String(item.doi).trim().toLowerCase();
-          // doi.org/ kısmını temizleyip sadece ham DOI'yi alabiliriz (opsiyonel ama güvenli)
           doiStr = doiStr.replace(/^https?:\/\/(dx\.)?doi\.org\//, '');
           key = `doi:${doiStr}`;
       } else {
@@ -260,8 +249,6 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   
   const uniqueCleanData = Array.from(uniqueResultsMap.values());
 
-  // --- keyCount yeniden hesaplama: bazı kaynaklar (Crossref/ArXiv/S2/DOAJ/Lens)
-  // bunu set etmiyor; AHP relevance skoru hep 0 olmasın diye burada tek standartla hesaplıyoruz.
   const queryTokens = (tokenizer.tokenize(String(queryContext || '').toLowerCase()) || [])
     .filter(t => t && t.length > 2 && t !== 'or' && t !== 'and');
   if (queryTokens.length > 0) {
@@ -274,18 +261,16 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
 
   const totalFoundBeforeAHP = uniqueCleanData.length;
 
-  // --- OpenCitations Entegrasyonu (At\u0131f Do\u011frulama) ---
-  // Sadece benzersiz olanlar \u00fczerinde ve sadece ilk 40 i\u00e7in yap (H\u0131z i\u00e7in)
-  console.log('OpenCitations ile benzersiz kay\u0131tlar do\u011frulan\u0131yor...');
+  console.log('OpenCitations ile benzersiz kayıtlar doğrulanıyor...');
   const enrichStart = performance.now();
   const enrichedResults = await enrichWithCitations(uniqueCleanData);
   const enrichEnd = performance.now();
-  console.log(`OpenCitations Do\u011frulama S\u00fcresi: ${((enrichEnd - enrichStart) / 1000).toFixed(2)} sn`);
+  console.log(`OpenCitations Doğrulama Süresi: ${((enrichEnd - enrichStart) / 1000).toFixed(2)} sn`);
   const openCitationVerifiedCount = enrichedResults.filter(r => r.openCitationVerified).length;
 
-  console.log(`${totalFoundBeforeAHP} benzersiz \u00f6\u011fe i\u00e7in AHP skorlar\u0131 hesaplan\u0131yor...`);
+  console.log(`${totalFoundBeforeAHP} benzersiz öğe için AHP skorları hesaplanıyor...`);
   const rankedData = await calculateAHP(enrichedResults, null);
-  console.log('AHP tamamland\u0131.');
+  console.log('AHP tamamlandı.');
 
   const formatResetDate = (quotaObj) => {
       if (!quotaObj || !quotaObj.reset) return 'Bilinmiyor';
@@ -303,7 +288,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
 
   const endTime = performance.now();
   const totalDuration = ((endTime - startTime) / 1000).toFixed(2);
-  console.log(`Toplam Arama S\u00fcresi: ${totalDuration} sn\n`);
+  console.log(`Toplam Arama Süresi: ${totalDuration} sn\n`);
 
   const totalPoolSum = Object.values(totalFromAPIs).reduce((a, b) => a + (b || 0), 0);
   const responseData = {
@@ -327,7 +312,6 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     }
   };
 
-  // --- Sonucu Önbelleğe Kaydet ---
   try {
     const newCache = new SearchCache({
       query: queryContext,
@@ -340,7 +324,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     await newCache.save();
     console.log(`[Cache] Yeni arama önbelleğe kaydedildi: "${queryContext}"`);
   } catch (saveError) {
-    console.warn('[Cache] Kayıt hatası (Muhtemelen aynı anda başka bir istek kaydetti):', saveError.message);
+    console.warn('[Cache] Kayıt hatası:', saveError.message);
   }
 
   return responseData;

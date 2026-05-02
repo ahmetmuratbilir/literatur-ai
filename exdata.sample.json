@@ -1,29 +1,76 @@
 [
   {
-    "eid": "2-s2.0-demo-sample-1",
-    "dc:title": "Yapay zeka ve akademik arama sistemleri",
-    "dc:creator": "Örnek, A.",
-    "prism:publicationName": "Demo Dergisi",
-    "prism:coverDate": "2024-03-15",
-    "dc:description": "Bu örnek kayıt, API erişimi olmadığında gösterilir. Yapay zeka ve literatür tarama konularını içerir.",
-    "citedby-count": "128"
+    "eid": "3-s2.0-B9780323950763000053",
+    "title": "Syngas conversion to biofuels: Recent progress",
+    "authors": [
+      "Villanueva-Perales, Ángel L.",
+      "Haro, Pedro",
+      "Naveira-Pazos, Cecilia",
+      "Veiga, María C.",
+      "Kennes, Christian"
+    ],
+    "firstAuthor": "Villanueva-Perales, Ángel L.",
+    "publicationName": "Advances in Biofuels Production, Optimization and Applications",
+    "year": 2024,
+    "doi": "10.1016/B978-0-323-95076-3.00005-3",
+    "link": "https://www.sciencedirect.com/science/article/pii/B9780323950763000053",
+    "description": "Recent developments in the catalytic conversion of syngas to biofuels are focused on the conversion of CO- and CO2-rich syngas using novel catalyst designs or innovative reacting systems (including membranes). Considering the use of chemical intermediates, new routes are studied for biofuel production (ethanol, DME, and oxymethylene ether). Apart from these developments, little advancements have been done in the last decades. For the most relevant biofuels (ethanol, higher alcohols, and Fischer-Tropsch), a preliminary insight into the implications of these advancements in the design of industrial-scale processes is presented. Besides the catalytic conversion of syngas to biofuels, its bioconversion is another suitable alternative. In this sense, acetogenic anaerobic bacteria can metabolize not only different mixtures of CO, CO2, and H2 to produce ethanol but also higher alcohols such as butanol and hexanol. The main parameters affecting such bioconversion processes are addressed. Alternatively, syngas biomethanation yields methane as another interesting biofuel.",
+    "teaser": "Recent developments in the catalytic conversion of syngas to biofuels are focused on the conversion of CO- and CO2-rich syngas using novel catalyst designs or innovative reacting systems (including...",
+    "keywords": [
+      "Acetogenic bacteria",
+      "Biofuel",
+      "Biomass",
+      "Bioproduct",
+      "Biorefinery",
+      "Carbon dioxide",
+      "Fischer-Tropsch",
+      "Syngas",
+      "Waste"
+    ],
+    "citedbyCount": null,
+    "openAccess": false,
+    "pubType": "chp",
+    "pubTypeLabel": "Kitap Bölümü",
+    "sourceType": "EBook",
+    "sourceTypeLabel": "E-Kitap",
+    "pageCount": 22,
+    "issn": null,
+    "isbn": "9780323950763",
+    "volume": null,
+    "issue": null,
+    "availableOnlineDate": "2023-09-15"
   },
   {
-    "eid": "2-s2.0-demo-sample-2",
-    "dc:title": "Açık erişim ve atıf analizi",
-    "dc:creator": "Demo, B.",
-    "prism:publicationName": "Bilim ve Teknoloji",
-    "prism:coverDate": "2022-11-01",
-    "dc:description": "Açık erişim yayınları ve atıf sayıları üzerine özet bir metin. Literatür taraması için örnek.",
-    "citedby-count": "45"
-  },
-  {
-    "eid": "2-s2.0-demo-sample-3",
-    "dc:title": "Çok kriterli karar verme ve AHP",
-    "dc:creator": "Örnek, C.",
-    "prism:publicationName": "Yöneylem Araştırması",
-    "prism:coverDate": "2020-06-20",
-    "dc:description": "Analitik hiyerarşi süreci ve çok kriterli skorlama yöntemleri anlatılmaktadır.",
-    "citedby-count": "210"
+    "eid": "3-s2.0-B9780323950763000120",
+    "title": "Advances in microbial contamination in the production of fuel bioethanol: Origin, problems, and control methods",
+    "authors": [
+      "de Barros Ranke, Fabiane Fernanda"
+    ],
+    "firstAuthor": "de Barros Ranke, Fabiane Fernanda",
+    "publicationName": "Advances in Biofuels Production, Optimization and Applications",
+    "year": 2024,
+    "doi": "10.1016/B978-0-323-95076-3.00012-0",
+    "link": "https://www.sciencedirect.com/science/article/pii/B9780323950763000120",
+    "description": "Biofuels are important sustainable fuels and bioethanol stands out in the countries with biomass resources. However, the fuel ethanol fermentation is not aseptic and the recycling of yeast cells stimulates the increase of bacterial contamination. Lactic acid bacteria are the most important group in this industry, especially Lactobacillus fermentum. The contaminants decrease the industrial ethanol yield and inhibit the yeast metabolism, beyond the increase of the cost and lead to operational problems. Then, some technological methods are employed for bacterial control. In this chapter, these methods have been discussed with their limitations. Furthermore, new alternatives are presented.",
+    "teaser": "Biofuels are important sustainable fuels and bioethanol stands out in the countries with biomass resources. However, the fuel ethanol fermentation is not aseptic and the recycling of yeast cells stimulates...",
+    "keywords": [
+      "Ethanol fermentation",
+      "Lactic acid bacteria",
+      "Growth control",
+      "Antibiotics",
+      "Biocides"
+    ],
+    "citedbyCount": null,
+    "openAccess": false,
+    "pubType": "chp",
+    "pubTypeLabel": "Kitap Bölümü",
+    "sourceType": "EBook",
+    "sourceTypeLabel": "E-Kitap",
+    "pageCount": 17,
+    "issn": null,
+    "isbn": "9780323950763",
+    "volume": null,
+    "issue": null,
+    "availableOnlineDate": "2023-09-15"
   }
 ]
