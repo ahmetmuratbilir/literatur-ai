@@ -10,6 +10,8 @@ import { analyzeAndExpandQuery } from './services/llm.js';
 import { withTimeout } from './utils/http.js';
 import SearchHistory from './models/SearchHistory.js';
 import Collection from './models/Collection.js';
+import SharedSearch from './models/SharedSearch.js';
+import crypto from 'crypto';
 import Analysis from './models/Analysis.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -400,6 +402,56 @@ app.post('/api/collections', async (req, res) => {
 const MAX_PAPERS_PER_COLLECTION = 10;
 
 const truncate = (s, n) => (typeof s === 'string' ? s.trim().slice(0, n) : '');
+
+// --- Sharing API ---
+
+app.post('/api/share', async (req, res) => {
+  try {
+    if (!requireDb(res)) return;
+    const { userId, mainTopic, results, aiAnalysis, originalParams } = req.body;
+
+    if (!results || results.length === 0) {
+      return res.status(400).json({ error: 'Paylaşılacak veri bulunamadı' });
+    }
+
+    // 6 haneli eşsiz ID üret (Örn: a7b3c9)
+    const shareId = crypto.randomBytes(3).toString('hex');
+
+    const newShare = new SharedSearch({
+      shareId,
+      userId,
+      mainTopic,
+      results,
+      aiAnalysis,
+      originalParams: originalParams || {}
+    });
+
+    await newShare.save();
+    return res.status(201).json({ shareId, url: `${req.headers.origin || ''}?s=${shareId}` });
+  } catch (error) {
+    console.error('Share create error:', error);
+    return res.status(500).json({ error: 'Paylaşım oluşturulamadı' });
+  }
+});
+
+app.get('/api/share/:id', async (req, res) => {
+  try {
+    if (!requireDb(res)) return;
+    const { id } = req.params;
+    
+    const share = await SharedSearch.findOne({ shareId: id });
+    if (!share) return res.status(404).json({ error: 'Paylaşım bulunamadı veya süresi dolmuş' });
+
+    // İzlenme sayısını artır
+    share.viewCount += 1;
+    await share.save();
+
+    return res.json(share);
+  } catch (error) {
+    console.error('Share fetch error:', error);
+    return res.status(500).json({ error: 'Paylaşım yüklenemedi' });
+  }
+});
 
 app.post('/api/collections/:id/add', async (req, res) => {
   try {
