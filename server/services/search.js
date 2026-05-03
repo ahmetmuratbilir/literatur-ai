@@ -15,7 +15,6 @@ import { performance } from 'perf_hooks';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pkg from 'natural';
-import SearchCache from '../models/SearchCache.js';
 
 const { WordTokenizer } = pkg;
 const tokenizer = new WordTokenizer();
@@ -37,26 +36,6 @@ function recomputeKeyCount(item, queryTokens) {
 
 export async function searchAll(params, queryContext, scopusQuery, booleanQuery) {
   const startTime = performance.now();
-  console.log(`\n--- Yeni Arama Başlatıldı: "${queryContext}" ---`);
-  
-  // --- Önbellek Kontrolü (Smart Cache) ---
-  try {
-    const cached = await SearchCache.findOne({ query: queryContext });
-    if (cached) {
-      console.log(`[Cache] Önbellek bulundu: "${queryContext}". Hızlı yükleme yapılıyor...`);
-      cached.searchCount += 1;
-      await cached.save();
-      
-      const endTime = performance.now();
-      return {
-        ...cached.toObject(),
-        searchTime: ((endTime - startTime) / 1000).toFixed(2),
-        isCached: true
-      };
-    }
-  } catch (cacheError) {
-    console.error('[Cache] Hata:', cacheError.message);
-  }
 
   const { count } = params;
   const displayCount = count || 25;
@@ -70,6 +49,13 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     searchArXiv(queryContext, displayCount),
     searchDOAJ(queryContext, displayCount)
   ]);
+
+  const categorizeError = (reason) => {
+    const msg = (reason?.message || '').toLowerCase();
+    if (reason?.name === 'AbortError' || msg.includes('timeout') || msg.includes('zaman aşımı')) return 'TIMEOUT';
+    if (msg.includes('429') || msg.includes('quota') || msg.includes('kota') || msg.includes('limit')) return 'QUOTA';
+    return 'ERROR';
+  };
 
   let allResults = [];
   let scopusQuota = null;
@@ -91,8 +77,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     totalFromAPIs.scopus = val.totalFound || 0;
     if (val.quotaInfo) scopusQuota = val.quotaInfo;
   } else {
-    console.error('Scopus isteği başarısız oldu:', scopusResult.reason);
-    failedSources.push('Scopus');
+    console.error('Scopus isteği başarısız oldu:', scopusResult.reason?.message);
+    failedSources.push({ name: 'Scopus', type: categorizeError(scopusResult.reason), message: scopusResult.reason?.message });
   }
 
   // --- OpenAlex ---
@@ -106,8 +92,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     totalFromAPIs.openalex = val.totalFound || 0;
     if (val.quotaInfo) openAlexQuota = val.quotaInfo;
   } else {
-    console.error('OpenAlex isteği başarısız oldu:', openAlexResult.reason);
-    failedSources.push('OpenAlex');
+    console.error('OpenAlex isteği başarısız oldu:', openAlexResult.reason?.message);
+    failedSources.push({ name: 'OpenAlex', type: categorizeError(openAlexResult.reason), message: openAlexResult.reason?.message });
   }
 
   // --- CORE ---
@@ -121,8 +107,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     totalFromAPIs.core = val.totalFound || 0;
     if (val.quotaInfo) coreQuota = val.quotaInfo;
   } else {
-    console.error('CORE isteği başarısız oldu:', coreResult.reason);
-    failedSources.push('CORE');
+    console.error('CORE isteği başarısız oldu:', coreResult.reason?.message);
+    failedSources.push({ name: 'CORE', type: categorizeError(coreResult.reason), message: coreResult.reason?.message });
   }
 
   // --- Crossref ---
@@ -135,8 +121,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     }
     totalFromAPIs.crossref = val.totalFound || 0; 
   } else {
-    console.error('Crossref isteği başarısız oldu:', crossrefResult.reason);
-    failedSources.push('Crossref');
+    console.error('Crossref isteği başarısız oldu:', crossrefResult.reason?.message);
+    failedSources.push({ name: 'Crossref', type: categorizeError(crossrefResult.reason), message: crossrefResult.reason?.message });
   }
 
   // --- Semantic Scholar ---
@@ -149,8 +135,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     }
     totalFromAPIs.s2 = val.totalFound || 0; 
   } else {
-    console.error('Semantic Scholar isteği başarısız oldu:', s2Result.reason);
-    failedSources.push('SemanticScholar');
+    console.error('Semantic Scholar isteği başarısız oldu:', s2Result.reason?.message);
+    failedSources.push({ name: 'SemanticScholar', type: categorizeError(s2Result.reason), message: s2Result.reason?.message });
   }
 
   // --- ArXiv ---
@@ -163,8 +149,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     }
     totalFromAPIs.arxiv = val.totalFound || 0; 
   } else {
-    console.error('ArXiv isteği başarısız oldu:', arxivResult.reason);
-    failedSources.push('ArXiv');
+    console.error('ArXiv isteği başarısız oldu:', arxivResult.reason?.message);
+    failedSources.push({ name: 'ArXiv', type: categorizeError(arxivResult.reason), message: arxivResult.reason?.message });
   }
 
   // --- DOAJ ---
@@ -177,8 +163,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     }
     totalFromAPIs.doaj = val.totalFound || 0; 
   } else {
-    console.error('DOAJ isteği başarısız oldu:', doajResult.reason);
-    failedSources.push('DOAJ');
+    console.error('DOAJ isteği başarısız oldu:', doajResult.reason?.message);
+    failedSources.push({ name: 'DOAJ', type: categorizeError(doajResult.reason), message: doajResult.reason?.message });
   }
 
   const apiFetchTime = performance.now();
@@ -264,9 +250,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     .filter(t => t && t.length > 2 && t !== 'or' && t !== 'and');
   if (queryTokens.length > 0) {
     for (const item of uniqueCleanData) {
-      if (!item.keyCount || item.keyCount === 0) {
-        item.keyCount = recomputeKeyCount(item, queryTokens);
-      }
+      // Herkese uygula (her kaynağın kendi 'relevanceScore' uydurması yerine ortak AHP için)
+      item.keyCount = recomputeKeyCount(item, queryTokens);
     }
   }
 
@@ -285,7 +270,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
 
   // --- Otomatik Akademik Türkçe Çeviri (Top 25 Başlık + Top 10 Özet) ---
   console.log('Akademik Türkçe çeviriler hazırlanıyor...');
-  const finalResults = await batchTranslateAcademic(rankedData.slice(0, 25));
+  const finalResults = await batchTranslateAcademic(rankedData.slice(0, displayCount));
   console.log('Çeviri tamamlandı.');
 
   const formatResetDate = (quotaObj) => {
@@ -327,21 +312,6 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
         opencitations: { verified: openCitationVerifiedCount || 0 }
     }
   };
-
-  try {
-    const newCache = new SearchCache({
-      query: queryContext,
-      results: responseData.results,
-      totalFound: responseData.totalFound,
-      analyzedCount: responseData.analyzedCount,
-      sourceBreakdown: responseData.sourceBreakdown,
-      totalFromAPIs: responseData.totalFromAPIs
-    });
-    await newCache.save();
-    console.log(`[Cache] Yeni arama önbelleğe kaydedildi: "${queryContext}"`);
-  } catch (saveError) {
-    console.warn('[Cache] Kayıt hatası:', saveError.message);
-  }
 
   return responseData;
 }

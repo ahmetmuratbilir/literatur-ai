@@ -22,7 +22,7 @@ export const searchSemanticScholar = async (query, count = 10) => {
         fields: 'title,authors,year,url,abstract,citationCount,venue,externalIds'
       },
       headers,
-      timeout: 8000
+      timeout: 5000
     });
 
     if (!response.data || !response.data.data) {
@@ -53,14 +53,13 @@ export const searchSemanticScholar = async (query, count = 10) => {
         citationCount: item.citationCount || 0,
         description: item.abstract ? item.abstract.substring(0, 500) : '',
         source: 'Semantic Scholar',
-        keyCount: 0,
-        relevanceScore: 0.9
+        keyCount: 0
       };
     });
 
     return { results, totalFound };
   } catch (error) {
-    console.error('Semantic Scholar API Error:', error.message);
-    return { results: [], totalFound: 0 };
+    console.error('Semantic Scholar API Hatası:', error.message);
+    throw error;
   }
 };

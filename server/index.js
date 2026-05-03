@@ -3,45 +3,131 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import translate from 'google-translate-api-x';
+// Çeviri: Groq (translation.js) üzerinden yapılıyor — Gemini kaldırıldı
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import mongoose from 'mongoose';
 import { searchAll } from './services/search.js';
 import { analyzeAndExpandQuery } from './services/llm.js';
-import { withTimeout } from './utils/http.js';
+import { translateToEnglish } from './utils/translation.js';
 import SearchHistory from './models/SearchHistory.js';
 import Collection from './models/Collection.js';
 import SharedSearch from './models/SharedSearch.js';
 import crypto from 'crypto';
 import Analysis from './models/Analysis.js';
+import { clerkMiddleware, getAuth, clerkClient } from '@clerk/express';
+import {
+  buildSearchCacheFingerprint,
+  getSearchCacheConfig,
+  getSharedSearchCache,
+  saveSharedSearchCache
+} from './utils/searchCacheStore.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI;
+const MONGO_RETRY_MS = 30 * 1000;
+let mongoRetryTimer = null;
+
+const scheduleMongoReconnect = () => {
+  if (!MONGODB_URI || mongoRetryTimer) return;
+  mongoRetryTimer = setTimeout(() => {
+    mongoRetryTimer = null;
+    connectMongo();
+  }, MONGO_RETRY_MS);
+  mongoRetryTimer.unref?.();
+};
+
+async function connectMongo() {
+  if (!MONGODB_URI || mongoose.connection.readyState === 1 || mongoose.connection.readyState === 2) {
+    return;
+  }
+
+  try {
+    await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 10000 });
+    console.log('Connected to MongoDB Atlas');
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    scheduleMongoReconnect();
+  }
+}
+
 if (MONGODB_URI) {
-  mongoose.connect(MONGODB_URI)
-    .then(() => console.log('Connected to MongoDB Atlas'))
-    .catch(err => console.error('MongoDB connection error:', err));
+  connectMongo();
+  mongoose.connection.on('disconnected', scheduleMongoReconnect);
 } else {
   console.warn('MONGODB_URI is not defined in .env. Search history will not be saved.');
 }
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const TRANSLATE_TIMEOUT_MS = 2500;
 const MAX_SEARCH_COUNT = 100;
+const MAX_PAPERS_PER_COLLECTION = 50;
+const USER_TOTAL_RESEARCH_LIMIT = 50;
+const FAVORITES_COLLECTION_NAME = 'Favoriler';
 
-app.use(cors());
-app.use(express.json());
+// --- Security & Middleware ---
+app.use(cors({
+  // Reflect the incoming Origin so localhost/127.0.0.1 port differences don't break the browser app.
+  // Authentication is still enforced with Clerk tokens on protected routes.
+  origin: true,
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+app.use(express.json({ limit: '1mb' }));
+app.use(clerkMiddleware());
+app.use((req, res, next) => {
+  // Clerk dev middleware may not always keep ACAO during local proxy hops.
+  // We re-assert per-request origin so the browser can consume API responses.
+  const requestOrigin = req.headers.origin;
+  if (typeof requestOrigin === 'string' && requestOrigin.length > 0) {
+    res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    const varyHeader = res.getHeader('Vary');
+    if (typeof varyHeader === 'string') {
+      const hasOriginVary = varyHeader
+        .split(',')
+        .map((part) => part.trim().toLowerCase())
+        .includes('origin');
+      if (!hasOriginVary) {
+        res.setHeader('Vary', `${varyHeader}, Origin`);
+      }
+    } else {
+      res.setHeader('Vary', 'Origin');
+    }
+  }
 
-async function translateToEnglish(text) {
-  return withTimeout(
-    translate(text, { to: 'en' }),
-    TRANSLATE_TIMEOUT_MS,
-    `Translate timeout after ${TRANSLATE_TIMEOUT_MS}ms`
-  );
-}
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+    return res.sendStatus(204);
+  }
+
+  return next();
+});
+
+const searchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 15,
+  keyGenerator: (req) => getAuth(req)?.userId || ipKeyGenerator(req.ip),
+  message: { error: 'Çok fazla istek gönderildi. Lütfen 1 dakika bekleyin.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const getRequestUserId = (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) {
+    res.status(401).json({ error: 'Lutfen giris yapin' });
+    return null;
+  }
+  return userId;
+};
+
+const isValidUserId = (id) => typeof id === 'string' && id.length > 0 && id.length <= 64;
+
 
 app.get('/api/health', (req, res) => {
   // Never return raw secrets. Only surface whether a key exists.
@@ -55,11 +141,46 @@ app.get('/api/health', (req, res) => {
       core: has(process.env.CORE_API_KEY),
       groq: has(process.env.GROQ_API_KEY),
     },
+    database: {
+      connected: mongoose.connection.readyState === 1,
+      readyState: mongoose.connection.readyState,
+    },
+    searchCache: {
+      enabled: mongoose.connection.readyState === 1,
+      ...getSearchCacheConfig(),
+    },
     demoFallback: true,
   });
 });
 
-app.get('/api/search', async (req, res) => {
+const requireSubscription = async (req, res, next) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
+
+  try {
+    // Clerk Billing Beta API
+    const subscription = await clerkClient.billing.getUserBillingSubscription(userId);
+    
+    // Eğer abonelik yoksa veya aktif/deneme değilse engelle
+    // Not: Billing henüz tam kurulmadıysa bu hata fırlatabilir, o durumda geçici olarak izin veriyoruz.
+    if (subscription && subscription.status !== 'active' && subscription.status !== 'trialing') {
+      return res.status(403).json({ 
+        error: 'Aboneliğiniz sona ermiştir veya aktif değildir.',
+        needsBilling: true 
+      });
+    }
+    next();
+  } catch (error) {
+    // Dashboard'da billing ayarlanmamışsa veya API hatası alınırsa kullanıcıyı engellemiyoruz
+    console.warn('Billing API uyarısı (Dashboard ayarlarınızı kontrol edin):', error.message);
+    next();
+  }
+};
+
+app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
+
   try {
     const { mainTopic, authorName, keywords, language, count } = req.query;
 
@@ -71,6 +192,31 @@ app.get('/api/search', async (req, res) => {
       }
     } catch {
       keywordList = [];
+    }
+
+    const requestedLimit = Number.isFinite(Number.parseInt(count, 10)) ? Number.parseInt(count, 10) : 25;
+    const limit = Math.min(MAX_SEARCH_COUNT, Math.max(10, requestedLimit));
+    const cacheFingerprint = buildSearchCacheFingerprint({
+      mainTopic,
+      authorName,
+      keywords: keywordList,
+      language,
+      aiQuery: req.query.aiQuery,
+      count: limit
+    });
+    const hasSearchInput = Boolean(
+      mainTopic?.trim() ||
+      authorName?.trim() ||
+      req.query.aiQuery?.trim() ||
+      keywordList.length > 0
+    );
+
+    if (hasSearchInput) {
+      const cachedResult = await getSharedSearchCache(cacheFingerprint);
+      if (cachedResult) {
+        console.log(`[SearchCache] Mongo hit: ${cacheFingerprint.displayQuery || cacheFingerprint.cacheKey}`);
+        return res.json(cachedResult);
+      }
     }
 
     const queryParts = [];
@@ -175,8 +321,6 @@ app.get('/api/search', async (req, res) => {
       return res.status(400).json({ error: 'At least one search parameter is required.' });
     }
 
-    const requestedLimit = Number.isFinite(Number.parseInt(count, 10)) ? Number.parseInt(count, 10) : 25;
-    const limit = Math.min(MAX_SEARCH_COUNT, Math.max(10, requestedLimit));
     const queryContext = queryContextWords.join(' ');
     const booleanQuery = booleanQueryParts.join(' AND ');
 
@@ -186,22 +330,52 @@ app.get('/api/search', async (req, res) => {
     // Yeni yapıya parametreleri gönderiyoruz
     const params = { mainTopic, authorName, keywords: keywordList, count: limit };
     const results = await searchAll(params, queryContext, finalQuery, booleanQuery);
-    
-    return res.json(results);
+    let cacheSave = { saved: false };
+    try {
+      cacheSave = await saveSharedSearchCache(cacheFingerprint, results);
+      if (cacheSave.saved) {
+        console.log(`[SearchCache] Mongo save: ${cacheFingerprint.displayQuery || cacheFingerprint.cacheKey}`);
+      }
+    } catch (cacheError) {
+      console.warn('[SearchCache] Save skipped:', cacheError.message);
+    }
+
+    return res.json({
+      ...results,
+      isCached: false,
+      cache: {
+        hit: false,
+        storage: 'live',
+        saved: Boolean(cacheSave.saved),
+        ttlDays: getSearchCacheConfig().ttlDays
+      }
+    });
   } catch (error) {
-    console.error('Search error:', error);
-
     const message = error instanceof Error ? error.message : 'Dahili Sunucu Hatası';
-    const isQuotaError = message.includes('429') || message.includes('Kotanız');
+    
+    let status = 500;
+    let friendlyMessage = message;
 
-    return res.status(isQuotaError ? 429 : 500).json({
-      error: message,
+    if (message.includes('429') || message.includes('Kotanız') || message.includes('QUOTA')) {
+      status = 429;
+      friendlyMessage = 'Scopus veya akademik kaynak kotası doldu. Sistem demo verilerle devam ediyor.';
+    } else if (message.includes('401')) {
+      status = 401;
+      friendlyMessage = 'API erişim hatası (Yetkisiz). Lütfen anahtarlarınızı kontrol edin.';
+    } else if (message.includes('timeout') || message.includes('zaman aşımı')) {
+      status = 504;
+      friendlyMessage = 'Arama zaman aşımına uğradı. Lütfen daha dar bir konu deneyin.';
+    }
+
+    return res.status(status).json({
+      error: friendlyMessage,
+      originalError: message,
       quota: error?.quota || null,
     });
   }
 });
 
-app.post('/api/analyze-query', async (req, res) => {
+app.post('/api/analyze-query', requireSubscription, async (req, res) => {
   try {
     const { topic } = req.body;
     if (!topic) {
@@ -218,30 +392,79 @@ app.post('/api/analyze-query', async (req, res) => {
   }
 });
 
+const getArchiveLimitByFavoriteCount = (favoriteCount) =>
+  Math.max(0, USER_TOTAL_RESEARCH_LIMIT - favoriteCount);
+
+const getFavoriteCountForUser = async (userId) => {
+  const favorites = await Collection.findOne({ userId, name: FAVORITES_COLLECTION_NAME })
+    .select({ papers: 1, _id: 0 })
+    .lean();
+  return Array.isArray(favorites?.papers) ? favorites.papers.length : 0;
+};
+
+const enforceArchiveQuota = async (userId) => {
+  const favoriteCount = await getFavoriteCountForUser(userId);
+  const maxArchiveCount = getArchiveLimitByFavoriteCount(favoriteCount);
+  const archiveCount = await SearchHistory.countDocuments({ userId });
+  let removedArchiveCount = 0;
+
+  if (archiveCount > maxArchiveCount) {
+    removedArchiveCount = archiveCount - maxArchiveCount;
+    const overflowEntries = await SearchHistory.find({ userId })
+      .sort({ createdAt: 1 })
+      .limit(removedArchiveCount)
+      .select('_id');
+
+    if (overflowEntries.length > 0) {
+      await SearchHistory.deleteMany({ _id: { $in: overflowEntries.map((entry) => entry._id) } });
+    }
+  }
+
+  return {
+    favoriteCount,
+    maxArchiveCount,
+    archiveCount: Math.max(archiveCount - removedArchiveCount, 0),
+    removedArchiveCount
+  };
+};
+
 // --- History API ---
 
 app.get('/api/history', async (req, res) => {
+  const authUserId = getRequestUserId(req, res);
+  if (!authUserId) return;
+  req.query.userId = authUserId;
+
   try {
     const { userId } = req.query;
-    if (!userId) return res.status(400).json({ error: 'userId is required' });
+    if (!isValidUserId(userId)) return res.status(400).json({ error: 'Geçersiz veya eksik kullanıcı kimliği.' });
 
     // DB connection check
     if (mongoose.connection.readyState !== 1) {
       return res.json([]);
     }
 
+    const quota = await enforceArchiveQuota(userId);
+    if (quota.maxArchiveCount === 0) {
+      return res.json([]);
+    }
+
     const history = await SearchHistory.find({ userId })
       .sort({ createdAt: -1 })
-      .limit(20);
+      .limit(quota.maxArchiveCount);
     
     return res.json(history);
   } catch (error) {
     console.error('History fetch error:', error);
-    return res.status(500).json({ error: 'Failed to fetch history' });
+    return res.status(500).json({ error: 'Geçmiş yüklenemedi.' });
   }
 });
 
 app.post('/api/history', async (req, res) => {
+  const authUserId = getRequestUserId(req, res);
+  if (!authUserId) return;
+  req.body = { ...req.body, userId: authUserId };
+
   try {
     const { userId, mainTopic, authorName, keywords, aiQuery } = req.body;
     console.log(`[History] Yeni kayıt isteği: User=${userId}, Topic=${mainTopic || 'AI Sorgusu'}`);
@@ -256,53 +479,38 @@ app.post('/api/history', async (req, res) => {
       return res.json({ message: 'DB not connected, history not saved' });
     }
 
-    // Duplicate check: Find the most recent search by this user
+    // Data minimization
+    const cleanHistory = {
+      userId,
+      mainTopic: mainTopic?.trim().slice(0, 150),
+      authorName: authorName?.trim().slice(0, 80),
+      keywords: Array.isArray(keywords) ? keywords.map(k => k.trim().slice(0, 40)).filter(Boolean) : [],
+      aiQuery: aiQuery?.trim().slice(0, 300)
+    };
+
+    // Duplicate check: compare only with the latest history entry
     const lastSearch = await SearchHistory.findOne({ userId }).sort({ createdAt: -1 });
-    
     if (lastSearch) {
-      const isDuplicate = 
-        lastSearch.mainTopic === mainTopic && 
-        lastSearch.authorName === authorName && 
-        JSON.stringify(lastSearch.keywords) === JSON.stringify(keywords) &&
-        lastSearch.aiQuery === aiQuery;
-      
+      const isDuplicate =
+        (lastSearch.mainTopic || '') === (cleanHistory.mainTopic || '') &&
+        (lastSearch.authorName || '') === (cleanHistory.authorName || '') &&
+        JSON.stringify(lastSearch.keywords || []) === JSON.stringify(cleanHistory.keywords || []) &&
+        (lastSearch.aiQuery || '') === (cleanHistory.aiQuery || '');
+
       if (isDuplicate) {
-        // Update the timestamp of the existing record instead of creating a new one
         lastSearch.createdAt = new Date();
         await lastSearch.save();
+        await enforceArchiveQuota(userId);
         return res.json(lastSearch);
       }
     }
-
-    // Data Minimization: Truncate long strings and clean up
-    const cleanHistory = {
-      userId,
-      mainTopic: mainTopic?.trim().slice(0, 200),
-      authorName: authorName?.trim().slice(0, 100),
-      keywords: Array.isArray(keywords) ? keywords.map(k => k.trim().slice(0, 50)).filter(Boolean) : [],
-      aiQuery: aiQuery?.trim().slice(0, 500)
-    };
 
     const newHistory = new SearchHistory(cleanHistory);
 
     await newHistory.save();
     console.log(`[History] Başarıyla kaydedildi: ${newHistory._id}`);
 
-    // Auto-Cleanup: Keep only the last 10 searches for this user
-    try {
-      const historyCount = await SearchHistory.countDocuments({ userId });
-      if (historyCount > 10) {
-        // Find and delete the oldest items exceeding the limit
-        const oldestItems = await SearchHistory.find({ userId })
-          .sort({ createdAt: 1 })
-          .limit(historyCount - 10);
-        
-        const idsToDelete = oldestItems.map(item => item._id);
-        await SearchHistory.deleteMany({ _id: { $in: idsToDelete } });
-      }
-    } catch (cleanupErr) {
-      console.warn('Auto-cleanup failed', cleanupErr);
-    }
+    await enforceArchiveQuota(userId);
 
     return res.status(201).json(newHistory);
   } catch (error) {
@@ -322,11 +530,14 @@ const requireDb = (res) => {
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 app.delete('/api/history/entry/:id', async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Yetkisiz erişim' });
+
   try {
     if (!requireDb(res)) return;
     const { id } = req.params;
     if (!isValidId(id)) return res.status(400).json({ error: 'Geçersiz id' });
-    const result = await SearchHistory.findByIdAndDelete(id);
+    const result = await SearchHistory.findOneAndDelete({ _id: id, userId });
     if (!result) return res.status(404).json({ error: 'Entry not found' });
     return res.json({ message: 'Entry deleted' });
   } catch (error) {
@@ -335,10 +546,12 @@ app.delete('/api/history/entry/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/history/:userId', async (req, res) => {
+app.delete('/api/history', async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Yetkisiz erişim' });
+
   try {
     if (!requireDb(res)) return;
-    const { userId } = req.params;
     await SearchHistory.deleteMany({ userId });
     return res.json({ message: 'History cleared' });
   } catch (error) {
@@ -350,29 +563,39 @@ app.delete('/api/history/:userId', async (req, res) => {
 // --- Collections API ---
 
 app.get('/api/collections', async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Yetkisiz erişim' });
+
   try {
-    const { userId } = req.query;
-    if (!userId) return res.status(400).json({ error: 'userId is required' });
-
-    // DB connection check
-    if (mongoose.connection.readyState !== 1) {
-      return res.json([]);
+    if (!requireDb(res)) return;
+    let collections = await Collection.find({ userId }).sort({ createdAt: -1 });
+    
+    if (collections.length === 0) {
+      try {
+        const defaultColl = new Collection({ userId, name: FAVORITES_COLLECTION_NAME, papers: [] });
+        await defaultColl.save();
+        collections = [defaultColl];
+      } catch (error) {
+        if (error.code !== 11000) throw error;
+        collections = await Collection.find({ userId }).sort({ createdAt: -1 });
+      }
     }
-
-    const collections = await Collection.find({ userId }).sort({ createdAt: -1 });
     return res.json(collections);
   } catch (error) {
     console.error('Collections fetch error:', error);
-    return res.status(500).json({ error: 'Failed to fetch collections' });
+    return res.status(500).json({ error: 'Koleksiyonlar yüklenemedi' });
   }
 });
 
 const MAX_COLLECTIONS_PER_USER = 10;
 
 app.post('/api/collections', async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Yetkisiz erişim' });
+
   try {
-    const { userId, name } = req.body || {};
-    if (!userId || !name) return res.status(400).json({ error: 'Missing data' });
+    const { name } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'Missing data' });
 
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({ error: 'DB not connected' });
@@ -399,29 +622,32 @@ app.post('/api/collections', async (req, res) => {
   }
 });
 
-const MAX_PAPERS_PER_COLLECTION = 10;
+const MAX_SHARED_RESULTS = MAX_SEARCH_COUNT;
 
 const truncate = (s, n) => (typeof s === 'string' ? s.trim().slice(0, n) : '');
 
 // --- Sharing API ---
 
 app.post('/api/share', async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Yetkisiz erisim' });
+
   try {
     if (!requireDb(res)) return;
-    const { userId, mainTopic, results, aiAnalysis, originalParams } = req.body;
+    const { mainTopic, results, aiAnalysis, originalParams } = req.body;
 
-    if (!results || results.length === 0) {
+    if (!Array.isArray(results) || results.length === 0) {
       return res.status(400).json({ error: 'Paylaşılacak veri bulunamadı' });
     }
 
-    // 6 haneli eşsiz ID üret (Örn: a7b3c9)
-    const shareId = crypto.randomBytes(3).toString('hex');
+    const shareId = crypto.randomBytes(8).toString('hex');
+    const safeResults = results.slice(0, MAX_SHARED_RESULTS);
 
     const newShare = new SharedSearch({
       shareId,
       userId,
-      mainTopic,
-      results,
+      mainTopic: truncate(mainTopic || 'Paylasilan arastirma', 150),
+      results: safeResults,
       aiAnalysis,
       originalParams: originalParams || {}
     });
@@ -442,7 +668,6 @@ app.get('/api/share/:id', async (req, res) => {
     const share = await SharedSearch.findOne({ shareId: id });
     if (!share) return res.status(404).json({ error: 'Paylaşım bulunamadı veya süresi dolmuş' });
 
-    // İzlenme sayısını artır
     share.viewCount += 1;
     await share.save();
 
@@ -454,6 +679,9 @@ app.get('/api/share/:id', async (req, res) => {
 });
 
 app.post('/api/collections/:id/add', async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Yetkisiz erişim' });
+
   try {
     if (!requireDb(res)) return;
     const { id } = req.params;
@@ -464,10 +692,9 @@ app.post('/api/collections/:id/add', async (req, res) => {
       return res.status(400).json({ error: 'Paper data eksik' });
     }
 
-    const collection = await Collection.findById(id);
+    const collection = await Collection.findOne({ _id: id, userId });
     if (!collection) return res.status(404).json({ error: 'Collection not found' });
 
-    // KB-minimize: schema maxlength sınırlarına paralel kısaltma
     const minimizedPaper = {
       title: truncate(paper.title, 200),
       year: truncate(String(paper.year ?? ''), 8),
@@ -479,21 +706,30 @@ app.post('/api/collections/:id/add', async (req, res) => {
       description: truncate(paper.description, 150)
     };
 
-    // Mükerrer kontrolü
     const exists = collection.papers.some(p =>
       (minimizedPaper.doi && p.doi === minimizedPaper.doi) ||
       (!minimizedPaper.doi && p.title === minimizedPaper.title)
     );
     if (exists) return res.status(400).json({ error: 'Bu makale zaten koleksiyonda' });
 
-    // 100 kayıt sınırı: en eski paper'ı düşür
-    if (collection.papers.length >= MAX_PAPERS_PER_COLLECTION) {
+    const isFavoritesCollection = collection.name === FAVORITES_COLLECTION_NAME;
+
+    if (isFavoritesCollection && collection.papers.length >= USER_TOTAL_RESEARCH_LIMIT) {
+      return res.status(400).json({ error: `Favoriler en fazla ${USER_TOTAL_RESEARCH_LIMIT} makale tutabilir.` });
+    }
+
+    if (!isFavoritesCollection && collection.papers.length >= MAX_PAPERS_PER_COLLECTION) {
       collection.papers.sort((a, b) => new Date(a.savedAt || 0) - new Date(b.savedAt || 0));
       collection.papers.shift();
     }
 
     collection.papers.push(minimizedPaper);
     await collection.save();
+
+    if (isFavoritesCollection) {
+      await enforceArchiveQuota(userId);
+    }
+
     return res.json(collection);
   } catch (error) {
     console.error('Add to collection error:', error);
@@ -501,13 +737,15 @@ app.post('/api/collections/:id/add', async (req, res) => {
   }
 });
 
-// Bir koleksiyondan tek bir paper'ı çıkar
 app.delete('/api/collections/:id/papers/:paperId', async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Yetkisiz erişim' });
+
   try {
     if (!requireDb(res)) return;
     const { id, paperId } = req.params;
     if (!isValidId(id)) return res.status(400).json({ error: 'Geçersiz collection id' });
-    const collection = await Collection.findById(id);
+    const collection = await Collection.findOne({ _id: id, userId });
     if (!collection) return res.status(404).json({ error: 'Collection not found' });
     const before = collection.papers.length;
     collection.papers = collection.papers.filter(p => String(p._id) !== String(paperId));
@@ -523,11 +761,14 @@ app.delete('/api/collections/:id/papers/:paperId', async (req, res) => {
 });
 
 app.delete('/api/collections/:id', async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Yetkisiz erişim' });
+
   try {
     if (!requireDb(res)) return;
     const { id } = req.params;
     if (!isValidId(id)) return res.status(400).json({ error: 'Geçersiz id' });
-    const result = await Collection.findByIdAndDelete(id);
+    const result = await Collection.findOneAndDelete({ _id: id, userId });
     if (!result) return res.status(404).json({ error: 'Collection not found' });
     return res.json({ message: 'Collection deleted' });
   } catch (error) {
@@ -539,9 +780,13 @@ app.delete('/api/collections/:id', async (req, res) => {
 // --- Analyses API ---
 
 app.get('/api/analyses', async (req, res) => {
+  const authUserId = getRequestUserId(req, res);
+  if (!authUserId) return;
+  req.query.userId = authUserId;
+
   try {
     const { userId } = req.query;
-    if (!userId) return res.status(400).json({ error: 'userId is required' });
+    if (!isValidUserId(userId)) return res.status(400).json({ error: 'Geçersiz kullanıcı kimliği.' });
 
     if (mongoose.connection.readyState !== 1) return res.json([]);
 
@@ -556,6 +801,10 @@ app.get('/api/analyses', async (req, res) => {
 const MAX_ANALYSES_PER_USER = 100;
 
 app.post('/api/analyses', async (req, res) => {
+  const authUserId = getRequestUserId(req, res);
+  if (!authUserId) return;
+  req.body = { ...req.body, userId: authUserId };
+
   try {
     const { userId, topic, explanation, queries } = req.body || {};
     if (!userId || !topic) return res.status(400).json({ error: 'Missing analysis data' });
@@ -600,11 +849,14 @@ app.post('/api/analyses', async (req, res) => {
 });
 
 app.delete('/api/analyses/:id', async (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) return;
+
   try {
     if (!requireDb(res)) return;
     const { id } = req.params;
     if (!isValidId(id)) return res.status(400).json({ error: 'Geçersiz id' });
-    const result = await Analysis.findByIdAndDelete(id);
+    const result = await Analysis.findOneAndDelete({ _id: id, userId });
     if (!result) return res.status(404).json({ error: 'Analysis not found' });
     return res.json({ message: 'Analysis deleted' });
   } catch (error) {

@@ -31,8 +31,8 @@ const CollectionSchema = new mongoose.Schema({
   papers: {
     type: [PaperSchema],
     validate: [
-      (arr) => Array.isArray(arr) && arr.length <= 100,
-      'Bir koleksiyonda en fazla 100 makale olabilir.'
+      (arr) => Array.isArray(arr) && arr.length <= 50,
+      'Bir koleksiyonda en fazla 50 makale olabilir.'
     ]
   },
   createdAt: {

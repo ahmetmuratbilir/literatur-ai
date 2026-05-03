@@ -20,7 +20,7 @@ export const searchArXiv = async (query, count = 10) => {
         sortBy: 'relevance',
         sortOrder: 'descending'
       },
-      timeout: 10000
+      timeout: 6000
     });
 
     const parser = new XMLParser({
@@ -72,14 +72,13 @@ export const searchArXiv = async (query, count = 10) => {
         citedBy: 0,
         description: entry.summary ? entry.summary.replace(/\n/g, ' ').trim().substring(0, 500) : '',
         source: 'ArXiv',
-        keyCount: 0,
-        relevanceScore: 0.8
+        keyCount: 0
       };
     });
 
     return { results, totalFound };
   } catch (error) {
-    console.error('ArXiv API Error:', error.message);
-    return { results: [], totalFound: 0 };
+    console.error('ArXiv API Hatası:', error.message);
+    throw error;
   }
 };

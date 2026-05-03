@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Calendar,
   FileText,
@@ -8,13 +8,15 @@ import {
   ChevronDown,
   ChevronUp,
   Quote,
-  Star
+  Star,
+  Bookmark
 } from 'lucide-react';
 
 const MotionDiv = motion.div;
 
-const ResultCard = ({ item, rank, onFavorite, isFavorited }) => {
+const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveToCollection }) => {
   const [expanded, setExpanded] = useState(false);
+  const [showCollMenu, setShowCollMenu] = useState(false);
 
   if (!item) return null;
 
@@ -33,6 +35,11 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited }) => {
   }
 
   const author = item.creator || (Array.isArray(item.authors) ? item.authors.join(', ') : item.authors) || 'Bilinmeyen Yazar';
+  const teaserText = typeof item.teaserTR === 'string' ? item.teaserTR.trim() : '';
+  const sourceSummary = typeof item.description === 'string' ? item.description.trim() : '';
+  const summaryPreview = teaserText || sourceSummary || 'Bu makale icin ozet bilgisi bulunmuyor.';
+  const hasExtraSourceSummary = Boolean(teaserText && sourceSummary && sourceSummary !== teaserText);
+  const canExpandSummary = hasExtraSourceSummary || summaryPreview.length > 180;
 
   return (
     <MotionDiv
@@ -182,22 +189,27 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited }) => {
             position: 'relative'
           }}
         >
-          {item.teaserTR ? (
+          {teaserText ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ fontStyle: 'italic', color: 'var(--text-main)' }}>{item.teaserTR}</div>
+              <div style={{ fontStyle: 'italic', color: 'var(--text-main)' }}>{teaserText}</div>
               <div style={{ fontSize: '9px', fontWeight: '600', color: '#10b981', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#10b981' }}></span>
                 Yapay Zeka Çevirisi
               </div>
+              {expanded && hasExtraSourceSummary && (
+                <div style={{ marginTop: '4px', paddingTop: '8px', borderTop: '1px solid var(--border-light)', fontStyle: 'normal', color: 'var(--text-muted)' }}>
+                  {sourceSummary}
+                </div>
+              )}
             </div>
           ) : (
-            item.description || 'Bu makale için özet bilgisi bulunmuyor.'
+            sourceSummary || 'Bu makale icin ozet bilgisi bulunmuyor.'
           )}
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginTop: '0.875rem', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.875rem' }}>
-            {item.description && item.description.length > 160 && (
+            {canExpandSummary && (
               <button
                 onClick={() => setExpanded(!expanded)}
                 style={{
@@ -225,6 +237,81 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited }) => {
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Koleksiyona Kaydet Dropdown */}
+            {collections && collections.filter(c => c.name !== 'Favoriler').length > 0 && (
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setShowCollMenu(prev => !prev); }}
+                  className="icon-btn"
+                  title="Koleksiyona kaydet"
+                  style={{
+                    color: 'var(--text-muted)',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid transparent',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Bookmark size={18} />
+                </button>
+                {showCollMenu && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '110%',
+                      right: 0,
+                      background: 'white',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: 'var(--radius-sm)',
+                      boxShadow: 'var(--shadow-md)',
+                      zIndex: 20,
+                      minWidth: '180px',
+                      padding: '6px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px'
+                    }}
+                  >
+                    {collections.filter(c => c.name !== 'Favoriler').map(col => (
+                      <button
+                        key={col._id}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSaveToCollection(col._id, item);
+                          setShowCollMenu(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          fontSize: 'var(--fs-sm)',
+                          color: 'var(--text-main)',
+                          borderRadius: '6px',
+                          fontFamily: 'inherit',
+                          fontWeight: '500',
+                          transition: 'background 0.12s ease'
+                        }}
+                        onMouseOver={e => e.currentTarget.style.background = 'var(--slate-100)'}
+                        onMouseOut={e => e.currentTarget.style.background = 'none'}
+                      >
+                        {col.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Favori Butonu */}
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onFavorite(item); }}

@@ -16,7 +16,7 @@ export const searchDOAJ = async (query, count = 10) => {
         pageSize: Math.min(count, 100),
         page: 1
       },
-      timeout: 8000
+      timeout: 6000
     });
 
     if (!response.data || !response.data.results) {
@@ -56,14 +56,13 @@ export const searchDOAJ = async (query, count = 10) => {
         citedBy: 0,
         description: bib.abstract ? bib.abstract.substring(0, 500) : '',
         source: 'DOAJ',
-        keyCount: 0,
-        relevanceScore: 0.95
+        keyCount: 0
       };
     });
 
     return { results, totalFound };
   } catch (error) {
-    console.error('DOAJ API Error:', error.message);
-    return { results: [], totalFound: 0 };
+    console.error('DOAJ API Hatası:', error.message);
+    throw error;
   }
 };

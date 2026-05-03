@@ -1,22 +1,65 @@
 import { fetch } from 'undici';
 import { withTimeout } from './http.js';
 
-const TRANSLATE_TIMEOUT_MS = 10000; // LLM için biraz daha uzun süre
+const TRANSLATE_TIMEOUT_MS = 10000;
 
-/**
- * Groq (Llama 3) kullanarak akademik çeviri yapar.
- * Başlıkları ve ilk 10 özeti toplu olarak çevirir.
- */
+export async function translateToEnglish(text) {
+  const sourceText = typeof text === 'string' ? text.trim() : '';
+  if (!sourceText) return { text: '' };
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return { text: sourceText };
+
+  const prompt = `Translate the following academic search text into concise, natural English.
+Preserve boolean operators and search punctuation when present.
+Return ONLY a raw JSON object:
+{ "text": "..." }
+
+Input:
+${sourceText}`;
+
+  try {
+    const response = await withTimeout(
+      fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0,
+          response_format: { type: 'json_object' }
+        })
+      }),
+      TRANSLATE_TIMEOUT_MS,
+      'Groq query translation timeout'
+    );
+
+    if (!response.ok) throw new Error(`Groq API Error: ${response.status}`);
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    const parsed = JSON.parse(content);
+    const translated = typeof parsed?.text === 'string' ? parsed.text.trim() : '';
+
+    return { text: translated || sourceText };
+  } catch (error) {
+    console.warn('Query translation failed:', error.message);
+    return { text: sourceText };
+  }
+}
+
 export async function batchTranslateAcademic(items) {
   if (!items || !items.length) return items;
 
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    console.warn('GROQ_API_KEY bulunamadı, çeviri atlanıyor.');
+    console.warn('GROQ_API_KEY missing, batch translation skipped.');
     return items;
   }
 
-  // Çevrilecek veriyi hazırla
   const translationPayload = items.slice(0, 25).map((item, index) => ({
     id: index,
     title: item.title,
@@ -50,8 +93,7 @@ ${JSON.stringify(translationPayload, null, 2)}`;
           model: 'llama-3.1-8b-instant',
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.2,
-          response_format: { type: "json_object" } // Bazı modellerde array için json_object gerekebilir, ama array bekliyoruz. 
-          // Not: Llama-3-8b array dönebilir ama garanti için obje içinde array isteyebiliriz.
+          response_format: { type: 'json_object' }
         })
       }),
       TRANSLATE_TIMEOUT_MS,
@@ -62,22 +104,18 @@ ${JSON.stringify(translationPayload, null, 2)}`;
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
-    
-    // JSON'ı ayıkla (Bazen model başına/sonuna yazı ekleyebilir)
+
     let translatedList = [];
     try {
       const parsed = JSON.parse(content);
-      // Eğer model objeyi bir key altına koyduysa (örn: { "results": [...] }) onu al
       translatedList = Array.isArray(parsed) ? parsed : (parsed.results || Object.values(parsed)[0]);
-    } catch (e) {
-      // Regex ile JSON dizisini bulmaya çalış
+    } catch {
       const match = content.match(/\[\s*\{.*\}\s*\]/s);
       if (match) translatedList = JSON.parse(match[0]);
     }
 
-    // Çevirileri orijinal listeye eşle
     if (Array.isArray(translatedList)) {
-      translatedList.forEach(t => {
+      translatedList.forEach((t) => {
         if (items[t.id]) {
           items[t.id].titleTR = t.titleTR;
           if (t.teaserTR) items[t.id].teaserTR = t.teaserTR;

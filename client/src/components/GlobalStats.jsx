@@ -2,31 +2,49 @@ import { motion } from 'framer-motion';
 const MotionDiv = motion.div;
 import { Database, Zap, ShieldCheck, Activity, Info } from 'lucide-react';
 
-const GlobalStats = ({ totalFound, analyzed, quota, sourceBreakdown, totalFromAPIs, failedSources = [] }) => {
-  const scopusQuota = quota?.scopus || quota;
+const fmt = (num) => Number(num || 0).toLocaleString('tr-TR');
 
-  const fmt = (n) => (n != null ? Number(n).toLocaleString('tr-TR') : '—');
-
-  const failed = (n) => failedSources.includes(n) ? 'Hata' : 'Aktif';
-  const sources = [
-    { name: 'Scopus', color: '#4f46e5', status: failed('Scopus'), count: totalFromAPIs?.scopus },
-    { name: 'OpenAlex', color: '#0ea5e9', status: failed('OpenAlex'), count: totalFromAPIs?.openalex },
-    { name: 'CORE', color: '#8b5cf6', status: failed('CORE'), count: totalFromAPIs?.core },
-    { name: 'Crossref', color: '#f43f5e', status: failed('Crossref'), count: totalFromAPIs?.crossref },
-    { name: 'S. Scholar', color: '#0891b2', status: failed('SemanticScholar'), count: totalFromAPIs?.s2 },
-    { name: 'ArXiv', color: '#10b981', status: failed('ArXiv'), count: totalFromAPIs?.arxiv },
-    { name: 'DOAJ', color: '#f59e0b', status: failed('DOAJ'), count: totalFromAPIs?.doaj },
-  ];
-
-  const Metric = ({ icon, iconBg, iconColor, label, value }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-      <div style={{ background: iconBg, color: iconColor, width: '36px', height: '36px', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</div>
-      <div style={{ minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: 'var(--fs-xs)', fontWeight: '500', color: 'var(--text-muted)' }}>{label}</p>
-        <h4 style={{ margin: 0, fontSize: 'var(--fs-md)', fontWeight: '600', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</h4>
-      </div>
+const Metric = ({ icon, iconBg, iconColor, label, value }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+    <div style={{ background: iconBg, color: iconColor, width: '36px', height: '36px', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</div>
+    <div style={{ minWidth: 0 }}>
+      <p style={{ margin: 0, fontSize: 'var(--fs-xs)', fontWeight: '500', color: 'var(--text-muted)' }}>{label}</p>
+      <h4 style={{ margin: 0, fontSize: 'var(--fs-md)', fontWeight: '600', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</h4>
     </div>
-  );
+  </div>
+);
+
+const GlobalStats = ({ totalFound, analyzed, quota, totalFromAPIs, failedSources = [] }) => {
+  const getSourceStatus = (sourceName) => {
+    // Backend can return strings (legacy) or objects (new)
+    const failure = failedSources.find(f => 
+      f === sourceName || 
+      (typeof f === 'object' && (f.name === sourceName || f.source === sourceName))
+    );
+    
+    if (!failure) return { label: 'Aktif', type: 'SUCCESS' };
+    if (typeof failure === 'string') return { label: 'Hata', type: 'ERROR' };
+    
+    switch (failure.type) {
+      case 'TIMEOUT': return { label: 'Yavaş / Atlandı', type: 'TIMEOUT' };
+      case 'QUOTA': return { label: 'Kota Dolu', type: 'QUOTA' };
+      default: return { label: 'Hata', type: 'ERROR' };
+    }
+  };
+
+  const sources = [
+    { name: 'Scopus', color: '#4f46e5', id: 'Scopus', countKey: 'scopus' },
+    { name: 'OpenAlex', color: '#0ea5e9', id: 'OpenAlex', countKey: 'openalex' },
+    { name: 'CORE', color: '#8b5cf6', id: 'CORE', countKey: 'core' },
+    { name: 'Crossref', color: '#f43f5e', id: 'Crossref', countKey: 'crossref' },
+    { name: 'S. Scholar', color: '#0891b2', id: 'SemanticScholar', countKey: 's2' },
+    { name: 'ArXiv', color: '#10b981', id: 'ArXiv', countKey: 'arxiv' },
+    { name: 'DOAJ', color: '#f59e0b', id: 'DOAJ', countKey: 'doaj' },
+  ].map(src => ({
+    ...src,
+    ...getSourceStatus(src.id),
+    count: totalFromAPIs?.[src.countKey]
+  }));
 
   return (
     <div style={{ marginBottom: '1.5rem' }}>
@@ -47,14 +65,14 @@ const GlobalStats = ({ totalFound, analyzed, quota, sourceBreakdown, totalFromAP
         <div className="stats-summary-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', flex: '1 1 320px', minWidth: 0 }}>
           <Metric icon={<Database size={18} />} iconBg="var(--brand-primary-soft)" iconColor="var(--brand-primary)" label="Literatür havuzu" value={`${fmt(totalFound)} kayıt`} />
           <Metric icon={<Activity size={18} />} iconBg="#ecfdf5" iconColor="#059669" label="AHP skorlanan" value={fmt(analyzed)} />
-          <Metric icon={<Zap size={18} />} iconBg="#fffbeb" iconColor="#d97706" label="Sistem durumu" value="Aktif" />
+          <Metric icon={<Zap size={18} />} iconBg="#fffbeb" iconColor="#d97706" label="Sistem durumu" value={failedSources.length > 0 ? 'Kısmi Aktif' : 'Tam Aktif'} />
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
-          {scopusQuota && (
+          {quota?.scopus && (
             <span className="badge badge-info">
               <Info size={11} />
-              Kota: {scopusQuota.remaining} / {scopusQuota.limit}
+              Scopus: {quota.scopus.remaining} / {quota.scopus.limit}
             </span>
           )}
           <span className="badge badge-success">
@@ -72,7 +90,24 @@ const GlobalStats = ({ totalFound, analyzed, quota, sourceBreakdown, totalFromAP
         width: '100%'
       }}>
         {sources.map((src, i) => {
-          const isError = src.status === 'Hata';
+          const isError = src.type === 'ERROR';
+          const isTimeout = src.type === 'TIMEOUT';
+          const isQuota = src.type === 'QUOTA';
+          
+          let dotColor = src.color;
+          let borderColor = 'var(--border-light)';
+          
+          if (isError) {
+              dotColor = '#ef4444';
+              borderColor = '#fecaca';
+          } else if (isTimeout) {
+              dotColor = '#f59e0b';
+              borderColor = '#fef3c7';
+          } else if (isQuota) {
+              dotColor = '#6366f1';
+              borderColor = '#e0e7ff';
+          }
+
           return (
             <MotionDiv
               key={i}
@@ -82,7 +117,7 @@ const GlobalStats = ({ totalFound, analyzed, quota, sourceBreakdown, totalFromAP
               style={{
                 padding: '10px 12px',
                 background: 'var(--bg-card)',
-                border: `1px solid ${isError ? '#fecaca' : 'var(--border-light)'}`,
+                border: `1px solid ${borderColor}`,
                 borderRadius: 'var(--radius-md)',
                 display: 'flex',
                 flexDirection: 'column',
@@ -92,7 +127,7 @@ const GlobalStats = ({ totalFound, analyzed, quota, sourceBreakdown, totalFromAP
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '999px', background: isError ? '#ef4444' : src.color, flexShrink: 0 }} />
+                  <span style={{ width: '6px', height: '6px', borderRadius: '999px', background: dotColor, flexShrink: 0 }} />
                   <span style={{ fontSize: 'var(--fs-xs)', fontWeight: '600', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{src.name}</span>
                 </span>
               </div>
@@ -103,7 +138,9 @@ const GlobalStats = ({ totalFound, analyzed, quota, sourceBreakdown, totalFromAP
                   <span style={{ fontSize: 'var(--fs-xs)', fontWeight: '500', color: 'var(--text-muted)' }}>toplam</span>
                 </div>
               ) : (
-                <span style={{ fontSize: 'var(--fs-xs)', fontWeight: '500', color: 'var(--text-light)' }}>{isError ? 'Hata' : 'Bekleniyor…'}</span>
+                <span style={{ fontSize: 'var(--fs-xs)', fontWeight: '500', color: isError || isTimeout || isQuota ? dotColor : 'var(--text-light)' }}>
+                  {src.label}
+                </span>
               )}
             </MotionDiv>
           );

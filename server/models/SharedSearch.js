@@ -14,11 +14,16 @@ const SharedSearchSchema = new mongoose.Schema({
   },
   mainTopic: {
     type: String,
-    required: true
+    required: true,
+    maxlength: 150
   },
   results: {
     type: Array,
-    required: true
+    required: true,
+    validate: [
+      (arr) => Array.isArray(arr) && arr.length <= 100,
+      'En fazla 100 sonuc paylasilabilir.'
+    ]
   },
   aiAnalysis: {
     type: Object,

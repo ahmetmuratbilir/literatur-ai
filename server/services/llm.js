@@ -19,9 +19,6 @@ Your task is to analyze this query and return a raw JSON object with the followi
       "relevanceScore": 95
     }
   ],
-  "relatedTopics": [
-    "3 to 5 related academic topics or keywords as an array of strings. (MUST BE IN TURKISH)"
-  ],
   "explanation": "A brief explanation of what the user is actually looking for and why these queries are effective. (MUST BE IN TURKISH)"
 }
 
@@ -38,7 +35,7 @@ IMPORTANT: The 'text' field in 'queries' array MUST ALWAYS be in English regardl
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'llama-3.1-8b-instant',
+      model: 'llama-3.3-70b-versatile',
       messages: [
         {
           role: 'user',

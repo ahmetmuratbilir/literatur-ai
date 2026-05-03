@@ -40,7 +40,7 @@ export async function searchOpenAlex(queryContext, params, booleanQuery) {
   const ctx = String(queryContext ?? '');
   const { mainTopic, authorName, keywords, count } = params;
   const apiKey = process.env.OPENALEX_API_KEY;
-  
+
   // Eğer strict booleanQuery (AND'li) gönderilmişse onu kullan, yoksa düz ctx
   const searchQuery = booleanQuery || ctx || (mainTopic ? mainTopic : '');
 
@@ -54,25 +54,22 @@ export async function searchOpenAlex(queryContext, params, booleanQuery) {
     urlParams.set('search', searchQuery);
   }
 
-  if (authorName) {
-    urlParams.set('filter', `author.display_name.search:${authorName}`);
-  }
-
-  if (apiKey) {
-    urlParams.set('api_key', apiKey);
-  }
+  const mailto = process.env.CONTACT_EMAIL || 'ahmet@literatureai.com';
+  if (mailto) urlParams.set('mailto', mailto);
 
   const url = `https://api.openalex.org/works?${urlParams.toString()}`;
+
+  const requestHeaders = {
+    Accept: 'application/json',
+    'User-Agent': `LiteratureAI/1.0 (mailto:${mailto})`,
+  };
 
   console.log('OpenAlex API isteği yapılıyor:', maskUrlSecret(url));
 
   try {
     const response = await fetchWithTimeout(url, {
       method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': 'LiteratureAI/1.0',
-      },
+      headers: requestHeaders,
     });
 
     const quotaInfo = {
@@ -82,14 +79,15 @@ export async function searchOpenAlex(queryContext, params, booleanQuery) {
     };
 
     if (!response.ok) {
-       console.error(`OpenAlex API Hatası: ${response.status}`);
-       return { results: [], quotaInfo };
+      console.error(`OpenAlex API Hatası: ${response.status}`);
+      const errorMsg = response.status === 429 ? 'OpenAlex kotası doldu (429).' : `OpenAlex API Hatası (${response.status})`;
+      throw new Error(errorMsg);
     }
 
     const data = await response.json();
     const totalFound = data.meta?.count || 0;
     console.log(`[OpenAlex] Toplam havuz: ${totalFound.toLocaleString()}. Çekilen: ${(data.results || []).length}`);
-    
+
     // Verileri normalize et
     const rawListings = data.results || [];
     const cleaned = [];
@@ -100,7 +98,7 @@ export async function searchOpenAlex(queryContext, params, booleanQuery) {
         if (!titleText) continue;
 
         const abstractText = reconstructAbstract(item.abstract_inverted_index);
-        
+
         const normalized = {};
         normalized.id = item.id;
         normalized.title = titleText;
@@ -118,17 +116,17 @@ export async function searchOpenAlex(queryContext, params, booleanQuery) {
         const queryTokens = tokenizer.tokenize(ctx.toLowerCase());
 
         if (normalized.title) {
-            const titleTokens = tokenizer.tokenize(normalized.title.toLowerCase());
-            titleTokens.forEach(t => {
-                if (queryTokens.includes(t)) keyCount += 3;
-            });
+          const titleTokens = tokenizer.tokenize(normalized.title.toLowerCase());
+          titleTokens.forEach(t => {
+            if (queryTokens.includes(t)) keyCount += 3;
+          });
         }
 
         if (normalized.description) {
-            const descTokens = tokenizer.tokenize(normalized.description.toLowerCase());
-            descTokens.forEach(t => {
-                if (queryTokens.includes(t)) keyCount += 1;
-            });
+          const descTokens = tokenizer.tokenize(normalized.description.toLowerCase());
+          descTokens.forEach(t => {
+            if (queryTokens.includes(t)) keyCount += 1;
+          });
         }
         normalized.keyCount = keyCount;
 
@@ -140,7 +138,7 @@ export async function searchOpenAlex(queryContext, params, booleanQuery) {
 
     return { results: cleaned, quotaInfo, totalFound };
   } catch (error) {
-    console.error('OpenAlex fetch hatası:', error);
-    return { results: [], quotaInfo: {} };
+    console.error('OpenAlex fetch hatası:', error.message);
+    throw error;
   }
 }

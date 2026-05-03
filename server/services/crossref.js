@@ -22,7 +22,7 @@ export const searchCrossref = async (query, count = 10) => {
       headers: {
         'User-Agent': `LiteratureAI/1.0 (mailto:${mailto})`
       },
-      timeout: 8000
+      timeout: 6000
     });
 
     if (!response.data || !response.data.message || !response.data.message.items) {
@@ -57,14 +57,13 @@ export const searchCrossref = async (query, count = 10) => {
         citedBy: parseInt(item['is-referenced-by-count'], 10) || 0,
         description: item.abstract ? item.abstract.replace(/<[^>]*>?/gm, '').substring(0, 500) : '',
         source: 'Crossref',
-        keyCount: 0,
-        relevanceScore: 0.85
+        keyCount: 0
       };
     });
 
     return { results, totalFound };
   } catch (error) {
-    console.error('Crossref API Error:', error.message);
-    return { results: [], totalFound: 0 };
+    console.error('Crossref API Hatası:', error.message);
+    throw error;
   }
 };

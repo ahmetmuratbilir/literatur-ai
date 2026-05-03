@@ -28,7 +28,7 @@ export const searchLens = async (query, count = 10) => {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      timeout: 10000
+      timeout: 6000
     });
 
     if (!response.data || !response.data.data) {
@@ -59,8 +59,7 @@ export const searchLens = async (query, count = 10) => {
         citedBy: item.scholarly_citations_count || 0,
         description: item.abstract ? item.abstract.substring(0, 500) : '',
         source: 'Lens.org',
-        keyCount: 0,
-        relevanceScore: 0.98
+        keyCount: 0
       };
     });
 

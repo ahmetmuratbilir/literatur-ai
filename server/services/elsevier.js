@@ -3,22 +3,46 @@ import { fetchWithTimeout } from '../utils/http.js';
 
 const REQUEST_TYPE = 'GET';
 const API_URL = 'https://api.elsevier.com';
+// apiKey module scope'unda tanımlı — fetchPage erişebilir
+const apiKey = process.env.ELSEVIER_API_KEY || '';
+const SCOPUS_TIMEOUT_MS = 15000;
+const SCOPUS_MAX_ATTEMPTS = 2;
+
+const isRetryableNetworkError = (error) => {
+  const message = String(error?.message || '').toLowerCase();
+  return error?.name === 'AbortError'
+    || message.includes('timeout')
+    || message.includes('fetch failed')
+    || message.includes('network');
+};
 
 async function fetchPage(query, start, count) {
-  const apiKey = process.env.ELSEVIER_API_KEY;
-  const url = `${API_URL}/content/search/scopus?query=${encodeURIComponent(query)}&sort=relevance&count=${count}&start=${start}&date=2019-2024&field=dc:title,dc:creator,prism:publicationName,prism:coverDate,dc:description,citedby-count,prism:doi,link,subtypeDescription,authkeywords,prism:teaser,prism:aggregationType,openaccessArticle`;
+  const currentYear = new Date().getFullYear();
+  const dateRange = `${currentYear - 5}-${currentYear}`;
+  const url = `${API_URL}/content/search/scopus?query=${encodeURIComponent(query)}&sort=relevance&count=${count}&start=${start}&date=${dateRange}&field=dc:title,dc:creator,prism:publicationName,prism:coverDate,dc:description,citedby-count,prism:doi,link,subtypeDescription,authkeywords,prism:teaser,prism:aggregationType,openaccessArticle`;
 
   console.log('Scopus API isteği yapılıyor:', url);
 
-  const response = await fetchWithTimeout(url, {
-    method: REQUEST_TYPE,
-    headers: {
-      Accept: 'application/json',
-      'X-ELS-APIKey': apiKey,
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
-    },
-  });
+  let response;
+  for (let attempt = 1; attempt <= SCOPUS_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      response = await fetchWithTimeout(url, {
+        method: REQUEST_TYPE,
+        headers: {
+          Accept: 'application/json',
+          'X-ELS-APIKey': apiKey,
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+        },
+      }, SCOPUS_TIMEOUT_MS);
+      break;
+    } catch (error) {
+      const canRetry = attempt < SCOPUS_MAX_ATTEMPTS && isRetryableNetworkError(error);
+      if (!canRetry) throw error;
+      console.warn(`[Scopus] GeÃ§ici aÄŸ hatasÄ±, tekrar deneniyor (${attempt}/${SCOPUS_MAX_ATTEMPTS - 1})`);
+      await new Promise((resolve) => setTimeout(resolve, 800));
+    }
+  }
 
   const quotaInfo = {
     limit: response.headers.get('X-RateLimit-Limit') || response.headers.get('x-ratelimit-limit'),
@@ -75,7 +99,7 @@ export async function searchLiterature(query, count, weights = null, queryContex
   let totalResults = 0;
 
   try {
-    const { data: firstPage, quotaInfo } = await fetchPage(query, 0, chunkSize);
+    const { data: firstPage, quotaInfo } = await fetchPage(query, 0, chunkSize, apiKey);
     lastQuota = quotaInfo;
 
     if (!firstPage['search-results']) {

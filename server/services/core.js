@@ -24,7 +24,8 @@ export async function searchCore(queryContext, params, booleanQuery) {
   // Hiçbir terim yoksa boş dön
   if (!searchQuery.trim()) return { results: [], quotaInfo: {} };
 
-  const url = `https://api.core.ac.uk/v3/search/works/?q=${encodeURIComponent(searchQuery)}&limit=${count || 75}`;
+  const limit = count || 25;
+  const url = `https://api.core.ac.uk/v3/search/works/?q=${encodeURIComponent(searchQuery)}&limit=${limit}`;
 
   console.log('CORE API isteği yapılıyor:', url);
 
@@ -48,7 +49,8 @@ export async function searchCore(queryContext, params, booleanQuery) {
 
     if (!response.ok) {
        console.error(`CORE API Hatası: ${response.status}`);
-       return { results: [], quotaInfo };
+       const errorMsg = response.status === 429 ? 'CORE kotası doldu (429).' : `CORE API Hatası (${response.status})`;
+       throw new Error(errorMsg);
     }
 
     const data = await response.json();
@@ -110,7 +112,7 @@ export async function searchCore(queryContext, params, booleanQuery) {
 
     return { results: cleaned, quotaInfo, totalFound };
   } catch (error) {
-    console.error('CORE fetch hatası:', error);
-    return { results: [], quotaInfo: {} };
+    console.error('CORE fetch hatası:', error.message);
+    throw error;
   }
 }

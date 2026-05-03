@@ -62,14 +62,32 @@ export async function calculateAHP(dataset, customWeights = null) {
 
   const processedData = dataset.map(item => {
     const sYear = calculateYearScore(item.year);
-    const sKey = calculateRelevanceScore(item.keyCount || item.relevanceScore / 20); // Fallback for relevanceScore
-    const sCited = calculateCitationScore(item.citedbyCount || item.citedBy);
+    // ArXiv/Crossref gibi servislerden gelen relevanceScore (0.0-1.0) değerini keyCount'a (0-5) eşitlemek için 5 ile çarpıyoruz.
+    const effectiveKeyCount = item.keyCount || (item.relevanceScore ? item.relevanceScore * 5 : 0);
+    const sKey = calculateRelevanceScore(effectiveKeyCount);
+    const sCited = calculateCitationScore(item.citedbyCount || item.citedBy || item.citationCount || 0);
     const sQuality = calculateQualityScore(item.pubType, item.sourceType);
+    
+    // ArXiv ve DOAJ atıf verisi (citedBy) vermediği için onları cezalandırmamak adına
+    // ağırlıkları kaynak bazlı değiştiriyoruz.
+    const isCitationPoorSource = ['ArXiv', 'DOAJ'].includes(item.source);
+    
+    const currentWeights = {
+      ...weights,
+      key: isCitationPoorSource ? 0.55 : weights.key,
+      citied: isCitationPoorSource ? 0.15 : weights.citied
+    };
 
-    const totalScore = (weights.year * sYear) +
-                       (weights.key * sKey) +
-                       (weights.citied * sCited) +
-                       (weights.quality * sQuality);
+    let totalScore = (currentWeights.year * sYear) +
+                     (currentWeights.key * sKey) +
+                     (currentWeights.citied * sCited) +
+                     (currentWeights.quality * sQuality);
+
+    // Open Access Bonus: DOAJ, ArXiv ve OpenAlex gibi kaynaklara %5 (0.05) ek puan veriyoruz.
+    // Bu, özellikle atıf sayısı (citedBy) gelmeyen DOAJ gibi kaynakların adil sıralanmasını sağlar.
+    if (['DOAJ', 'ArXiv', 'OpenAlex'].includes(item.source)) {
+      totalScore += 0.05;
+    }
 
     return {
       ...item,
