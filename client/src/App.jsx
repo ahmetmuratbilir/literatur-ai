@@ -982,8 +982,50 @@ function App() {
               </div>
             </div>
 
+            {/* Comparison Section */}
+            <div style={{ width: '100%', maxWidth: '1000px', marginTop: '100px', textAlign: 'center' }}>
+              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc', marginBottom: '1rem' }}>
+                Neden Literatur AI?
+              </h2>
+              <p style={{ fontSize: '1.1rem', color: '#64748b', marginBottom: '3rem' }}>
+                Bilimsel bütünlük ve akademik etik çerçevesinde teknolojik farkımız.
+              </p>
+
+              <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.08)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1.2fr', background: landingTheme === 'light' ? '#0f172a' : '#1e293b', padding: '20px 30px', color: 'white', fontWeight: '700', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <div style={{ textAlign: 'left' }}>Kriter</div>
+                  <div>Literatur AI</div>
+                  <div style={{ opacity: 0.7 }}>Standart Üretken AI</div>
+                </div>
+
+                {[
+                  { k: 'Referans Güvenilirliği', l: 'Doğrulanmış Bilimsel Yayınlar', s: 'Halüsinasyon (Uydurma Veri) Riski' },
+                  { k: 'Bibliyografik Hassasiyet', l: 'Akademik Format Uyumluluğu', s: 'Standart Dışı veya Hatalı Atıf' },
+                  { k: 'Kapsanan Literatür', l: 'Milyonlarca İndeksli Yayın', s: 'Genel İnternet ve Web İçeriği' },
+                  { k: 'Veri Güncelliği', l: 'Gerçek Zamanlı Literatür Erişimi', s: 'Kısıtlı Eğitim Seti' }
+                ].map((row, idx) => (
+                  <div key={idx} style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: '1fr 1.2fr 1.2fr', 
+                    padding: '25px 30px', 
+                    borderBottom: idx === 3 ? 'none' : (landingTheme === 'light' ? '1px solid #f1f5f9' : '1px solid rgba(255,255,255,0.05)'),
+                    background: landingTheme === 'light' ? 'white' : '#1e293b',
+                    alignItems: 'center'
+                  }}>
+                    <div style={{ textAlign: 'left', fontWeight: '700', color: landingTheme === 'light' ? '#334155' : '#cbd5e1', fontSize: '0.95rem' }}>{row.k}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#4f46e5', fontWeight: '700', fontSize: '0.95rem' }}>
+                      <Check size={18} /> {row.l}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#94a3b8', fontStyle: 'italic', fontSize: '0.9rem' }}>
+                      <X size={18} color="#f43f5e" style={{ opacity: 0.6 }} /> {row.s}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Brand logos & Social Proof */}
-            <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '60px' }}>
+            <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '80px', paddingBottom: '60px' }}>
               <div style={{ display: 'flex', gap: '3rem', opacity: landingTheme === 'light' ? 0.5 : 0.8 }}>
                 {['OpenAlex', 'CORE', 'Crossref', 'Scopus'].map(b => (
                   <div key={b} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '1rem', color: landingTheme === 'light' ? '#1e293b' : '#cbd5e1' }}>
