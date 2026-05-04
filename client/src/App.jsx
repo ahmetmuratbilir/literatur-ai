@@ -42,7 +42,8 @@ import {
   Building2,
   Microscope,
   Users,
-  Library
+  Library,
+  ShieldCheck
 } from 'lucide-react';
 import { SignedIn, SignedOut, SignInButton, useAuth } from '@clerk/clerk-react';
 const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
