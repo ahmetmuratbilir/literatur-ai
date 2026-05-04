@@ -37,7 +37,12 @@ import {
   Link2,
   Copy,
   Mail,
-  Moon
+  Moon,
+  GraduationCap,
+  Building2,
+  Microscope,
+  Users,
+  Library
 } from 'lucide-react';
 import { SignedIn, SignedOut, SignInButton, useAuth } from '@clerk/clerk-react';
 const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -83,6 +88,35 @@ const FEATURE_HIGHLIGHTS = [
     title: 'Tek t\u0131k d\u0131\u015fa aktar\u0131m',
     text: 'Sonu\u00e7lar\u0131 PDF, Word veya Excel olarak haz\u0131r rapor halinde indirin.'
   }
+];
+
+const USER_TIERS = [
+  {
+    icon: Users,
+    title: 'Akademisyenler',
+    text: 'Literatür taramasını saniyeler içinde tamamlayın.'
+  },
+  {
+    icon: Building2,
+    title: 'Kurumlar',
+    text: 'Üniversite kütüphanenizi akıllı asistanla güçlendirin.'
+  },
+  {
+    icon: Microscope,
+    title: 'Araştırmacılar',
+    text: 'Yüzbinlerce döküman içinden doğru veriyi bulun.'
+  },
+  {
+    icon: GraduationCap,
+    title: 'Öğrenciler',
+    text: 'Araştırma ödevlerinizi doğru kaynaklarla tamamlayın.'
+  }
+];
+
+const LANDING_STATS = [
+  { value: '810M+', label: 'Akademik Kaynak' },
+  { value: '1.2B+', label: 'Atıf Verisi' },
+  { value: '60.000+', label: 'Bireysel Araştırmacı' }
 ];
 
 const FeatureHighlights = ({ theme }) => (
@@ -418,6 +452,7 @@ function App() {
       });
       if (response.data?.intent) {
         setAiAnalysis(response.data);
+
         try {
           await axios.post(`${defaultApiUrl}/api/analyses`, {
             topic: mainTopic.trim(),
@@ -431,8 +466,10 @@ function App() {
           console.warn('Analysis save failed', analErr);
         }
       }
-    } catch {
-      setAiError('AI analizi başarısız oldu.');
+    } catch (err) {
+      console.error('AI analyze error:', err);
+      const msg = err.response?.data?.error || 'AI analizi başarısız oldu.';
+      setAiError(msg);
     } finally {
       setAiLoading(false);
     }
@@ -743,13 +780,119 @@ function App() {
               ))}
             </div>
 
+            {/* User Tiers Section */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+              gap: '1.5rem', 
+              marginTop: '4rem',
+              width: '100%',
+              maxWidth: '1200px'
+            }}>
+              {USER_TIERS.map((tier, idx) => {
+                const TierIcon = tier.icon;
+                return (
+                  <motion.div 
+                    key={tier.title}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 + (idx * 0.1) }}
+                    whileHover={{ y: -8, boxShadow: landingTheme === 'light' ? '0 20px 40px -15px rgba(0,0,0,0.1)' : '0 20px 40px -15px rgba(0,0,0,0.4)' }}
+                    style={{
+                      background: landingTheme === 'light' ? 'white' : 'rgba(30, 41, 59, 0.4)',
+                      padding: '2rem',
+                      borderRadius: '24px',
+                      border: landingTheme === 'light' ? '1px solid rgba(0,0,0,0.05)' : '1px solid rgba(255,255,255,0.05)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      textAlign: 'center',
+                      backdropFilter: 'blur(12px)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                  >
+                    <div style={{
+                      width: '56px',
+                      height: '56px',
+                      borderRadius: '16px',
+                      background: landingTheme === 'light' ? '#f5f3ff' : 'rgba(99, 102, 241, 0.1)',
+                      color: '#6366f1',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '1.5rem'
+                    }}>
+                      <TierIcon size={28} />
+                    </div>
+                    <h3 style={{ 
+                      fontSize: '1.25rem', 
+                      fontWeight: '800', 
+                      marginBottom: '0.75rem',
+                      color: landingTheme === 'light' ? '#0f172a' : '#f8fafc'
+                    }}>
+                      {tier.title}
+                    </h3>
+                    <p style={{ 
+                      fontSize: '0.9rem', 
+                      lineHeight: '1.6',
+                      color: landingTheme === 'light' ? '#64748b' : '#94a3b8'
+                    }}>
+                      {tier.text}
+                    </p>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* Stats Section */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              gap: '4rem', 
+              marginTop: '5rem',
+              padding: '4rem 2rem',
+              width: '100%',
+              maxWidth: '900px',
+              borderTop: landingTheme === 'light' ? '1px solid #f1f5f9' : '1px solid rgba(255,255,255,0.05)'
+            }}>
+              {LANDING_STATS.map((stat, idx) => (
+                <motion.div 
+                  key={stat.label}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.8 + (idx * 0.2) }}
+                  style={{ textAlign: 'center', flex: 1 }}
+                >
+                  <div style={{ 
+                    fontSize: '3.5rem', 
+                    fontWeight: '900', 
+                    color: landingTheme === 'light' ? '#0f172a' : '#ffffff',
+                    letterSpacing: '-0.02em',
+                    lineHeight: '1'
+                  }}>
+                    {stat.value}
+                  </div>
+                  <div style={{ 
+                    fontSize: '1rem', 
+                    fontWeight: '700', 
+                    color: '#6366f1',
+                    marginTop: '0.5rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em'
+                  }}>
+                    {stat.label}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
             {/* Features */}
             <div className="feature-grid">
               <div className="feature-item" style={{ background: landingTheme === 'light' ? 'white' : '#1e293b', border: landingTheme === 'light' ? '1px solid rgba(0,0,0,0.04)' : '1px solid rgba(255,255,255,0.05)' }}>
-                <div className="feature-icon-wrapper" style={{ background: landingTheme === 'light' ? '#f5f3ff' : 'rgba(124, 58, 237, 0.1)', color: '#7c3aed' }}><FileText size={24} /></div>
+                <div className="feature-icon-wrapper" style={{ background: landingTheme === 'light' ? '#f5f3ff' : 'rgba(124, 58, 237, 0.1)', color: '#7c3aed' }}><Library size={24} /></div>
                 <div>
-                  <div style={{ fontWeight: '800', fontSize: '1.1rem', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>810M+</div>
-                  <div style={{ fontSize: '0.8rem', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>Akademik Yayın</div>
+                  <div style={{ fontWeight: '800', fontSize: '1.1rem', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>7 Dev Kaynak</div>
+                  <div style={{ fontSize: '0.8rem', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>En Büyük Veri Tabanları</div>
                 </div>
               </div>
               <div className="feature-item" style={{ background: landingTheme === 'light' ? 'white' : '#1e293b', border: landingTheme === 'light' ? '1px solid rgba(0,0,0,0.04)' : '1px solid rgba(255,255,255,0.05)' }}>
