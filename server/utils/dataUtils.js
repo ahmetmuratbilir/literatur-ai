@@ -200,12 +200,13 @@ export function calcRelevanceScore(keywords, query) {
  * Makale > Derleme > Kitap Bölümü > diğerleri
  */
 export const PUB_TYPE_SCORES = {
-  fla: 1.0,   // Makale - en yüksek
-  rev: 0.9,   // Derleme
-  chp: 0.6,   // Kitap Bölümü
-  sco: 0.5,   // Kısa İletişim
-  ssu: 0.4,   // Özel Bölüm
-  crp: 0.3,   // Düzeltme
+  fla: 1.0,   // Journal Article - highest
+  rev: 0.95,  // Review
+  chp: 0.75,  // Book Chapter
+  sco: 0.65,  // Short Communication
+  ssu: 0.60,  // Special Issue
+  crp: 0.40,  // Correction
+  pre: 0.30,  // Preprint
 };
 
 /**
@@ -213,6 +214,11 @@ export const PUB_TYPE_SCORES = {
  */
 export const SOURCE_TYPE_SCORES = {
   Journal: 1.0,
-  EBook: 0.6,
-  'Reference Work': 0.5,
+  Book: 0.8,
+  'Book Series': 0.75,
+  'Conference Proceeding': 0.7,
+  EBook: 0.65,
+  'Reference Work': 0.6,
+  'Report': 0.5,
+  'Encyclopedia': 0.5
 };

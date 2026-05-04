@@ -21,17 +21,30 @@ const tokenizer = new WordTokenizer();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-function recomputeKeyCount(item, queryTokens) {
+function recomputeKeyCount(item, queryTokens, fullQuery) {
   let keyCount = 0;
-  if (item.title) {
-    const titleTokens = tokenizer.tokenize(String(item.title).toLowerCase()) || [];
+  const title = String(item.title || '').toLowerCase();
+  const description = String(item.description || '').toLowerCase();
+
+  // 1. Keyword Relevance (Exact matches)
+  if (title) {
+    const titleTokens = tokenizer.tokenize(title) || [];
     titleTokens.forEach(t => { if (queryTokens.includes(t)) keyCount += 3; });
   }
-  if (item.description) {
-    const descTokens = tokenizer.tokenize(String(item.description).toLowerCase()) || [];
+  if (description) {
+    const descTokens = tokenizer.tokenize(description) || [];
     descTokens.forEach(t => { if (queryTokens.includes(t)) keyCount += 1; });
   }
-  return keyCount;
+
+  // 2. Expanded Query Similarity (Dice Coefficient)
+  // fullQuery contains the expanded context from LLM
+  const diceTitle = pkg.DiceCoefficient(fullQuery.toLowerCase(), title);
+  const diceDesc = description ? pkg.DiceCoefficient(fullQuery.toLowerCase(), description) : 0;
+  
+  // Combine title (weight 0.7) and description (weight 0.3) for similarity
+  const expandedSimilarity = (diceTitle * 0.7) + (diceDesc * 0.3);
+
+  return { keyCount, expandedSimilarity };
 }
 
 export async function searchAll(params, queryContext, scopusQuery, booleanQuery) {
@@ -250,8 +263,9 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     .filter(t => t && t.length > 2 && t !== 'or' && t !== 'and');
   if (queryTokens.length > 0) {
     for (const item of uniqueCleanData) {
-      // Herkese uygula (her kaynağın kendi 'relevanceScore' uydurması yerine ortak AHP için)
-      item.keyCount = recomputeKeyCount(item, queryTokens);
+      const { keyCount, expandedSimilarity } = recomputeKeyCount(item, queryTokens, queryContext || '');
+      item.keyCount = keyCount;
+      item.expandedSimilarity = expandedSimilarity;
     }
   }
 
