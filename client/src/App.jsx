@@ -982,8 +982,8 @@ function App() {
               </div>
             </div>
 
-            {/* Comparison Section */}
-            <div style={{ width: '100%', maxWidth: '1000px', marginTop: '100px', textAlign: 'center' }}>
+            {/* Comparison Section - Card Grid Version */}
+            <div style={{ width: '100%', maxWidth: '1100px', marginTop: '100px', textAlign: 'center' }}>
               <h2 style={{ fontSize: '2.5rem', fontWeight: '800', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc', marginBottom: '1rem' }}>
                 Neden Literatur AI?
               </h2>
@@ -991,35 +991,62 @@ function App() {
                 Bilimsel bütünlük ve akademik etik çerçevesinde teknolojik farkımız.
               </p>
 
-              <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.08)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1.2fr', background: landingTheme === 'light' ? '#0f172a' : '#1e293b', padding: '20px 30px', color: 'white', fontWeight: '700', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  <div style={{ textAlign: 'left' }}>Kriter</div>
-                  <div>Literatur AI</div>
-                  <div style={{ opacity: 0.7 }}>Standart Üretken AI</div>
-                </div>
-
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '2rem', padding: '0 1rem' }}>
                 {[
-                  { k: 'Referans Güvenilirliği', l: 'Doğrulanmış Bilimsel Yayınlar', s: 'Halüsinasyon (Uydurma Veri) Riski' },
-                  { k: 'Bibliyografik Hassasiyet', l: 'Akademik Format Uyumluluğu', s: 'Standart Dışı veya Hatalı Atıf' },
-                  { k: 'Kapsanan Literatür', l: 'Milyonlarca İndeksli Yayın', s: 'Genel İnternet ve Web İçeriği' },
-                  { k: 'Veri Güncelliği', l: 'Gerçek Zamanlı Literatür Erişimi', s: 'Kısıtlı Eğitim Seti' }
+                  { k: 'Referans Güvenilirliği', l: 'Doğrulanmış Bilimsel Yayınlar', s: 'Halüsinasyon (Uydurma Veri) Riski', icon: <ShieldCheck size={24} /> },
+                  { k: 'Bibliyografik Hassasiyet', l: 'Akademik Format Uyumluluğu', s: 'Standart Dışı veya Hatalı Atıf', icon: <FileText size={24} /> },
+                  { k: 'Kapsanan Literatür', l: 'Milyonlarca İndeksli Yayın', s: 'Genel İnternet ve Web İçeriği', icon: <Library size={24} /> },
+                  { k: 'Veri Güncelliği', l: 'Gerçek Zamanlı Literatür Erişimi', s: 'Kısıtlı Eğitim Seti', icon: <Zap size={24} /> }
                 ].map((row, idx) => (
-                  <div key={idx} style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: '1fr 1.2fr 1.2fr', 
-                    padding: '25px 30px', 
-                    borderBottom: idx === 3 ? 'none' : (landingTheme === 'light' ? '1px solid #f1f5f9' : '1px solid rgba(255,255,255,0.05)'),
-                    background: landingTheme === 'light' ? 'white' : '#1e293b',
-                    alignItems: 'center'
-                  }}>
-                    <div style={{ textAlign: 'left', fontWeight: '700', color: landingTheme === 'light' ? '#334155' : '#cbd5e1', fontSize: '0.95rem' }}>{row.k}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#4f46e5', fontWeight: '700', fontSize: '0.95rem' }}>
-                      <Check size={18} /> {row.l}
+                  <MotionDiv
+                    key={idx}
+                    whileHover={{ y: -5 }}
+                    className="glass-panel"
+                    style={{ 
+                      padding: '2rem', 
+                      textAlign: 'left', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '1.5rem',
+                      background: landingTheme === 'light' ? 'rgba(255,255,255,0.7)' : 'rgba(30, 41, 59, 0.5)',
+                      border: '1px solid ' + (landingTheme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)')
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ color: '#4f46e5' }}>{row.icon}</div>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>{row.k}</h3>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#94a3b8', fontStyle: 'italic', fontSize: '0.9rem' }}>
-                      <X size={18} color="#f43f5e" style={{ opacity: 0.6 }} /> {row.s}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div style={{ 
+                        padding: '1rem 1.25rem', 
+                        background: 'linear-gradient(135deg, #4f46e5, #6366f1)', 
+                        borderRadius: '12px', 
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)'
+                      }}>
+                        <Check size={20} strokeWidth={3} />
+                        <div style={{ fontSize: '0.95rem', fontWeight: '700' }}>{row.l}</div>
+                      </div>
+
+                      <div style={{ 
+                        padding: '1rem 1.25rem', 
+                        background: landingTheme === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.03)', 
+                        borderRadius: '12px', 
+                        color: '#94a3b8',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        border: '1px dashed ' + (landingTheme === 'light' ? '#e2e8f0' : 'rgba(255,255,255,0.1)')
+                      }}>
+                        <X size={20} color="#f43f5e" style={{ opacity: 0.6 }} />
+                        <div style={{ fontSize: '0.9rem', fontWeight: '500', fontStyle: 'italic' }}>{row.s}</div>
+                      </div>
                     </div>
-                  </div>
+                  </MotionDiv>
                 ))}
               </div>
             </div>
