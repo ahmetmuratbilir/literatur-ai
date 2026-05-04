@@ -1000,7 +1000,7 @@ function App() {
                   ))}
                 </div>
                 <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: '800', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>10.000+ araştırmacı</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '800', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>60.000+ araştırmacı</div>
                   <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Literatur AI kullanıyor</div>
                 </div>
                 <div style={{ color: '#4f46e5', marginLeft: '10px' }}><Zap size={18} /></div>
