@@ -238,47 +238,47 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {/* Koleksiyona Kaydet Dropdown */}
-            {collections && collections.filter(c => c.name !== 'Favoriler').length > 0 && (
-              <div style={{ position: 'relative' }}>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setShowCollMenu(prev => !prev); }}
-                  className="icon-btn"
-                  title="Koleksiyona kaydet"
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setShowCollMenu(prev => !prev); }}
+                className="icon-btn"
+                title={collections && collections.filter(c => c.name !== 'Favoriler').length > 0 ? 'Koleksiyona kaydet' : 'Koleksiyon oluşturmak için sol paneli açın'}
+                style={{
+                  color: 'var(--text-muted)',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Bookmark size={18} />
+              </button>
+              {showCollMenu && (
+                <div
                   style={{
-                    color: 'var(--text-muted)',
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
+                    position: 'absolute',
+                    bottom: '110%',
+                    right: 0,
+                    background: 'white',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: 'var(--radius-sm)',
+                    boxShadow: 'var(--shadow-md)',
+                    zIndex: 20,
+                    minWidth: '200px',
+                    padding: '6px',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1px solid transparent',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
+                    flexDirection: 'column',
+                    gap: '2px'
                   }}
                 >
-                  <Bookmark size={18} />
-                </button>
-                {showCollMenu && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '110%',
-                      right: 0,
-                      background: 'white',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: 'var(--radius-sm)',
-                      boxShadow: 'var(--shadow-md)',
-                      zIndex: 20,
-                      minWidth: '180px',
-                      padding: '6px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '2px'
-                    }}
-                  >
-                    {collections.filter(c => c.name !== 'Favoriler').map(col => (
+                  {collections && collections.filter(c => c.name !== 'Favoriler').length > 0 ? (
+                    collections.filter(c => c.name !== 'Favoriler').map(col => (
                       <button
                         key={col._id}
                         type="button"
@@ -306,11 +306,16 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
                       >
                         {col.name}
                       </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                    ))
+                  ) : (
+                    <div style={{ padding: '10px 12px', fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.4 }}>
+                      Sol panelden önce<br/>bir koleksiyon oluşturun.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Favori Butonu */}
             <button
               type="button"

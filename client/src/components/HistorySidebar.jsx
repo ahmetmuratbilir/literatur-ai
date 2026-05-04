@@ -33,6 +33,10 @@ const HistorySidebar = ({ isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, 
   const [collections, setCollections] = useState([]);
   const [analyses, setAnalyses] = useState([]);
   const [expandedCollectionIds, setExpandedCollectionIds] = useState(new Set());
+  const [showNewCollForm, setShowNewCollForm] = useState(false);
+  const [newCollName, setNewCollName] = useState('');
+  const [creatingColl, setCreatingColl] = useState(false);
+  const [collError, setCollError] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   const { user } = useUser();
@@ -60,6 +64,33 @@ const HistorySidebar = ({ isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, 
       await fetch(`${apiUrl}/api/collections/${collectionId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
       window.dispatchEvent(new CustomEvent('refreshCollections'));
     } catch (e) { console.error('Collection delete failed', e); }
+  };
+
+  const createCollection = async () => {
+    const trimmed = newCollName.trim();
+    if (!trimmed) return;
+    setCreatingColl(true);
+    setCollError('');
+    try {
+      const token = await getToken();
+      const res = await fetch(`${apiUrl}/api/collections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name: trimmed })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCollError(data.error || 'Koleksiyon oluşturulamadı.');
+      } else {
+        setNewCollName('');
+        setShowNewCollForm(false);
+        window.dispatchEvent(new CustomEvent('refreshCollections'));
+      }
+    } catch (e) {
+      setCollError('Bağlantı hatası.');
+    } finally {
+      setCreatingColl(false);
+    }
   };
 
   useEffect(() => {
@@ -196,8 +227,34 @@ const HistorySidebar = ({ isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, 
               {/* Collections Tab */}
               {activeTab === 'collections' && (
                 <MotionDiv key="collections" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <span style={{ fontSize: '0.6875rem', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '6px' }}>Projeler</span>
-                  {collections.filter(c => c.name !== 'Favoriler').length === 0 ? emptyBox('Henüz proje yok. Bir makaleye "Koleksiyona kaydet" deyince burada görünür.') : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: '6px' }}>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Koleksiyonlar</span>
+                    <button type="button" onClick={() => { setShowNewCollForm(p => !p); setCollError(''); setNewCollName(''); }} style={{ background: 'rgba(99,102,241,0.12)', border: 'none', color: '#a5b4fc', borderRadius: '6px', padding: '3px 8px', fontSize: '0.65rem', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Plus size={11} /> Yeni
+                    </button>
+                  </div>
+
+                  {showNewCollForm && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <input
+                        autoFocus
+                        type="text"
+                        value={newCollName}
+                        onChange={e => { setNewCollName(e.target.value); setCollError(''); }}
+                        onKeyDown={e => e.key === 'Enter' && createCollection()}
+                        placeholder="Koleksiyon adı..."
+                        maxLength={60}
+                        style={{ width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '6px', color: '#f8fafc', fontSize: '0.8rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                      />
+                      {collError && <span style={{ fontSize: '0.65rem', color: '#fb7185' }}>{collError}</span>}
+                      <button type="button" disabled={creatingColl || !newCollName.trim()} onClick={createCollection}
+                        style={{ background: '#6366f1', border: 'none', color: 'white', borderRadius: '6px', padding: '6px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', opacity: (!newCollName.trim() || creatingColl) ? 0.5 : 1 }}>
+                        {creatingColl ? 'Oluşturuluyor...' : 'Oluştur'}
+                      </button>
+                    </div>
+                  )}
+
+                  {collections.filter(c => c.name !== 'Favoriler').length === 0 ? emptyBox('Henüz koleksiyon yok. "Yeni" butonuyla oluşturun.') : (
                     collections.filter(c => c.name !== 'Favoriler').map(col => {
                       const expanded = expandedCollectionIds.has(col._id);
                       return (
