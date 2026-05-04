@@ -40,7 +40,7 @@ const SharedSearchSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
-    expires: 60 * 60 * 24 * 30 // 30 gün sonra otomatik silinsin (opsiyonel, kalıcı da olabilir)
+    expires: 60 * 60 * 24 * 10 // 10 gün sonra otomatik silinsin
   }
 });
 
