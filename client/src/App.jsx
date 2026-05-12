@@ -43,7 +43,8 @@ import {
   Microscope,
   Users,
   Library,
-  ShieldCheck
+  ShieldCheck,
+  PenLine
 } from 'lucide-react';
 import { SignedIn, SignedOut, SignInButton, useAuth } from '@clerk/clerk-react';
 const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -61,6 +62,7 @@ import ResultCard from './components/ResultCard';
 import GlobalStats from './components/GlobalStats';
 import InfiniteTicker from './components/InfiniteTicker';
 import HistorySidebar from './components/HistorySidebar';
+import WriterPanel from './components/WriterPanel';
 
 const LOADING_MESSAGES = [
   'Dünyanın en büyük 7 akademik kaynağına güvenli bağlantı kuruluyor...',
@@ -215,6 +217,8 @@ function App() {
   const [copied, setCopied] = useState(false);
   const [activeLandingTab, setActiveLandingTab] = useState(null);
   const [landingTheme, setLandingTheme] = useState('light');
+  const [showWriterPanel, setShowWriterPanel] = useState(false);
+  const [writerPapers, setWriterPapers] = useState([]);
   const canSubmitSearch = Boolean(
     mainTopic.trim() ||
     authorName.trim() ||
@@ -1586,6 +1590,50 @@ function App() {
           </div>
         </main>
       </SignedIn>
+
+      {/* Writer Panel Float Button */}
+      <AnimatePresence>
+        {data?.results?.length > 0 && !showWriterPanel && (
+          <motion.button
+            key="writer-float"
+            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+            className="writer-float-btn"
+            onClick={() => {
+              setWriterPapers(data.results.slice(0, 20));
+              setShowWriterPanel(true);
+            }}
+            title="Arama sonuçlarından atıflı akademik metin üret"
+          >
+            <PenLine size={16} />
+            Yazar Modu
+            <span style={{
+              background: 'rgba(255,255,255,0.25)',
+              borderRadius: '999px',
+              padding: '1px 8px',
+              fontSize: '0.72rem',
+              fontWeight: 800,
+            }}>
+              {Math.min(data.results.length, 20)}
+            </span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Writer Panel Modal */}
+      <AnimatePresence>
+        {showWriterPanel && (
+          <WriterPanel
+            key="writer-panel"
+            papers={writerPapers}
+            apiUrl={defaultApiUrl}
+            getToken={getToken}
+            onClose={() => setShowWriterPanel(false)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

@@ -873,6 +873,163 @@ app.delete('/api/analyses/:id', async (req, res) => {
   }
 });
 
+// --- Writer API: Atıflı Metin Üretimi ---
+const WRITER_RATE_LIMITER = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => getAuth(req)?.userId || ipKeyGenerator(req.ip),
+  message: { error: 'Çok fazla yazma isteği gönderildi. Lütfen 1 dakika bekleyin.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.post('/api/writer/generate', WRITER_RATE_LIMITER, async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
+
+  const { papers, prompt, outputType, language } = req.body || {};
+
+  if (!Array.isArray(papers) || papers.length === 0) {
+    return res.status(400).json({ error: 'En az bir makale seçilmelidir.' });
+  }
+  if (papers.length > 20) {
+    return res.status(400).json({ error: 'En fazla 20 makale seçilebilir.' });
+  }
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length < 10) {
+    return res.status(400).json({ error: 'Yönlendirme metni en az 10 karakter olmalıdır.' });
+  }
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'LLM servisi yapılandırılmamış.' });
+
+  // SSE (Server-Sent Events) header'ları
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const safePapers = papers.slice(0, 20).map((p, i) => ({
+    ref: i + 1,
+    title: String(p.title || p.titleTR || 'Başlıksız').slice(0, 200),
+    authors: String(p.creator || (Array.isArray(p.authors) ? p.authors.slice(0, 3).join(', ') : p.authors) || 'Bilinmiyor').slice(0, 150),
+    year: p.year || 'n.d.',
+    journal: String(p.publicationName || '').slice(0, 150),
+    citedBy: p.citedBy || p.citedbyCount || 0,
+    abstract: String(p.description || p.teaserTR || '').slice(0, 600),
+  }));
+
+  const paperListText = safePapers.map(p =>
+    `[${p.ref}] ${p.authors} (${p.year}). "${p.title}". ${p.journal}. Atıf sayısı: ${p.citedBy}.\nÖzet: ${p.abstract || 'Özet yok.'}`
+  ).join('\n\n');
+
+  const outputTypeLabels = {
+    'literature-review': 'Literatür Taraması (Literature Review)',
+    'abstract': 'Makale Özeti (Abstract)',
+    'introduction': 'Giriş Bölümü (Introduction)',
+    'discussion': 'Tartışma Bölümü (Discussion)',
+    'conclusion': 'Sonuç Bölümü (Conclusion)',
+  };
+  const outputLabel = outputTypeLabels[outputType] || 'Akademik Metin';
+  const writingLang = language === 'en' ? 'English' : 'Türkçe';
+
+  const systemPrompt = `Sen deneyimli bir akademik yazar asistanısın. Görevin, sana verilen bilimsel makaleleri kaynak alarak, her cümlenin sonuna köşeli parantez içinde referans numarasını ekleyerek (örn: [1], [2,3]) ${writingLang} dilinde akademik bir ${outputLabel} üretmektir.
+
+KURALLAR:
+1. HER bilgi iddiasından sonra kaynak numarasını köşeli parantez içinde yaz: [1] veya [2,4] gibi.
+2. Uydurma bilgi veya hallucination YASAK. Sadece verilen makale özetlerindeki bilgileri kullan.
+3. Akademik, resmi ve akıcı bir dil kullan.
+4. Makale listesini sonuna Kaynakça olarak ekle: Kaynakça bölümünde her referansı tam olarak listele.
+5. Çıktı ${writingLang} olmalı.
+6. Markdown başlık formatını kullan (## Başlık).`;
+
+  const userPrompt = `Aşağıdaki ${safePapers.length} makaleyi kaynak alarak, şu yönlendirmeye göre bir ${outputLabel} yaz:
+
+YÖNLENDIRME: ${prompt.trim()}
+
+KAYNAKLAR:
+${paperListText}
+
+Şimdi atıflı ${outputLabel} yaz:`;
+
+  try {
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.4,
+        max_tokens: 3000,
+        stream: true,
+      })
+    });
+
+    if (!groqRes.ok) {
+      const errText = await groqRes.text();
+      console.error('Groq Writer API error:', groqRes.status, errText);
+      res.write(`data: ${JSON.stringify({ error: 'LLM servisi geçici olarak kullanılamıyor.' })}\n\n`);
+      return res.end();
+    }
+
+    const reader = groqRes.body;
+    let buffer = '';
+
+    reader.on('data', (chunk) => {
+      buffer += chunk.toString('utf-8');
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // Son tamamlanmamış satırı sakla
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed === 'data: [DONE]') continue;
+        if (!trimmed.startsWith('data: ')) continue;
+
+        try {
+          const json = JSON.parse(trimmed.slice(6));
+          const delta = json.choices?.[0]?.delta?.content;
+          if (delta) {
+            res.write(`data: ${JSON.stringify({ token: delta })}\n\n`);
+          }
+        } catch {
+          // Geçersiz JSON satırları atla
+        }
+      }
+    });
+
+    reader.on('end', () => {
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    });
+
+    reader.on('error', (err) => {
+      console.error('Groq stream error:', err);
+      try {
+        res.write(`data: ${JSON.stringify({ error: 'Akış hatası oluştu.' })}\n\n`);
+        res.end();
+      } catch {}
+    });
+
+    req.on('close', () => {
+      // İstemci bağlantıyı kesti, streami temizle
+      try { reader.destroy(); } catch {}
+    });
+
+  } catch (err) {
+    console.error('Writer generate error:', err);
+    try {
+      res.write(`data: ${JSON.stringify({ error: err.message || 'Beklenmeyen hata oluştu.' })}\n\n`);
+      res.end();
+    } catch {}
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });

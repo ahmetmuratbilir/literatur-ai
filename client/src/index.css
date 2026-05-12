@@ -972,6 +972,43 @@ aside div::-webkit-scrollbar-track {
   background: transparent;
 }
 
+    flex-wrap: wrap;
+  }
+}
+
+
+/* History Sidebar Styles */
+.history-item-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+}
+
+.history-item-card:hover {
+  border-color: var(--brand-primary) !important;
+  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.1), 0 4px 6px -4px rgba(99, 102, 241, 0.1) !important;
+}
+
+.history-item-card:active {
+  transform: scale(0.98) !important;
+}
+
+.history-item-card:hover .delete-history-btn {
+  opacity: 1 !important;
+}
+
+.history-item-card-dark:hover .delete-btn-dark {
+  opacity: 1 !important;
+}
+
+/* Scrollbar styling for history sidebar */
+aside div::-webkit-scrollbar {
+  width: 5px;
+}
+
+aside div::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 aside div::-webkit-scrollbar-thumb {
   background: #e2e8f0;
   border-radius: 10px;
@@ -979,4 +1016,108 @@ aside div::-webkit-scrollbar-thumb {
 
 aside div::-webkit-scrollbar-thumb:hover {
   background: #cbd5e1;
+}
+
+/* ============================================
+   WriterPanel — Atıflı Metin Üretici Stilleri
+   ============================================ */
+
+/* Atıf rozeti [1], [2,3] */
+.writer-cite {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 4px;
+  padding: 0 5px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+  vertical-align: super;
+  font-size: 0.7em;
+  line-height: 1;
+  cursor: default;
+  transition: background 0.15s ease;
+}
+
+.writer-cite:hover {
+  background: rgba(79, 70, 229, 0.18);
+}
+
+/* Output paragraflar */
+.writer-output .writer-p {
+  margin: 0 0 0.875rem 0;
+  line-height: 1.75;
+}
+
+/* Output başlıklar */
+.writer-output .writer-h2 {
+  margin: 1.75rem 0 0.875rem 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(79, 70, 229, 0.15);
+}
+
+.writer-output .writer-h3 {
+  margin: 1.25rem 0 0.625rem 0;
+  font-size: 0.975rem;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+}
+
+/* Output kaydırma çubuğu */
+.writer-output-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.writer-output-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.writer-output-scroll::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+/* Writer Float Button */
+.writer-float-btn {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 8999;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.875rem 1.375rem;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  box-shadow: 0 8px 24px -6px rgba(79, 70, 229, 0.5), 0 2px 8px -2px rgba(79, 70, 229, 0.3);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: -0.01em;
+}
+
+.writer-float-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 32px -6px rgba(79, 70, 229, 0.55), 0 4px 12px -2px rgba(79, 70, 229, 0.35);
+}
+
+.writer-float-btn:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+/* Pulse animasyonu (oluşturma göstergesi için) */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
 }
