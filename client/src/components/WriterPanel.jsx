@@ -17,6 +17,10 @@ import {
   Lightbulb,
   Languages,
   RefreshCw,
+  Maximize2,
+  PanelRightOpen,
+  PanelRight,
+  Monitor
 } from 'lucide-react';
 
 const OUTPUT_TYPES = [
@@ -40,7 +44,7 @@ function renderMarkdown(text) {
     .replace(/\n/g, '<br>');
 }
 
-const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
+const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default', setSize }) => {
   const [outputType,    setOutputType]    = useState('literature-review');
   const [language,      setLanguage]      = useState('tr');
   const [prompt,        setPrompt]        = useState('');
@@ -163,18 +167,21 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
   const canGenerate = papers.length > 0 && prompt.trim().length >= 10 && !isGenerating;
 
   return (
-    // Fixed sağ sidebar — tam sayfa yüksekliği, 420px genişlik
+    // Fixed sağ sidebar — dinamik genişlik
     <motion.div
-      initial={{ x: 420, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 420, opacity: 0 }}
+      initial={{ x: size === 'default' ? 420 : (size === 'half' ? '50vw' : '100vw'), opacity: 0 }}
+      animate={{ 
+        x: 0, 
+        opacity: 1,
+        width: size === 'default' ? '420px' : (size === 'half' ? '50vw' : '100vw')
+      }}
+      exit={{ x: size === 'default' ? 420 : (size === 'half' ? '50vw' : '100vw'), opacity: 0 }}
       transition={{ type: 'spring', damping: 28, stiffness: 280 }}
       style={{
         position: 'fixed',
         top: 0,
         right: 0,
         bottom: 0,
-        width: '420px',
         zIndex: 9000,
         display: 'flex',
         flexDirection: 'column',
@@ -212,25 +219,64 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
             </div>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          style={{
-            background: 'rgba(255,255,255,0.15)',
-            border: 'none',
-            borderRadius: '7px',
-            color: 'white',
-            cursor: 'pointer',
-            padding: '5px',
-            display: 'flex',
-            alignItems: 'center',
-            transition: 'background 0.15s',
-          }}
-          onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.28)'}
-          onMouseOut={e  => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-          title="Kapat"
-        >
-          <X size={16} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Size controls */}
+          <div style={{ display: 'flex', background: 'rgba(0,0,0,0.15)', borderRadius: '8px', padding: '2px' }}>
+            <button
+              onClick={() => setSize('default')}
+              title="Varsayılan (Kenar Çubuğu)"
+              style={{
+                background: size === 'default' ? 'rgba(255,255,255,0.2)' : 'transparent',
+                border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', padding: '6px',
+                transition: 'background 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}
+            >
+              <PanelRight size={14} />
+            </button>
+            <button
+              onClick={() => setSize('half')}
+              title="Yarım Ekran"
+              style={{
+                background: size === 'half' ? 'rgba(255,255,255,0.2)' : 'transparent',
+                border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', padding: '6px',
+                transition: 'background 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}
+            >
+              <PanelRightOpen size={14} />
+            </button>
+            <button
+              onClick={() => setSize('full')}
+              title="Tam Ekran"
+              style={{
+                background: size === 'full' ? 'rgba(255,255,255,0.2)' : 'transparent',
+                border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', padding: '6px',
+                transition: 'background 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}
+            >
+              <Monitor size={14} />
+            </button>
+          </div>
+          
+          <button
+            onClick={onClose}
+            style={{
+              background: 'rgba(255,255,255,0.15)',
+              border: 'none',
+              borderRadius: '7px',
+              color: 'white',
+              cursor: 'pointer',
+              padding: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              transition: 'background 0.15s',
+            }}
+            onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.28)'}
+            onMouseOut={e  => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+            title="Kapat"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       {/* ── Scrollable body ─────────────────────────────── */}

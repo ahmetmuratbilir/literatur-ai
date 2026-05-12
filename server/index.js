@@ -933,24 +933,25 @@ app.post('/api/writer/generate', WRITER_RATE_LIMITER, async (req, res) => {
   const outputLabel = outputTypeLabels[outputType] || 'Akademik Metin';
   const writingLang = language === 'en' ? 'English' : 'Türkçe';
 
-  const systemPrompt = `Sen deneyimli bir akademik yazar asistanısın. Görevin, sana verilen bilimsel makaleleri kaynak alarak, her cümlenin sonuna köşeli parantez içinde referans numarasını ekleyerek (örn: [1], [2,3]) ${writingLang} dilinde akademik bir ${outputLabel} üretmektir.
+  const systemPrompt = `Sen profesyonel bir akademik araştırmacı ve yazarsın. Görevin, sana verilen bilimsel makalelerin özetlerini sentezleyerek, her bilginin sonuna mutlaka köşeli parantez içinde referans numarasını ekleyerek (örn: [1], [2,3]) ${writingLang} dilinde son derece detaylı ve derinlemesine bir ${outputLabel} üretmektir.
 
 KURALLAR:
-1. HER bilgi iddiasından sonra kaynak numarasını köşeli parantez içinde yaz: [1] veya [2,4] gibi.
-2. Uydurma bilgi veya hallucination YASAK. Sadece verilen makale özetlerindeki bilgileri kullan.
-3. Akademik, resmi ve akıcı bir dil kullan.
-4. Makale listesini sonuna Kaynakça olarak ekle: Kaynakça bölümünde her referansı tam olarak listele.
-5. Çıktı ${writingLang} olmalı.
-6. Markdown başlık formatını kullan (## Başlık).`;
+1. DETAYLI YAZ: Çıktı kesinlikle çok kısa olmamalıdır. Seçilen makale sayısına göre en az 3-5 uzun paragraf ve kapsamlı bir akademik analiz içermelidir.
+2. SENTEZ: Makaleleri tek tek özetlemek yerine, ortak bulguları, çelişkileri ve öne çıkan temaları sentezleyerek bütüncül bir metin oluştur.
+3. ATIFLAR: HER bilgi iddiasından sonra kaynak numarasını yaz: [1] veya [2,4] gibi. Atıfsız cümle kurmaktan kaçın.
+4. GÜVENİLİRLİK: Uydurma bilgi veya hallucination YASAK. Sadece verilen makale metinlerindeki (özetler) bilgileri kullan.
+5. DİL: Akademik, resmi, objektif ve akıcı bir ${writingLang} dili kullan.
+6. FORMAT: Markdown başlık formatını kullan (Örn: ## Giriş, ### Alt Başlık).
+7. KAYNAKÇA: Metnin en sonuna '## Kaynakça' başlığı açarak kullanılan makaleleri listele.`;
 
-  const userPrompt = `Aşağıdaki ${safePapers.length} makaleyi kaynak alarak, şu yönlendirmeye göre bir ${outputLabel} yaz:
+  const userPrompt = `Aşağıdaki ${safePapers.length} makalenin bilgilerini ve özetlerini dikkatlice analiz et. Aşağıdaki yönlendirmeyi merkeze alarak son derece detaylı, akademik ve atıflarla desteklenmiş bir ${outputLabel} yaz.
 
 YÖNLENDIRME: ${prompt.trim()}
 
 KAYNAKLAR:
 ${paperListText}
 
-Şimdi atıflı ${outputLabel} yaz:`;
+Lütfen acele etme ve kaynakları derinlemesine bağlayarak detaylı, uzun ve akademik bir metin üret:`;
 
   try {
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {

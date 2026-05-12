@@ -218,6 +218,7 @@ function App() {
   const [activeLandingTab, setActiveLandingTab] = useState(null);
   const [landingTheme, setLandingTheme] = useState('light');
   const [showWriterPanel, setShowWriterPanel] = useState(false);
+  const [writerSize, setWriterSize] = useState('default'); // 'default', 'half', 'full'
   const [writerPapers, setWriterPapers] = useState([]);
   const canSubmitSearch = Boolean(
     mainTopic.trim() ||
@@ -1245,7 +1246,9 @@ function App() {
 
         <main className="app-main" style={{
           marginLeft: isMobile ? '0px' : (sidebarOpen ? '280px' : '72px'),
-          marginRight: (!isMobile && showWriterPanel) ? '420px' : '0px',
+          marginRight: (!isMobile && showWriterPanel) 
+            ? (writerSize === 'default' ? '420px' : (writerSize === 'half' ? '50vw' : '100vw')) 
+            : '0px',
           transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
           padding: isMobile ? '3.5rem 1rem 2rem' : (isTablet ? '3.5rem 1.5rem' : '4rem 2rem')
         }}>
@@ -1599,8 +1602,9 @@ function App() {
             key="writer-float"
             initial={{ opacity: 0, y: 20, scale: 0.9 }}
             animate={{
-              opacity: 1, y: 0, scale: 1,
-              right: showWriterPanel ? 440 : 32,
+              opacity: writerSize === 'full' && showWriterPanel ? 0 : 1, 
+              y: 0, scale: 1,
+              right: showWriterPanel ? (writerSize === 'default' ? 440 : (writerSize === 'half' ? 'calc(50vw + 20px)' : 0)) : 32,
             }}
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
             transition={{ type: 'spring', damping: 22, stiffness: 280 }}
@@ -1610,7 +1614,6 @@ function App() {
               setShowWriterPanel(prev => !prev);
             }}
             title={showWriterPanel ? 'Yazar Modunu Kapat' : 'Atıflı akademik metin üret'}
-            style={{ right: showWriterPanel ? '440px' : '32px' }}
           >
             <PenLine size={16} />
             {showWriterPanel ? 'Kapat' : 'Yazar Modu'}
@@ -1638,6 +1641,8 @@ function App() {
             apiUrl={defaultApiUrl}
             getToken={getToken}
             onClose={() => setShowWriterPanel(false)}
+            size={writerSize}
+            setSize={setWriterSize}
           />
         )}
       </AnimatePresence>
