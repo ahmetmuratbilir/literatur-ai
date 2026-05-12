@@ -404,39 +404,29 @@ function App() {
   }, [findFavoriteMatch]);
 
   const handleFavorite = async (paper) => {
-    if (!userId) return;
+    if (!userId) throw new Error('Giriş yapmanız gerekiyor');
     const token = await getToken();
     let { favoriteCollection, matchedPaper } = findFavoriteMatch(paper);
 
     if (!favoriteCollection) {
-      try {
-        const res = await axios.post(`${defaultApiUrl}/api/collections`, {
-          name: 'Favoriler'
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        favoriteCollection = res.data;
-        setCollections((prev) => [...prev, favoriteCollection]);
-      } catch (err) {
-        console.error('Failed to create Favoriler collection', err);
-        return;
-      }
+      const res = await axios.post(`${defaultApiUrl}/api/collections`, {
+        name: 'Favoriler'
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      favoriteCollection = res.data;
+      setCollections((prev) => [...prev, favoriteCollection]);
     }
 
-    try {
-      if (matchedPaper?._id) {
-        await axios.delete(`${defaultApiUrl}/api/collections/${favoriteCollection._id}/papers/${matchedPaper._id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        window.dispatchEvent(new CustomEvent('refreshCollections'));
-        return;
-      }
-
-      await handleSaveToCollection(favoriteCollection._id, paper);
-    } catch (err) {
-      console.error('Failed to update favorites', err);
-      setError(err.response?.data?.error || 'Favori islemi sirasinda hata olustu.');
+    if (matchedPaper?._id) {
+      await axios.delete(`${defaultApiUrl}/api/collections/${favoriteCollection._id}/papers/${matchedPaper._id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      window.dispatchEvent(new CustomEvent('refreshCollections'));
+      return;
     }
+
+    await handleSaveToCollection(favoriteCollection._id, paper);
   };
 
   const handleAiSuggest = async () => {

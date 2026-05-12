@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Calendar,
@@ -9,7 +9,10 @@ import {
   ChevronUp,
   Quote,
   Star,
-  Bookmark
+  Bookmark,
+  Check,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 
 const MotionDiv = motion.div;
@@ -17,6 +20,10 @@ const MotionDiv = motion.div;
 const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveToCollection }) => {
   const [expanded, setExpanded] = useState(false);
   const [showCollMenu, setShowCollMenu] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
+  const [favFeedback, setFavFeedback] = useState(null); // 'added' | 'removed' | 'error'
+  const [collFeedback, setCollFeedback] = useState(null); // { collId, status: 'saving'|'saved'|'error' }
+  const collMenuRef = useRef(null);
 
   if (!item) return null;
 
@@ -40,6 +47,60 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
   const summaryPreview = teaserText || sourceSummary || 'Bu makale icin ozet bilgisi bulunmuyor.';
   const hasExtraSourceSummary = Boolean(teaserText && sourceSummary && sourceSummary !== teaserText);
   const canExpandSummary = hasExtraSourceSummary || summaryPreview.length > 180;
+
+  // Koleksiyon menüsü dışarı tıklanınca kapansın
+  useEffect(() => {
+    if (!showCollMenu) return;
+    const handleClickOutside = (e) => {
+      if (collMenuRef.current && !collMenuRef.current.contains(e.target)) {
+        setShowCollMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showCollMenu]);
+
+  // Favori feedback temizle
+  useEffect(() => {
+    if (!favFeedback) return;
+    const t = setTimeout(() => setFavFeedback(null), 2000);
+    return () => clearTimeout(t);
+  }, [favFeedback]);
+
+  const handleFavClick = async (e) => {
+    e.stopPropagation();
+    if (favLoading) return;
+    setFavLoading(true);
+    try {
+      await onFavorite(item);
+      setFavFeedback(isFavorited ? 'removed' : 'added');
+    } catch {
+      setFavFeedback('error');
+    } finally {
+      setFavLoading(false);
+    }
+  };
+
+  const handleCollSave = async (e, collId) => {
+    e.stopPropagation();
+    setCollFeedback({ collId, status: 'saving' });
+    try {
+      await onSaveToCollection(collId, item);
+      setCollFeedback({ collId, status: 'saved' });
+      setTimeout(() => {
+        setCollFeedback(null);
+        setShowCollMenu(false);
+      }, 1200);
+    } catch (err) {
+      const msg = err?.response?.data?.error || 'Kaydedilemedi';
+      setCollFeedback({ collId, status: 'error', msg });
+      setTimeout(() => setCollFeedback(null), 2500);
+    }
+  };
+
+  const favColor = isFavorited ? '#f59e0b' : 'currentColor';
+  const favBg = isFavorited ? 'rgba(245, 158, 11, 0.1)' : 'transparent';
+  const favBorder = isFavorited ? '1px solid rgba(217, 119, 6, 0.2)' : '1px solid transparent';
 
   return (
     <MotionDiv
@@ -236,29 +297,49 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
               </a>
             )}
           </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+
+            {/* Koleksiyon Kaydetme Geri Bildirimi */}
+            {collFeedback && collFeedback.status === 'error' && (
+              <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <AlertCircle size={11} /> {collFeedback.msg}
+              </span>
+            )}
+            {collFeedback && collFeedback.status === 'saved' && (
+              <span style={{ fontSize: '11px', color: '#10b981', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <Check size={11} /> Kaydedildi!
+              </span>
+            )}
+
             {/* Koleksiyona Kaydet Dropdown */}
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative' }} ref={collMenuRef}>
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setShowCollMenu(prev => !prev); }}
                 className="icon-btn"
-                title={collections && collections.filter(c => c.name !== 'Favoriler').length > 0 ? 'Koleksiyona kaydet' : 'Koleksiyon oluşturmak için sol paneli açın'}
+                title={
+                  collections && collections.filter(c => c.name !== 'Favoriler').length > 0
+                    ? 'Koleksiyona kaydet'
+                    : 'Koleksiyon oluşturmak için sol paneli açın'
+                }
                 style={{
-                  color: 'var(--text-muted)',
+                  color: showCollMenu ? 'var(--brand-primary)' : 'var(--text-muted)',
+                  background: showCollMenu ? 'var(--brand-primary-soft)' : 'transparent',
                   width: '36px',
                   height: '36px',
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  border: '1px solid transparent',
+                  border: showCollMenu ? '1px solid rgba(99,102,241,0.25)' : '1px solid transparent',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease'
                 }}
               >
-                <Bookmark size={18} />
+                <Bookmark size={18} fill={showCollMenu ? 'var(--brand-primary)' : 'none'} />
               </button>
+
               {showCollMenu && (
                 <div
                   style={{
@@ -278,35 +359,42 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
                   }}
                 >
                   {collections && collections.filter(c => c.name !== 'Favoriler').length > 0 ? (
-                    collections.filter(c => c.name !== 'Favoriler').map(col => (
-                      <button
-                        key={col._id}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSaveToCollection(col._id, item);
-                          setShowCollMenu(false);
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          fontSize: 'var(--fs-sm)',
-                          color: 'var(--text-main)',
-                          borderRadius: '6px',
-                          fontFamily: 'inherit',
-                          fontWeight: '500',
-                          transition: 'background 0.12s ease'
-                        }}
-                        onMouseOver={e => e.currentTarget.style.background = 'var(--slate-100)'}
-                        onMouseOut={e => e.currentTarget.style.background = 'none'}
-                      >
-                        {col.name}
-                      </button>
-                    ))
+                    collections.filter(c => c.name !== 'Favoriler').map(col => {
+                      const isSaving = collFeedback?.collId === col._id && collFeedback?.status === 'saving';
+                      const isSaved = collFeedback?.collId === col._id && collFeedback?.status === 'saved';
+                      return (
+                        <button
+                          key={col._id}
+                          type="button"
+                          disabled={isSaving}
+                          onClick={(e) => handleCollSave(e, col._id)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            background: isSaved ? 'rgba(16,185,129,0.08)' : 'none',
+                            border: 'none',
+                            cursor: isSaving ? 'not-allowed' : 'pointer',
+                            textAlign: 'left',
+                            fontSize: 'var(--fs-sm)',
+                            color: isSaved ? '#059669' : 'var(--text-main)',
+                            borderRadius: '6px',
+                            fontFamily: 'inherit',
+                            fontWeight: '500',
+                            transition: 'background 0.12s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                          onMouseOver={e => { if (!isSaving && !isSaved) e.currentTarget.style.background = 'var(--slate-100)'; }}
+                          onMouseOut={e => { if (!isSaving && !isSaved) e.currentTarget.style.background = 'none'; }}
+                        >
+                          {isSaving && <Loader2 size={13} style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} />}
+                          {isSaved && <Check size={13} style={{ flexShrink: 0 }} />}
+                          {!isSaving && !isSaved && <Bookmark size={13} style={{ flexShrink: 0, opacity: 0.5 }} />}
+                          <span>{col.name}</span>
+                        </button>
+                      );
+                    })
                   ) : (
                     <div style={{ padding: '10px 12px', fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.4 }}>
                       Sol panelden önce<br/>bir koleksiyon oluşturun.
@@ -319,24 +407,38 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
             {/* Favori Butonu */}
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onFavorite(item); }}
+              onClick={handleFavClick}
+              disabled={favLoading}
               className={`icon-btn ${isFavorited ? 'is-active' : ''}`}
-              title={isFavorited ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+              title={
+                favFeedback === 'error' ? 'Favori işlemi başarısız' :
+                favFeedback === 'added' ? 'Favorilere eklendi!' :
+                favFeedback === 'removed' ? 'Favorilerden çıkarıldı' :
+                isFavorited ? 'Favorilerden çıkar' : 'Favorilere ekle'
+              }
               style={{
-                color: isFavorited ? '#d97706' : 'var(--text-muted)',
-                background: isFavorited ? 'rgba(245, 158, 11, 0.1)' : 'transparent',
+                color: favFeedback === 'error' ? '#dc2626' : favFeedback ? '#10b981' : (isFavorited ? '#f59e0b' : 'var(--text-muted)'),
+                background: favFeedback === 'error' ? 'rgba(220,38,38,0.08)' : favFeedback ? 'rgba(16,185,129,0.08)' : favBg,
                 width: '36px',
                 height: '36px',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                border: isFavorited ? '1px solid rgba(217, 119, 6, 0.2)' : '1px solid transparent',
-                cursor: 'pointer',
+                border: favFeedback === 'error' ? '1px solid rgba(220,38,38,0.2)' : favFeedback ? '1px solid rgba(16,185,129,0.2)' : favBorder,
+                cursor: favLoading ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s ease'
               }}
             >
-              <Star size={18} fill={isFavorited ? '#f59e0b' : 'none'} color={isFavorited ? '#f59e0b' : 'currentColor'} />
+              {favLoading ? (
+                <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
+              ) : favFeedback === 'error' ? (
+                <AlertCircle size={18} />
+              ) : favFeedback ? (
+                <Check size={18} strokeWidth={3} />
+              ) : (
+                <Star size={18} fill={isFavorited ? favColor : 'none'} color={isFavorited ? favColor : 'currentColor'} />
+              )}
             </button>
           </div>
         </div>
