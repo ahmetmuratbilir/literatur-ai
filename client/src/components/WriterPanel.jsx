@@ -20,14 +20,14 @@ import {
 } from 'lucide-react';
 
 const OUTPUT_TYPES = [
-  { value: 'literature-review', label: 'Literatür Taraması', icon: BookOpen, desc: 'Makaleleri sentezleyen akademik inceleme' },
-  { value: 'introduction',      label: 'Giriş Bölümü',       icon: FileText,  desc: 'Makale girişi ve arka plan bilgisi' },
-  { value: 'abstract',          label: 'Makale Özeti',        icon: BookMarked, desc: 'Kısa ve yoğun akademik özet' },
+  { value: 'literature-review', label: 'Literatür Taraması', icon: BookOpen,      desc: 'Makaleleri sentezleyen akademik inceleme' },
+  { value: 'introduction',      label: 'Giriş Bölümü',       icon: FileText,      desc: 'Makale girişi ve arka plan bilgisi' },
+  { value: 'abstract',          label: 'Makale Özeti',        icon: BookMarked,    desc: 'Kısa ve yoğun akademik özet' },
   { value: 'discussion',        label: 'Tartışma',            icon: MessageSquare, desc: 'Bulguları kaynaklarla tartışan bölüm' },
-  { value: 'conclusion',        label: 'Sonuç',               icon: Lightbulb, desc: 'Çalışmanın çıkarımları ve önerileri' },
+  { value: 'conclusion',        label: 'Sonuç',               icon: Lightbulb,     desc: 'Çalışmanın çıkarımları ve önerileri' },
 ];
 
-// Basit Markdown → HTML dönüştürücü (atıf vurgulamalı)
+// Basit Markdown → HTML (atıf rozetleri dahil)
 function renderMarkdown(text) {
   if (!text) return '';
   return text
@@ -37,28 +37,27 @@ function renderMarkdown(text) {
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/\[(\d+(?:,\s*\d+)*)\]/g, '<span class="writer-cite">[$1]</span>')
     .replace(/\n\n/g, '</p><p class="writer-p">')
-    .replace(/\n/g, '<br>')
-    .replace(/^(.)/gm, (m, c) => c !== '<' ? `<p class="writer-p">${m}` : m);
+    .replace(/\n/g, '<br>');
 }
 
 const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
-  const [outputType, setOutputType] = useState('literature-review');
-  const [language, setLanguage]     = useState('tr');
-  const [prompt, setPrompt]         = useState('');
+  const [outputType,    setOutputType]    = useState('literature-review');
+  const [language,      setLanguage]      = useState('tr');
+  const [prompt,        setPrompt]        = useState('');
   const [generatedText, setGeneratedText] = useState('');
-  const [isGenerating, setIsGenerating]   = useState(false);
-  const [error, setError]           = useState(null);
-  const [copied, setCopied]         = useState(false);
-  const [showTypeMenu, setShowTypeMenu]   = useState(false);
-  const [phase, setPhase]           = useState('idle'); // idle | generating | done | error
+  const [isGenerating,  setIsGenerating]  = useState(false);
+  const [error,         setError]         = useState(null);
+  const [copied,        setCopied]        = useState(false);
+  const [showTypeMenu,  setShowTypeMenu]  = useState(false);
+  const [phase,         setPhase]         = useState('idle');
 
-  const abortRef   = useRef(null);
-  const outputRef  = useRef(null);
+  const abortRef    = useRef(null);
+  const outputRef   = useRef(null);
   const typeMenuRef = useRef(null);
 
   const selectedType = OUTPUT_TYPES.find(t => t.value === outputType) || OUTPUT_TYPES[0];
 
-  // Dışarı tıklama — type menüsünü kapat
+  // Dışarı tıkla — type menüsünü kapat
   useEffect(() => {
     if (!showTypeMenu) return;
     const handler = (e) => {
@@ -70,7 +69,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, [showTypeMenu]);
 
-  // Üretim başladığında otomatik scroll
+  // Üretim sırasında otomatik scroll
   useEffect(() => {
     if (generatedText && outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
@@ -79,14 +78,8 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
 
   const handleGenerate = useCallback(async () => {
     if (isGenerating) return;
-    if (papers.length === 0) {
-      setError('Lütfen önce en az bir makale seçin.');
-      return;
-    }
-    if (!prompt.trim() || prompt.trim().length < 10) {
-      setError('Yönlendirme metni en az 10 karakter olmalıdır.');
-      return;
-    }
+    if (papers.length === 0) { setError('Lütfen önce en az bir makale seçin.'); return; }
+    if (!prompt.trim() || prompt.trim().length < 10) { setError('Yönlendirme metni en az 10 karakter olmalıdır.'); return; }
 
     setError(null);
     setGeneratedText('');
@@ -109,7 +102,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
         throw new Error(errData.error || `HTTP ${response.status}`);
       }
 
-      const reader = response.body.getReader();
+      const reader  = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       abortRef.current = reader;
       let accumulated = '';
@@ -117,29 +110,21 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
         const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split('\n');
-
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed.startsWith('data: ')) continue;
           try {
             const json = JSON.parse(trimmed.slice(6));
             if (json.error) throw new Error(json.error);
-            if (json.token) {
-              accumulated += json.token;
-              setGeneratedText(accumulated);
-            }
+            if (json.token) { accumulated += json.token; setGeneratedText(accumulated); }
             if (json.done) break;
           } catch (parseErr) {
-            if (parseErr.message !== 'Unexpected end of JSON input') {
-              throw parseErr;
-            }
+            if (parseErr.message !== 'Unexpected end of JSON input') throw parseErr;
           }
         }
       }
-
       setPhase('done');
     } catch (err) {
       if (err.name === 'AbortError') return;
@@ -152,9 +137,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
   }, [papers, prompt, outputType, language, apiUrl, getToken, isGenerating]);
 
   const handleStop = () => {
-    if (abortRef.current) {
-      try { abortRef.current.cancel(); } catch {}
-    }
+    if (abortRef.current) { try { abortRef.current.cancel(); } catch {} }
     setIsGenerating(false);
     setPhase(generatedText ? 'done' : 'idle');
   };
@@ -164,9 +147,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
       await navigator.clipboard.writeText(generatedText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setError('Kopyalama başarısız.');
-    }
+    } catch { setError('Kopyalama başarısız.'); }
   };
 
   const handleDownload = () => {
@@ -179,108 +160,98 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
     URL.revokeObjectURL(url);
   };
 
-  const handleReset = () => {
-    setGeneratedText('');
-    setError(null);
-    setPhase('idle');
-  };
+  const canGenerate = papers.length > 0 && prompt.trim().length >= 10 && !isGenerating;
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 9000,
-      display: 'flex',
-      alignItems: 'flex-end',
-      justifyContent: 'flex-end',
-      padding: '1rem',
-      pointerEvents: 'none',
-    }}>
-      <motion.div
-        initial={{ opacity: 0, y: 40, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 40, scale: 0.97 }}
-        transition={{ type: 'spring', damping: 24, stiffness: 300 }}
-        style={{
-          width: '100%',
-          maxWidth: '780px',
-          maxHeight: '92vh',
-          background: 'white',
-          borderRadius: '20px',
-          boxShadow: '0 24px 60px -12px rgba(15,23,42,0.22), 0 8px 24px -8px rgba(79,70,229,0.15)',
-          border: '1px solid rgba(99,102,241,0.15)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          pointerEvents: 'all',
-        }}
-      >
-        {/* Header */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '1.25rem 1.5rem',
-          borderBottom: '1px solid #e2e8f0',
-          background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-          borderRadius: '20px 20px 0 0',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{
-              background: 'rgba(255,255,255,0.2)',
-              borderRadius: '10px',
-              padding: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              backdropFilter: 'blur(4px)',
-            }}>
-              <PenLine size={18} color="white" />
+    // Fixed sağ sidebar — tam sayfa yüksekliği, 420px genişlik
+    <motion.div
+      initial={{ x: 420, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 420, opacity: 0 }}
+      transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        width: '420px',
+        zIndex: 9000,
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'white',
+        borderLeft: '1px solid rgba(99,102,241,0.15)',
+        boxShadow: '-8px 0 32px -8px rgba(15,23,42,0.14), -2px 0 8px -2px rgba(79,70,229,0.08)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* ── Header ─────────────────────────────────────── */}
+      <div style={{
+        padding: '1rem 1.25rem',
+        background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <div style={{
+            background: 'rgba(255,255,255,0.2)',
+            borderRadius: '8px',
+            padding: '6px',
+            display: 'flex',
+            backdropFilter: 'blur(4px)',
+          }}>
+            <PenLine size={16} color="white" />
+          </div>
+          <div>
+            <div style={{ color: 'white', fontSize: '0.92rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+              Yapay Zeka Yazar
             </div>
-            <div>
-              <h2 style={{ margin: 0, color: 'white', fontSize: '1.05rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-                Yapay Zeka Yazar
-              </h2>
-              <p style={{ margin: 0, color: 'rgba(255,255,255,0.75)', fontSize: '0.78rem', fontWeight: 500 }}>
-                {papers.length} makale seçili · Atıflı akademik metin üretimi
-              </p>
+            <div style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.72rem', fontWeight: 500 }}>
+              {papers.length} makale · Atıflı metin üretici
             </div>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'rgba(255,255,255,0.15)',
-              border: 'none',
-              borderRadius: '8px',
-              color: 'white',
-              cursor: 'pointer',
-              padding: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              transition: 'background 0.15s ease',
-            }}
-            onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
-            onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-          >
-            <X size={18} />
-          </button>
         </div>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'rgba(255,255,255,0.15)',
+            border: 'none',
+            borderRadius: '7px',
+            color: 'white',
+            cursor: 'pointer',
+            padding: '5px',
+            display: 'flex',
+            alignItems: 'center',
+            transition: 'background 0.15s',
+          }}
+          onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.28)'}
+          onMouseOut={e  => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+          title="Kapat"
+        >
+          <X size={16} />
+        </button>
+      </div>
 
-        {/* Controls */}
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* ── Scrollable body ─────────────────────────────── */}
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
 
-          {/* Seçili Makaleler Özeti */}
+        {/* Controls block */}
+        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+
+          {/* Makale rozetleri */}
           {papers.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {papers.slice(0, 5).map((p, i) => (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+              {papers.slice(0, 4).map((p, i) => (
                 <span key={i} style={{
                   background: 'rgba(79,70,229,0.07)',
                   color: '#4f46e5',
-                  border: '1px solid rgba(99,102,241,0.2)',
-                  padding: '3px 10px',
+                  border: '1px solid rgba(99,102,241,0.18)',
+                  padding: '2px 8px',
                   borderRadius: '999px',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  maxWidth: '200px',
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  maxWidth: '160px',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -288,83 +259,61 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
                   [{i + 1}] {p.title || p.titleTR || 'Makale'}
                 </span>
               ))}
-              {papers.length > 5 && (
-                <span style={{ fontSize: '0.72rem', color: '#64748b', padding: '3px 8px', fontWeight: 600 }}>
-                  +{papers.length - 5} daha
+              {papers.length > 4 && (
+                <span style={{ fontSize: '0.68rem', color: '#64748b', padding: '2px 6px', fontWeight: 600 }}>
+                  +{papers.length - 4} daha
                 </span>
               )}
             </div>
           ) : (
             <div style={{
-              background: '#fffbeb',
-              border: '1px solid #fde68a',
-              borderRadius: '10px',
-              padding: '10px 14px',
-              fontSize: '0.82rem',
-              color: '#92400e',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
+              background: '#fffbeb', border: '1px solid #fde68a',
+              borderRadius: '8px', padding: '8px 12px',
+              fontSize: '0.78rem', color: '#92400e', fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: '7px',
             }}>
-              <AlertCircle size={14} />
-              Henüz makale seçilmedi. Arama sonuçlarından makaleleri favorilere veya koleksiyona ekleyin, ardından buradan kullanın.
+              <AlertCircle size={13} />
+              Henüz makale yüklenmedi.
             </div>
           )}
 
-          {/* Output Type + Language */}
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            {/* Output Type Dropdown */}
-            <div style={{ position: 'relative', flex: 1, minWidth: '200px' }} ref={typeMenuRef}>
+          {/* Output type + Language */}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {/* Dropdown */}
+            <div style={{ position: 'relative', flex: 1 }} ref={typeMenuRef}>
               <button
                 onClick={() => setShowTypeMenu(p => !p)}
                 style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '8px',
-                  padding: '10px 14px',
-                  border: '1.5px solid #e2e8f0',
-                  borderRadius: '10px',
-                  background: 'white',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#1e293b',
-                  fontFamily: 'inherit',
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  gap: '6px', padding: '8px 11px', border: '1.5px solid #e2e8f0',
+                  borderRadius: '9px', background: 'white', cursor: 'pointer',
+                  fontSize: '0.8rem', fontWeight: 600, color: '#1e293b', fontFamily: 'inherit',
                   transition: 'border-color 0.15s',
                 }}
                 onFocus={e => e.currentTarget.style.borderColor = '#4f46e5'}
-                onBlur={e => e.currentTarget.style.borderColor = '#e2e8f0'}
+                onBlur={e  => e.currentTarget.style.borderColor = '#e2e8f0'}
               >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <selectedType.icon size={15} color="#4f46e5" />
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <selectedType.icon size={13} color="#4f46e5" />
                   {selectedType.label}
                 </span>
-                <ChevronDown size={14} color="#94a3b8" style={{ transform: showTypeMenu ? 'rotate(180deg)' : '', transition: 'transform 0.2s' }} />
+                <ChevronDown size={12} color="#94a3b8" style={{
+                  transform: showTypeMenu ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s',
+                }} />
               </button>
 
               <AnimatePresence>
                 {showTypeMenu && (
                   <motion.div
-                    initial={{ opacity: 0, y: -6 }}
+                    initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
+                    exit={{ opacity: 0, y: -5 }}
                     style={{
-                      position: 'absolute',
-                      top: 'calc(100% + 6px)',
-                      left: 0,
-                      right: 0,
-                      background: 'white',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '12px',
-                      boxShadow: '0 8px 24px -4px rgba(15,23,42,0.12)',
-                      zIndex: 100,
-                      padding: '6px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '2px',
+                      position: 'absolute', top: 'calc(100% + 5px)', left: 0, right: 0,
+                      background: 'white', border: '1px solid #e2e8f0',
+                      borderRadius: '10px', boxShadow: '0 8px 20px -4px rgba(15,23,42,0.12)',
+                      zIndex: 200, padding: '4px', display: 'flex', flexDirection: 'column', gap: '2px',
                     }}
                   >
                     {OUTPUT_TYPES.map(type => (
@@ -372,26 +321,20 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
                         key={type.value}
                         onClick={() => { setOutputType(type.value); setShowTypeMenu(false); }}
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          padding: '10px 12px',
-                          border: 'none',
+                          display: 'flex', alignItems: 'center', gap: '8px',
+                          padding: '8px 10px', border: 'none',
                           background: outputType === type.value ? 'rgba(79,70,229,0.07)' : 'none',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          fontFamily: 'inherit',
+                          borderRadius: '7px', cursor: 'pointer', textAlign: 'left',
+                          fontFamily: 'inherit', width: '100%',
                           color: outputType === type.value ? '#4f46e5' : '#334155',
-                          width: '100%',
                         }}
                       >
-                        <type.icon size={14} />
+                        <type.icon size={13} />
                         <div>
-                          <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>{type.label}</div>
-                          <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 500 }}>{type.desc}</div>
+                          <div style={{ fontSize: '0.78rem', fontWeight: 700 }}>{type.label}</div>
+                          <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 500 }}>{type.desc}</div>
                         </div>
-                        {outputType === type.value && <Check size={13} style={{ marginLeft: 'auto', flexShrink: 0 }} />}
+                        {outputType === type.value && <Check size={12} style={{ marginLeft: 'auto' }} />}
                       </button>
                     ))}
                   </motion.div>
@@ -399,73 +342,59 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
               </AnimatePresence>
             </div>
 
-            {/* Language Toggle */}
-            <div style={{ display: 'flex', border: '1.5px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
-              {[{ val: 'tr', label: '🇹🇷 TR' }, { val: 'en', label: '🇬🇧 EN' }].map(({ val, label }) => (
+            {/* TR / EN */}
+            <div style={{ display: 'flex', border: '1.5px solid #e2e8f0', borderRadius: '9px', overflow: 'hidden', flexShrink: 0 }}>
+              {[{ val: 'tr', label: 'TR' }, { val: 'en', label: 'EN' }].map(({ val, label }) => (
                 <button
                   key={val}
                   onClick={() => setLanguage(val)}
                   style={{
-                    padding: '10px 16px',
-                    border: 'none',
+                    padding: '8px 12px', border: 'none',
                     background: language === val ? '#4f46e5' : 'white',
-                    color: language === val ? 'white' : '#64748b',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    transition: 'all 0.15s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
+                    color:      language === val ? 'white' : '#64748b',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    fontSize: '0.76rem', fontWeight: 700,
+                    display: 'flex', alignItems: 'center', gap: '4px',
+                    transition: 'all 0.15s',
                   }}
                 >
-                  <Languages size={13} />
+                  <Languages size={11} />
                   {label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Prompt Textarea */}
+          {/* Prompt */}
           <div style={{ position: 'relative' }}>
             <textarea
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
-              placeholder={`Örn: "Yapay zekanın kanser tanısındaki rolünü, seçilen makaleleri kullanarak detaylı bir literatür taraması yaz."`}
+              placeholder={`Örn: "YZ'nin kanser tanısındaki rolünü, seçili makalelerle detaylı literatür taraması yaz."`}
               rows={3}
               disabled={isGenerating}
               style={{
-                width: '100%',
-                padding: '12px 14px',
-                border: '1.5px solid #e2e8f0',
-                borderRadius: '10px',
-                fontSize: '0.875rem',
-                fontFamily: 'inherit',
-                color: '#1e293b',
-                resize: 'vertical',
-                outline: 'none',
-                transition: 'border-color 0.15s',
-                boxSizing: 'border-box',
-                opacity: isGenerating ? 0.6 : 1,
-                minHeight: '80px',
+                width: '100%', padding: '10px 11px', border: '1.5px solid #e2e8f0',
+                borderRadius: '9px', fontSize: '0.8rem', fontFamily: 'inherit',
+                color: '#1e293b', resize: 'vertical', outline: 'none',
+                transition: 'border-color 0.15s', boxSizing: 'border-box',
+                opacity: isGenerating ? 0.6 : 1, minHeight: '72px',
+                lineHeight: 1.55,
               }}
               onFocus={e => e.target.style.borderColor = '#4f46e5'}
-              onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+              onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
             />
             <span style={{
-              position: 'absolute',
-              bottom: '10px',
-              right: '12px',
-              fontSize: '0.7rem',
+              position: 'absolute', bottom: '8px', right: '10px',
+              fontSize: '0.65rem',
               color: prompt.length < 10 ? '#dc2626' : '#94a3b8',
-              fontWeight: 600,
+              fontWeight: 700,
             }}>
               {prompt.length}/10
             </span>
           </div>
 
-          {/* Hata Bildirimi */}
+          {/* Hata */}
           <AnimatePresence>
             {error && (
               <motion.div
@@ -473,236 +402,172 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose }) => {
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 style={{
-                  background: '#fef2f2',
-                  border: '1px solid #fecaca',
-                  borderRadius: '10px',
-                  padding: '10px 14px',
-                  fontSize: '0.82rem',
-                  color: '#b91c1c',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
+                  background: '#fef2f2', border: '1px solid #fecaca',
+                  borderRadius: '8px', padding: '8px 12px',
+                  fontSize: '0.78rem', color: '#b91c1c', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: '7px',
                 }}
               >
-                <AlertCircle size={14} />
+                <AlertCircle size={13} />
                 {error}
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Generate Button */}
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
             {!isGenerating ? (
               <button
                 onClick={handleGenerate}
-                disabled={papers.length === 0 || prompt.trim().length < 10}
+                disabled={!canGenerate}
                 style={{
-                  flex: 1,
-                  padding: '12px 20px',
-                  background: papers.length === 0 || prompt.trim().length < 10
-                    ? '#94a3b8'
-                    : 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '10px',
-                  fontFamily: 'inherit',
-                  fontWeight: 700,
-                  fontSize: '0.9rem',
-                  cursor: papers.length === 0 || prompt.trim().length < 10 ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: papers.length > 0 && prompt.trim().length >= 10
-                    ? '0 4px 16px -4px rgba(79,70,229,0.4)'
-                    : 'none',
+                  flex: 1, padding: '10px 16px',
+                  background: canGenerate
+                    ? 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)'
+                    : '#94a3b8',
+                  color: 'white', border: 'none', borderRadius: '9px',
+                  fontFamily: 'inherit', fontWeight: 700, fontSize: '0.85rem',
+                  cursor: canGenerate ? 'pointer' : 'not-allowed',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
+                  boxShadow: canGenerate ? '0 4px 14px -4px rgba(79,70,229,0.4)' : 'none',
                   transition: 'all 0.2s ease',
                 }}
               >
-                <Sparkles size={16} />
+                <Sparkles size={14} />
                 {generatedText ? 'Yeniden Üret' : 'Atıflı Metin Üret'}
               </button>
             ) : (
               <button
                 onClick={handleStop}
                 style={{
-                  flex: 1,
-                  padding: '12px 20px',
-                  background: '#dc2626',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '10px',
-                  fontFamily: 'inherit',
-                  fontWeight: 700,
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
+                  flex: 1, padding: '10px 16px',
+                  background: '#dc2626', color: 'white',
+                  border: 'none', borderRadius: '9px',
+                  fontFamily: 'inherit', fontWeight: 700, fontSize: '0.85rem',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
                 }}
               >
-                <X size={16} /> Durdur
+                <X size={14} /> Durdur
               </button>
             )}
 
             {generatedText && !isGenerating && (
               <>
-                <button onClick={handleCopy} style={{
-                  padding: '12px 16px',
-                  border: '1.5px solid #e2e8f0',
+                <button onClick={handleCopy} title={copied ? 'Kopyalandı!' : 'Kopyala'} style={{
+                  padding: '10px 12px', border: '1.5px solid #e2e8f0',
                   background: copied ? '#ecfdf5' : 'white',
                   color: copied ? '#059669' : '#64748b',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  fontFamily: 'inherit',
-                  transition: 'all 0.15s ease',
+                  borderRadius: '9px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '5px',
+                  fontSize: '0.76rem', fontWeight: 700, fontFamily: 'inherit', transition: 'all 0.15s',
                 }}>
-                  {copied ? <Check size={14} /> : <Copy size={14} />}
-                  {copied ? 'Kopyalandı!' : 'Kopyala'}
+                  {copied ? <Check size={13} /> : <Copy size={13} />}
                 </button>
-                <button onClick={handleDownload} style={{
-                  padding: '12px 16px',
-                  border: '1.5px solid #e2e8f0',
-                  background: 'white',
-                  color: '#64748b',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  fontFamily: 'inherit',
+                <button onClick={handleDownload} title="İndir" style={{
+                  padding: '10px 12px', border: '1.5px solid #e2e8f0', background: 'white',
+                  color: '#64748b', borderRadius: '9px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', transition: 'all 0.15s',
                 }}>
-                  <Download size={14} /> İndir
+                  <Download size={13} />
                 </button>
-                <button onClick={handleReset} style={{
-                  padding: '12px',
-                  border: '1.5px solid #e2e8f0',
-                  background: 'white',
-                  color: '#94a3b8',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
+                <button onClick={() => { setGeneratedText(''); setPhase('idle'); setError(null); }} title="Sıfırla" style={{
+                  padding: '10px 12px', border: '1.5px solid #e2e8f0', background: 'white',
+                  color: '#94a3b8', borderRadius: '9px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', transition: 'all 0.15s',
                 }}>
-                  <RefreshCw size={14} />
+                  <RefreshCw size={13} />
                 </button>
               </>
             )}
           </div>
         </div>
 
-        {/* Output Area */}
-        <div
-          ref={outputRef}
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: generatedText || isGenerating ? '1.5rem' : '0',
-            minHeight: generatedText || isGenerating ? '200px' : '0',
-            transition: 'min-height 0.3s ease',
-          }}
-        >
+        {/* ── Output Area ─────────────────────────────────── */}
+        <div ref={outputRef} style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', minHeight: 0 }}>
+
           {isGenerating && !generatedText && (
             <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '1rem',
-              padding: '3rem 2rem',
-              textAlign: 'center',
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              justifyContent: 'center', gap: '1rem', padding: '2.5rem 1rem', textAlign: 'center',
             }}>
               <div style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, rgba(79,70,229,0.12), rgba(124,58,237,0.12))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                width: '48px', height: '48px', borderRadius: '50%',
+                background: 'linear-gradient(135deg, rgba(79,70,229,0.1), rgba(124,58,237,0.1))',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <Loader2 size={24} color="#4f46e5" style={{ animation: 'spin 1s linear infinite' }} />
+                <Loader2 size={20} color="#4f46e5" style={{ animation: 'spin 1s linear infinite' }} />
               </div>
               <div>
-                <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#1e293b', fontSize: '0.95rem' }}>
+                <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#1e293b', fontSize: '0.88rem' }}>
                   Akademik metin üretiliyor...
                 </p>
-                <p style={{ margin: 0, color: '#64748b', fontSize: '0.82rem', fontWeight: 500 }}>
-                  {papers.length} makale analiz ediliyor, atıflar oluşturuluyor
+                <p style={{ margin: 0, color: '#64748b', fontSize: '0.76rem', fontWeight: 500 }}>
+                  {papers.length} makale analiz ediliyor
                 </p>
               </div>
             </div>
           )}
 
-          {(generatedText || (isGenerating && generatedText)) && (
+          {generatedText && (
             <div>
-              {/* Üretiliyor göstergesi */}
               {isGenerating && (
                 <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginBottom: '1rem',
-                  padding: '6px 12px',
-                  background: 'rgba(79,70,229,0.06)',
-                  borderRadius: '999px',
-                  width: 'fit-content',
+                  display: 'flex', alignItems: 'center', gap: '7px',
+                  marginBottom: '0.875rem', padding: '4px 10px',
+                  background: 'rgba(79,70,229,0.06)', borderRadius: '999px', width: 'fit-content',
                 }}>
                   <div style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    background: '#4f46e5',
+                    width: '6px', height: '6px', borderRadius: '50%', background: '#4f46e5',
                     animation: 'pulse 1s ease-in-out infinite',
                   }} />
-                  <span style={{ fontSize: '0.78rem', color: '#4f46e5', fontWeight: 700 }}>
-                    Yazıyor...
-                  </span>
+                  <span style={{ fontSize: '0.72rem', color: '#4f46e5', fontWeight: 700 }}>Yazıyor...</span>
                 </div>
               )}
 
-              {/* Rendered Content */}
               <div
                 className="writer-output"
                 dangerouslySetInnerHTML={{ __html: renderMarkdown(generatedText) }}
-                style={{
-                  fontSize: '0.9rem',
-                  lineHeight: 1.7,
-                  color: '#1e293b',
-                }}
+                style={{ fontSize: '0.83rem', lineHeight: 1.72, color: '#1e293b' }}
               />
+            </div>
+          )}
+
+          {!isGenerating && !generatedText && phase === 'idle' && (
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              gap: '0.75rem', padding: '3rem 1.5rem', textAlign: 'center', color: '#94a3b8',
+            }}>
+              <div style={{
+                width: '52px', height: '52px', borderRadius: '14px',
+                background: 'rgba(79,70,229,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <PenLine size={22} color="#c7d2fe" />
+              </div>
+              <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 600, lineHeight: 1.5 }}>
+                Yönlendirme yaz ve<br />"Atıflı Metin Üret" butonuna bas
+              </p>
             </div>
           )}
         </div>
 
-        {/* Footer bilgi */}
+        {/* ── Footer ──────────────────────────────────────── */}
         {phase === 'done' && (
           <div style={{
-            padding: '0.75rem 1.5rem',
+            padding: '0.625rem 1.25rem',
             borderTop: '1px solid #f1f5f9',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexShrink: 0,
           }}>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>
-              ✅ Üretim tamamlandı · {papers.length} kaynak kullanıldı
+            <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 500 }}>
+              ✅ {papers.length} kaynak kullanıldı
             </span>
-            <span style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 500 }}>
-              Powered by Groq · Llama 3.3 70B
+            <span style={{ fontSize: '0.65rem', color: '#cbd5e1', fontWeight: 500 }}>
+              Groq · Llama 3.3 70B
             </span>
           </div>
         )}
-      </motion.div>
-    </div>
+      </div>
+    </motion.div>
   );
 };
 

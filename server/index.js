@@ -978,48 +978,52 @@ ${paperListText}
       return res.end();
     }
 
-    const reader = groqRes.body;
-    let buffer = '';
+    // undici fetch body = Web ReadableStream → getReader() kullan
+    const reader  = groqRes.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer    = '';
 
-    reader.on('data', (chunk) => {
-      buffer += chunk.toString('utf-8');
-      const lines = buffer.split('\n');
-      buffer = lines.pop(); // Son tamamlanmamış satırı sakla
+    // İstemci bağlantıyı keserse reader'ı iptal et
+    req.on('close', () => { try { reader.cancel(); } catch {} });
 
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed === 'data: [DONE]') continue;
-        if (!trimmed.startsWith('data: ')) continue;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-        try {
-          const json = JSON.parse(trimmed.slice(6));
-          const delta = json.choices?.[0]?.delta?.content;
-          if (delta) {
-            res.write(`data: ${JSON.stringify({ token: delta })}\n\n`);
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Son tamamlanmamış satırı bir sonraki chunk'a taşı
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed === 'data: [DONE]') continue;
+          if (!trimmed.startsWith('data: ')) continue;
+
+          try {
+            const json  = JSON.parse(trimmed.slice(6));
+            const delta = json.choices?.[0]?.delta?.content;
+            if (delta) {
+              res.write(`data: ${JSON.stringify({ token: delta })}\n\n`);
+            }
+          } catch {
+            // Geçersiz JSON satırı — atla
           }
-        } catch {
-          // Geçersiz JSON satırları atla
         }
       }
-    });
 
-    reader.on('end', () => {
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
-    });
-
-    reader.on('error', (err) => {
-      console.error('Groq stream error:', err);
-      try {
-        res.write(`data: ${JSON.stringify({ error: 'Akış hatası oluştu.' })}\n\n`);
-        res.end();
-      } catch {}
-    });
-
-    req.on('close', () => {
-      // İstemci bağlantıyı kesti, streami temizle
-      try { reader.destroy(); } catch {}
-    });
+    } catch (streamErr) {
+      // İstemci kapattıysa sessizce bitir, aksi hâlde hata yaz
+      if (streamErr?.name !== 'AbortError') {
+        console.error('Groq stream read error:', streamErr);
+        try {
+          res.write(`data: ${JSON.stringify({ error: 'Akış hatası oluştu.' })}\n\n`);
+          res.end();
+        } catch {}
+      }
+    }
 
   } catch (err) {
     console.error('Writer generate error:', err);

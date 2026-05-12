@@ -1245,6 +1245,7 @@ function App() {
 
         <main className="app-main" style={{
           marginLeft: isMobile ? '0px' : (sidebarOpen ? '280px' : '72px'),
+          marginRight: (!isMobile && showWriterPanel) ? '420px' : '0px',
           transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
           padding: isMobile ? '3.5rem 1rem 2rem' : (isTablet ? '3.5rem 1.5rem' : '4rem 2rem')
         }}>
@@ -1593,36 +1594,42 @@ function App() {
 
       {/* Writer Panel Float Button */}
       <AnimatePresence>
-        {data?.results?.length > 0 && !showWriterPanel && (
+        {data?.results?.length > 0 && (
           <motion.button
             key="writer-float"
             initial={{ opacity: 0, y: 20, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
+            animate={{
+              opacity: 1, y: 0, scale: 1,
+              right: showWriterPanel ? 440 : 32,
+            }}
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+            transition={{ type: 'spring', damping: 22, stiffness: 280 }}
             className="writer-float-btn"
             onClick={() => {
               setWriterPapers(data.results.slice(0, 20));
-              setShowWriterPanel(true);
+              setShowWriterPanel(prev => !prev);
             }}
-            title="Arama sonuçlarından atıflı akademik metin üret"
+            title={showWriterPanel ? 'Yazar Modunu Kapat' : 'Atıflı akademik metin üret'}
+            style={{ right: showWriterPanel ? '440px' : '32px' }}
           >
             <PenLine size={16} />
-            Yazar Modu
-            <span style={{
-              background: 'rgba(255,255,255,0.25)',
-              borderRadius: '999px',
-              padding: '1px 8px',
-              fontSize: '0.72rem',
-              fontWeight: 800,
-            }}>
-              {Math.min(data.results.length, 20)}
-            </span>
+            {showWriterPanel ? 'Kapat' : 'Yazar Modu'}
+            {!showWriterPanel && (
+              <span style={{
+                background: 'rgba(255,255,255,0.25)',
+                borderRadius: '999px',
+                padding: '1px 8px',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+              }}>
+                {Math.min(data.results.length, 20)}
+              </span>
+            )}
           </motion.button>
         )}
       </AnimatePresence>
 
-      {/* Writer Panel Modal */}
+      {/* Writer Panel Sidebar */}
       <AnimatePresence>
         {showWriterPanel && (
           <WriterPanel
@@ -1639,3 +1646,4 @@ function App() {
 }
 
 export default App;
+
