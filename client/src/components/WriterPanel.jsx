@@ -20,15 +20,30 @@ import {
   Maximize2,
   PanelRightOpen,
   PanelRight,
-  Monitor
+  Monitor,
+  FileDown
 } from 'lucide-react';
 
 const OUTPUT_TYPES = [
-  { value: 'literature-review', label: 'Literatür Taraması', icon: BookOpen,      desc: 'Makaleleri sentezleyen akademik inceleme' },
-  { value: 'introduction',      label: 'Giriş Bölümü',       icon: FileText,      desc: 'Makale girişi ve arka plan bilgisi' },
-  { value: 'abstract',          label: 'Makale Özeti',        icon: BookMarked,    desc: 'Kısa ve yoğun akademik özet' },
-  { value: 'discussion',        label: 'Tartışma',            icon: MessageSquare, desc: 'Bulguları kaynaklarla tartışan bölüm' },
-  { value: 'conclusion',        label: 'Sonuç',               icon: Lightbulb,     desc: 'Çalışmanın çıkarımları ve önerileri' },
+  { value: 'literature-review', label: 'Literatür İncelemesi', icon: BookOpen,      desc: 'Makaleleri sentezleyen akademik inceleme' },
+  { value: 'introduction',      label: 'Giriş',              icon: FileText,      desc: 'Makale girişi ve arka plan bilgisi' },
+  { value: 'methodology',       label: 'Yöntem',             icon: PenLine,       desc: 'Araştırmanın metodolojisi' },
+  { value: 'results',           label: 'Bulgular',           icon: Sparkles,      desc: 'Araştırma sonuçları ve veriler' },
+  { value: 'discussion',        label: 'Tartışma',           icon: MessageSquare, desc: 'Bulguları kaynaklarla tartışan bölüm' },
+  { value: 'conclusion',        label: 'Sonuç',              icon: Lightbulb,     desc: 'Çalışmanın çıkarımları ve önerileri' },
+];
+
+const TONE_OPTIONS = [
+  { value: 'akademik', label: 'Akademik' },
+  { value: 'sade',     label: 'Daha Sade' },
+  { value: 'tez',      label: 'Tez Dili' },
+  { value: 'makale',   label: 'Makale Dili' },
+];
+
+const LENGTH_OPTIONS = [
+  { value: 'kisa', label: 'Kısa' },
+  { value: 'orta', label: 'Orta' },
+  { value: 'uzun', label: 'Uzun' },
 ];
 
 // Basit Markdown → HTML (atıf rozetleri dahil)
@@ -46,6 +61,8 @@ function renderMarkdown(text) {
 
 const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default', setSize }) => {
   const [outputType,    setOutputType]    = useState('literature-review');
+  const [tone,          setTone]          = useState('akademik');
+  const [length,        setLength]        = useState('orta');
   const [language,      setLanguage]      = useState('tr');
   const [prompt,        setPrompt]        = useState('');
   const [generatedText, setGeneratedText] = useState('');
@@ -54,6 +71,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
   const [copied,        setCopied]        = useState(false);
   const [showTypeMenu,  setShowTypeMenu]  = useState(false);
   const [phase,         setPhase]         = useState('idle');
+  const [cooldown,      setCooldown]      = useState(0);
 
   const abortRef    = useRef(null);
   const outputRef   = useRef(null);
@@ -98,7 +116,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ papers, prompt: prompt.trim(), outputType, language }),
+        body: JSON.stringify({ papers, prompt: prompt.trim(), outputType, tone, length, language }),
       });
 
       if (!response.ok) {
@@ -137,8 +155,19 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
     } finally {
       setIsGenerating(false);
       abortRef.current = null;
+      // 5 saniyelik cooldown başlat
+      setCooldown(5);
     }
-  }, [papers, prompt, outputType, language, apiUrl, getToken, isGenerating]);
+  }, [papers, prompt, outputType, tone, length, language, apiUrl, getToken, isGenerating]);
+
+  // Cooldown timer
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown(c => c - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const handleStop = () => {
     if (abortRef.current) { try { abortRef.current.cancel(); } catch {} }
@@ -154,7 +183,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
     } catch { setError('Kopyalama başarısız.'); }
   };
 
-  const handleDownload = () => {
+  const handleDownloadTxt = () => {
     const blob = new Blob([generatedText], { type: 'text/plain;charset=utf-8' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -164,7 +193,63 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
     URL.revokeObjectURL(url);
   };
 
-  const canGenerate = papers.length > 0 && prompt.trim().length >= 10 && !isGenerating;
+  const handleDownloadDocx = async () => {
+    try {
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx');
+      const lines = generatedText.split('\n');
+      const docChildren = [];
+
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        if (trimmed.startsWith('### ')) {
+          docChildren.push(new Paragraph({
+            text: trimmed.replace('### ', ''),
+            heading: HeadingLevel.HEADING_3,
+            spacing: { before: 200, after: 100 },
+          }));
+        } else if (trimmed.startsWith('## ')) {
+          docChildren.push(new Paragraph({
+            text: trimmed.replace('## ', ''),
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 300, after: 100 },
+          }));
+        } else if (trimmed.startsWith('# ')) {
+          docChildren.push(new Paragraph({
+            text: trimmed.replace('# ', ''),
+            heading: HeadingLevel.HEADING_1,
+            spacing: { before: 400, after: 200 },
+          }));
+        } else {
+          docChildren.push(new Paragraph({
+            children: [new TextRun(trimmed)],
+            spacing: { before: 100, after: 100 },
+          }));
+        }
+      });
+
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: docChildren,
+        }]
+      });
+
+      const blob = await Packer.toBlob(doc);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `literatureai_${outputType}_${Date.now()}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('DOCX Export error', e);
+      setError('DOCX İndirme başarısız oldu.');
+    }
+  };
+
+  const canGenerate = papers.length > 0 && prompt.trim().length >= 10 && !isGenerating && cooldown === 0;
 
   return (
     // Fixed sağ sidebar — dinamik genişlik
@@ -411,6 +496,51 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
             </div>
           </div>
 
+          {/* Tone & Length Row */}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {/* Tone Select */}
+            <select
+              value={tone}
+              onChange={(e) => setTone(e.target.value)}
+              style={{
+                flex: 1, padding: '8px 11px', border: '1.5px solid #e2e8f0',
+                borderRadius: '9px', background: 'white', cursor: 'pointer',
+                fontSize: '0.8rem', fontWeight: 600, color: '#334155', fontFamily: 'inherit',
+                outline: 'none', transition: 'border-color 0.15s',
+              }}
+              onFocus={e => e.target.style.borderColor = '#4f46e5'}
+              onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
+            >
+              {TONE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+
+            {/* Length Select */}
+            <select
+              value={length}
+              onChange={(e) => setLength(e.target.value)}
+              style={{
+                flex: 1, padding: '8px 11px', border: '1.5px solid #e2e8f0',
+                borderRadius: '9px', background: 'white', cursor: 'pointer',
+                fontSize: '0.8rem', fontWeight: 600, color: '#334155', fontFamily: 'inherit',
+                outline: 'none', transition: 'border-color 0.15s',
+              }}
+              onFocus={e => e.target.style.borderColor = '#4f46e5'}
+              onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
+            >
+              {LENGTH_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          
+          {papers.length > 0 && (
+            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginTop: '-4px' }}>
+              ℹ️ {papers.length} makale üzerinden {selectedType.label.toLowerCase()} üretilecek.
+            </div>
+          )}
+
           {/* Prompt */}
           <div style={{ position: 'relative' }}>
             <textarea
@@ -480,7 +610,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
                 }}
               >
                 <Sparkles size={14} />
-                {generatedText ? 'Yeniden Üret' : 'Atıflı Metin Üret'}
+                {cooldown > 0 ? `Bekleyin (${cooldown}s)` : (generatedText ? 'Yeniden Üret' : 'Atıflı Metin Üret')}
               </button>
             ) : (
               <button
@@ -509,12 +639,20 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
                 }}>
                   {copied ? <Check size={13} /> : <Copy size={13} />}
                 </button>
-                <button onClick={handleDownload} title="İndir" style={{
+                <button onClick={handleDownloadTxt} title="TXT İndir" style={{
                   padding: '10px 12px', border: '1.5px solid #e2e8f0', background: 'white',
                   color: '#64748b', borderRadius: '9px', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', transition: 'all 0.15s',
                 }}>
                   <Download size={13} />
+                </button>
+                <button onClick={handleDownloadDocx} title="Word Olarak İndir (.docx)" style={{
+                  padding: '10px 12px', border: '1.5px solid #e2e8f0', background: '#ecfdf5',
+                  color: '#059669', borderRadius: '9px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', transition: 'all 0.15s', gap: '5px',
+                  fontWeight: 700, fontSize: '0.76rem'
+                }}>
+                  <FileDown size={14} /> DOCX
                 </button>
                 <button onClick={() => { setGeneratedText(''); setPhase('idle'); setError(null); }} title="Sıfırla" style={{
                   padding: '10px 12px', border: '1.5px solid #e2e8f0', background: 'white',

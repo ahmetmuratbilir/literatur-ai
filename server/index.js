@@ -887,7 +887,7 @@ app.post('/api/writer/generate', WRITER_RATE_LIMITER, async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
 
-  const { papers, prompt, outputType, language } = req.body || {};
+  const { papers, prompt, outputType = 'literature-review', tone = 'akademik', length = 'orta', language = 'tr' } = req.body || {};
 
   if (!Array.isArray(papers) || papers.length === 0) {
     return res.status(400).json({ error: 'En az bir makale seçilmelidir.' });
@@ -899,11 +899,8 @@ app.post('/api/writer/generate', WRITER_RATE_LIMITER, async (req, res) => {
     return res.status(400).json({ error: 'Yönlendirme metni en az 10 karakter olmalıdır.' });
   }
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return res.status(503).json({ error: 'LLM servisi yapılandırılmamış.' });
-
   // SSE (Server-Sent Events) header'ları
-  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
@@ -918,114 +915,9 @@ app.post('/api/writer/generate', WRITER_RATE_LIMITER, async (req, res) => {
     citedBy: p.citedBy || p.citedbyCount || 0,
     abstract: String(p.description || p.teaserTR || '').slice(0, 600),
   }));
-
-  const paperListText = safePapers.map(p =>
-    `[${p.ref}] ${p.authors} (${p.year}). "${p.title}". ${p.journal}. Atıf sayısı: ${p.citedBy}.\nÖzet: ${p.abstract || 'Özet yok.'}`
-  ).join('\n\n');
-
-  const outputTypeLabels = {
-    'literature-review': 'Literatür Taraması (Literature Review)',
-    'abstract': 'Makale Özeti (Abstract)',
-    'introduction': 'Giriş Bölümü (Introduction)',
-    'discussion': 'Tartışma Bölümü (Discussion)',
-    'conclusion': 'Sonuç Bölümü (Conclusion)',
-  };
-  const outputLabel = outputTypeLabels[outputType] || 'Akademik Metin';
-  const writingLang = language === 'en' ? 'English' : 'Türkçe';
-
-  const systemPrompt = `Sen profesyonel bir akademik araştırmacı ve yazarsın. Görevin, sana verilen bilimsel makalelerin özetlerini sentezleyerek, her bilginin sonuna mutlaka köşeli parantez içinde referans numarasını ekleyerek (örn: [1], [2,3]) ${writingLang} dilinde son derece detaylı ve derinlemesine bir ${outputLabel} üretmektir.
-
-KURALLAR:
-1. DETAYLI YAZ: Çıktı kesinlikle çok kısa olmamalıdır. Seçilen makale sayısına göre en az 3-5 uzun paragraf ve kapsamlı bir akademik analiz içermelidir.
-2. SENTEZ: Makaleleri tek tek özetlemek yerine, ortak bulguları, çelişkileri ve öne çıkan temaları sentezleyerek bütüncül bir metin oluştur.
-3. ATIFLAR: HER bilgi iddiasından sonra kaynak numarasını yaz: [1] veya [2,4] gibi. Atıfsız cümle kurmaktan kaçın.
-4. GÜVENİLİRLİK: Uydurma bilgi veya hallucination YASAK. Sadece verilen makale metinlerindeki (özetler) bilgileri kullan.
-5. DİL: Akademik, resmi, objektif ve akıcı bir ${writingLang} dili kullan.
-6. FORMAT: Markdown başlık formatını kullan (Örn: ## Giriş, ### Alt Başlık).
-7. KAYNAKÇA: Metnin en sonuna '## Kaynakça' başlığı açarak kullanılan makaleleri listele.`;
-
-  const userPrompt = `Aşağıdaki ${safePapers.length} makalenin bilgilerini ve özetlerini dikkatlice analiz et. Aşağıdaki yönlendirmeyi merkeze alarak son derece detaylı, akademik ve atıflarla desteklenmiş bir ${outputLabel} yaz.
-
-YÖNLENDIRME: ${prompt.trim()}
-
-KAYNAKLAR:
-${paperListText}
-
-Lütfen acele etme ve kaynakları derinlemesine bağlayarak detaylı, uzun ve akademik bir metin üret:`;
-
   try {
-    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.4,
-        max_tokens: 3000,
-        stream: true,
-      })
-    });
-
-    if (!groqRes.ok) {
-      const errText = await groqRes.text();
-      console.error('Groq Writer API error:', groqRes.status, errText);
-      res.write(`data: ${JSON.stringify({ error: 'LLM servisi geçici olarak kullanılamıyor.' })}\n\n`);
-      return res.end();
-    }
-
-    // undici fetch body = Web ReadableStream → getReader() kullan
-    const reader  = groqRes.body.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let buffer    = '';
-
-    // İstemci bağlantıyı keserse reader'ı iptal et
-    req.on('close', () => { try { reader.cancel(); } catch {} });
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop(); // Son tamamlanmamış satırı bir sonraki chunk'a taşı
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed === 'data: [DONE]') continue;
-          if (!trimmed.startsWith('data: ')) continue;
-
-          try {
-            const json  = JSON.parse(trimmed.slice(6));
-            const delta = json.choices?.[0]?.delta?.content;
-            if (delta) {
-              res.write(`data: ${JSON.stringify({ token: delta })}\n\n`);
-            }
-          } catch {
-            // Geçersiz JSON satırı — atla
-          }
-        }
-      }
-
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-      res.end();
-    } catch (streamErr) {
-      // İstemci kapattıysa sessizce bitir, aksi hâlde hata yaz
-      if (streamErr?.name !== 'AbortError') {
-        console.error('Groq stream read error:', streamErr);
-        try {
-          res.write(`data: ${JSON.stringify({ error: 'Akış hatası oluştu.' })}\n\n`);
-          res.end();
-        } catch {}
-      }
-    }
-
+    const { generateAcademicText } = await import('./services/aiService.js');
+    await generateAcademicText(safePapers, prompt, outputType, tone, length, language, res, req);
   } catch (err) {
     console.error('Writer generate error:', err);
     try {
