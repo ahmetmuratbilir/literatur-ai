@@ -490,6 +490,8 @@ function App() {
     setLoading(true);
     setError(null);
     setData(null);
+    setAiAnalysis(null); // Eski AI önerilerini temizle
+    setShowWriterPanel(false); // Yeni aramada yazım panelini kapat
     
     try {
       const token = await getToken();

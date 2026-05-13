@@ -17,11 +17,15 @@ import {
   Lightbulb,
   Languages,
   RefreshCw,
-  Maximize2,
   PanelRightOpen,
   PanelRight,
   Monitor,
-  FileDown
+  FileDown,
+  Database,
+  Layers,
+  ShieldCheck,
+  Activity,
+  ChevronUp
 } from 'lucide-react';
 
 const OUTPUT_TYPES = [
@@ -70,14 +74,36 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
   const [error,         setError]         = useState(null);
   const [copied,        setCopied]        = useState(false);
   const [showTypeMenu,  setShowTypeMenu]  = useState(false);
+  const [showPapers,    setShowPapers]    = useState(false);
   const [phase,         setPhase]         = useState('idle');
   const [cooldown,      setCooldown]      = useState(0);
+  const [loadingStep,   setLoadingStep]   = useState(0);
 
   const abortRef    = useRef(null);
   const outputRef   = useRef(null);
   const typeMenuRef = useRef(null);
 
   const selectedType = OUTPUT_TYPES.find(t => t.value === outputType) || OUTPUT_TYPES[0];
+
+  const LOADING_PHASES = [
+    { label: 'Makaleler analiz ediliyor...', icon: Layers },
+    { label: 'Vektör eşleşmeleri hazırlanıyor...', icon: Database },
+    { label: 'Akademik metin kurgulanıyor...', icon: Sparkles },
+    { label: 'Kaynaklar metne yerleştiriliyor...', icon: ShieldCheck }
+  ];
+
+  // Dynamic loading steps
+  useEffect(() => {
+    let interval;
+    if (isGenerating && !generatedText) {
+      interval = setInterval(() => {
+        setLoadingStep(s => (s + 1) % LOADING_PHASES.length);
+      }, 2500);
+    } else {
+      setLoadingStep(0);
+    }
+    return () => clearInterval(interval);
+  }, [isGenerating, generatedText]);
 
   // Dışarı tıkla — type menüsünü kapat
   useEffect(() => {
@@ -155,12 +181,10 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
     } finally {
       setIsGenerating(false);
       abortRef.current = null;
-      // 5 saniyelik cooldown başlat
       setCooldown(5);
     }
   }, [papers, prompt, outputType, tone, length, language, apiUrl, getToken, isGenerating]);
 
-  // Cooldown timer
   useEffect(() => {
     if (cooldown <= 0) return;
     const timer = setInterval(() => {
@@ -252,7 +276,6 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
   const canGenerate = papers.length > 0 && prompt.trim().length >= 10 && !isGenerating && cooldown === 0;
 
   return (
-    // Fixed sağ sidebar — dinamik genişlik
     <motion.div
       initial={{ x: size === 'default' ? 420 : (size === 'half' ? '50vw' : '100vw'), opacity: 0 }}
       animate={{ 
@@ -278,173 +301,130 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
     >
       {/* ── Header ─────────────────────────────────────── */}
       <div style={{
-        padding: '1rem 1.25rem',
+        padding: '1.25rem 1.5rem',
         background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexShrink: 0,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{
             background: 'rgba(255,255,255,0.2)',
-            borderRadius: '8px',
-            padding: '6px',
+            borderRadius: '10px',
+            padding: '8px',
             display: 'flex',
-            backdropFilter: 'blur(4px)',
+            backdropFilter: 'blur(8px)',
           }}>
-            <PenLine size={16} color="white" />
+            <PenLine size={18} color="white" />
           </div>
           <div>
-            <div style={{ color: 'white', fontSize: '0.92rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+            <div style={{ color: 'white', fontSize: '1rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
               Yapay Zeka Yazar
             </div>
-            <div style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.72rem', fontWeight: 500 }}>
-              {papers.length} makale · Atıflı metin üretici
+            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.75rem', fontWeight: 500 }}>
+              Akademik RAG Workspace
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Size controls */}
-          <div style={{ display: 'flex', background: 'rgba(0,0,0,0.15)', borderRadius: '8px', padding: '2px' }}>
-            <button
-              onClick={() => setSize('default')}
-              title="Varsayılan (Kenar Çubuğu)"
-              style={{
-                background: size === 'default' ? 'rgba(255,255,255,0.2)' : 'transparent',
-                border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', padding: '6px',
-                transition: 'background 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}
-            >
-              <PanelRight size={14} />
-            </button>
-            <button
-              onClick={() => setSize('half')}
-              title="Yarım Ekran"
-              style={{
-                background: size === 'half' ? 'rgba(255,255,255,0.2)' : 'transparent',
-                border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', padding: '6px',
-                transition: 'background 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}
-            >
-              <PanelRightOpen size={14} />
-            </button>
-            <button
-              onClick={() => setSize('full')}
-              title="Tam Ekran"
-              style={{
-                background: size === 'full' ? 'rgba(255,255,255,0.2)' : 'transparent',
-                border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', padding: '6px',
-                transition: 'background 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}
-            >
-              <Monitor size={14} />
-            </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', padding: '3px' }}>
+            <button onClick={() => setSize('default')} title="Kenar Çubuğu" style={{ background: size === 'default' ? 'rgba(255,255,255,0.2)' : 'transparent', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', padding: '6px', display: 'flex', alignItems: 'center' }}><PanelRight size={14} /></button>
+            <button onClick={() => setSize('half')} title="Yarım Ekran" style={{ background: size === 'half' ? 'rgba(255,255,255,0.2)' : 'transparent', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', padding: '6px', display: 'flex', alignItems: 'center' }}><PanelRightOpen size={14} /></button>
+            <button onClick={() => setSize('full')} title="Tam Ekran" style={{ background: size === 'full' ? 'rgba(255,255,255,0.2)' : 'transparent', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', padding: '6px', display: 'flex', alignItems: 'center' }}><Monitor size={14} /></button>
           </div>
-          
-          <button
-            onClick={onClose}
-            style={{
-              background: 'rgba(255,255,255,0.15)',
-              border: 'none',
-              borderRadius: '7px',
-              color: 'white',
-              cursor: 'pointer',
-              padding: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              transition: 'background 0.15s',
-            }}
-            onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.28)'}
-            onMouseOut={e  => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-            title="Kapat"
-          >
-            <X size={16} />
-          </button>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '10px', color: 'white', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}><X size={18} /></button>
         </div>
       </div>
 
       {/* ── Scrollable body ─────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', background: '#fcfdfe' }}>
 
-        {/* Controls block */}
-        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+        {/* Configuration Block */}
+        <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-          {/* Makale rozetleri */}
-          {papers.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-              {papers.slice(0, 4).map((p, i) => (
-                <span key={i} style={{
-                  background: 'rgba(79,70,229,0.07)',
-                  color: '#4f46e5',
-                  border: '1px solid rgba(99,102,241,0.18)',
-                  padding: '2px 8px',
-                  borderRadius: '999px',
-                  fontSize: '0.68rem',
-                  fontWeight: 700,
-                  maxWidth: '160px',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}>
-                  [{i + 1}] {p.title || p.titleTR || 'Makale'}
+          {/* Paper Context Summary */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowPapers(!showPapers)}
+              style={{
+                width: '100%', padding: '10px 14px',
+                background: 'white', border: '1.5px solid #e2e8f0',
+                borderRadius: '12px', display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between', cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseOver={e => e.currentTarget.style.borderColor = '#4f46e5'}
+              onMouseOut={e => !showPapers && (e.currentTarget.style.borderColor = '#e2e8f0')}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(79,70,229,0.08)', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <BookMarked size={14} />
+                </div>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
+                  {papers.length > 0 ? `${papers.length} Akademik Makale Seçildi` : 'Makale Seçilmedi'}
                 </span>
-              ))}
-              {papers.length > 4 && (
-                <span style={{ fontSize: '0.68rem', color: '#64748b', padding: '2px 6px', fontWeight: 600 }}>
-                  +{papers.length - 4} daha
-                </span>
+              </div>
+              {showPapers ? <ChevronUp size={16} color="#94a3b8" /> : <ChevronDown size={16} color="#94a3b8" />}
+            </button>
+
+            <AnimatePresence>
+              {showPapers && papers.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0,
+                    background: 'white', border: '1.5px solid #e2e8f0',
+                    borderRadius: '12px', marginTop: '6px', zIndex: 100,
+                    boxShadow: '0 12px 24px -8px rgba(15,23,42,0.15)',
+                    padding: '8px', maxHeight: '200px', overflowY: 'auto'
+                  }}
+                >
+                  {papers.map((p, i) => (
+                    <div key={i} style={{ padding: '8px 12px', fontSize: '0.78rem', color: '#475569', borderBottom: i === papers.length - 1 ? 'none' : '1px solid #f1f5f9', display: 'flex', gap: '10px' }}>
+                      <span style={{ fontWeight: 800, color: '#4f46e5', flexShrink: 0 }}>[{i + 1}]</span>
+                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title || p.titleTR}</span>
+                    </div>
+                  ))}
+                </motion.div>
               )}
-            </div>
-          ) : (
-            <div style={{
-              background: '#fffbeb', border: '1px solid #fde68a',
-              borderRadius: '8px', padding: '8px 12px',
-              fontSize: '0.78rem', color: '#92400e', fontWeight: 600,
-              display: 'flex', alignItems: 'center', gap: '7px',
-            }}>
-              <AlertCircle size={13} />
-              Henüz makale yüklenmedi.
-            </div>
-          )}
+            </AnimatePresence>
+          </div>
 
-          {/* Output type + Language */}
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {/* Dropdown */}
+          {/* Core Settings Row */}
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
             <div style={{ position: 'relative', flex: 1 }} ref={typeMenuRef}>
               <button
                 onClick={() => setShowTypeMenu(p => !p)}
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  gap: '6px', padding: '8px 11px', border: '1.5px solid #e2e8f0',
-                  borderRadius: '9px', background: 'white', cursor: 'pointer',
-                  fontSize: '0.8rem', fontWeight: 600, color: '#1e293b', fontFamily: 'inherit',
-                  transition: 'border-color 0.15s',
+                  padding: '10px 14px', border: '1.5px solid #e2e8f0',
+                  borderRadius: '12px', background: 'white', cursor: 'pointer',
+                  fontSize: '0.85rem', fontWeight: 700, color: '#1e293b',
+                  transition: 'all 0.2s',
                 }}
-                onFocus={e => e.currentTarget.style.borderColor = '#4f46e5'}
-                onBlur={e  => e.currentTarget.style.borderColor = '#e2e8f0'}
               >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <selectedType.icon size={13} color="#4f46e5" />
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <selectedType.icon size={15} color="#4f46e5" />
                   {selectedType.label}
                 </span>
-                <ChevronDown size={12} color="#94a3b8" style={{
-                  transform: showTypeMenu ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.2s',
-                }} />
+                <ChevronDown size={14} color="#94a3b8" style={{ transform: showTypeMenu ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
               </button>
 
               <AnimatePresence>
                 {showTypeMenu && (
                   <motion.div
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -5 }}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
                     style={{
-                      position: 'absolute', top: 'calc(100% + 5px)', left: 0, right: 0,
-                      background: 'white', border: '1px solid #e2e8f0',
-                      borderRadius: '10px', boxShadow: '0 8px 20px -4px rgba(15,23,42,0.12)',
-                      zIndex: 200, padding: '4px', display: 'flex', flexDirection: 'column', gap: '2px',
+                      position: 'absolute', top: 'calc(100% + 8px)', left: 0, right: 0,
+                      background: 'white', border: '1.5px solid #e2e8f0',
+                      borderRadius: '14px', boxShadow: '0 15px 30px -10px rgba(15,23,42,0.18)',
+                      zIndex: 200, padding: '6px', display: 'flex', flexDirection: 'column', gap: '3px'
                     }}
                   >
                     {OUTPUT_TYPES.map(type => (
@@ -452,20 +432,20 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
                         key={type.value}
                         onClick={() => { setOutputType(type.value); setShowTypeMenu(false); }}
                         style={{
-                          display: 'flex', alignItems: 'center', gap: '8px',
-                          padding: '8px 10px', border: 'none',
-                          background: outputType === type.value ? 'rgba(79,70,229,0.07)' : 'none',
-                          borderRadius: '7px', cursor: 'pointer', textAlign: 'left',
-                          fontFamily: 'inherit', width: '100%',
-                          color: outputType === type.value ? '#4f46e5' : '#334155',
+                          display: 'flex', alignItems: 'center', gap: '10px',
+                          padding: '10px 12px', border: 'none',
+                          background: outputType === type.value ? 'rgba(79,70,229,0.06)' : 'transparent',
+                          borderRadius: '10px', cursor: 'pointer', textAlign: 'left',
+                          color: outputType === type.value ? '#4f46e5' : '#475569',
+                          transition: 'all 0.2s'
                         }}
                       >
-                        <type.icon size={13} />
+                        <type.icon size={15} />
                         <div>
-                          <div style={{ fontSize: '0.78rem', fontWeight: 700 }}>{type.label}</div>
-                          <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 500 }}>{type.desc}</div>
+                          <div style={{ fontSize: '0.82rem', fontWeight: 800 }}>{type.label}</div>
+                          <div style={{ fontSize: '0.72rem', opacity: 0.7 }}>{type.desc}</div>
                         </div>
-                        {outputType === type.value && <Check size={12} style={{ marginLeft: 'auto' }} />}
+                        {outputType === type.value && <Check size={14} style={{ marginLeft: 'auto' }} />}
                       </button>
                     ))}
                   </motion.div>
@@ -473,245 +453,235 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
               </AnimatePresence>
             </div>
 
-            {/* TR / EN */}
-            <div style={{ display: 'flex', border: '1.5px solid #e2e8f0', borderRadius: '9px', overflow: 'hidden', flexShrink: 0 }}>
+            <div style={{ display: 'flex', border: '1.5px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', background: 'white' }}>
               {[{ val: 'tr', label: 'TR' }, { val: 'en', label: 'EN' }].map(({ val, label }) => (
                 <button
                   key={val}
                   onClick={() => setLanguage(val)}
                   style={{
-                    padding: '8px 12px', border: 'none',
-                    background: language === val ? '#4f46e5' : 'white',
+                    padding: '10px 14px', border: 'none',
+                    background: language === val ? '#4f46e5' : 'transparent',
                     color:      language === val ? 'white' : '#64748b',
-                    cursor: 'pointer', fontFamily: 'inherit',
-                    fontSize: '0.76rem', fontWeight: 700,
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    transition: 'all 0.15s',
+                    cursor: 'pointer', fontSize: '0.8rem', fontWeight: 800,
+                    transition: 'all 0.2s',
                   }}
                 >
-                  <Languages size={11} />
                   {label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Tone & Length Row */}
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {/* Tone Select */}
-            <select
-              value={tone}
-              onChange={(e) => setTone(e.target.value)}
-              style={{
-                flex: 1, padding: '8px 11px', border: '1.5px solid #e2e8f0',
-                borderRadius: '9px', background: 'white', cursor: 'pointer',
-                fontSize: '0.8rem', fontWeight: 600, color: '#334155', fontFamily: 'inherit',
-                outline: 'none', transition: 'border-color 0.15s',
-              }}
-              onFocus={e => e.target.style.borderColor = '#4f46e5'}
-              onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
-            >
-              {TONE_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <select value={tone} onChange={(e) => setTone(e.target.value)} style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '12px', background: 'white', fontSize: '0.85rem', fontWeight: 700, color: '#334155', outline: 'none' }}>
+              {TONE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label} Dili</option>)}
             </select>
-
-            {/* Length Select */}
-            <select
-              value={length}
-              onChange={(e) => setLength(e.target.value)}
-              style={{
-                flex: 1, padding: '8px 11px', border: '1.5px solid #e2e8f0',
-                borderRadius: '9px', background: 'white', cursor: 'pointer',
-                fontSize: '0.8rem', fontWeight: 600, color: '#334155', fontFamily: 'inherit',
-                outline: 'none', transition: 'border-color 0.15s',
-              }}
-              onFocus={e => e.target.style.borderColor = '#4f46e5'}
-              onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
-            >
-              {LENGTH_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
+            <select value={length} onChange={(e) => setLength(e.target.value)} style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '12px', background: 'white', fontSize: '0.85rem', fontWeight: 700, color: '#334155', outline: 'none' }}>
+              {LENGTH_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label.charAt(0).toUpperCase() + opt.label.slice(1)} Metin</option>)}
             </select>
           </div>
-          
-          {papers.length > 0 && (
-            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginTop: '-4px' }}>
-              ℹ️ {papers.length} makale üzerinden {selectedType.label.toLowerCase()} üretilecek.
-            </div>
-          )}
 
-          {/* Prompt */}
-          <div style={{ position: 'relative' }}>
+          {/* Editor Workspace Area */}
+          <div style={{ 
+            position: 'relative', 
+            background: '#f8fafc', 
+            borderRadius: '16px', 
+            padding: '4px',
+            border: '1.5px solid #e2e8f0',
+            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
+          }}>
             <textarea
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
-              placeholder={`Örn: "YZ'nin kanser tanısındaki rolünü, seçili makalelerle detaylı literatür taraması yaz."`}
-              rows={3}
+              placeholder={`Örn: "Bu makaleleri sentezleyerek, yapay zekanın sağlık sektöründeki etik etkilerini akademik dille analiz et..."`}
+              rows={4}
               disabled={isGenerating}
               style={{
-                width: '100%', padding: '10px 11px', border: '1.5px solid #e2e8f0',
-                borderRadius: '9px', fontSize: '0.8rem', fontFamily: 'inherit',
-                color: '#1e293b', resize: 'vertical', outline: 'none',
-                transition: 'border-color 0.15s', boxSizing: 'border-box',
-                opacity: isGenerating ? 0.6 : 1, minHeight: '72px',
-                lineHeight: 1.55,
+                width: '100%', padding: '16px', border: 'none',
+                background: 'transparent', fontSize: '0.92rem', fontFamily: 'inherit',
+                color: '#1e293b', resize: 'none', outline: 'none',
+                lineHeight: 1.6, boxSizing: 'border-box'
               }}
-              onFocus={e => e.target.style.borderColor = '#4f46e5'}
-              onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
             />
-            <span style={{
-              position: 'absolute', bottom: '8px', right: '10px',
-              fontSize: '0.65rem',
-              color: prompt.length < 10 ? '#dc2626' : '#94a3b8',
-              fontWeight: 700,
+            <div style={{
+              position: 'absolute', bottom: '12px', right: '16px',
+              display: 'flex', alignItems: 'center', gap: '8px'
             }}>
-              {prompt.length}/10
-            </span>
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: prompt.length < 10 ? '#f59e0b' : '#94a3b8' }}>
+                {prompt.length} karakter
+              </span>
+            </div>
           </div>
 
-          {/* Hata */}
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                style={{
-                  background: '#fef2f2', border: '1px solid #fecaca',
-                  borderRadius: '8px', padding: '8px 12px',
-                  fontSize: '0.78rem', color: '#b91c1c', fontWeight: 600,
-                  display: 'flex', alignItems: 'center', gap: '7px',
-                }}
-              >
-                <AlertCircle size={13} />
-                {error}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* Status Indicators Dashboard */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: '1fr 1fr', 
+            gap: '8px', 
+            padding: '4px' 
+          }}>
+            {[
+              { label: 'Atlas Vector Search', active: true, icon: Database },
+              { label: 'RAG Pipeline', active: true, icon: Activity },
+              { label: 'Academic Citation', active: true, icon: ShieldCheck },
+              { label: 'Cloud Cache', active: true, icon: RefreshCw }
+            ].map((stat, i) => (
+              <div key={i} style={{ 
+                display: 'flex', alignItems: 'center', gap: '6px', 
+                padding: '8px 12px', background: 'white', border: '1px solid #f1f5f9', 
+                borderRadius: '10px' 
+              }}>
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: stat.active ? '#10b981' : '#cbd5e1' }} />
+                <stat.icon size={12} color="#94a3b8" />
+                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b' }}>{stat.label}</span>
+              </div>
+            ))}
+          </div>
 
-          {/* Action buttons */}
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {/* Action Area */}
+          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
             {!isGenerating ? (
               <button
                 onClick={handleGenerate}
                 disabled={!canGenerate}
                 style={{
-                  flex: 1, padding: '10px 16px',
+                  flex: 1, padding: '14px 20px',
                   background: canGenerate
                     ? 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)'
-                    : '#94a3b8',
-                  color: 'white', border: 'none', borderRadius: '9px',
-                  fontFamily: 'inherit', fontWeight: 700, fontSize: '0.85rem',
+                    : '#e2e8f0',
+                  color: canGenerate ? 'white' : '#94a3b8', 
+                  border: 'none', borderRadius: '14px',
+                  fontWeight: 800, fontSize: '0.95rem',
                   cursor: canGenerate ? 'pointer' : 'not-allowed',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
-                  boxShadow: canGenerate ? '0 4px 14px -4px rgba(79,70,229,0.4)' : 'none',
-                  transition: 'all 0.2s ease',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                  boxShadow: canGenerate ? '0 8px 20px -6px rgba(79,70,229,0.5)' : 'none',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative', overflow: 'hidden'
                 }}
               >
-                <Sparkles size={14} />
+                <Sparkles size={18} />
                 {cooldown > 0 ? `Bekleyin (${cooldown}s)` : (generatedText ? 'Yeniden Üret' : 'Atıflı Metin Üret')}
+                {canGenerate && <motion.div animate={{ x: ['-100%', '100%'] }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} style={{ position: 'absolute', top: 0, bottom: 0, width: '40%', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)', skewX: '-20deg' }} />}
               </button>
             ) : (
               <button
                 onClick={handleStop}
                 style={{
-                  flex: 1, padding: '10px 16px',
-                  background: '#dc2626', color: 'white',
-                  border: 'none', borderRadius: '9px',
-                  fontFamily: 'inherit', fontWeight: 700, fontSize: '0.85rem',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
+                  flex: 1, padding: '14px 20px',
+                  background: '#fef2f2', color: '#dc2626',
+                  border: '1.5px solid #fecaca', borderRadius: '14px',
+                  fontWeight: 800, fontSize: '0.95rem',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
                 }}
               >
-                <X size={14} /> Durdur
+                <X size={18} /> Üretimi Durdur
               </button>
             )}
-
-            {generatedText && !isGenerating && (
-              <>
-                <button onClick={handleCopy} title={copied ? 'Kopyalandı!' : 'Kopyala'} style={{
-                  padding: '10px 12px', border: '1.5px solid #e2e8f0',
-                  background: copied ? '#ecfdf5' : 'white',
-                  color: copied ? '#059669' : '#64748b',
-                  borderRadius: '9px', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: '5px',
-                  fontSize: '0.76rem', fontWeight: 700, fontFamily: 'inherit', transition: 'all 0.15s',
-                }}>
-                  {copied ? <Check size={13} /> : <Copy size={13} />}
-                </button>
-                <button onClick={handleDownloadTxt} title="TXT İndir" style={{
-                  padding: '10px 12px', border: '1.5px solid #e2e8f0', background: 'white',
-                  color: '#64748b', borderRadius: '9px', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', transition: 'all 0.15s',
-                }}>
-                  <Download size={13} />
-                </button>
-                <button onClick={handleDownloadDocx} title="Word Olarak İndir (.docx)" style={{
-                  padding: '10px 12px', border: '1.5px solid #e2e8f0', background: '#ecfdf5',
-                  color: '#059669', borderRadius: '9px', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', transition: 'all 0.15s', gap: '5px',
-                  fontWeight: 700, fontSize: '0.76rem'
-                }}>
-                  <FileDown size={14} /> DOCX
-                </button>
-                <button onClick={() => { setGeneratedText(''); setPhase('idle'); setError(null); }} title="Sıfırla" style={{
-                  padding: '10px 12px', border: '1.5px solid #e2e8f0', background: 'white',
-                  color: '#94a3b8', borderRadius: '9px', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', transition: 'all 0.15s',
-                }}>
-                  <RefreshCw size={13} />
-                </button>
-              </>
-            )}
           </div>
+
+          {/* Error Message - Softer style */}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                style={{
+                  background: '#fff7ed', border: '1.5px solid #ffedd5',
+                  borderRadius: '12px', padding: '12px 16px',
+                  fontSize: '0.82rem', color: '#9a3412', fontWeight: 700,
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  boxShadow: '0 4px 12px rgba(251,146,60,0.1)'
+                }}
+              >
+                <AlertCircle size={16} color="#f97316" />
+                {error}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {generatedText && !isGenerating && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+              <button onClick={handleCopy} title="Kopyala" style={{ padding: '10px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: '10px', color: copied ? '#10b981' : '#64748b', cursor: 'pointer', display: 'flex', justifyContent: 'center' }}>
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+              </button>
+              <button onClick={handleDownloadDocx} title="Word Olarak İndir" style={{ padding: '10px', background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: '10px', color: '#0284c7', cursor: 'pointer', display: 'flex', justifyContent: 'center', fontWeight: 800, fontSize: '0.75rem' }}>
+                DOCX
+              </button>
+              <button onClick={handleDownloadTxt} title="TXT İndir" style={{ padding: '10px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: '10px', color: '#64748b', cursor: 'pointer', display: 'flex', justifyContent: 'center' }}>
+                <Download size={16} />
+              </button>
+              <button onClick={() => { setGeneratedText(''); setPhase('idle'); setError(null); }} title="Sıfırla" style={{ padding: '10px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: '10px', color: '#94a3b8', cursor: 'pointer', display: 'flex', justifyContent: 'center' }}>
+                <RefreshCw size={16} />
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* ── Output Area ─────────────────────────────────── */}
-        <div ref={outputRef} style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', minHeight: 0 }}>
+        {/* ── Output Workspace ─────────────────────────────── */}
+        <div ref={outputRef} style={{ 
+          flex: 1, 
+          overflowY: 'auto', 
+          padding: '1.5rem', 
+          minHeight: 0, 
+          background: 'white',
+          borderTop: '1px solid #f1f5f9'
+        }}>
 
           {isGenerating && !generatedText && (
             <div style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', gap: '1rem', padding: '2.5rem 1rem', textAlign: 'center',
+              justifyContent: 'center', gap: '1.5rem', padding: '4rem 1rem', textAlign: 'center',
             }}>
-              <div style={{
-                width: '48px', height: '48px', borderRadius: '50%',
-                background: 'linear-gradient(135deg, rgba(79,70,229,0.1), rgba(124,58,237,0.1))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Loader2 size={20} color="#4f46e5" style={{ animation: 'spin 1s linear infinite' }} />
+              <div style={{ position: 'relative' }}>
+                <Loader2 size={42} color="#4f46e5" style={{ animation: 'spin 2s linear infinite', opacity: 0.2 }} />
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <selectedType.icon size={20} color="#4f46e5" />
+                </div>
               </div>
-              <div>
-                <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#1e293b', fontSize: '0.88rem' }}>
-                  Akademik metin üretiliyor...
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <motion.p 
+                  key={loadingStep}
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  style={{ margin: 0, fontWeight: 800, color: '#1e293b', fontSize: '1rem', letterSpacing: '-0.01em' }}
+                >
+                  {LOADING_PHASES[loadingStep].label}
+                </motion.p>
+                <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600 }}>
+                  Bu işlem seçilen {papers.length} makale için derinlemesine analiz içerir.
                 </p>
-                <p style={{ margin: 0, color: '#64748b', fontSize: '0.76rem', fontWeight: 500 }}>
-                  {papers.length} makale analiz ediliyor
-                </p>
+              </div>
+              
+              {/* Simple progress bar */}
+              <div style={{ width: '200px', height: '4px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden' }}>
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: '100%' }}
+                  transition={{ duration: 10, repeat: Infinity }}
+                  style={{ height: '100%', background: 'linear-gradient(90deg, #4f46e5, #7c3aed)' }}
+                />
               </div>
             </div>
           )}
 
           {generatedText && (
-            <div>
+            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
               {isGenerating && (
                 <div style={{
-                  display: 'flex', alignItems: 'center', gap: '7px',
-                  marginBottom: '0.875rem', padding: '4px 10px',
-                  background: 'rgba(79,70,229,0.06)', borderRadius: '999px', width: 'fit-content',
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  marginBottom: '1.25rem', padding: '6px 12px',
+                  background: 'rgba(79,70,229,0.06)', borderRadius: '10px', width: 'fit-content',
                 }}>
-                  <div style={{
-                    width: '6px', height: '6px', borderRadius: '50%', background: '#4f46e5',
-                    animation: 'pulse 1s ease-in-out infinite',
-                  }} />
-                  <span style={{ fontSize: '0.72rem', color: '#4f46e5', fontWeight: 700 }}>Yazıyor...</span>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4f46e5', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                  <span style={{ fontSize: '0.75rem', color: '#4f46e5', fontWeight: 800 }}>Yazılıyor...</span>
                 </div>
               )}
 
               <div
                 className="writer-output"
                 dangerouslySetInnerHTML={{ __html: renderMarkdown(generatedText) }}
-                style={{ fontSize: '0.83rem', lineHeight: 1.72, color: '#1e293b' }}
+                style={{ fontSize: '0.95rem', lineHeight: 1.8, color: '#334155' }}
               />
             </div>
           )}
@@ -719,37 +689,45 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
           {!isGenerating && !generatedText && phase === 'idle' && (
             <div style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              gap: '0.75rem', padding: '3rem 1.5rem', textAlign: 'center', color: '#94a3b8',
+              gap: '1.25rem', padding: '5rem 2rem', textAlign: 'center', color: '#94a3b8',
             }}>
               <div style={{
-                width: '52px', height: '52px', borderRadius: '14px',
-                background: 'rgba(79,70,229,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '64px', height: '64px', borderRadius: '20px',
+                background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9'
               }}>
-                <PenLine size={22} color="#c7d2fe" />
+                <PenLine size={28} color="#e2e8f0" />
               </div>
-              <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 600, lineHeight: 1.5 }}>
-                Yönlendirme yaz ve<br />"Atıflı Metin Üret" butonuna bas
-              </p>
+              <div>
+                <p style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 800, color: '#cbd5e1' }}>
+                  Çalışma Alanı Hazır
+                </p>
+                <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0', lineHeight: 1.6 }}>
+                  Lütfen yukarıdan üretim ayarlarını seçin ve<br />analiz için bir yönlendirme girin.
+                </p>
+              </div>
             </div>
           )}
         </div>
 
-        {/* ── Footer ──────────────────────────────────────── */}
-        {phase === 'done' && (
-          <div style={{
-            padding: '0.625rem 1.25rem',
-            borderTop: '1px solid #f1f5f9',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            flexShrink: 0,
-          }}>
-            <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 500 }}>
-              ✅ {papers.length} kaynak kullanıldı
-            </span>
-            <span style={{ fontSize: '0.65rem', color: '#cbd5e1', fontWeight: 500 }}>
-              Groq · Llama 3.3 70B
+        {/* ── Footer Stats ──────────────────────────────────────── */}
+        <div style={{
+          padding: '0.75rem 1.5rem',
+          borderTop: '1px solid #f1f5f9',
+          background: 'white',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Activity size={12} color="#10b981" />
+            <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 700 }}>
+              AI Engine: Llama 3.3 (70B)
             </span>
           </div>
-        )}
+          <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>
+            LiteratureAI v1.2.0 Production
+          </span>
+        </div>
       </div>
     </motion.div>
   );
