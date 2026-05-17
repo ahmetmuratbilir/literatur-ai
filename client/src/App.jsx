@@ -219,7 +219,7 @@ function App() {
   const [landingTheme, setLandingTheme] = useState('light');
   const [showWriterPanel, setShowWriterPanel] = useState(false);
   const [writerSize, setWriterSize] = useState('default'); // 'default', 'half', 'full'
-  const [writerPapers, setWriterPapers] = useState([]);
+  const [selectedPapers, setSelectedPapers] = useState([]);
   const canSubmitSearch = Boolean(
     mainTopic.trim() ||
     authorName.trim() ||
@@ -434,6 +434,22 @@ function App() {
     await handleSaveToCollection(favoriteCollection._id, paper);
   };
 
+  const handleTogglePaper = useCallback((paper) => {
+    setSelectedPapers(prev => {
+      const exists = prev.find(p => (p.doi && p.doi === paper.doi) || (p.url && p.url === paper.url) || p.title === paper.title);
+      if (exists) return prev.filter(p => p !== exists);
+      return [...prev, paper];
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    if (data?.results) setSelectedPapers([...data.results]);
+  }, [data]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedPapers([]);
+  }, []);
+
   const handleAiSuggest = async () => {
     if (!mainTopic.trim()) {
       setAiError('Lütfen önce bir konu giriniz.');
@@ -492,6 +508,7 @@ function App() {
     setData(null);
     setAiAnalysis(null); // Eski AI önerilerini temizle
     setShowWriterPanel(false); // Yeni aramada yazım panelini kapat
+    setSelectedPapers([]); // Yeni aramada makale seçimini temizle
     
     try {
       const token = await getToken();
@@ -1539,6 +1556,20 @@ function App() {
                   failedSources={data.failedSources}
                 />
                 
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--slate-50)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', marginBottom: '1rem' }}>
+                  <div style={{ fontWeight: '600', color: 'var(--text-main)', fontSize: 'var(--fs-sm)' }}>
+                    Yazar Paneli İçin Seçilen: <span style={{ color: 'var(--brand-primary)', fontWeight: '800' }}>{selectedPapers.length}</span> / {data.results.length} makale
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={handleSelectAll} style={{ padding: '6px 12px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 'var(--fs-xs)', fontWeight: '600', color: 'var(--slate-600)' }}>
+                      Tümünü Seç
+                    </button>
+                    <button onClick={handleClearSelection} style={{ padding: '6px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 'var(--fs-xs)', fontWeight: '600', color: '#dc2626' }}>
+                      Seçimi Temizle
+                    </button>
+                  </div>
+                </div>
+
                 <div className="export-actions" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', fontWeight: '500' }}>
@@ -1567,6 +1598,7 @@ function App() {
                 <div id="results-container" style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
                   {data.results.map((item, idx) => {
                     const isFavorited = isPaperFavorited(item);
+                    const isSelected = selectedPapers.some(p => (p.doi && p.doi === item.doi) || (p.url && p.url === item.url) || p.title === item.title);
                     return (
                       <ResultCard 
                         key={item.doi || item.url || item.title || idx} 
@@ -1576,6 +1608,8 @@ function App() {
                         onSaveToCollection={handleSaveToCollection} 
                         onFavorite={handleFavorite}
                         isFavorited={isFavorited}
+                        isSelected={isSelected}
+                        onToggleSelect={() => handleTogglePaper(item)}
                       />
                     );
                   })}
@@ -1612,7 +1646,6 @@ function App() {
             transition={{ type: 'spring', damping: 22, stiffness: 280 }}
             className="writer-float-btn"
             onClick={() => {
-              setWriterPapers(data.results.slice(0, 20));
               setShowWriterPanel(prev => !prev);
             }}
             title={showWriterPanel ? 'Yazar Modunu Kapat' : 'Atıflı akademik metin üret'}
@@ -1627,7 +1660,7 @@ function App() {
                 fontSize: '0.72rem',
                 fontWeight: 800,
               }}>
-                {Math.min(data.results.length, 20)}
+                {selectedPapers.length}
               </span>
             )}
           </motion.button>
@@ -1639,7 +1672,7 @@ function App() {
         {showWriterPanel && (
           <WriterPanel
             key="writer-panel"
-            papers={writerPapers}
+            papers={selectedPapers}
             apiUrl={defaultApiUrl}
             getToken={getToken}
             onClose={() => setShowWriterPanel(false)}

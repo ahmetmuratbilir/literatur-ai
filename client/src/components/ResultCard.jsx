@@ -17,7 +17,7 @@ import {
 
 const MotionDiv = motion.div;
 
-const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveToCollection }) => {
+const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveToCollection, isSelected, onToggleSelect }) => {
   const [expanded, setExpanded] = useState(false);
   const [showCollMenu, setShowCollMenu] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
@@ -106,13 +106,16 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
     <MotionDiv
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="card"
+      className={`card ${isSelected ? 'selected-card' : ''}`}
       style={{
         display: 'grid',
         gridTemplateColumns: 'auto 1fr',
         gap: '1rem',
         alignItems: 'start',
-        padding: '1.25rem'
+        padding: '1.25rem',
+        background: isSelected ? '#f8fafc' : 'white',
+        border: isSelected ? '1.5px solid #4f46e5' : '1px solid var(--border-light)',
+        boxShadow: isSelected ? '0 4px 12px rgba(79,70,229,0.08)' : 'var(--shadow-sm)'
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
@@ -403,6 +406,32 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
                 </div>
               )}
             </div>
+
+            {/* Yazara Ekle Butonu */}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
+              className="icon-btn"
+              title={isSelected ? "Yazardan Çıkar" : "Yazara Ekle"}
+              style={{
+                color: isSelected ? 'white' : 'var(--brand-primary)',
+                background: isSelected ? 'var(--brand-primary)' : 'var(--brand-primary-soft)',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.8rem',
+                transition: 'all 0.2s ease',
+                fontFamily: 'inherit'
+              }}
+            >
+              {isSelected ? <Check size={14} /> : <FileText size={14} />}
+              {isSelected ? 'Eklendi' : 'Yazara Ekle'}
+            </button>
 
             {/* Favori Butonu */}
             <button
