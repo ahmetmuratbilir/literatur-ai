@@ -252,10 +252,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   const deduplicatedCount = uniqueResults.length;
   console.log(`[Ranking] 2. Deduplicate Sonrası: ${deduplicatedCount} (Elenen: ${rawPoolCount - deduplicatedCount})`);
 
-  // 3. Score + keyCount/expandedSimilarity
-  // ÖNEMLI: queryContext temiz kelimelerden oluşuyor (Scopus syntax içermiyor)
-  // scopusQuery kullanmıyoruz çünkü title("...") syntax'ı hiçbir başlıkla eşleşmez
-  const cleanQuery = params.mainTopic || queryContext || '';
+  const cleanQuery = `${params.mainTopic || ''} ${queryContext || ''}`.trim();
   const queryTokens = cleanQuery.toLowerCase()
     .replace(/[()"]/g, ' ')
     .split(/\s+/)

@@ -98,16 +98,10 @@ export async function calculateAHP(dataset, customWeights = null) {
     const sRel = calculateReliabilityScore(item);
     const sOA = item.openAccess ? 1.0 : 0.0;
 
-    // 2. Hard Filter
-    // if (keywordScore < 0.15 && expandedSimilarity < 0.20) -> EXCLUDE
-    if (sKey < 0.15 && sSim < 0.20) return null;
-
-    // 3. Dynamic Normalization (Handle missing data)
-    // In this implementation, we assume base scores are always calculable (with defaults if needed)
-    // but we can adjust weights if certain critical data is completely missing.
+    // 2. Base weights
     let currentWeights = { ...DEFAULT_WEIGHTS };
     
-    // 4. Final Score Calculation
+    // 3. Final Score Calculation
     let totalScore = (currentWeights.keyword * sKey) +
                      (currentWeights.similarity * sSim) +
                      (currentWeights.citation * sCit) +
@@ -116,13 +110,12 @@ export async function calculateAHP(dataset, customWeights = null) {
                      (currentWeights.reliability * sRel) +
                      (currentWeights.oa * sOA);
 
-    // 5. Soft Penalty
-    // if citation low AND quality low -> -20%
+    // 4. Soft Penalty
     if (sCit < 0.1 && sQuality < 0.4) {
       totalScore *= 0.8;
     }
 
-    // 6. Explanation Generation
+    // 5. Explanation Generation
     const explanation = [];
     if (sSim > 0.6) explanation.push("Güçlü konu uyumu (Semantic)");
     else if (sKey > 0.6) explanation.push("Yüksek anahtar kelime eşleşmesi");
@@ -133,7 +126,7 @@ export async function calculateAHP(dataset, customWeights = null) {
     if (sRel > 0.8) explanation.push("Doğrulanmış güvenilir kaynak");
     if (sOA > 0) explanation.push("Açık erişim avantajı");
 
-    // 7. Confidence Level
+    // 6. Confidence Level
     let confidence = "HIGH";
     let dataPoints = 0;
     if (item.doi) dataPoints++;
@@ -158,9 +151,18 @@ export async function calculateAHP(dataset, customWeights = null) {
       },
       totalPoint: parseFloat(totalScore.toFixed(5)),
       confidence,
-      explanation: explanation.slice(0, 3) // Max 3 explanations
+      explanation: explanation.slice(0, 3), // Max 3 explanations
+      sKey,
+      sSim
     };
-  }).filter(Boolean); // Remove filtered items
+  });
 
-  return processedData.sort((a, b) => b.totalPoint - a.totalPoint);
+  // Esnek Filtreleme: Eğer en az 5 makale normal threshold'u geçiyorsa filtrele,
+  // aksi takdirde kullanıcıya skorlu sonuçları göstermek için filtreyi kaldır.
+  let filtered = processedData.filter(item => item.sKey >= 0.15 || item.sSim >= 0.20);
+  if (filtered.length < 5) {
+    filtered = processedData;
+  }
+
+  return filtered.sort((a, b) => b.totalPoint - a.totalPoint);
 }
