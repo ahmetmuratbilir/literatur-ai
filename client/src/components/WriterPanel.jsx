@@ -50,6 +50,13 @@ const LENGTH_OPTIONS = [
   { value: 'uzun', label: 'Uzun' },
 ];
 
+const BIBLIOGRAPHY_OPTIONS = [
+  { value: 'APA 7', label: 'APA 7' },
+  { value: 'IEEE',  label: 'IEEE' },
+  { value: 'MLA',   label: 'MLA' },
+  { value: 'Chicago', label: 'Chicago' },
+];
+
 // Basit Markdown → HTML (atıf rozetleri dahil)
 function renderMarkdown(text) {
   if (!text) return '';
@@ -79,6 +86,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
   const [phase,         setPhase]         = useState('idle');
   const [cooldown,      setCooldown]      = useState(0);
   const [loadingStep,   setLoadingStep]   = useState(0);
+  const [bibliographyFormat, setBibliographyFormat] = useState('APA 7');
 
   const abortRef    = useRef(null);
   const outputRef   = useRef(null);
@@ -149,7 +157,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ papers, prompt: prompt.trim(), outputType, tone, length, language }),
+        body: JSON.stringify({ papers, prompt: prompt.trim(), outputType, tone, length, language, bibliographyFormat }),
       });
 
       if (!response.ok) {
@@ -190,7 +198,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
       abortRef.current = null;
       setCooldown(5);
     }
-  }, [papers, prompt, outputType, tone, length, language, apiUrl, getToken, isGenerating]);
+  }, [papers, prompt, outputType, tone, length, language, bibliographyFormat, apiUrl, getToken, isGenerating]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -470,6 +478,12 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
             </select>
             <select value={length} onChange={(e) => setLength(e.target.value)} style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '12px', background: 'white', fontSize: '0.85rem', fontWeight: 700, color: '#334155', outline: 'none' }}>
               {LENGTH_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label.charAt(0).toUpperCase() + opt.label.slice(1)} Metin</option>)}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <select value={bibliographyFormat} onChange={(e) => setBibliographyFormat(e.target.value)} style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '12px', background: 'white', fontSize: '0.85rem', fontWeight: 700, color: '#334155', outline: 'none' }}>
+              {BIBLIOGRAPHY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>Kaynakça: {opt.label}</option>)}
             </select>
           </div>
 

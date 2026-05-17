@@ -9,6 +9,7 @@ import { enrichWithCitations } from './opencitations.js';
 import { calculateAHP } from './ahp.js';
 import { normalizeData } from '../utils/normalization.js';
 import { normalizeAndClean } from '../utils/dataUtils.js';
+import { enrichPaperRanking } from './journalRankingService.js';
 import { batchTranslateAcademic } from '../utils/translation.js';
 import fs from 'fs/promises';
 import { performance } from 'perf_hooks';
@@ -215,7 +216,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
        console.log(`Demo modu aktif: ${exData.length} yerel kayıt yüklendi.`);
        
        const cleanData = normalizeAndClean(exData).map(r => ({ ...r, source: 'Demo Havuzu' }));
-       const rankedData = await calculateAHP(cleanData, null);
+       const enrichedCleanData = cleanData.map(enrichPaperRanking);
+       const rankedData = await calculateAHP(enrichedCleanData, null);
        const finalResults = await batchTranslateAcademic(rankedData.slice(0, displayCount));
 
        return {
@@ -245,7 +247,23 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   console.log(`\n[Ranking] 1. Raw Pool Count: ${rawPoolCount}`);
 
   // 1. Normalize
-  const normalizedResults = allResults.map(normalizeSearchResult);
+  let normalizedResults = allResults.map(normalizeSearchResult);
+
+  // FUTURE FILTERING ENGINE: Easily toggleable when filter controls are added to UI
+  if (params.filters) {
+    if (params.filters.onlyQ1Q2) {
+      normalizedResults = normalizedResults.filter(r => r.quartile === 'Q1' || r.quartile === 'Q2');
+      console.log(`[FutureFilter] Only Q1/Q2 applied: ${normalizedResults.length} remaining`);
+    }
+    if (params.filters.excludePreprints) {
+      normalizedResults = normalizedResults.filter(r => r.sourceType !== 'Preprint');
+      console.log(`[FutureFilter] Exclude Preprints applied: ${normalizedResults.length} remaining`);
+    }
+    if (params.filters.journalOnly) {
+      normalizedResults = normalizedResults.filter(r => r.sourceType === 'Journal');
+      console.log(`[FutureFilter] Journal Only applied: ${normalizedResults.length} remaining`);
+    }
+  }
 
   // 2. Deduplicate
   const uniqueResults = deduplicateResults(normalizedResults);

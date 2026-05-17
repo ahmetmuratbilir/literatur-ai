@@ -34,6 +34,72 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
 
   if (!item) return null;
 
+  const renderRankingBadge = () => {
+    const q = item.quartile;
+    const type = item.sourceType;
+
+    let text = null;
+    let bg = '';
+    let color = '';
+    let border = '';
+
+    if (type === 'Preprint') {
+      text = 'Preprint';
+      bg = '#fff1f2';
+      color = '#be123c';
+      border = '1px solid #fecdd3';
+    } else if (type === 'Conference') {
+      text = 'Conference';
+      bg = '#f5f3ff';
+      color = '#6d28d9';
+      border = '1px solid #ddd6fe';
+    } else if (q === 'Q1') {
+      text = 'Q1';
+      bg = '#ecfdf5';
+      color = '#047857';
+      border = '1px solid #a7f3d0';
+    } else if (q === 'Q2') {
+      text = 'Q2';
+      bg = '#eff6ff';
+      color = '#1d4ed8';
+      border = '1px solid #bfdbfe';
+    } else if (q === 'Q3') {
+      text = 'Q3';
+      bg = '#fffbeb';
+      color = '#b45309';
+      border = '1px solid #fde68a';
+    } else if (q === 'Q4') {
+      text = 'Q4';
+      bg = '#f8fafc';
+      color = '#475569';
+      border = '1px solid #e2e8f0';
+    }
+
+    if (!text) return null;
+
+    return (
+      <div
+        title={item.sjr ? `SJR: ${item.sjr}` : `${text} Yayın Seviyesi`}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '4px 10px',
+          borderRadius: '999px',
+          background: bg,
+          color: color,
+          border: border,
+          fontSize: '10px',
+          fontWeight: '800',
+          letterSpacing: '0.02em',
+          flexShrink: 0
+        }}
+      >
+        {text}
+        {item.sjr ? ` (SJR: ${item.sjr.toFixed(2)})` : ''}
+      </div>
+    );
+  };
+
   const score = item.scores?.total || 0;
   const scorePercent = Math.round(score * 100);
 
@@ -195,6 +261,7 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
                 <Check size={10} strokeWidth={4} /> YAZARDA
               </div>
             )}
+            {renderRankingBadge()}
             <div
               title={`AHP skoru: %${scorePercent}`}
               style={{

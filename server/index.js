@@ -899,7 +899,7 @@ app.post('/api/writer/generate', WRITER_RATE_LIMITER, async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
 
-  const { papers, prompt, outputType = 'literature-review', tone = 'akademik', length = 'orta', language = 'tr' } = req.body || {};
+  const { papers, prompt, outputType = 'literature-review', tone = 'akademik', length = 'orta', language = 'tr', bibliographyFormat = 'APA 7' } = req.body || {};
 
   if (!Array.isArray(papers) || papers.length === 0) {
     return res.status(400).json({ error: 'En az bir makale seçilmelidir.' });
@@ -926,10 +926,12 @@ app.post('/api/writer/generate', WRITER_RATE_LIMITER, async (req, res) => {
     journal: String(p.publicationName || '').slice(0, 150),
     citedBy: p.citedBy || p.citedbyCount || 0,
     abstract: String(p.description || p.teaserTR || '').slice(0, 600),
+    doi: String(p.doi || '').slice(0, 100),
+    url: String(p.url || '').slice(0, 300),
   }));
   try {
     const { generateAcademicText } = await import('./services/aiService.js');
-    await generateAcademicText(safePapers, prompt, outputType, tone, length, language, res, req);
+    await generateAcademicText(safePapers, prompt, outputType, tone, length, language, res, req, bibliographyFormat);
   } catch (err) {
     console.error('Writer generate error:', err);
     try {

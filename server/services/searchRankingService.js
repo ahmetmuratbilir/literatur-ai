@@ -1,14 +1,16 @@
 import pkg from 'natural';
+import { enrichPaperRanking } from './journalRankingService.js';
 const { JaroWinklerDistance } = pkg;
 
 export function normalizeSearchResult(result) {
-  return {
+  const normalized = {
     ...result,
     title: (result.title || '').trim(),
     abstract: (result.description || result.abstract || '').trim(),
     year: parseInt(result.year, 10) || null,
     sourceList: [result.source || 'Unknown']
   };
+  return enrichPaperRanking(normalized);
 }
 
 export function deduplicateResults(results) {

@@ -12,7 +12,7 @@ import { WriterCache } from '../models/WriterCache.js';
  * 2. Groq (Gemini yoksa veya hata verirse)
  */
 
-export async function generateAcademicText(safePapers, prompt, outputType, tone, length, language, res, req) {
+export async function generateAcademicText(safePapers, prompt, outputType, tone, length, language, res, req, bibliographyFormat = 'APA 7') {
   const geminiKey = process.env.GEMINI_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
 
@@ -20,7 +20,7 @@ export async function generateAcademicText(safePapers, prompt, outputType, tone,
   const requestFingerprint = {
     prompt: prompt.trim(),
     papers: safePapers.map(p => p.id || p.ref).sort(),
-    outputType, tone, length, language
+    outputType, tone, length, language, bibliographyFormat
   };
   const requestHash = crypto.createHash('sha256').update(JSON.stringify(requestFingerprint)).digest('hex');
 
@@ -129,6 +129,35 @@ export async function generateAcademicText(safePapers, prompt, outputType, tone,
     'uzun': 'Son derece kapsamlı ve detaylı yaz. Seçilen makale sayısına göre en az 4-5 uzun paragraf ve derin analiz.'
   }[length] || 'Standart uzunlukta yaz.';
 
+  let bibliographyInstruction = '';
+  if (bibliographyFormat === 'IEEE') {
+    bibliographyInstruction = `8. KAYNAKÇA: Metnin en sonuna '## Kullanılan Kaynaklar' başlığı açarak sadece kullandığın makaleleri IEEE stiline uygun şekilde listele.
+    - IEEE biçimi: [Sıra No] Yazarlar, "Makale Başlığı," Dergi/Yayın, Yıl. Varsa URL veya DOI.
+    - Yazar bilgisi yoksa veya "Bilinmiyor" ise fallback olarak şu şablonu kullan: [Sıra No] Makale Başlığı, Yıl.
+    - Yazar ismi biçimi: Adının ilk harfi ve soyadı (Örn: J. Smith, R. Doe).
+    - Atıf sırasına göre [1], [2] şeklinde numara kullan.
+    - Kaynakça bölümünde yalnızca verilen makale metadatasını kullan. Eksik DOI, yazar veya dergi bilgisi uydurma.`;
+  } else if (bibliographyFormat === 'MLA') {
+    bibliographyInstruction = `8. KAYNAKÇA: Metnin en sonuna '## Kullanılan Kaynaklar' başlığı açarak sadece kullandığın makaleleri MLA stiline uygun şekilde listele.
+    - MLA biçimi: Yazarlar. "Makale Başlığı." Dergi/Yayın, Yıl, Varsa URL veya DOI.
+    - Yazar bilgisi yoksa veya "Bilinmiyor" ise fallback olarak şu şablonla başla: "Makale Başlığı." Dergi/Yayın, Yıl, Varsa URL veya DOI.
+    - Yazar ismi biçimi: Soyadı, Adı (Örn: Smith, John, and Richard Doe).
+    - Kaynakça bölümünde yalnızca verilen makale metadatasını kullan. Eksik DOI, yazar veya dergi bilgisi uydurma.`;
+  } else if (bibliographyFormat === 'Chicago') {
+    bibliographyInstruction = `8. KAYNAKÇA: Metnin en sonuna '## Kullanılan Kaynaklar' başlığı açarak sadece kullandığın makaleleri Chicago stiline uygun şekilde listele.
+    - Chicago biçimi: Yazarlar. "Makale Başlığı." Dergi/Yayın Yıl. Varsa URL veya DOI.
+    - Yazar bilgisi yoksa veya "Bilinmiyor" ise fallback olarak şu şablonla başla: "Makale Başlığı." Dergi/Yayın Yıl. Varsa URL veya DOI.
+    - Yazar ismi biçimi: Soyadı, Adı (Örn: Smith, John, and Richard Doe).
+    - Kaynakça bölümünde yalnızca verilen makale metadatasını kullan. Eksik DOI, yazar veya dergi bilgisi uydurma.`;
+  } else {
+    // Varsayılan APA 7 olsun
+    bibliographyInstruction = `8. KAYNAKÇA: Metnin en sonuna '## Kullanılan Kaynaklar' başlığı açarak sadece kullandığın makaleleri APA 7 stiline uygun şekilde listele.
+    - APA 7 biçimi: Yazarlar. (Yıl). Makale Başlığı. Dergi/Yayın. Varsa URL veya DOI.
+    - Yazar bilgisi yoksa veya "Bilinmiyor" ise fallback olarak şu şablonla başla: Makale Başlığı. (Yıl). Dergi/Yayın. Varsa URL veya DOI.
+    - Yazar ismi biçimi: Soyadı, Adının baş harfi (Örn: Smith, J., & Doe, R.).
+    - Kaynakça bölümünde yalnızca verilen makale metadatasını kullan. Eksik DOI, yazar veya dergi bilgisi uydurma.`;
+  }
+
   const systemPrompt = `Sen profesyonel ve son derece titiz bir akademik araştırmacı ve yazarsın. Görevin, sana sağlanan bilimsel makalelerin başlık ve özet (abstract) bilgilerini sentezleyerek, sadece bu verilere dayanan, ${writingLang} dilinde bir ${outputLabel} metni üretmektir.
 
 ÇOK SIKI KURALLAR:
@@ -139,17 +168,29 @@ export async function generateAcademicText(safePapers, prompt, outputType, tone,
 5. UZUNLUK: ${lengthInstruction}
 6. FORMAT: İstenen bölüm formatına (${outputLabel}) sadık kalarak, uygun paragraflara böl. Markdown başlıkları kullan (Örn: ## ${outputLabel}).
 7. YETERSİZ VERİ DURUMU: Eğer gönderilen kaynaklar, istenilen konuyu açıklamak için çok yetersizse, bunu açıkça belirt: "Bu bölüm için seçilen makalelerde yeterli veri bulunmadığından sınırlı bir değerlendirme yapılmıştır."
-8. KAYNAKÇA: Metnin en sonuna '## Kullanılan Kaynaklar' başlığı açarak sadece kullandığın makaleleri kısa formatta listele:
-   [1] Makale Başlığı - Yıl`;
+${bibliographyInstruction}`;
+
+  const paperMetadataText = safePapers.map(p => 
+    `[Kaynak ${p.ref}]
+- Başlık: ${p.title}
+- Yazarlar: ${p.authors}
+- Yıl: ${p.year}
+- Dergi/Yayın: ${p.journal || 'Bilinmiyor'}
+- DOI: ${p.doi || 'Mevcut değil'}
+- URL: ${p.url || 'Mevcut değil'}`
+  ).join('\n\n');
 
   const userPrompt = `Aşağıdaki ${safePapers.length} makalenin bilgilerini ve özetlerini dikkatlice analiz et.
 
 YÖNLENDIRME / KONU: ${prompt.trim()}
 
-KAYNAKLAR:
+KAYNAKLARIN ÖZETLERİ (LİTERATÜR):
 ${paperListText}
 
-Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen akademik bir metin üret:`;
+BİBLİYOGRAFİK METADATALAR (KAYNAKÇA BİLGİLERİ):
+${paperMetadataText}
+
+Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kaynakçayı belirtilen "${bibliographyFormat}" stiline göre düzenleyen akademik bir metin üret:`;
 
   // 1. GEMINI İLE DENE
   if (geminiKey) {

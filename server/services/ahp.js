@@ -74,6 +74,18 @@ function calculateReliabilityScore(item) {
   return Math.max(0, Math.min(1, score));
 }
 
+function calculateQuartileBoost(quartile, sourceType) {
+  if (sourceType === 'Preprint') return 0.0;
+  if (sourceType === 'Conference') return 0.02;
+  
+  if (quartile === 'Q1') return 0.08;
+  if (quartile === 'Q2') return 0.05;
+  if (quartile === 'Q3') return 0.03;
+  if (quartile === 'Q4') return 0.01;
+  
+  return 0.0;
+}
+
 /**
  * Final AHP Calculation
  */
@@ -110,13 +122,21 @@ export async function calculateAHP(dataset, customWeights = null) {
                      (currentWeights.reliability * sRel) +
                      (currentWeights.oa * sOA);
 
-    // 4. Soft Penalty
+    // 4. Quality Boost for Quartiles / SourceTypes
+    const qBoost = calculateQuartileBoost(item.quartile, item.sourceType);
+    totalScore = Math.min(1.0, totalScore + qBoost);
+
+    // 5. Soft Penalty
     if (sCit < 0.1 && sQuality < 0.4) {
       totalScore *= 0.8;
     }
 
-    // 5. Explanation Generation
+    // 6. Explanation Generation
     const explanation = [];
+    if (item.quartile === 'Q1') explanation.push("Prestijli Q1 Yayını");
+    else if (item.quartile === 'Q2') explanation.push("Nitelikli Q2 Yayını");
+    else if (item.sourceType === 'Conference') explanation.push("Akademik Konferans Bildirisi");
+    
     if (sSim > 0.6) explanation.push("Güçlü konu uyumu (Semantic)");
     else if (sKey > 0.6) explanation.push("Yüksek anahtar kelime eşleşmesi");
     
@@ -126,7 +146,7 @@ export async function calculateAHP(dataset, customWeights = null) {
     if (sRel > 0.8) explanation.push("Doğrulanmış güvenilir kaynak");
     if (sOA > 0) explanation.push("Açık erişim avantajı");
 
-    // 6. Confidence Level
+    // 7. Confidence Level
     let confidence = "HIGH";
     let dataPoints = 0;
     if (item.doi) dataPoints++;
@@ -147,6 +167,7 @@ export async function calculateAHP(dataset, customWeights = null) {
         recency: parseFloat(sRecency.toFixed(3)),
         reliability: parseFloat(sRel.toFixed(3)),
         oa: parseFloat(sOA.toFixed(3)),
+        qBoost: parseFloat(qBoost.toFixed(3)),
         total: parseFloat(totalScore.toFixed(5))
       },
       totalPoint: parseFloat(totalScore.toFixed(5)),
