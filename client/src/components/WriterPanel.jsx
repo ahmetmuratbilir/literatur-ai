@@ -64,6 +64,7 @@ function renderMarkdown(text) {
 }
 
 const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default', setSize }) => {
+  const [isMobile,      setIsMobile]      = useState(window.innerWidth <= 768);
   const [outputType,    setOutputType]    = useState('literature-review');
   const [tone,          setTone]          = useState('akademik');
   const [length,        setLength]        = useState('orta');
@@ -82,6 +83,12 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
   const abortRef    = useRef(null);
   const outputRef   = useRef(null);
   const typeMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const selectedType = OUTPUT_TYPES.find(t => t.value === outputType) || OUTPUT_TYPES[0];
 
@@ -277,13 +284,13 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
 
   return (
     <motion.div
-      initial={{ x: size === 'default' ? 420 : (size === 'half' ? '50vw' : '100vw'), opacity: 0 }}
+      initial={{ x: isMobile ? '100vw' : (size === 'default' ? 420 : (size === 'half' ? '50vw' : '100vw')), opacity: 0 }}
       animate={{ 
         x: 0, 
         opacity: 1,
-        width: size === 'default' ? '420px' : (size === 'half' ? '50vw' : '100vw')
+        width: isMobile ? '100vw' : (size === 'default' ? '420px' : (size === 'half' ? '50vw' : '100vw'))
       }}
-      exit={{ x: size === 'default' ? 420 : (size === 'half' ? '50vw' : '100vw'), opacity: 0 }}
+      exit={{ x: isMobile ? '100vw' : (size === 'default' ? 420 : (size === 'half' ? '50vw' : '100vw')), opacity: 0 }}
       transition={{ type: 'spring', damping: 28, stiffness: 280 }}
       style={{
         position: 'fixed',
@@ -297,6 +304,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
         borderLeft: '1px solid rgba(99,102,241,0.15)',
         boxShadow: '-8px 0 32px -8px rgba(15,23,42,0.14), -2px 0 8px -2px rgba(79,70,229,0.08)',
         overflow: 'hidden',
+        maxWidth: '100vw'
       }}
     >
       {/* ── Header ─────────────────────────────────────── */}
@@ -345,53 +353,37 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
         <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
           {/* Paper Context Summary */}
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowPapers(!showPapers)}
-              style={{
-                width: '100%', padding: '10px 14px',
-                background: 'white', border: '1.5px solid #e2e8f0',
-                borderRadius: '12px', display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between', cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseOver={e => e.currentTarget.style.borderColor = '#4f46e5'}
-              onMouseOut={e => !showPapers && (e.currentTarget.style.borderColor = '#e2e8f0')}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(79,70,229,0.08)', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <BookMarked size={14} />
-                </div>
-                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
-                  {papers.length > 0 ? `${papers.length} Akademik Makale Seçildi` : 'Makale Seçilmedi'}
-                </span>
+          <div style={{
+            background: 'white', border: '1.5px solid #e2e8f0', borderRadius: '12px',
+            padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(79,70,229,0.08)', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <BookMarked size={14} />
               </div>
-              {showPapers ? <ChevronUp size={16} color="#94a3b8" /> : <ChevronDown size={16} color="#94a3b8" />}
-            </button>
-
-            <AnimatePresence>
-              {showPapers && papers.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  style={{
-                    position: 'absolute', top: '100%', left: 0, right: 0,
-                    background: 'white', border: '1.5px solid #e2e8f0',
-                    borderRadius: '12px', marginTop: '6px', zIndex: 100,
-                    boxShadow: '0 12px 24px -8px rgba(15,23,42,0.15)',
-                    padding: '8px', maxHeight: '200px', overflowY: 'auto'
-                  }}
-                >
-                  {papers.map((p, i) => (
-                    <div key={i} style={{ padding: '8px 12px', fontSize: '0.78rem', color: '#475569', borderBottom: i === papers.length - 1 ? 'none' : '1px solid #f1f5f9', display: 'flex', gap: '10px' }}>
-                      <span style={{ fontWeight: 800, color: '#4f46e5', flexShrink: 0 }}>[{i + 1}]</span>
-                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title || p.titleTR}</span>
-                    </div>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
+              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
+                Seçilen Kaynaklar ({papers.length})
+              </div>
+            </div>
+            {papers.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginLeft: '38px' }}>
+                {papers.slice(0, 3).map((p, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#475569', fontWeight: 500 }}>
+                    <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#cbd5e1', flexShrink: 0 }} />
+                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title || p.titleTR}</span>
+                  </div>
+                ))}
+                {papers.length > 3 && (
+                  <div style={{ fontSize: '0.7rem', color: '#4f46e5', fontWeight: 700, paddingLeft: '10px' }}>
+                    + {papers.length - 3} makale daha
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '38px' }}>
+                Henüz kaynak seçilmedi. Sol taraftaki sonuçlardan ekleyin.
+              </div>
+            )}
           </div>
 
           {/* Core Settings Row */}
@@ -507,7 +499,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
               position: 'absolute', bottom: '12px', right: '16px',
               display: 'flex', alignItems: 'center', gap: '8px'
             }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: prompt.length < 10 ? '#f59e0b' : '#94a3b8' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#cbd5e1' }}>
                 {prompt.length} karakter
               </span>
             </div>
@@ -517,8 +509,8 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: '1fr 1fr', 
-            gap: '8px', 
-            padding: '4px' 
+            gap: '6px', 
+            padding: '2px' 
           }}>
             {[
               { label: 'Atlas Vector Search', active: true, icon: Database },
@@ -528,55 +520,62 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
             ].map((stat, i) => (
               <div key={i} style={{ 
                 display: 'flex', alignItems: 'center', gap: '6px', 
-                padding: '8px 12px', background: 'white', border: '1px solid #f1f5f9', 
-                borderRadius: '10px' 
+                padding: '6px 8px', background: '#f8fafc', border: '1px solid #f1f5f9', 
+                borderRadius: '8px' 
               }}>
-                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: stat.active ? '#10b981' : '#cbd5e1' }} />
-                <stat.icon size={12} color="#94a3b8" />
-                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b' }}>{stat.label}</span>
+                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: stat.active ? '#10b981' : '#cbd5e1', opacity: 0.7 }} />
+                <stat.icon size={10} color="#cbd5e1" />
+                <span style={{ fontSize: '0.62rem', fontWeight: 600, color: '#94a3b8' }}>{stat.label}</span>
               </div>
             ))}
           </div>
 
           {/* Action Area */}
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-            {!isGenerating ? (
-              <button
-                onClick={handleGenerate}
-                disabled={!canGenerate}
-                style={{
-                  flex: 1, padding: '14px 20px',
-                  background: canGenerate
-                    ? 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)'
-                    : '#e2e8f0',
-                  color: canGenerate ? 'white' : '#94a3b8', 
-                  border: 'none', borderRadius: '14px',
-                  fontWeight: 800, fontSize: '0.95rem',
-                  cursor: canGenerate ? 'pointer' : 'not-allowed',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                  boxShadow: canGenerate ? '0 8px 20px -6px rgba(79,70,229,0.5)' : 'none',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  position: 'relative', overflow: 'hidden'
-                }}
-              >
-                <Sparkles size={18} />
-                {cooldown > 0 ? `Bekleyin (${cooldown}s)` : (generatedText ? 'Yeniden Üret' : 'Atıflı Metin Üret')}
-                {canGenerate && <motion.div animate={{ x: ['-100%', '100%'] }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} style={{ position: 'absolute', top: 0, bottom: 0, width: '40%', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)', skewX: '-20deg' }} />}
-              </button>
-            ) : (
-              <button
-                onClick={handleStop}
-                style={{
-                  flex: 1, padding: '14px 20px',
-                  background: '#fef2f2', color: '#dc2626',
-                  border: '1.5px solid #fecaca', borderRadius: '14px',
-                  fontWeight: 800, fontSize: '0.95rem',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                }}
-              >
-                <X size={18} /> Üretimi Durdur
-              </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '0.5rem' }}>
+            {papers.length === 0 && (
+              <div style={{ fontSize: '0.75rem', color: '#9a3412', background: '#ffedd5', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+                <AlertCircle size={14} /> Metin üretmek için en az 1 makale seçin.
+              </div>
             )}
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              {!isGenerating ? (
+                <button
+                  onClick={handleGenerate}
+                  disabled={!canGenerate}
+                  style={{
+                    flex: 1, padding: '14px 20px',
+                    background: canGenerate
+                      ? 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)'
+                      : '#e2e8f0',
+                    color: canGenerate ? 'white' : '#94a3b8', 
+                    border: 'none', borderRadius: '14px',
+                    fontWeight: 800, fontSize: '0.95rem',
+                    cursor: canGenerate ? 'pointer' : 'not-allowed',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                    boxShadow: canGenerate ? '0 8px 20px -6px rgba(79,70,229,0.5)' : 'none',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative', overflow: 'hidden'
+                  }}
+                >
+                  <Sparkles size={18} />
+                  {cooldown > 0 ? `Bekleyin (${cooldown}s)` : (generatedText ? 'Yeniden Üret' : 'Atıflı Metin Üret')}
+                  {canGenerate && <motion.div animate={{ x: ['-100%', '100%'] }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} style={{ position: 'absolute', top: 0, bottom: 0, width: '40%', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)', skewX: '-20deg' }} />}
+                </button>
+              ) : (
+                <button
+                  onClick={handleStop}
+                  style={{
+                    flex: 1, padding: '14px 20px',
+                    background: '#fef2f2', color: '#dc2626',
+                    border: '1.5px solid #fecaca', borderRadius: '14px',
+                    fontWeight: 800, fontSize: '0.95rem',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                  }}
+                >
+                  <X size={18} /> Üretimi Durdur
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Error Message - Softer style */}
@@ -678,10 +677,29 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
                 </div>
               )}
 
+              {/* Output Actions Header */}
+              {!isGenerating && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+                  <button
+                    onClick={handleCopy}
+                    style={{
+                      padding: '8px 14px', background: copied ? '#10b981' : 'white',
+                      color: copied ? 'white' : '#4f46e5', border: copied ? '1px solid #059669' : '1px solid #c7d2fe',
+                      borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+                      fontSize: '0.8rem', fontWeight: 700, boxShadow: '0 2px 8px rgba(79,70,229,0.1)',
+                      transition: 'all 0.2s', zIndex: 10
+                    }}
+                  >
+                    {copied ? <Check size={16} /> : <Copy size={16} />}
+                    {copied ? 'Kopyalandı' : 'Metni Kopyala'}
+                  </button>
+                </div>
+              )}
+
               <div
                 className="writer-output"
                 dangerouslySetInnerHTML={{ __html: renderMarkdown(generatedText) }}
-                style={{ fontSize: '0.95rem', lineHeight: 1.8, color: '#334155' }}
+                style={{ fontSize: '1.05rem', lineHeight: 1.85, color: '#1e293b' }}
               />
             </div>
           )}
@@ -689,7 +707,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
           {!isGenerating && !generatedText && phase === 'idle' && (
             <div style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              gap: '1.25rem', padding: '5rem 2rem', textAlign: 'center', color: '#94a3b8',
+              gap: '1.25rem', padding: '3rem 2rem', textAlign: 'center', color: '#94a3b8',
             }}>
               <div style={{
                 width: '64px', height: '64px', borderRadius: '20px',

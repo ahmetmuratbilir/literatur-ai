@@ -214,8 +214,14 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
     if (hasSearchInput) {
       const cachedResult = await getSharedSearchCache(cacheFingerprint);
       if (cachedResult) {
-        console.log(`[SearchCache] Mongo hit: ${cacheFingerprint.displayQuery || cacheFingerprint.cacheKey}`);
-        return res.json(cachedResult);
+        // Cache'teki sonuç boşsa (eski hatalı kayıt) bypass et, canlı arama yap
+        const cachedResultCount = Array.isArray(cachedResult.results) ? cachedResult.results.length : 0;
+        if (cachedResultCount > 0) {
+          console.log(`[SearchCache] Mongo hit: ${cacheFingerprint.displayQuery || cacheFingerprint.cacheKey} (${cachedResultCount} sonuç)`);
+          return res.json(cachedResult);
+        } else {
+          console.log(`[SearchCache] Mongo hit AMA sonuç boş, cache bypass ediliyor...`);
+        }
       }
     }
 
@@ -332,9 +338,15 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
     const results = await searchAll(params, queryContext, finalQuery, booleanQuery);
     let cacheSave = { saved: false };
     try {
-      cacheSave = await saveSharedSearchCache(cacheFingerprint, results);
-      if (cacheSave.saved) {
-        console.log(`[SearchCache] Mongo save: ${cacheFingerprint.displayQuery || cacheFingerprint.cacheKey}`);
+      // Sadece dolu sonuçları cache'e kaydet
+      const resultCount = Array.isArray(results.results) ? results.results.length : 0;
+      if (resultCount > 0) {
+        cacheSave = await saveSharedSearchCache(cacheFingerprint, results);
+        if (cacheSave.saved) {
+          console.log(`[SearchCache] Mongo save: ${cacheFingerprint.displayQuery || cacheFingerprint.cacheKey} (${resultCount} sonuç)`);
+        }
+      } else {
+        console.warn('[SearchCache] Sonuç boş, cache\'e kaydedilmiyor.');
       }
     } catch (cacheError) {
       console.warn('[SearchCache] Save skipped:', cacheError.message);

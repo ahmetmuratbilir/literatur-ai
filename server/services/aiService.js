@@ -242,33 +242,66 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen akademik
       throw new Error(`Groq Status: ${groqRes.status} - ${errText}`);
     }
 
-    const reader = groqRes.body.getReader();
+    let reader = null;
+    let useAsyncIterator = false;
+
+    if (groqRes.body && typeof groqRes.body.getReader === 'function') {
+      reader = groqRes.body.getReader();
+    } else if (groqRes.body && typeof groqRes.body[Symbol.asyncIterator] === 'function') {
+      useAsyncIterator = true;
+    } else {
+      throw new Error('Groq response body is not readable.');
+    }
+
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
 
-    req.on('close', () => { try { reader.cancel(); } catch {} });
+    if (useAsyncIterator) {
+      req.on('close', () => { try { groqRes.body.destroy(); } catch {} });
+      for await (const chunk of groqRes.body) {
+        buffer += decoder.decode(chunk, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Keep last incomplete line
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed === 'data: [DONE]') continue;
+          if (!trimmed.startsWith('data: ')) continue;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop(); // Son tamamlanmamış satırı tut
+          try {
+            const json = JSON.parse(trimmed.slice(6));
+            const delta = json.choices?.[0]?.delta?.content;
+            if (delta) {
+              fullGeneratedText += delta;
+              res.write(`data: ${JSON.stringify({ token: delta })}\n\n`);
+            }
+          } catch {}
+        }
+      }
+    } else {
+      req.on('close', () => { try { reader.cancel(); } catch {} });
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed === 'data: [DONE]') continue;
-        if (!trimmed.startsWith('data: ')) continue;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Keep last incomplete line
 
-        try {
-          const json = JSON.parse(trimmed.slice(6));
-          const delta = json.choices?.[0]?.delta?.content;
-          if (delta) {
-            fullGeneratedText += delta;
-            res.write(`data: ${JSON.stringify({ token: delta })}\n\n`);
-          }
-        } catch {}
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed === 'data: [DONE]') continue;
+          if (!trimmed.startsWith('data: ')) continue;
+
+          try {
+            const json = JSON.parse(trimmed.slice(6));
+            const delta = json.choices?.[0]?.delta?.content;
+            if (delta) {
+              fullGeneratedText += delta;
+              res.write(`data: ${JSON.stringify({ token: delta })}\n\n`);
+            }
+          } catch {}
+        }
       }
     }
 

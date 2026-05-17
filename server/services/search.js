@@ -15,6 +15,13 @@ import { performance } from 'perf_hooks';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pkg from 'natural';
+import {
+  normalizeSearchResult,
+  deduplicateResults,
+  calculateRelevanceScore,
+  applyHardFilter,
+  selectFinalResults
+} from './searchRankingService.js';
 
 const { WordTokenizer } = pkg;
 const tokenizer = new WordTokenizer();
@@ -207,11 +214,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
 
        console.log(`Demo modu aktif: ${exData.length} yerel kayıt yüklendi.`);
        
-       // dataUtils.js kullanarak veriyi temizle ve normalize et
        const cleanData = normalizeAndClean(exData).map(r => ({ ...r, source: 'Demo Havuzu' }));
        const rankedData = await calculateAHP(cleanData, null);
-       
-       // Tüm başlıklar ve ilk 10 özet için akademik Türkçe çeviri
        const finalResults = await batchTranslateAcademic(rankedData.slice(0, displayCount));
 
        return {
@@ -234,58 +238,108 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
      }
   }
 
-  const uniqueResultsMap = new Map();
-  for (const item of allResults) {
-      let key = '';
-      if (item.doi && String(item.doi).trim().length > 5) {
-          let doiStr = String(item.doi).trim().toLowerCase();
-          doiStr = doiStr.replace(/^https?:\/\/(dx\.)?doi\.org\//, '');
-          key = `doi:${doiStr}`;
-      } else {
-          const url = item.url != null ? String(item.url).trim() : '';
-          const titleSlug = (item.title || '')
-            .toLowerCase()
-            .normalize('NFKD')
-            .replace(/\p{M}/gu, '')
-            .replace(/[^\p{L}\p{N}]+/gu, '');
-          const urlIsValid = url.startsWith('http') && url.length > 10;
-          key = urlIsValid ? url : (titleSlug || String(item.id ?? '').trim());
-      }
+  // ==========================================
+  // RANKING PIPELINE: searchRankingService.js
+  // ==========================================
+  const rawPoolCount = allResults.length;
+  console.log(`\n[Ranking] 1. Raw Pool Count: ${rawPoolCount}`);
 
-      if (key && !uniqueResultsMap.has(key)) {
-          uniqueResultsMap.set(key, item);
-      }
-  }
-  
-  const uniqueCleanData = Array.from(uniqueResultsMap.values());
+  // 1. Normalize
+  const normalizedResults = allResults.map(normalizeSearchResult);
 
-  const queryTokens = (tokenizer.tokenize(String(queryContext || '').toLowerCase()) || [])
-    .filter(t => t && t.length > 2 && t !== 'or' && t !== 'and');
-  if (queryTokens.length > 0) {
-    for (const item of uniqueCleanData) {
-      const { keyCount, expandedSimilarity } = recomputeKeyCount(item, queryTokens, queryContext || '');
-      item.keyCount = keyCount;
-      item.expandedSimilarity = expandedSimilarity;
+  // 2. Deduplicate
+  const uniqueResults = deduplicateResults(normalizedResults);
+  const deduplicatedCount = uniqueResults.length;
+  console.log(`[Ranking] 2. Deduplicate Sonrası: ${deduplicatedCount} (Elenen: ${rawPoolCount - deduplicatedCount})`);
+
+  // 3. Score + keyCount/expandedSimilarity
+  // ÖNEMLI: queryContext temiz kelimelerden oluşuyor (Scopus syntax içermiyor)
+  // scopusQuery kullanmıyoruz çünkü title("...") syntax'ı hiçbir başlıkla eşleşmez
+  const cleanQuery = params.mainTopic || queryContext || '';
+  const queryTokens = cleanQuery.toLowerCase()
+    .replace(/[()"]/g, ' ')
+    .split(/\s+/)
+    .filter(t => t.length > 2 && t !== 'or' && t !== 'and' && t !== 'title' && t !== 'key' && t !== 'abs');
+
+  const expandedQueries = queryContext
+    ? queryContext.split(' ').filter(x => x.length > 2)
+    : [];
+
+  uniqueResults.forEach(r => {
+    const title = (r.title || '').toLowerCase();
+    const desc  = (r.abstract || r.description || '').toLowerCase();
+
+    // keyCount (AHP için)
+    let keyCount = 0;
+    for (const t of queryTokens) {
+      if (title.includes(t)) keyCount += 3;
+      if (desc.includes(t))  keyCount += 1;
     }
-  }
+    r.keyCount = keyCount;
 
-  const totalFoundBeforeAHP = uniqueCleanData.length;
+    // expandedSimilarity (AHP için)
+    const titleTokens = new Set(title.split(/\s+/).filter(x => x.length > 2));
+    const querySet    = new Set(queryTokens);
+    const intersection = [...querySet].filter(x => titleTokens.has(x)).length;
+    r.expandedSimilarity = querySet.size > 0 ? intersection / querySet.size : 0;
+
+    // relevanceScore (ranking için)
+    r.relevanceScore = calculateRelevanceScore(r, cleanQuery, expandedQueries);
+  });
+
+  console.log(`[Ranking] 3. Scoring tamamlandı. Örnek scores:`,
+    uniqueResults.slice(0, 3).map(r => `"${(r.title||'').slice(0,30)}" keyCount=${r.keyCount} relScore=${r.relevanceScore}`)
+  );
+
+  // 4. Ranking pipeline çıktısını AHP'ye ver (hard filter YOK - AHP filtreler)
+  // selectFinalResults sadece soft diversity + limit uygular
+  const { finalResults: rankedFinalResults, sourceDistribution, lowestScore } = selectFinalResults(uniqueResults, displayCount);
+  console.log(`[Ranking] 4. Ranking Sonrası: ${rankedFinalResults.length} (Limit: ${displayCount})`);
+  console.log(`[Ranking] 5. Kaynak Dağılımı:`, sourceDistribution);
+  console.log(`[Ranking] 6. En Düşük Relevance Score: ${lowestScore}\n`);
+
+  // ==========================================
+  // ENRICHMENT & AHP
+  // ==========================================
+  const totalFoundBeforeAHP = deduplicatedCount;
+  console.log(`[AHP] ${rankedFinalResults.length} makale AHP pipeline'a giriyor...`);
 
   console.log('OpenCitations ile benzersiz kayıtlar doğrulanıyor...');
   const enrichStart = performance.now();
-  const enrichedResults = await enrichWithCitations(uniqueCleanData);
+  const enrichedResults = await enrichWithCitations(rankedFinalResults);
   const enrichEnd = performance.now();
   console.log(`OpenCitations Doğrulama Süresi: ${((enrichEnd - enrichStart) / 1000).toFixed(2)} sn`);
   const openCitationVerifiedCount = enrichedResults.filter(r => r.openCitationVerified).length;
 
-  console.log(`${totalFoundBeforeAHP} benzersiz öğe için AHP skorları hesaplanıyor...`);
+  console.log(`${rankedFinalResults.length} öğe için AHP skorları hesaplanıyor...`);
   const rankedData = await calculateAHP(enrichedResults, null);
   console.log('AHP tamamlandı.');
 
   // --- Otomatik Akademik Türkçe Çeviri (Top 25 Başlık + Top 10 Özet) ---
   console.log('Akademik Türkçe çeviriler hazırlanıyor...');
-  const finalResults = await batchTranslateAcademic(rankedData.slice(0, displayCount));
+  const translatedResults = await batchTranslateAcademic(rankedData);
   console.log('Çeviri tamamlandı.');
+
+  // ==========================================
+  // RESPONSE DEBUG & SAFETY FALLBACK
+  // ==========================================
+  console.log(`[ResponseDebug] rankedData.length       = ${rankedData?.length}`);
+  console.log(`[ResponseDebug] translatedResults.length = ${translatedResults?.length}`);
+  console.log(`[ResponseDebug] First 3 titles:`, (translatedResults || []).slice(0,3).map(r => `"${(r?.titleTR || r?.title || '').slice(0,40)}"`));
+
+  // Safe fallback: if translation returned empty but AHP results exist, use them directly
+  let finalResults = translatedResults;
+  if ((!finalResults || finalResults.length === 0) && rankedData?.length > 0) {
+    console.log('[SearchResponseFallback] final results empty, using AHP scored results');
+    finalResults = rankedData.slice(0, displayCount);
+  }
+  // Ultimate fallback: if still empty, use raw enriched results
+  if ((!finalResults || finalResults.length === 0) && enrichedResults?.length > 0) {
+    console.log('[SearchResponseFallback] AHP results also empty, using raw enriched results');
+    finalResults = enrichedResults.slice(0, displayCount);
+  }
+
+  console.log(`[ResponseDebug] FINAL results.length going to frontend = ${finalResults?.length}`);
 
   const formatResetDate = (quotaObj) => {
       if (!quotaObj || !quotaObj.reset) return 'Bilinmiyor';
@@ -309,7 +363,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   const responseData = {
     totalFound: totalPoolSum,
     analyzedCount: totalFoundBeforeAHP,
-    results: finalResults,
+    results: finalResults || [],
     searchTime: totalDuration,
     failedSources,
     sourceBreakdown,

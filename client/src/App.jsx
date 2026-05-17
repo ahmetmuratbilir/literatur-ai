@@ -1556,16 +1556,16 @@ function App() {
                   failedSources={data.failedSources}
                 />
                 
-                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--slate-50)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', marginBottom: '1rem' }}>
-                  <div style={{ fontWeight: '600', color: 'var(--text-main)', fontSize: 'var(--fs-sm)' }}>
-                    Yazar Paneli İçin Seçilen: <span style={{ color: 'var(--brand-primary)', fontWeight: '800' }}>{selectedPapers.length}</span> / {data.results.length} makale
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', marginBottom: '1rem' }}>
+                  <div style={{ fontWeight: '600', color: 'var(--slate-600)', fontSize: 'var(--fs-sm)' }}>
+                    <span style={{ color: 'var(--brand-primary)', fontWeight: '700' }}>{selectedPapers.length}</span> kaynak seçildi
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={handleSelectAll} style={{ padding: '6px 12px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 'var(--fs-xs)', fontWeight: '600', color: 'var(--slate-600)' }}>
-                      Tümünü Seç
+                    <button onClick={handleSelectAll} style={{ padding: '4px 10px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 'var(--fs-xs)', fontWeight: '600', color: 'var(--slate-600)' }}>
+                      Tümünü seç
                     </button>
-                    <button onClick={handleClearSelection} style={{ padding: '6px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 'var(--fs-xs)', fontWeight: '600', color: '#dc2626' }}>
-                      Seçimi Temizle
+                    <button onClick={handleClearSelection} style={{ padding: '4px 10px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 'var(--fs-xs)', fontWeight: '600', color: 'var(--slate-600)' }}>
+                      Temizle
                     </button>
                   </div>
                 </div>

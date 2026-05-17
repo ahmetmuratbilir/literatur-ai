@@ -23,7 +23,14 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
   const [favLoading, setFavLoading] = useState(false);
   const [favFeedback, setFavFeedback] = useState(null); // 'added' | 'removed' | 'error'
   const [collFeedback, setCollFeedback] = useState(null); // { collId, status: 'saving'|'saved'|'error' }
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const collMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   if (!item) return null;
 
@@ -109,12 +116,12 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
       className={`card ${isSelected ? 'selected-card' : ''}`}
       style={{
         display: 'grid',
-        gridTemplateColumns: 'auto 1fr',
+        gridTemplateColumns: isMobile ? '1fr' : 'auto 1fr',
         gap: '1rem',
         alignItems: 'start',
-        padding: '1.25rem',
+        padding: isMobile ? '1rem' : '1.25rem',
         background: isSelected ? '#f8fafc' : 'white',
-        border: isSelected ? '1.5px solid #4f46e5' : '1px solid var(--border-light)',
+        border: isSelected ? '2px solid #818cf8' : '1px solid var(--border-light)',
         boxShadow: isSelected ? '0 4px 12px rgba(79,70,229,0.08)' : 'var(--shadow-sm)'
       }}
     >
@@ -161,7 +168,7 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
       </div>
 
       <div style={{ minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.5rem', flexDirection: isMobile ? 'column' : 'row' }}>
           <h3
             style={{
               margin: 0,
@@ -176,24 +183,37 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
           >
             {item.titleTR || item.title || 'İsimsiz Makale'}
           </h3>
-          <div
-            title={`AHP skoru: %${scorePercent}`}
-            style={{
-              flexShrink: 0,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 10px',
-              borderRadius: '999px',
-              background: badgeBg,
-              color: badgeColor,
-              border: `1px solid ${badgeColor}33`,
-              fontSize: 'var(--fs-xs)',
-              fontWeight: '700'
-            }}
-          >
-            <span style={{ width: '6px', height: '6px', borderRadius: '999px', background: 'currentColor' }} />
-            %{scorePercent}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, alignSelf: isMobile ? 'flex-start' : 'center', marginTop: isMobile ? '6px' : '0' }}>
+            {isSelected && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '4px',
+                padding: '4px 8px', borderRadius: '999px',
+                background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                color: 'white', fontSize: '0.65rem', fontWeight: '800',
+                letterSpacing: '0.05em'
+              }}>
+                <Check size={10} strokeWidth={4} /> YAZARDA
+              </div>
+            )}
+            <div
+              title={`AHP skoru: %${scorePercent}`}
+              style={{
+                flexShrink: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                borderRadius: '999px',
+                background: badgeBg,
+                color: badgeColor,
+                border: `1px solid ${badgeColor}33`,
+                fontSize: 'var(--fs-xs)',
+                fontWeight: '700'
+              }}
+            >
+              <span style={{ width: '6px', height: '6px', borderRadius: '999px', background: 'currentColor' }} />
+              %{scorePercent}
+            </div>
           </div>
         </div>
 
@@ -273,6 +293,22 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
 
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginTop: '0.875rem', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.875rem' }}>
+            {/* Kaynağa Ekle Butonu */}
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '6px 12px', borderRadius: '8px',
+                background: isSelected ? 'var(--brand-primary)' : 'transparent',
+                color: isSelected ? 'white' : 'var(--brand-primary)',
+                border: isSelected ? '1px solid var(--brand-primary)' : '1px solid rgba(79,70,229,0.3)',
+                cursor: 'pointer', fontSize: '0.8rem', fontWeight: '700',
+                transition: 'all 0.2s', fontFamily: 'inherit'
+              }}
+            >
+              {isSelected ? <Check size={14} strokeWidth={3} /> : <span style={{ fontSize: '1.2rem', lineHeight: 0.5 }}>+</span>}
+              {isSelected ? 'Kaynak Eklendi' : 'Kaynağa Ekle'}
+            </button>
             {canExpandSummary && (
               <button
                 onClick={() => setExpanded(!expanded)}
@@ -406,32 +442,6 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
                 </div>
               )}
             </div>
-
-            {/* Yazara Ekle Butonu */}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
-              className="icon-btn"
-              title={isSelected ? "Yazardan Çıkar" : "Yazara Ekle"}
-              style={{
-                color: isSelected ? 'white' : 'var(--brand-primary)',
-                background: isSelected ? 'var(--brand-primary)' : 'var(--brand-primary-soft)',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                border: 'none',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '0.8rem',
-                transition: 'all 0.2s ease',
-                fontFamily: 'inherit'
-              }}
-            >
-              {isSelected ? <Check size={14} /> : <FileText size={14} />}
-              {isSelected ? 'Eklendi' : 'Yazara Ekle'}
-            </button>
 
             {/* Favori Butonu */}
             <button
