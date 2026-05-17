@@ -114,7 +114,7 @@ export const buildSearchCacheFingerprint = (params) => {
   ].filter(Boolean);
 
   return {
-    cacheKey: `search:v2:${digest}`,
+    cacheKey: `search:v3:${digest}`,
     displayQuery: displayParts.join(' | '),
     normalizedParams
   };
