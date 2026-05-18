@@ -1,13 +1,57 @@
 import pkg from 'natural';
 import { enrichPaperRanking } from './journalRankingService.js';
+import { mergeDateMetadata } from '../utils/dateNormalization.js';
 const { JaroWinklerDistance } = pkg;
 
+function isTrustedYearConfidence(confidence) {
+  return confidence === 'high' || confidence === 'medium';
+}
+
+function resolvePublicationYear(result) {
+  if (!isTrustedYearConfidence(result?.yearConfidence)) return null;
+
+  const year = Number.parseInt(result.publicationYear, 10);
+  return Number.isInteger(year) ? year : null;
+}
+
+function applyDateMetadata(target, dateMetadata) {
+  target.publicationYear = dateMetadata.publicationYear;
+  target.publicationDate = dateMetadata.publicationDate;
+  target.metadataYear = dateMetadata.metadataYear;
+  target.metadataDate = dateMetadata.metadataDate;
+  target.dateSource = dateMetadata.dateSource;
+  target.yearConfidence = dateMetadata.yearConfidence;
+  target.year = dateMetadata.publicationYear ?? null;
+  return target;
+}
+
+function mergeDuplicateResult(existing, incoming) {
+  if (incoming.source && !existing.sourceList.includes(incoming.source)) {
+    existing.sourceList.push(incoming.source);
+  }
+
+  const mergedDateMetadata = mergeDateMetadata(existing, incoming);
+  applyDateMetadata(existing, mergedDateMetadata);
+
+  return existing;
+}
+
 export function normalizeSearchResult(result) {
+  const normalizedDateMetadata = {
+    publicationYear: result.publicationYear ?? null,
+    publicationDate: result.publicationDate ?? null,
+    metadataYear: result.metadataYear ?? null,
+    metadataDate: result.metadataDate ?? null,
+    dateSource: result.dateSource ?? null,
+    yearConfidence: result.yearConfidence || 'low'
+  };
+
   const normalized = {
     ...result,
     title: (result.title || '').trim(),
     abstract: (result.description || result.abstract || '').trim(),
-    year: parseInt(result.year, 10) || null,
+    year: resolvePublicationYear(normalizedDateMetadata),
+    ...normalizedDateMetadata,
     sourceList: [result.source || 'Unknown']
   };
   return enrichPaperRanking(normalized);
@@ -28,9 +72,7 @@ export function deduplicateResults(results) {
     if (key && uniqueMap.has(key)) {
       // Merge sources
       const existing = uniqueMap.get(key);
-      if (item.source && !existing.sourceList.includes(item.source)) {
-        existing.sourceList.push(item.source);
-      }
+      mergeDuplicateResult(existing, item);
       continue;
     }
 
@@ -43,9 +85,7 @@ export function deduplicateResults(results) {
         if (existingTitle.length > 10) {
           const similarity = JaroWinklerDistance(titleClean, existingTitle);
           if (similarity > 0.95) { // Highly similar
-            if (item.source && !existingItem.sourceList.includes(item.source)) {
-              existingItem.sourceList.push(item.source);
-            }
+            mergeDuplicateResult(existingItem, item);
             foundSimilar = true;
             break;
           }

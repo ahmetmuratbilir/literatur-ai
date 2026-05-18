@@ -1,9 +1,19 @@
 import axios from 'axios';
+import { normalizePublicationDate } from '../utils/dateNormalization.js';
 
 /**
  * Semantic Scholar API Service
  * Documentation: https://api.semanticscholar.org/api-docs/graph#tag/Paper-Data/operation/get_graph_get_paper_search
  */
+
+function logDateNormalization(sourceName, dateMetadata) {
+  const sourceField = dateMetadata.dateSource
+    ? dateMetadata.dateSource.replace(`${sourceName} `, '')
+    : 'unknown';
+  const selectedYear = dateMetadata.publicationYear ?? dateMetadata.metadataYear ?? null;
+  console.log(`[DATE] ${sourceName} → ${sourceField} → ${selectedYear ?? 'null'} (${dateMetadata.yearConfidence})`);
+}
+
 export const searchSemanticScholar = async (query, count = 10) => {
   if (!query || !String(query).trim()) {
     return { results: [], totalFound: 0 };
@@ -19,7 +29,7 @@ export const searchSemanticScholar = async (query, count = 10) => {
       params: {
         query: query,
         limit: Math.min(count, 100),
-        fields: 'title,authors,year,url,abstract,citationCount,venue,externalIds'
+        fields: 'title,authors,year,publicationDate,url,abstract,citationCount,venue,externalIds'
       },
       headers,
       timeout: 5000
@@ -39,14 +49,17 @@ export const searchSemanticScholar = async (query, count = 10) => {
         : 'Unknown Authors';
 
       const doi = item.externalIds?.DOI || '';
-      const yearNum = parseInt(item.year, 10) || 2024;
+      const dateMetadata = normalizePublicationDate(item, 'SemanticScholar');
+      logDateNormalization('SemanticScholar', dateMetadata);
+
       return {
         id: `s2-${item.paperId}`,
         title: item.title || 'Untitled Paper',
         creator: authors,
         authors: authors,
         publicationName: item.venue || 'N/A',
-        year: yearNum,
+        year: dateMetadata.publicationYear ?? null,
+        ...dateMetadata,
         doi: doi,
         url: item.url || (doi ? `https://doi.org/${doi}` : ''),
         citedBy: item.citationCount || 0,

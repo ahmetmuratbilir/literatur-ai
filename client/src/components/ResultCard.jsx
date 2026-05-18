@@ -14,6 +14,7 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react';
+import { getYearDisplay } from '../utils/yearDisplay.js';
 
 const MotionDiv = motion.div;
 
@@ -120,6 +121,7 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
   const summaryPreview = teaserText || sourceSummary || 'Bu makale icin ozet bilgisi bulunmuyor.';
   const hasExtraSourceSummary = Boolean(teaserText && sourceSummary && sourceSummary !== teaserText);
   const canExpandSummary = hasExtraSourceSummary || summaryPreview.length > 180;
+  const yearDisplay = getYearDisplay(item);
 
   // Koleksiyon menüsü dışarı tıklanınca kapansın
   useEffect(() => {
@@ -299,8 +301,32 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
           <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             <UserIcon size={13} color="var(--slate-400)" /> {author}
           </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <Calendar size={13} color="var(--slate-400)" /> {item.year}
+          <span
+            title={yearDisplay.title}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0, flexWrap: 'wrap' }}
+          >
+            <Calendar size={13} color="var(--slate-400)" />
+            <span style={{ whiteSpace: 'nowrap' }}>{yearDisplay.label}</span>
+            {yearDisplay.showWarning && (
+              <span
+                title={yearDisplay.title}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '1px 6px',
+                  borderRadius: '999px',
+                  background: '#fffbeb',
+                  color: '#92400e',
+                  border: '1px solid #fde68a',
+                  fontSize: '10px',
+                  fontWeight: '700',
+                  lineHeight: 1.4,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Yıl doğrulanamadı
+              </span>
+            )}
           </span>
           {item.publicationName && (
             <span style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>

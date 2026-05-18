@@ -7,6 +7,7 @@ const DEFAULT_TTL_DAYS = 30;
 const DEFAULT_MAX_BYTES = 512 * 1024 * 1024;
 const DEFAULT_MAX_RESULTS = 100;
 const DEFAULT_MAX_DOC_BYTES = 12 * 1024 * 1024;
+const SEARCH_CACHE_VERSION = 'v4';
 
 const toPositiveInt = (value, fallback) => {
   const parsed = Number.parseInt(value, 10);
@@ -95,6 +96,7 @@ export const getSearchCacheConfig = () => ({
 
 export const buildSearchCacheFingerprint = (params) => {
   const normalizedParams = {
+    cacheVersion: SEARCH_CACHE_VERSION,
     mainTopic: normalizeText(params.mainTopic),
     aiQuery: normalizeText(params.aiQuery),
     authorName: normalizeText(params.authorName),
@@ -114,7 +116,7 @@ export const buildSearchCacheFingerprint = (params) => {
   ].filter(Boolean);
 
   return {
-    cacheKey: `search:v3:${digest}`,
+    cacheKey: `search:${SEARCH_CACHE_VERSION}:${digest}`,
     displayQuery: displayParts.join(' | '),
     normalizedParams
   };

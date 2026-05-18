@@ -1,4 +1,5 @@
 import pkg from 'natural';
+import { normalizePublicationDate } from './dateNormalization.js';
 const { WordTokenizer } = pkg;
 const tokenizer = new WordTokenizer();
 
@@ -44,6 +45,17 @@ const AGGREGATION_MAP = {
     'Encyclopedia': 'Ansiklopedi'
 };
 
+function logDateNormalization(sourceName, dateMetadata) {
+    const sourceField = dateMetadata.dateSource
+        ? dateMetadata.dateSource.replace(`${sourceName} `, '')
+        : 'unknown';
+    const selectedYear = dateMetadata.publicationYear ?? dateMetadata.metadataYear ?? null;
+    const confidenceText = dateMetadata.publicationYear
+        ? dateMetadata.yearConfidence
+        : `${dateMetadata.yearConfidence}${dateMetadata.metadataYear ? ' metadata only' : ''}`;
+    console.log(`[DATE] ${sourceName} → ${sourceField} → ${selectedYear ?? 'null'} (${confidenceText})`);
+}
+
 export async function normalizeData(rawData, queryContext) {
     const ctx = String(queryContext ?? '');
     const cleaned = [];
@@ -67,8 +79,11 @@ export async function normalizeData(rawData, queryContext) {
             if (!normalized.title) continue;
 
             // Yıl ve Tarih
-            const rawDate = item["prism:coverDate"] || item.publication_date || item.published || item.created || "";
-            normalized.year = rawDate ? new Date(rawDate).getFullYear() : (item.year || "");
+            const dateMetadata = normalizePublicationDate(item, 'Scopus');
+            logDateNormalization('Scopus', dateMetadata);
+            Object.assign(normalized, dateMetadata);
+            normalized.coverDate = dateMetadata.publicationDate || null;
+            normalized.year = dateMetadata.publicationYear ?? null;
 
             // DOI
             normalized.doi = item["prism:doi"] || item.doi || (item.external_ids?.doi) || "";

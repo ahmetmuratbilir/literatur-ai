@@ -4,6 +4,9 @@ const mockData = [
   {
     title: "Artificial Intelligence in Modern Healthcare",
     description: "A comprehensive study of AI applications in medicine and patient care.",
+    publicationYear: 2024,
+    publicationDate: "2024-01-01",
+    yearConfidence: "high",
     year: 2024,
     citedbyCount: 50,
     pubType: 'fla',
@@ -17,6 +20,9 @@ const mockData = [
   {
     title: "Old AI Techniques",
     description: "Discussion of early artificial intelligence methods from the 1990s.",
+    publicationYear: 1995,
+    publicationDate: "1995-01-01",
+    yearConfidence: "high",
     year: 1995,
     citedbyCount: 200,
     pubType: 'fla',
@@ -30,6 +36,9 @@ const mockData = [
   {
     title: "Spammy Paper",
     description: "Irrelevant content.",
+    publicationYear: 2023,
+    publicationDate: "2023-01-01",
+    yearConfidence: "high",
     year: 2023,
     citedbyCount: 0,
     pubType: 'pre',
@@ -54,8 +63,9 @@ async function runTest() {
     console.log(`   Detailed Scores:`, r.scores);
   });
 
-  if (results.length === 2 && results[0].title === "Artificial Intelligence in Modern Healthcare") {
-    console.log("\nSUCCESS: AHP correctly prioritized modern high-quality paper and filtered spam.");
+  const spam = results.find(r => r.title === "Spammy Paper");
+  if (results.length >= 2 && results[0].title === "Artificial Intelligence in Modern Healthcare" && spam.totalPoint < results[0].totalPoint) {
+    console.log("\nSUCCESS: AHP correctly prioritized the modern high-quality paper and down-ranked spam.");
   } else {
     console.log("\nFAILED: Unexpected AHP results.");
   }

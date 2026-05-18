@@ -1,5 +1,6 @@
 import pkg from 'natural';
 import { fetchWithTimeout, maskUrlSecret } from '../utils/http.js';
+import { normalizePublicationDate } from '../utils/dateNormalization.js';
 const { WordTokenizer } = pkg;
 const tokenizer = new WordTokenizer();
 
@@ -34,6 +35,14 @@ function openAlexLinkUrl(item) {
     return `https://doi.org/${d}`;
   }
   return id;
+}
+
+function logDateNormalization(sourceName, dateMetadata) {
+  const sourceField = dateMetadata.dateSource
+    ? dateMetadata.dateSource.replace(`${sourceName} `, '')
+    : 'unknown';
+  const selectedYear = dateMetadata.publicationYear ?? dateMetadata.metadataYear ?? null;
+  console.log(`[DATE] ${sourceName} → ${sourceField} → ${selectedYear ?? 'null'} (${dateMetadata.yearConfidence})`);
 }
 
 export async function searchOpenAlex(queryContext, params, booleanQuery) {
@@ -98,15 +107,18 @@ export async function searchOpenAlex(queryContext, params, booleanQuery) {
         if (!titleText) continue;
 
         const abstractText = reconstructAbstract(item.abstract_inverted_index);
+        const dateMetadata = normalizePublicationDate(item, 'OpenAlex');
+        logDateNormalization('OpenAlex', dateMetadata);
 
         const normalized = {};
         normalized.id = item.id;
         normalized.title = titleText;
         normalized.creator = item.authorships?.map(a => a.author?.display_name).join(', ') || 'Bilinmeyen';
         normalized.publicationName = item.primary_location?.source?.display_name || 'Bilinmeyen Kaynak';
-        normalized.coverDate = item.publication_date || `${item.publication_year}-01-01`;
+        normalized.coverDate = dateMetadata.publicationDate || null;
         normalized.description = abstractText;
-        normalized.year = item.publication_year || 2000;
+        Object.assign(normalized, dateMetadata);
+        normalized.year = dateMetadata.publicationYear ?? null;
         normalized.citedBy = item.cited_by_count || 0;
         normalized.url = openAlexLinkUrl(item);
         normalized.source = 'OpenAlex';

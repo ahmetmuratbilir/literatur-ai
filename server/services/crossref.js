@@ -1,9 +1,21 @@
 import axios from 'axios';
+import { normalizePublicationDate } from '../utils/dateNormalization.js';
 
 /**
  * Crossref API Service
  * Documentation: https://api.crossref.org/swagger-ui/index.html
  */
+function logDateNormalization(sourceName, dateMetadata) {
+  const sourceField = dateMetadata.dateSource
+    ? dateMetadata.dateSource.replace(`${sourceName} `, '')
+    : 'unknown';
+  const selectedYear = dateMetadata.publicationYear ?? dateMetadata.metadataYear ?? null;
+  const confidenceText = dateMetadata.publicationYear
+    ? dateMetadata.yearConfidence
+    : `${dateMetadata.yearConfidence}${dateMetadata.metadataYear ? ' metadata only' : ''}`;
+  console.log(`[DATE] ${sourceName} → ${sourceField} → ${selectedYear ?? 'null'} (${confidenceText})`);
+}
+
 export const searchCrossref = async (query, count = 10) => {
   if (!query || !String(query).trim()) {
     return { results: [], totalFound: 0 };
@@ -16,7 +28,7 @@ export const searchCrossref = async (query, count = 10) => {
       params: {
         query: query,
         rows: count,
-        select: 'DOI,title,author,published,container-title,abstract,type,is-referenced-by-count',
+        select: 'DOI,title,author,published,published-print,published-online,issued,created,deposited,indexed,container-title,abstract,type,is-referenced-by-count',
         sort: 'relevance'
       },
       headers: {
@@ -40,18 +52,17 @@ export const searchCrossref = async (query, count = 10) => {
 
       const title = item.title && item.title[0] ? item.title[0] : 'Untitled Paper';
 
-      const year = item.published && item['published-print'] 
-        ? item['published-print']['date-parts'][0][0] 
-        : (item.published && item['published-online'] ? item['published-online']['date-parts'][0][0] : 'N/A');
+      const dateMetadata = normalizePublicationDate(item, 'Crossref');
+      logDateNormalization('Crossref', dateMetadata);
 
-      const yearNum = parseInt(year, 10) || 2024;
       return {
         id: `crossref-${item.DOI}`,
         title: title,
         creator: authors,
         authors: authors,
         publicationName: item['container-title'] ? item['container-title'][0] : 'N/A',
-        year: yearNum,
+        year: dateMetadata.publicationYear ?? null,
+        ...dateMetadata,
         doi: item.DOI,
         url: item.DOI ? `https://doi.org/${item.DOI}` : '',
         citedBy: parseInt(item['is-referenced-by-count'], 10) || 0,

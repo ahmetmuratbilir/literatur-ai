@@ -39,9 +39,10 @@ function calculateRecencyScore(year) {
 function calculateCitationPerYearScore(citedBy, year) {
   const citations = parseInt(citedBy, 10) || 0;
   if (citations <= 0) return 0;
+  if (!year) return 0.5;
   
   const currentYear = new Date().getFullYear();
-  const age = Math.max(0, currentYear - (year || currentYear - 1));
+  const age = Math.max(0, currentYear - year);
   const cpy = citations / (age + 1);
   
   // Log scale: 20+ citations per year = 1.0
@@ -86,6 +87,20 @@ function calculateQuartileBoost(quartile, sourceType) {
   return 0.0;
 }
 
+function isTrustedYearConfidence(confidence) {
+  return confidence === 'high' || confidence === 'medium';
+}
+
+function resolveTrustedPublicationYear(item) {
+  if (!isTrustedYearConfidence(item?.yearConfidence)) return null;
+
+  const year = Number.parseInt(item.publicationYear, 10);
+  if (!Number.isInteger(year)) return null;
+
+  const maxYear = new Date().getFullYear() + 1;
+  return year >= 1000 && year <= maxYear ? year : null;
+}
+
 /**
  * Final AHP Calculation
  */
@@ -102,11 +117,12 @@ export async function calculateAHP(dataset, customWeights = null) {
 
   const processedData = dataset.map(item => {
     // 1. Calculate Individual Scores
+    const trustedPublicationYear = resolveTrustedPublicationYear(item);
     const sKey = calculateKeywordScore(item.keyCount);
     const sSim = item.expandedSimilarity || 0;
-    const sCit = calculateCitationPerYearScore(item.citedbyCount || item.citedBy || 0, item.year);
+    const sCit = calculateCitationPerYearScore(item.citedbyCount || item.citedBy || 0, trustedPublicationYear);
     const sQuality = calculateQualityScore(item.pubType, item.sourceType, !!item.doi);
-    const sRecency = calculateRecencyScore(item.year);
+    const sRecency = calculateRecencyScore(trustedPublicationYear);
     const sRel = calculateReliabilityScore(item);
     const sOA = item.openAccess ? 1.0 : 0.0;
 
@@ -150,7 +166,7 @@ export async function calculateAHP(dataset, customWeights = null) {
     let confidence = "HIGH";
     let dataPoints = 0;
     if (item.doi) dataPoints++;
-    if (item.year) dataPoints++;
+    if (trustedPublicationYear) dataPoints++;
     if (item.citedbyCount > 0) dataPoints++;
     if (item.openCitationVerified) dataPoints++;
     

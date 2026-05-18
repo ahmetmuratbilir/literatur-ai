@@ -1,7 +1,16 @@
 import pkg from 'natural';
 import { fetchWithTimeout } from '../utils/http.js';
+import { normalizePublicationDate } from '../utils/dateNormalization.js';
 const { WordTokenizer } = pkg;
 const tokenizer = new WordTokenizer();
+
+function logDateNormalization(sourceName, dateMetadata) {
+  const sourceField = dateMetadata.dateSource
+    ? dateMetadata.dateSource.replace(`${sourceName} `, '')
+    : 'unknown';
+  const selectedYear = dateMetadata.publicationYear ?? dateMetadata.metadataYear ?? null;
+  console.log(`[DATE] ${sourceName} → ${sourceField} → ${selectedYear ?? 'null'} (${dateMetadata.yearConfidence})`);
+}
 
 export async function searchCore(queryContext, params, booleanQuery) {
   const ctx = String(queryContext ?? '');
@@ -65,6 +74,9 @@ export async function searchCore(queryContext, params, booleanQuery) {
       try {
         if (!item.title) continue;
 
+        const dateMetadata = normalizePublicationDate(item, 'CORE');
+        logDateNormalization('CORE', dateMetadata);
+
         const normalized = {};
         normalized.id = item.id ? `core_${item.id}` : `core_${Math.random().toString(36).slice(2)}`;
         normalized.title = String(item.title).trim();
@@ -75,9 +87,10 @@ export async function searchCore(queryContext, params, booleanQuery) {
         }
         
         normalized.publicationName = item.publisher || item.journals?.[0]?.title || 'Bilinmeyen Kaynak';
-        normalized.coverDate = item.publishedDate || `${item.yearPublished || 2000}-01-01`;
+        normalized.coverDate = dateMetadata.publicationDate || null;
         normalized.description = item.abstract || '';
-        normalized.year = parseInt(item.yearPublished, 10) || 2000;
+        Object.assign(normalized, dateMetadata);
+        normalized.year = dateMetadata.publicationYear ?? null;
         normalized.citedBy = parseInt(item.citationCount, 10) || 0;
         
         // URL: ensure it is always a string

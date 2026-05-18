@@ -1,11 +1,21 @@
 import axios from 'axios';
 import { XMLParser } from 'fast-xml-parser';
+import { normalizePublicationDate } from '../utils/dateNormalization.js';
 
 /**
  * ArXiv API Service
  * Documentation: https://info.arxiv.org/help/api/index.html
  * Rate Limit: Max 1 request per 3 seconds.
  */
+
+function logDateNormalization(sourceName, dateMetadata) {
+  const sourceField = dateMetadata.dateSource
+    ? dateMetadata.dateSource.replace(`${sourceName} `, '')
+    : 'unknown';
+  const selectedYear = dateMetadata.publicationYear ?? dateMetadata.metadataYear ?? null;
+  console.log(`[DATE] ${sourceName} → ${sourceField} → ${selectedYear ?? 'null'} (${dateMetadata.yearConfidence})`);
+}
+
 export const searchArXiv = async (query, count = 10) => {
   if (!query || !String(query).trim()) {
     return { results: [], totalFound: 0 };
@@ -58,14 +68,17 @@ export const searchArXiv = async (query, count = 10) => {
       const pdfLink = links.find(l => l['@_title'] === 'pdf' || l['@_type'] === 'application/pdf')?.['@_href'] || '';
       const abstractLink = links.find(l => l['@_rel'] === 'alternate')?.['@_href'] || entry.id;
 
-      const yearNum = entry.published ? new Date(entry.published).getFullYear() : 2024;
+      const dateMetadata = normalizePublicationDate(entry, 'arXiv');
+      logDateNormalization('arXiv', dateMetadata);
+
       return {
         id: `arxiv-${entry.id.split('/').pop()}`,
         title: entry.title ? entry.title.replace(/\n/g, ' ').trim() : 'Untitled Paper',
         creator: authorList,
         authors: authorList,
         publicationName: 'ArXiv Pre-print',
-        year: yearNum,
+        year: dateMetadata.publicationYear ?? null,
+        ...dateMetadata,
         doi: entry['arxiv:doi'] || '',
         url: abstractLink,
         pdfUrl: pdfLink,
