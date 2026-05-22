@@ -14,6 +14,10 @@ import Collection from './models/Collection.js';
 import SharedSearch from './models/SharedSearch.js';
 import crypto from 'crypto';
 import Analysis from './models/Analysis.js';
+import { getWriterFlags } from './config/writerFlags.js';
+import { runRevisionCoach } from './services/revisionCoachService.js';
+import { createRequestId, runWriterPipeline } from './services/writerPipeline.js';
+import { logger } from './utils/logger.js';
 import { clerkMiddleware, getAuth, clerkClient } from '@clerk/express';
 import {
   buildSearchCacheFingerprint,
@@ -24,6 +28,7 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
+const IS_TEST_MODE = process.env.NODE_ENV === 'test';
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -53,10 +58,10 @@ async function connectMongo() {
   }
 }
 
-if (MONGODB_URI) {
+if (MONGODB_URI && !IS_TEST_MODE) {
   connectMongo();
   mongoose.connection.on('disconnected', scheduleMongoReconnect);
-} else {
+} else if (!MONGODB_URI && !IS_TEST_MODE) {
   console.warn('MONGODB_URI is not defined in .env. Search history will not be saved.');
 }
 
@@ -127,6 +132,18 @@ const getRequestUserId = (req, res) => {
 };
 
 const isValidUserId = (id) => typeof id === 'string' && id.length > 0 && id.length <= 64;
+
+const getWriterUserId = (req) => {
+  try {
+    const authUserId = getAuth(req)?.userId;
+    if (isValidUserId(authUserId)) return authUserId;
+  } catch {}
+  if (IS_TEST_MODE) {
+    const testUserId = req.headers['x-test-user-id'];
+    if (isValidUserId(testUserId)) return testUserId;
+  }
+  return null;
+};
 
 
 app.get('/api/health', (req, res) => {
@@ -886,20 +903,31 @@ app.delete('/api/analyses/:id', async (req, res) => {
 });
 
 // --- Writer API: Atıflı Metin Üretimi ---
-const WRITER_RATE_LIMITER = rateLimit({
-  windowMs: 60 * 1000,
-  max: 5,
-  keyGenerator: (req) => getAuth(req)?.userId || ipKeyGenerator(req.ip),
-  message: { error: 'Çok fazla yazma isteği gönderildi. Lütfen 1 dakika bekleyin.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const WRITER_RATE_LIMITER = IS_TEST_MODE
+  ? (req, res, next) => next()
+  : rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    keyGenerator: (req) => getAuth(req)?.userId || ipKeyGenerator(req.ip),
+    message: { error: 'Çok fazla yazma isteği gönderildi. Lütfen 1 dakika bekleyin.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
 app.post('/api/writer/generate', WRITER_RATE_LIMITER, async (req, res) => {
-  const { userId } = getAuth(req);
+  const userId = getWriterUserId(req);
   if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
 
-  const { papers, prompt, outputType = 'literature-review', tone = 'akademik', length = 'orta', language = 'tr', bibliographyFormat = 'APA 7' } = req.body || {};
+  const requestId = createRequestId();
+  const {
+    papers,
+    prompt,
+    outputType = 'literature-review',
+    tone = 'akademik',
+    length = 'orta',
+    language = 'tr',
+    bibliographyFormat = 'APA 7',
+  } = req.body || {};
 
   if (!Array.isArray(papers) || papers.length === 0) {
     return res.status(400).json({ error: 'En az bir makale seçilmelidir.' });
@@ -916,6 +944,7 @@ app.post('/api/writer/generate', WRITER_RATE_LIMITER, async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
+  res.setHeader('X-Request-Id', requestId);
   res.flushHeaders();
 
   const safePapers = papers.slice(0, 20).map((p, i) => ({
@@ -929,11 +958,27 @@ app.post('/api/writer/generate', WRITER_RATE_LIMITER, async (req, res) => {
     doi: String(p.doi || '').slice(0, 100),
     url: String(p.url || '').slice(0, 300),
   }));
+
   try {
-    const { generateAcademicText } = await import('./services/aiService.js');
-    await generateAcademicText(safePapers, prompt, outputType, tone, length, language, res, req, bibliographyFormat);
+    await runWriterPipeline({
+      requestId,
+      safePapers,
+      prompt,
+      outputType,
+      tone,
+      length,
+      language,
+      bibliographyFormat,
+      req,
+      res,
+    });
   } catch (err) {
-    console.error('Writer generate error:', err);
+    logger.error({
+      requestId,
+      stage: 'writerPipeline',
+      status: 'failed',
+      error: err?.message || 'Unexpected pipeline error',
+    });
     try {
       res.write(`data: ${JSON.stringify({ error: err.message || 'Beklenmeyen hata oluştu.' })}\n\n`);
       res.end();
@@ -941,6 +986,47 @@ app.post('/api/writer/generate', WRITER_RATE_LIMITER, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+app.post('/api/writer/revision-roadmap', WRITER_RATE_LIMITER, async (req, res) => {
+  const userId = getWriterUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
+
+  const flags = getWriterFlags();
+  if (!flags.revisionCoachEnabled) {
+    return res.status(403).json({
+      error: 'Revision coach özelliği şu an kapalı.',
+      featureFlag: 'WRITER_REVISION_COACH_ENABLED',
+    });
+  }
+
+  const requestId = createRequestId();
+  res.setHeader('X-Request-Id', requestId);
+
+  const { reviewerText = '' } = req.body || {};
+  if (typeof reviewerText !== 'string' || reviewerText.trim().length < 10) {
+    return res.status(400).json({ error: 'reviewerText en az 10 karakter olmalıdır.' });
+  }
+
+  const { stageResult, roadmap } = runRevisionCoach(reviewerText);
+
+  logger.info({
+    requestId,
+    stage: 'revisionCoach',
+    status: stageResult.status,
+    severity: stageResult.severity,
+    durationMs: stageResult.durationMs,
+  });
+
+  return res.json({
+    requestId,
+    report: stageResult,
+    roadmap,
+  });
 });
+
+if (!IS_TEST_MODE) {
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+export { app };

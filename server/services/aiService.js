@@ -15,6 +15,7 @@ import { WriterCache } from '../models/WriterCache.js';
 export async function generateAcademicText(safePapers, prompt, outputType, tone, length, language, res, req, bibliographyFormat = 'APA 7') {
   const geminiKey = process.env.GEMINI_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
+  const isRequestAborted = () => Boolean(req?.aborted || req?.destroyed);
 
   // Response Cache Kontrolü
   const requestFingerprint = {
@@ -30,10 +31,11 @@ export async function generateAcademicText(safePapers, prompt, outputType, tone,
     if (cachedResponse) {
       console.log(`[CACHE] Writer Cache Hit: ${requestHash}`);
       const text = cachedResponse.generatedText;
+      res.write(`data: ${JSON.stringify({ meta: { provider: 'cache' } })}\n\n`);
       // Cached metni parça parça stream et (doğal görünmesi için)
       const words = text.split(' ');
       for (let i = 0; i < words.length; i += 10) {
-        if (req.closed) break;
+        if (isRequestAborted()) break;
         const chunk = words.slice(i, i + 10).join(' ') + ' ';
         res.write(`data: ${JSON.stringify({ token: chunk })}\n\n`);
         await new Promise(r => setTimeout(r, 20)); // Hafif gecikme
@@ -338,9 +340,10 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
           maxOutputTokens: 3000,
         }
       });
+      res.write(`data: ${JSON.stringify({ meta: { provider: 'gemini', model: 'gemini-1.5-flash' } })}\n\n`);
 
       for await (const chunk of streamResult.stream) {
-        if (req.closed) break;
+        if (isRequestAborted()) break;
         const text = chunk.text();
         if (text) {
           fullGeneratedText += text;
@@ -348,7 +351,7 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
         }
       }
 
-      if (!req.closed) {
+      if (!isRequestAborted()) {
         // Arka planda cache'e kaydet
         WriterCache.create({
           requestHash,
@@ -410,6 +413,7 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
       const errText = await groqRes.text();
       throw new Error(`Groq Status: ${groqRes.status} - ${errText}`);
     }
+    res.write(`data: ${JSON.stringify({ meta: { provider: 'groq', model: 'llama-3.3-70b-versatile' } })}\n\n`);
 
     let reader = null;
     let useAsyncIterator = false;
