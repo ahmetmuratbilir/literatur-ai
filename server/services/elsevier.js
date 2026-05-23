@@ -3,8 +3,8 @@ import { fetchWithTimeout } from '../utils/http.js';
 
 const REQUEST_TYPE = 'GET';
 const API_URL = 'https://api.elsevier.com';
-// apiKey module scope'unda tanımlı — fetchPage erişebilir
 const apiKey = process.env.ELSEVIER_API_KEY || '';
+const instToken = process.env.ELSEVIER_INSTTOKEN || process.env.SCOPUS_INSTTOKEN || '';
 const SCOPUS_TIMEOUT_MS = 15000;
 const SCOPUS_MAX_ATTEMPTS = 2;
 
@@ -16,31 +16,96 @@ const isRetryableNetworkError = (error) => {
     || message.includes('network');
 };
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function buildHeaders() {
+  const headers = {
+    Accept: 'application/json',
+    'X-ELS-APIKey': apiKey,
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+  };
+
+  if (instToken) {
+    headers['X-ELS-Insttoken'] = instToken;
+  }
+
+  return headers;
+}
+
+function formatResetDate(resetValueRaw) {
+  if (!resetValueRaw) return 'Bilinmiyor';
+  const resetValue = Number.parseInt(resetValueRaw, 10);
+  if (!Number.isFinite(resetValue)) return String(resetValueRaw);
+
+  const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
+  return new Date(resetTime).toLocaleString('tr-TR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+async function buildElsevierError(response, quotaInfo) {
+  const cleanStatus = String(quotaInfo.status || 'RATE_LIMIT')
+    .split('-')[0]
+    .trim();
+  const resetDate = formatResetDate(quotaInfo.reset);
+  const bodyPreview = (await response.text().catch(() => ''))
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 300);
+
+  console.error(`\n--- ELSEVIER API ERROR (${response.status}) ---`);
+  console.error(`Status: ${cleanStatus}`);
+  console.error(`Remaining quota: ${quotaInfo.remaining || 0} / ${quotaInfo.limit || 'Bilinmiyor'}`);
+  console.error(`Reset: ${resetDate}`);
+  console.error(`Insttoken sent: ${instToken ? 'yes' : 'no'}`);
+  if (bodyPreview) {
+    console.error(`Body preview: ${bodyPreview}`);
+  }
+
+  if (cleanStatus === 'QUOTA_EXCEEDED' || response.status === 429) {
+    return new Error(`Kotaniz dolmus. Yenilenme: ${resetDate}`);
+  }
+
+  if (response.status === 401 || cleanStatus === 'AUTHENTICATION_ERROR') {
+    const hints = [
+      'ELSEVIER_API_KEY set ama Scopus API yetkisi eksik olabilir.',
+      instToken
+        ? 'X-ELS-Insttoken gonderildi.'
+        : 'X-ELS-Insttoken gonderilmiyor; kurumsal erisim gerekiyorsa ELSEVIER_INSTTOKEN eklenmeli.',
+      'Elsevier Developer Portal tarafinda Scopus API access aktif olmali.',
+      'Kurumsal abonelik veya IP tabanli yetki gerekiyor olabilir.',
+    ];
+    return new Error(`API Hatasi (401): ${cleanStatus}. ${hints.join(' ')}`);
+  }
+
+  return new Error(`API Hatasi (${response.status}): ${cleanStatus}. Yenilenme: ${resetDate}`);
+}
+
 async function fetchPage(query, start, count) {
   const currentYear = new Date().getFullYear();
   const dateRange = `${currentYear - 5}-${currentYear}`;
   const url = `${API_URL}/content/search/scopus?query=${encodeURIComponent(query)}&sort=relevance&count=${count}&start=${start}&date=${dateRange}&field=dc:title,dc:creator,prism:publicationName,prism:coverDate,dc:description,citedby-count,prism:doi,link,subtypeDescription,authkeywords,prism:teaser,prism:aggregationType,openaccessArticle`;
 
-  console.log('Scopus API isteği yapılıyor:', url);
+  console.log('Scopus API istegi yapiliyor:', url);
 
   let response;
   for (let attempt = 1; attempt <= SCOPUS_MAX_ATTEMPTS; attempt += 1) {
     try {
       response = await fetchWithTimeout(url, {
         method: REQUEST_TYPE,
-        headers: {
-          Accept: 'application/json',
-          'X-ELS-APIKey': apiKey,
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
-        },
+        headers: buildHeaders(),
       }, SCOPUS_TIMEOUT_MS);
       break;
     } catch (error) {
       const canRetry = attempt < SCOPUS_MAX_ATTEMPTS && isRetryableNetworkError(error);
       if (!canRetry) throw error;
-      console.warn(`[Scopus] GeÃ§ici aÄŸ hatasÄ±, tekrar deneniyor (${attempt}/${SCOPUS_MAX_ATTEMPTS - 1})`);
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      console.warn(`[Scopus] Gecici ag hatasi, tekrar deneniyor (${attempt}/${SCOPUS_MAX_ATTEMPTS - 1})`);
+      await sleep(800);
     }
   }
 
@@ -56,31 +121,7 @@ async function fetchPage(query, start, count) {
   };
 
   if (response.status !== 200) {
-    let resetDate = 'Bilinmiyor';
-    if (quotaInfo.reset) {
-      const resetValue = Number.parseInt(quotaInfo.reset, 10);
-      const resetTime = resetValue < 10000000000 ? resetValue * 1000 : resetValue;
-      resetDate = new Date(resetTime).toLocaleString('tr-TR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    }
-
-    const cleanStatus = (quotaInfo.status || 'Hız Sınırı').split('-')[0].trim();
-
-    console.error(`\n--- ELSEVIER API HATASI (${response.status}) ---`);
-    console.error(`Durum: ${cleanStatus}`);
-    console.error(`Kalan Kota: ${quotaInfo.remaining || 0} / ${quotaInfo.limit || 'Bilinmiyor'}`);
-    console.error(`Sıfırlanma: ${resetDate}`);
-
-    if (cleanStatus === 'QUOTA_EXCEEDED' || response.status === 429) {
-      throw new Error(`Kotanız dolmuş. Yenilenme: ${resetDate}`);
-    }
-
-    throw new Error(`API Hatası (${response.status}): ${cleanStatus}. Yenilenme: ${resetDate}`);
+    throw await buildElsevierError(response, quotaInfo);
   }
 
   const data = await response.json();
@@ -89,8 +130,12 @@ async function fetchPage(query, start, count) {
 
 export async function searchLiterature(query, count, weights = null, queryContext) {
   if (!process.env.ELSEVIER_API_KEY?.trim()) {
-    console.warn('[Scopus] ELSEVIER_API_KEY tanımlı değil; Scopus atlanıyor.');
+    console.warn('[Scopus] ELSEVIER_API_KEY tanimli degil; Scopus atlaniyor.');
     return { totalFound: 0, results: [], quotaInfo: {} };
+  }
+
+  if (!instToken) {
+    console.warn('[Scopus] ELSEVIER_INSTTOKEN tanimli degil. Kurumsal erisim gerekiyorsa 401 alinabilir.');
   }
 
   const chunkSize = 25;
@@ -99,18 +144,18 @@ export async function searchLiterature(query, count, weights = null, queryContex
   let totalResults = 0;
 
   try {
-    const { data: firstPage, quotaInfo } = await fetchPage(query, 0, chunkSize, apiKey);
+    const { data: firstPage, quotaInfo } = await fetchPage(query, 0, chunkSize);
     lastQuota = quotaInfo;
 
     if (!firstPage['search-results']) {
-      throw new Error("Elsevier API'sinden geçersiz yanıt alındı.");
+      throw new Error("Elsevier API'sinden gecersiz yanit alindi.");
     }
 
     totalResults = Number.parseInt(firstPage['search-results']['opensearch:totalResults'], 10) || 0;
     const initialEntry = firstPage['search-results'].entry || [];
     rawListings.push(...initialEntry);
 
-    console.log(`[Scopus] Toplam bulunan: ${totalResults}. İstenen: ${count}`);
+    console.log(`[Scopus] Toplam bulunan: ${totalResults}. Istenen: ${count}`);
 
     const numItemsNeeded = Math.min(count, totalResults, 5000);
     const maxPages = Math.ceil(numItemsNeeded / chunkSize);
@@ -126,24 +171,23 @@ export async function searchLiterature(query, count, weights = null, queryContex
           rawListings.push(...pageData['search-results'].entry);
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        await sleep(800);
       } catch (error) {
-        console.error('[Scopus] Sayfalama hatası:', error);
+        console.error('[Scopus] Sayfalama hatasi:', error);
         break;
       }
     }
 
-    console.log(`[Scopus] ${rawListings.length} öğe normalize ediliyor...`);
-    // queryContext (yani salt kelimeler) gönderiyoruz ki AHP için sayabilsin
+    console.log(`[Scopus] ${rawListings.length} oge normalize ediliyor...`);
     const cleanData = await normalizeData(rawListings, queryContext || query);
 
     return {
       totalFound: totalResults,
       results: cleanData,
-      quotaInfo: lastQuota
+      quotaInfo: lastQuota,
     };
   } catch (error) {
-    console.error('[Scopus] Arama hatası:', error.message);
+    console.error('[Scopus] Arama hatasi:', error.message);
     throw error;
   }
 }

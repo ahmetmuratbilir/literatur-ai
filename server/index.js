@@ -154,6 +154,7 @@ app.get('/api/health', (req, res) => {
     port: Number(PORT),
     services: {
       scopus: has(process.env.ELSEVIER_API_KEY),
+      scopusInsttoken: has(process.env.ELSEVIER_INSTTOKEN || process.env.SCOPUS_INSTTOKEN),
       openalex: has(process.env.OPENALEX_API_KEY),
       core: has(process.env.CORE_API_KEY),
       groq: has(process.env.GROQ_API_KEY),
