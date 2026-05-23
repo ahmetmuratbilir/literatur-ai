@@ -1,47 +1,47 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  PenLine,
-  Sparkles,
-  X,
+  Activity,
+  AlertCircle,
+  BookMarked,
+  BookOpen,
+  Check,
   Copy,
   Download,
-  Check,
-  AlertCircle,
-  Loader2,
-  BookOpen,
-  ChevronDown,
-  FileText,
-  BookMarked,
-  MessageSquare,
-  Lightbulb,
-  Languages,
-  RefreshCw,
-  PanelRightOpen,
-  PanelRight,
-  Monitor,
   FileDown,
-  Database,
+  FileText,
+  Languages,
   Layers,
+  Lightbulb,
+  Loader2,
+  MessageSquare,
+  Monitor,
+  PanelRight,
+  PanelRightOpen,
+  PenLine,
+  RefreshCw,
+  Settings,
   ShieldCheck,
-  Activity,
-  ChevronUp
+  Sparkles,
+  X,
 } from 'lucide-react';
 
+const MotionDiv = motion.div;
+
 const OUTPUT_TYPES = [
-  { value: 'literature-review', label: 'Literatür İncelemesi', icon: BookOpen,      desc: 'Makaleleri sentezleyen akademik inceleme' },
-  { value: 'introduction',      label: 'Giriş',              icon: FileText,      desc: 'Makale girişi ve arka plan bilgisi' },
-  { value: 'methodology',       label: 'Yöntem',             icon: PenLine,       desc: 'Araştırmanın metodolojisi' },
-  { value: 'results',           label: 'Bulgular',           icon: Sparkles,      desc: 'Araştırma sonuçları ve veriler' },
-  { value: 'discussion',        label: 'Tartışma',           icon: MessageSquare, desc: 'Bulguları kaynaklarla tartışan bölüm' },
-  { value: 'conclusion',        label: 'Sonuç',              icon: Lightbulb,     desc: 'Çalışmanın çıkarımları ve önerileri' },
+  { value: 'literature-review', label: 'Literatür İncelemesi', icon: BookOpen, desc: 'Kaynakları sentezleyen akademik inceleme' },
+  { value: 'introduction', label: 'Giriş', icon: FileText, desc: 'Makale girişi ve arka plan' },
+  { value: 'methodology', label: 'Yöntem', icon: PenLine, desc: 'Araştırma yönteminin akademik anlatımı' },
+  { value: 'results', label: 'Bulgular', icon: Sparkles, desc: 'Bulgular ve veri odaklı metin' },
+  { value: 'discussion', label: 'Tartışma', icon: MessageSquare, desc: 'Bulguları literatürle tartışan bölüm' },
+  { value: 'conclusion', label: 'Sonuç', icon: Lightbulb, desc: 'Çıkarımlar ve gelecek önerileri' },
 ];
 
 const TONE_OPTIONS = [
   { value: 'akademik', label: 'Akademik' },
-  { value: 'sade',     label: 'Daha Sade' },
-  { value: 'tez',      label: 'Tez Dili' },
-  { value: 'makale',   label: 'Makale Dili' },
+  { value: 'sade', label: 'Daha Sade' },
+  { value: 'tez', label: 'Tez Dili' },
+  { value: 'makale', label: 'Makale Dili' },
 ];
 
 const LENGTH_OPTIONS = [
@@ -52,45 +52,146 @@ const LENGTH_OPTIONS = [
 
 const BIBLIOGRAPHY_OPTIONS = [
   { value: 'APA 7', label: 'APA 7' },
-  { value: 'IEEE',  label: 'IEEE' },
-  { value: 'MLA',   label: 'MLA' },
+  { value: 'IEEE', label: 'IEEE' },
+  { value: 'MLA', label: 'MLA' },
   { value: 'Chicago', label: 'Chicago' },
 ];
 
-// Basit Markdown → HTML (atıf rozetleri dahil)
-function renderMarkdown(text) {
-  if (!text) return '';
-  return text
-    .replace(/^## (.+)$/gm, '<h2 class="writer-h2">$1</h2>')
-    .replace(/^### (.+)$/gm, '<h3 class="writer-h3">$1</h3>')
+const STAGE_LABELS = {
+  citationReport: 'Atıf ve Kaynakça',
+  qualityReport: 'Yazım Kalitesi',
+  gateReport: 'Çıkış Kontrolü',
+};
+
+const LOADING_PHASES = [
+  { label: 'Makaleler analiz ediliyor', icon: Layers },
+  { label: 'Akademik bağlam kuruluyor', icon: BookMarked },
+  { label: 'Metin üretimi başladı', icon: Sparkles },
+  { label: 'Atıf ve kalite kontrolleri hazırlanıyor', icon: ShieldCheck },
+];
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function formatInline(value) {
+  return escapeHtml(value)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/\[(\d+(?:,\s*\d+)*)\]/g, '<span class="writer-cite">[$1]</span>')
-    .replace(/\n\n/g, '</p><p class="writer-p">')
-    .replace(/\n/g, '<br>');
+    .replace(/\[(\d+(?:,\s*\d+)*)\]/g, '<span class="writer-cite">[$1]</span>');
+}
+
+function renderMarkdown(text) {
+  if (!text) return '';
+  const html = [];
+  let paragraph = [];
+
+  const flushParagraph = () => {
+    if (paragraph.length === 0) return;
+    html.push(`<p class="writer-p">${paragraph.map(formatInline).join('<br>')}</p>`);
+    paragraph = [];
+  };
+
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trimEnd();
+    if (!line.trim()) {
+      flushParagraph();
+      continue;
+    }
+    if (line.startsWith('### ')) {
+      flushParagraph();
+      html.push(`<h3 class="writer-h3">${formatInline(line.slice(4))}</h3>`);
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      flushParagraph();
+      html.push(`<h2 class="writer-h2">${formatInline(line.slice(3))}</h2>`);
+      continue;
+    }
+    paragraph.push(line);
+  }
+
+  flushParagraph();
+  return html.join('');
+}
+
+function normalizePostcheck(postcheck) {
+  if (!postcheck || postcheck.version !== 'v1') return null;
+  return postcheck;
+}
+
+function countWarnings(postcheck) {
+  if (!postcheck) return 0;
+  return ['citationReport', 'qualityReport', 'gateReport'].reduce((total, key) => {
+    const findings = postcheck[key]?.findings;
+    return total + (Array.isArray(findings) ? findings.length : 0);
+  }, 0);
+}
+
+function severityLabel(severity) {
+  if (severity === 'high') return 'Yüksek';
+  if (severity === 'medium') return 'Orta';
+  return 'Düşük';
+}
+
+function statusLabel(status) {
+  if (status === 'failed') return 'Kontrol hatası';
+  if (status === 'warn') return 'Uyarı var';
+  return 'Temiz';
 }
 
 const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default', setSize }) => {
-  const [isMobile,      setIsMobile]      = useState(window.innerWidth <= 768);
-  const [outputType,    setOutputType]    = useState('literature-review');
-  const [tone,          setTone]          = useState('akademik');
-  const [length,        setLength]        = useState('orta');
-  const [language,      setLanguage]      = useState('tr');
-  const [prompt,        setPrompt]        = useState('');
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [view, setView] = useState('settings');
+  const [outputType, setOutputType] = useState('literature-review');
+  const [tone, setTone] = useState('akademik');
+  const [length, setLength] = useState('orta');
+  const [language, setLanguage] = useState('tr');
+  const [prompt, setPrompt] = useState('');
   const [generatedText, setGeneratedText] = useState('');
-  const [isGenerating,  setIsGenerating]  = useState(false);
-  const [error,         setError]         = useState(null);
-  const [copied,        setCopied]        = useState(false);
-  const [showTypeMenu,  setShowTypeMenu]  = useState(false);
-  const [showPapers,    setShowPapers]    = useState(false);
-  const [phase,         setPhase]         = useState('idle');
-  const [cooldown,      setCooldown]      = useState(0);
-  const [loadingStep,   setLoadingStep]   = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const [loadingStep, setLoadingStep] = useState(0);
   const [bibliographyFormat, setBibliographyFormat] = useState('APA 7');
+  const [postcheck, setPostcheck] = useState(null);
+  const [requestId, setRequestId] = useState(null);
+  const [doneEventCount, setDoneEventCount] = useState(0);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [lastCompletedAt, setLastCompletedAt] = useState(null);
 
-  const abortRef    = useRef(null);
-  const outputRef   = useRef(null);
-  const typeMenuRef = useRef(null);
+  const abortRef = useRef(null);
+  const outputRef = useRef(null);
+
+  const selectedType = OUTPUT_TYPES.find((type) => type.value === outputType) || OUTPUT_TYPES[0];
+  const SelectedTypeIcon = selectedType.icon;
+  const warningCount = countWarnings(postcheck);
+  const canGenerate = papers.length > 0 && prompt.trim().length >= 10 && !isGenerating && cooldown === 0;
+  const showDocument = view === 'document';
+  const shellWidth = isMobile
+    ? '100vw'
+    : showDocument
+      ? '100vw'
+      : size === 'default'
+        ? '420px'
+        : size === 'half'
+          ? '50vw'
+          : '100vw';
+  const shellStartX = isMobile
+    ? '100vw'
+    : showDocument
+      ? '100vw'
+      : size === 'default'
+        ? 420
+        : size === 'half'
+          ? '50vw'
+          : '100vw';
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -98,56 +199,50 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const selectedType = OUTPUT_TYPES.find(t => t.value === outputType) || OUTPUT_TYPES[0];
-
-  const LOADING_PHASES = [
-    { label: 'Makaleler analiz ediliyor...', icon: Layers },
-    { label: 'Vektör eşleşmeleri hazırlanıyor...', icon: Database },
-    { label: 'Akademik metin kurgulanıyor...', icon: Sparkles },
-    { label: 'Kaynaklar metne yerleştiriliyor...', icon: ShieldCheck }
-  ];
-
-  // Dynamic loading steps
   useEffect(() => {
     let interval;
     if (isGenerating && !generatedText) {
       interval = setInterval(() => {
-        setLoadingStep(s => (s + 1) % LOADING_PHASES.length);
-      }, 2500);
+        setLoadingStep((step) => (step + 1) % LOADING_PHASES.length);
+      }, 2200);
     } else {
       setLoadingStep(0);
     }
     return () => clearInterval(interval);
   }, [isGenerating, generatedText]);
 
-  // Dışarı tıkla — type menüsünü kapat
   useEffect(() => {
-    if (!showTypeMenu) return;
-    const handler = (e) => {
-      if (typeMenuRef.current && !typeMenuRef.current.contains(e.target)) {
-        setShowTypeMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showTypeMenu]);
-
-  // Üretim sırasında otomatik scroll
-  useEffect(() => {
-    if (generatedText && outputRef.current) {
+    if (showDocument && generatedText && outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
-  }, [generatedText]);
+  }, [generatedText, showDocument]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const timer = setInterval(() => setCooldown((value) => value - 1), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const handleGenerate = useCallback(async () => {
     if (isGenerating) return;
-    if (papers.length === 0) { setError('Lütfen önce en az bir makale seçin.'); return; }
-    if (!prompt.trim() || prompt.trim().length < 10) { setError('Yönlendirme metni en az 10 karakter olmalıdır.'); return; }
+    if (papers.length === 0) {
+      setError('Lütfen önce en az bir makale seçin.');
+      return;
+    }
+    if (!prompt.trim() || prompt.trim().length < 10) {
+      setError('Yönlendirme metni en az 10 karakter olmalıdır.');
+      return;
+    }
 
+    let streamedText = '';
+    setView('document');
+    setReportOpen(false);
     setError(null);
     setGeneratedText('');
+    setPostcheck(null);
+    setRequestId(null);
+    setDoneEventCount(0);
     setIsGenerating(true);
-    setPhase('generating');
 
     try {
       const token = await getToken();
@@ -155,44 +250,80 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ papers, prompt: prompt.trim(), outputType, tone, length, language, bibliographyFormat }),
+        body: JSON.stringify({
+          papers,
+          prompt: prompt.trim(),
+          outputType,
+          tone,
+          length,
+          language,
+          bibliographyFormat,
+        }),
       });
+
+      const responseRequestId = response.headers.get('x-request-id');
+      if (responseRequestId) setRequestId(responseRequestId);
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         throw new Error(errData.error || `HTTP ${response.status}`);
       }
+      if (!response.body) throw new Error('Stream cevabı alınamadı.');
 
-      const reader  = response.body.getReader();
+      const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       abortRef.current = reader;
-      let accumulated = '';
+
+      let buffer = '';
+      let localDoneCount = 0;
+
+      const handlePayload = (payload) => {
+        if (payload.error) throw new Error(payload.error);
+        if (payload.token) {
+          streamedText += payload.token;
+          setGeneratedText(streamedText);
+        }
+        if (payload.done) {
+          localDoneCount += 1;
+          setDoneEventCount(localDoneCount);
+          const safePostcheck = normalizePostcheck(payload.postcheck);
+          if (safePostcheck) setPostcheck(safePostcheck);
+        }
+      };
+
+      const flushEvents = (raw, isFinal = false) => {
+        buffer += raw;
+        const blocks = buffer.split('\n\n');
+        buffer = isFinal ? '' : blocks.pop() ?? '';
+        const completeBlocks = isFinal ? blocks.filter(Boolean) : blocks;
+
+        for (const block of completeBlocks) {
+          const dataLine = block
+            .split('\n')
+            .map((line) => line.trim())
+            .find((line) => line.startsWith('data: '));
+          if (!dataLine) continue;
+          handlePayload(JSON.parse(dataLine.slice(6)));
+        }
+      };
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith('data: ')) continue;
-          try {
-            const json = JSON.parse(trimmed.slice(6));
-            if (json.error) throw new Error(json.error);
-            if (json.token) { accumulated += json.token; setGeneratedText(accumulated); }
-            if (json.done) break;
-          } catch (parseErr) {
-            if (parseErr.message !== 'Unexpected end of JSON input') throw parseErr;
-          }
-        }
+        flushEvents(decoder.decode(value, { stream: true }));
       }
-      setPhase('done');
+      flushEvents(decoder.decode(), true);
+
+      setLastCompletedAt(new Date());
+      if (localDoneCount === 0) {
+        setError('Üretim tamamlandı ancak done eventi alınamadı.');
+      }
     } catch (err) {
       if (err.name === 'AbortError') return;
       setError(err.message || 'Metin üretimi başarısız oldu.');
-      setPhase('error');
+      if (!streamedText) setView('settings');
     } finally {
       setIsGenerating(false);
       abortRef.current = null;
@@ -200,33 +331,33 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
     }
   }, [papers, prompt, outputType, tone, length, language, bibliographyFormat, apiUrl, getToken, isGenerating]);
 
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const timer = setInterval(() => {
-      setCooldown(c => c - 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [cooldown]);
-
   const handleStop = () => {
-    if (abortRef.current) { try { abortRef.current.cancel(); } catch {} }
+    if (abortRef.current) {
+      try {
+        abortRef.current.cancel();
+      } catch {
+        // Reader cancellation can fail if the stream already closed.
+      }
+    }
     setIsGenerating(false);
-    setPhase(generatedText ? 'done' : 'idle');
+    if (!generatedText) setView('settings');
   };
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(generatedText);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch { setError('Kopyalama başarısız.'); }
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setError('Kopyalama başarısız.');
+    }
   };
 
   const handleDownloadTxt = () => {
     const blob = new Blob([generatedText], { type: 'text/plain;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
     a.download = `literatureai_${outputType}_${Date.now()}.txt`;
     a.click();
     URL.revokeObjectURL(url);
@@ -235,46 +366,20 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
   const handleDownloadDocx = async () => {
     try {
       const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx');
-      const lines = generatedText.split('\n');
-      const docChildren = [];
-
-      lines.forEach(line => {
+      const children = generatedText.split('\n').reduce((items, line) => {
         const trimmed = line.trim();
-        if (!trimmed) return;
-
+        if (!trimmed) return items;
         if (trimmed.startsWith('### ')) {
-          docChildren.push(new Paragraph({
-            text: trimmed.replace('### ', ''),
-            heading: HeadingLevel.HEADING_3,
-            spacing: { before: 200, after: 100 },
-          }));
+          items.push(new Paragraph({ text: trimmed.slice(4), heading: HeadingLevel.HEADING_3 }));
         } else if (trimmed.startsWith('## ')) {
-          docChildren.push(new Paragraph({
-            text: trimmed.replace('## ', ''),
-            heading: HeadingLevel.HEADING_2,
-            spacing: { before: 300, after: 100 },
-          }));
-        } else if (trimmed.startsWith('# ')) {
-          docChildren.push(new Paragraph({
-            text: trimmed.replace('# ', ''),
-            heading: HeadingLevel.HEADING_1,
-            spacing: { before: 400, after: 200 },
-          }));
+          items.push(new Paragraph({ text: trimmed.slice(3), heading: HeadingLevel.HEADING_2 }));
         } else {
-          docChildren.push(new Paragraph({
-            children: [new TextRun(trimmed)],
-            spacing: { before: 100, after: 100 },
-          }));
+          items.push(new Paragraph({ children: [new TextRun(trimmed)] }));
         }
-      });
+        return items;
+      }, []);
 
-      const doc = new Document({
-        sections: [{
-          properties: {},
-          children: docChildren,
-        }]
-      });
-
+      const doc = new Document({ sections: [{ properties: {}, children }] });
       const blob = await Packer.toBlob(doc);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -282,486 +387,428 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
       a.download = `literatureai_${outputType}_${Date.now()}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error('DOCX Export error', e);
-      setError('DOCX İndirme başarısız oldu.');
+    } catch (err) {
+      console.error('DOCX export error', err);
+      setError('DOCX indirme başarısız oldu.');
     }
   };
 
-  const canGenerate = papers.length > 0 && prompt.trim().length >= 10 && !isGenerating && cooldown === 0;
+  const handleDownloadPdf = async () => {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+      const margin = 48;
+      const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2;
+      const lines = pdf.splitTextToSize(generatedText, pageWidth);
+      let y = margin;
+      pdf.setFont('times', 'normal');
+      pdf.setFontSize(11);
+      lines.forEach((line) => {
+        if (y > 780) {
+          pdf.addPage();
+          y = margin;
+        }
+        pdf.text(line, margin, y);
+        y += 17;
+      });
+      pdf.save(`literatureai_${outputType}_${Date.now()}.pdf`);
+    } catch (err) {
+      console.error('PDF export error', err);
+      setError('PDF indirme başarısız oldu.');
+    }
+  };
 
-  return (
-    <motion.div
-      initial={{ x: isMobile ? '100vw' : (size === 'default' ? 420 : (size === 'half' ? '50vw' : '100vw')), opacity: 0 }}
-      animate={{ 
-        x: 0, 
-        opacity: 1,
-        width: isMobile ? '100vw' : (size === 'default' ? '420px' : (size === 'half' ? '50vw' : '100vw'))
-      }}
-      exit={{ x: isMobile ? '100vw' : (size === 'default' ? 420 : (size === 'half' ? '50vw' : '100vw')), opacity: 0 }}
-      transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-      style={{
-        position: 'fixed',
-        top: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 9000,
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'white',
-        borderLeft: '1px solid rgba(99,102,241,0.15)',
-        boxShadow: '-8px 0 32px -8px rgba(15,23,42,0.14), -2px 0 8px -2px rgba(79,70,229,0.08)',
-        overflow: 'hidden',
-        maxWidth: '100vw'
-      }}
-    >
-      {/* ── Header ─────────────────────────────────────── */}
-      <div style={{
-        padding: '1.25rem 1.5rem',
-        background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexShrink: 0,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{
-            background: 'rgba(255,255,255,0.2)',
-            borderRadius: '10px',
-            padding: '8px',
-            display: 'flex',
-            backdropFilter: 'blur(8px)',
-          }}>
-            <PenLine size={18} color="white" />
-          </div>
+  const renderSettingsStage = () => (
+    <section className="writer-setup-stage" aria-label="Yazım ayarları">
+      <div className="writer-setup-card">
+        <div className="writer-setup-hero">
+          <span className="writer-setup-icon"><Settings size={22} /></span>
           <div>
-            <div style={{ color: 'white', fontSize: '1rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-              Yapay Zeka Yazar
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.75rem', fontWeight: 500 }}>
-              Akademik RAG Workspace
-            </div>
+            <p>Yazım Ayarları</p>
+            <h2>Önce isteği netleştir, sonra metni rahatça oku.</h2>
+            <small>{papers.length} kaynak seçili · {bibliographyFormat} · {language.toUpperCase()}</small>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ display: 'flex', background: 'rgba(0,0,0,0.15)', borderRadius: '10px', padding: '3px' }}>
-            <button onClick={() => setSize('default')} title="Kenar Çubuğu" style={{ background: size === 'default' ? 'rgba(255,255,255,0.2)' : 'transparent', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', padding: '6px', display: 'flex', alignItems: 'center' }}><PanelRight size={14} /></button>
-            <button onClick={() => setSize('half')} title="Yarım Ekran" style={{ background: size === 'half' ? 'rgba(255,255,255,0.2)' : 'transparent', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', padding: '6px', display: 'flex', alignItems: 'center' }}><PanelRightOpen size={14} /></button>
-            <button onClick={() => setSize('full')} title="Tam Ekran" style={{ background: size === 'full' ? 'rgba(255,255,255,0.2)' : 'transparent', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', padding: '6px', display: 'flex', alignItems: 'center' }}><Monitor size={14} /></button>
+
+        {error && (
+          <div className="writer-error">
+            <AlertCircle size={16} />
+            {error}
           </div>
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '10px', color: 'white', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}><X size={18} /></button>
-        </div>
-      </div>
+        )}
 
-      {/* ── Scrollable body ─────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', background: '#fcfdfe' }}>
-
-        {/* Configuration Block */}
-        <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-
-          {/* Paper Context Summary */}
-          <div style={{
-            background: 'white', border: '1.5px solid #e2e8f0', borderRadius: '12px',
-            padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(79,70,229,0.08)', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <BookMarked size={14} />
+        <div className="writer-source-strip">
+          <div className="writer-card-title">
+            <BookMarked size={16} />
+            Seçilen Kaynaklar
+            <span>{papers.length}</span>
+          </div>
+          <div className="writer-source-list">
+            {papers.length > 0 ? papers.slice(0, 4).map((paper, index) => (
+              <div key={`${paper.doi || paper.url || paper.title || index}`} className="writer-source-row">
+                <span>{index + 1}</span>
+                <p>{paper.title || paper.titleTR || 'Başlıksız kaynak'}</p>
               </div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
-                Seçilen Kaynaklar ({papers.length})
-              </div>
-            </div>
-            {papers.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginLeft: '38px' }}>
-                {papers.slice(0, 3).map((p, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#475569', fontWeight: 500 }}>
-                    <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#cbd5e1', flexShrink: 0 }} />
-                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title || p.titleTR}</span>
-                  </div>
-                ))}
-                {papers.length > 3 && (
-                  <div style={{ fontSize: '0.7rem', color: '#4f46e5', fontWeight: 700, paddingLeft: '10px' }}>
-                    + {papers.length - 3} makale daha
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '38px' }}>
-                Henüz kaynak seçilmedi. Sol taraftaki sonuçlardan ekleyin.
-              </div>
+            )) : (
+              <p className="writer-muted">Metin üretmek için önce arama sonuçlarından kaynak seçin.</p>
             )}
           </div>
+          {papers.length > 4 && <div className="writer-more-sources">+{papers.length - 4} kaynak daha</div>}
+        </div>
 
-          {/* Core Settings Row */}
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <div style={{ position: 'relative', flex: 1 }} ref={typeMenuRef}>
-              <button
-                onClick={() => setShowTypeMenu(p => !p)}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 14px', border: '1.5px solid #e2e8f0',
-                  borderRadius: '12px', background: 'white', cursor: 'pointer',
-                  fontSize: '0.85rem', fontWeight: 700, color: '#1e293b',
-                  transition: 'all 0.2s',
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <selectedType.icon size={15} color="#4f46e5" />
-                  {selectedType.label}
-                </span>
-                <ChevronDown size={14} color="#94a3b8" style={{ transform: showTypeMenu ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+        <form className="writer-settings-form" onSubmit={(event) => {
+          event.preventDefault();
+          handleGenerate();
+        }}>
+          <div className="writer-field-grid">
+            <label>
+              <span className="writer-label">Metin türü</span>
+              <select className="writer-field" value={outputType} onChange={(event) => setOutputType(event.target.value)} disabled={isGenerating}>
+                {OUTPUT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+              </select>
+              <small>{selectedType.desc}</small>
+            </label>
+
+            <label>
+              <span className="writer-label">Kaynakça stili</span>
+              <select className="writer-field" value={bibliographyFormat} onChange={(event) => setBibliographyFormat(event.target.value)} disabled={isGenerating}>
+                {BIBLIOGRAPHY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+
+            <label>
+              <span className="writer-label">Ton</span>
+              <select className="writer-field" value={tone} onChange={(event) => setTone(event.target.value)} disabled={isGenerating}>
+                {TONE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+
+            <label>
+              <span className="writer-label">Uzunluk</span>
+              <select className="writer-field" value={length} onChange={(event) => setLength(event.target.value)} disabled={isGenerating}>
+                {LENGTH_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div className="writer-language-row">
+            <span className="writer-label">Dil</span>
+            <div className="writer-segment">
+              <button type="button" className={language === 'tr' ? 'active' : ''} onClick={() => setLanguage('tr')} disabled={isGenerating}>
+                <Languages size={14} /> TR
               </button>
-
-              <AnimatePresence>
-                {showTypeMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    style={{
-                      position: 'absolute', top: 'calc(100% + 8px)', left: 0, right: 0,
-                      background: 'white', border: '1.5px solid #e2e8f0',
-                      borderRadius: '14px', boxShadow: '0 15px 30px -10px rgba(15,23,42,0.18)',
-                      zIndex: 200, padding: '6px', display: 'flex', flexDirection: 'column', gap: '3px'
-                    }}
-                  >
-                    {OUTPUT_TYPES.map(type => (
-                      <button
-                        key={type.value}
-                        onClick={() => { setOutputType(type.value); setShowTypeMenu(false); }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '10px',
-                          padding: '10px 12px', border: 'none',
-                          background: outputType === type.value ? 'rgba(79,70,229,0.06)' : 'transparent',
-                          borderRadius: '10px', cursor: 'pointer', textAlign: 'left',
-                          color: outputType === type.value ? '#4f46e5' : '#475569',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <type.icon size={15} />
-                        <div>
-                          <div style={{ fontSize: '0.82rem', fontWeight: 800 }}>{type.label}</div>
-                          <div style={{ fontSize: '0.72rem', opacity: 0.7 }}>{type.desc}</div>
-                        </div>
-                        {outputType === type.value && <Check size={14} style={{ marginLeft: 'auto' }} />}
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <div style={{ display: 'flex', border: '1.5px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', background: 'white' }}>
-              {[{ val: 'tr', label: 'TR' }, { val: 'en', label: 'EN' }].map(({ val, label }) => (
-                <button
-                  key={val}
-                  onClick={() => setLanguage(val)}
-                  style={{
-                    padding: '10px 14px', border: 'none',
-                    background: language === val ? '#4f46e5' : 'transparent',
-                    color:      language === val ? 'white' : '#64748b',
-                    cursor: 'pointer', fontSize: '0.8rem', fontWeight: 800,
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+              <button type="button" className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')} disabled={isGenerating}>
+                EN
+              </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <select value={tone} onChange={(e) => setTone(e.target.value)} style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '12px', background: 'white', fontSize: '0.85rem', fontWeight: 700, color: '#334155', outline: 'none' }}>
-              {TONE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label} Dili</option>)}
-            </select>
-            <select value={length} onChange={(e) => setLength(e.target.value)} style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '12px', background: 'white', fontSize: '0.85rem', fontWeight: 700, color: '#334155', outline: 'none' }}>
-              {LENGTH_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label.charAt(0).toUpperCase() + opt.label.slice(1)} Metin</option>)}
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <select value={bibliographyFormat} onChange={(e) => setBibliographyFormat(e.target.value)} style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '12px', background: 'white', fontSize: '0.85rem', fontWeight: 700, color: '#334155', outline: 'none' }}>
-              {BIBLIOGRAPHY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>Kaynakça: {opt.label}</option>)}
-            </select>
-          </div>
-
-          {/* Editor Workspace Area */}
-          <div style={{ 
-            position: 'relative', 
-            background: '#f8fafc', 
-            borderRadius: '16px', 
-            padding: '4px',
-            border: '1.5px solid #e2e8f0',
-            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
-          }}>
+          <label className="writer-prompt-block">
+            <span className="writer-label">Konu ve yönlendirme</span>
             <textarea
+              className="writer-prompt"
               value={prompt}
-              onChange={e => setPrompt(e.target.value)}
-              placeholder={`Örn: "Bu makaleleri sentezleyerek, yapay zekanın sağlık sektöründeki etik etkilerini akademik dille analiz et..."`}
-              rows={4}
+              onChange={(event) => setPrompt(event.target.value)}
               disabled={isGenerating}
-              style={{
-                width: '100%', padding: '16px', border: 'none',
-                background: 'transparent', fontSize: '0.92rem', fontFamily: 'inherit',
-                color: '#1e293b', resize: 'none', outline: 'none',
-                lineHeight: 1.6, boxSizing: 'border-box'
-              }}
+              placeholder="Örn: Bu makaleleri sentezleyerek yapay zekanın sağlık alanındaki etik etkilerini akademik dille tartış."
             />
-            <div style={{
-              position: 'absolute', bottom: '12px', right: '16px',
-              display: 'flex', alignItems: 'center', gap: '8px'
-            }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#cbd5e1' }}>
-                {prompt.length} karakter
-              </span>
+            <span className="writer-char-count">{prompt.length} karakter</span>
+          </label>
+
+          <div className="writer-setup-footer">
+            <div className="writer-run-state">
+              <div><ShieldCheck size={15} /> Akademik kontrol aktif</div>
+              <div><Activity size={15} /> Gate modu: warn only</div>
+              {lastCompletedAt && <div>Son üretim: {lastCompletedAt.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</div>}
             </div>
-          </div>
 
-          {/* Status Indicators Dashboard */}
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: '1fr 1fr', 
-            gap: '6px', 
-            padding: '2px' 
-          }}>
-            {[
-              { label: 'Atlas Vector Search', active: true, icon: Database },
-              { label: 'RAG Pipeline', active: true, icon: Activity },
-              { label: 'Academic Citation', active: true, icon: ShieldCheck },
-              { label: 'Cloud Cache', active: true, icon: RefreshCw }
-            ].map((stat, i) => (
-              <div key={i} style={{ 
-                display: 'flex', alignItems: 'center', gap: '6px', 
-                padding: '6px 8px', background: '#f8fafc', border: '1px solid #f1f5f9', 
-                borderRadius: '8px' 
-              }}>
-                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: stat.active ? '#10b981' : '#cbd5e1', opacity: 0.7 }} />
-                <stat.icon size={10} color="#cbd5e1" />
-                <span style={{ fontSize: '0.62rem', fontWeight: 600, color: '#94a3b8' }}>{stat.label}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Action Area */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '0.5rem' }}>
-            {papers.length === 0 && (
-              <div style={{ fontSize: '0.75rem', color: '#9a3412', background: '#ffedd5', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
-                <AlertCircle size={14} /> Metin üretmek için en az 1 makale seçin.
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div className="writer-setup-actions">
+              {generatedText && !isGenerating && (
+                <button type="button" className="writer-secondary-action" onClick={() => setView('document')}>
+                  Sonucu Göster
+                </button>
+              )}
               {!isGenerating ? (
-                <button
-                  onClick={handleGenerate}
-                  disabled={!canGenerate}
-                  style={{
-                    flex: 1, padding: '14px 20px',
-                    background: canGenerate
-                      ? 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)'
-                      : '#e2e8f0',
-                    color: canGenerate ? 'white' : '#94a3b8', 
-                    border: 'none', borderRadius: '14px',
-                    fontWeight: 800, fontSize: '0.95rem',
-                    cursor: canGenerate ? 'pointer' : 'not-allowed',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                    boxShadow: canGenerate ? '0 8px 20px -6px rgba(79,70,229,0.5)' : 'none',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    position: 'relative', overflow: 'hidden'
-                  }}
-                >
-                  <Sparkles size={18} />
-                  {cooldown > 0 ? `Bekleyin (${cooldown}s)` : (generatedText ? 'Yeniden Üret' : 'Atıflı Metin Üret')}
-                  {canGenerate && <motion.div animate={{ x: ['-100%', '100%'] }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} style={{ position: 'absolute', top: 0, bottom: 0, width: '40%', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)', skewX: '-20deg' }} />}
+                <button type="submit" className="writer-primary-action" disabled={!canGenerate}>
+                  <Sparkles size={17} />
+                  {cooldown > 0 ? `Bekleyin (${cooldown}s)` : (generatedText ? 'Yeniden Oluştur' : 'Oluştur')}
                 </button>
               ) : (
-                <button
-                  onClick={handleStop}
-                  style={{
-                    flex: 1, padding: '14px 20px',
-                    background: '#fef2f2', color: '#dc2626',
-                    border: '1.5px solid #fecaca', borderRadius: '14px',
-                    fontWeight: 800, fontSize: '0.95rem',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                  }}
-                >
-                  <X size={18} /> Üretimi Durdur
+                <button type="button" className="writer-stop-action" onClick={handleStop}>
+                  <X size={17} /> Üretimi Durdur
                 </button>
               )}
             </div>
           </div>
+        </form>
+      </div>
+    </section>
+  );
 
-          {/* Error Message - Softer style */}
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                style={{
-                  background: '#fff7ed', border: '1.5px solid #ffedd5',
-                  borderRadius: '12px', padding: '12px 16px',
-                  fontSize: '0.82rem', color: '#9a3412', fontWeight: 700,
-                  display: 'flex', alignItems: 'center', gap: '10px',
-                  boxShadow: '0 4px 12px rgba(251,146,60,0.1)'
-                }}
-              >
-                <AlertCircle size={16} color="#f97316" />
-                {error}
-              </motion.div>
-            )}
-          </AnimatePresence>
+  const renderReportPanel = () => {
+    const safePostcheck = normalizePostcheck(postcheck);
+    const stages = [
+      ['citationReport', safePostcheck?.citationReport],
+      ['qualityReport', safePostcheck?.qualityReport],
+      ['gateReport', safePostcheck?.gateReport],
+    ];
 
-          {generatedText && !isGenerating && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-              <button onClick={handleCopy} title="Kopyala" style={{ padding: '10px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: '10px', color: copied ? '#10b981' : '#64748b', cursor: 'pointer', display: 'flex', justifyContent: 'center' }}>
-                {copied ? <Check size={16} /> : <Copy size={16} />}
-              </button>
-              <button onClick={handleDownloadDocx} title="Word Olarak İndir" style={{ padding: '10px', background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: '10px', color: '#0284c7', cursor: 'pointer', display: 'flex', justifyContent: 'center', fontWeight: 800, fontSize: '0.75rem' }}>
-                DOCX
-              </button>
-              <button onClick={handleDownloadTxt} title="TXT İndir" style={{ padding: '10px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: '10px', color: '#64748b', cursor: 'pointer', display: 'flex', justifyContent: 'center' }}>
-                <Download size={16} />
-              </button>
-              <button onClick={() => { setGeneratedText(''); setPhase('idle'); setError(null); }} title="Sıfırla" style={{ padding: '10px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: '10px', color: '#94a3b8', cursor: 'pointer', display: 'flex', justifyContent: 'center' }}>
-                <RefreshCw size={16} />
-              </button>
-            </div>
-          )}
+    return (
+      <section className="writer-report-card">
+        <div className="writer-report-header">
+          <div>
+            <p>Akademik Kontrol</p>
+            <h3>{safePostcheck ? statusLabel(safePostcheck.status) : 'Rapor bekleniyor'}</h3>
+          </div>
+          <button type="button" onClick={() => setReportOpen(false)} title="Raporu gizle">
+            <X size={16} />
+          </button>
         </div>
 
-        {/* ── Output Workspace ─────────────────────────────── */}
-        <div ref={outputRef} style={{ 
-          flex: 1, 
-          overflowY: 'auto', 
-          padding: '1.5rem', 
-          minHeight: 0, 
-          background: 'white',
-          borderTop: '1px solid #f1f5f9'
-        }}>
+        {!safePostcheck ? (
+          <div className="writer-report-empty">
+            <ShieldCheck size={28} />
+            <strong>Henüz rapor oluşturulmadı</strong>
+            <span>Metin üretimi tamamlandığında atıf, kalite ve gate sonuçları burada görünür.</span>
+          </div>
+        ) : (
+          <>
+            <div className="writer-report-summary">
+              <div>
+                <span>Durum</span>
+                <strong className={`writer-status writer-status--${safePostcheck.status}`}>{statusLabel(safePostcheck.status)}</strong>
+              </div>
+              <div>
+                <span>Max severity</span>
+                <strong className={`writer-severity writer-severity--${safePostcheck.severity}`}>{severityLabel(safePostcheck.severity)}</strong>
+              </div>
+              <div>
+                <span>Warning</span>
+                <strong>{warningCount}</strong>
+              </div>
+              <div>
+                <span>Done</span>
+                <strong>{doneEventCount}</strong>
+              </div>
+            </div>
 
+            {requestId && (
+              <div className="writer-request-id">
+                <span>requestId</span>
+                <code>{requestId}</code>
+              </div>
+            )}
+
+            <div className="writer-stage-list">
+              {stages.map(([key, report]) => (
+                <article key={key} className="writer-stage-card">
+                  <div className="writer-stage-title">
+                    <strong>{STAGE_LABELS[key]}</strong>
+                    <span className={`writer-status writer-status--${report?.status || 'ok'}`}>
+                      {statusLabel(report?.status || 'ok')}
+                    </span>
+                  </div>
+                  <div className="writer-stage-meta">
+                    <span>{report?.durationMs ?? 0}ms</span>
+                    <span>{severityLabel(report?.severity || 'low')}</span>
+                  </div>
+                  {Array.isArray(report?.findings) && report.findings.length > 0 ? (
+                    <div className="writer-finding-list">
+                      {report.findings.map((finding, index) => (
+                        <div key={`${finding.code || key}-${index}`} className={`writer-finding writer-finding--${finding.severity || 'low'}`}>
+                          <strong>{finding.code || 'UYARI'}</strong>
+                          <p>{finding.message || 'Kontrol uyarısı oluştu.'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="writer-stage-clean">Bu bölümde uyarı yok.</p>
+                  )}
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+    );
+  };
+
+  const renderDocumentStage = () => (
+    <section className="writer-document-stage" aria-label="Oluşturulan metin">
+      <div className="writer-document-modal">
+        <div className="writer-document-head">
+          <div className="writer-document-meta">
+            <span><SelectedTypeIcon size={16} /> {selectedType.label}</span>
+            <small>{papers.length} kaynak · {bibliographyFormat} · {language.toUpperCase()}</small>
+          </div>
+
+          <div className="writer-document-actions">
+            <button type="button" onClick={handleCopy} disabled={!generatedText} title="Kopyala">
+              {copied ? <Check size={16} /> : <Copy size={16} />}
+              <span>{copied ? 'Kopyalandı' : 'Kopyala'}</span>
+            </button>
+            <button type="button" onClick={handleDownloadDocx} disabled={!generatedText} title="DOCX indir">
+              <FileDown size={16} />
+              <span>DOCX</span>
+            </button>
+            <button type="button" onClick={handleDownloadPdf} disabled={!generatedText} title="PDF indir">
+              <Download size={16} />
+              <span>PDF</span>
+            </button>
+            <button type="button" onClick={handleDownloadTxt} disabled={!generatedText} title="TXT indir">
+              <Download size={16} />
+              <span>TXT</span>
+            </button>
+            {!isGenerating ? (
+              <button type="button" onClick={handleGenerate} disabled={!canGenerate} title="Yeniden üret">
+                <RefreshCw size={16} />
+                <span>Yeniden Üret</span>
+              </button>
+            ) : (
+              <button type="button" className="writer-danger-button" onClick={handleStop} title="Üretimi durdur">
+                <X size={16} />
+                <span>Durdur</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className={reportOpen ? 'active' : ''}
+              onClick={() => setReportOpen((value) => !value)}
+              title="Akademik kontrol raporu"
+            >
+              <ShieldCheck size={16} />
+              <span>Akademik Kontrol Raporu</span>
+            </button>
+            <button
+              type="button"
+              className="writer-document-close"
+              onClick={onClose}
+              title="Ana ekrana dön"
+              aria-label="Yazar modunu kapat"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="writer-error writer-error--document">
+            <AlertCircle size={16} />
+            {error}
+          </div>
+        )}
+
+        <div ref={outputRef} className="writer-document-scroll">
           {isGenerating && !generatedText && (
-            <div style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', gap: '1.5rem', padding: '4rem 1rem', textAlign: 'center',
-            }}>
-              <div style={{ position: 'relative' }}>
-                <Loader2 size={42} color="#4f46e5" style={{ animation: 'spin 2s linear infinite', opacity: 0.2 }} />
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <selectedType.icon size={20} color="#4f46e5" />
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <motion.p 
-                  key={loadingStep}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  style={{ margin: 0, fontWeight: 800, color: '#1e293b', fontSize: '1rem', letterSpacing: '-0.01em' }}
-                >
-                  {LOADING_PHASES[loadingStep].label}
-                </motion.p>
-                <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600 }}>
-                  Bu işlem seçilen {papers.length} makale için derinlemesine analiz içerir.
-                </p>
-              </div>
-              
-              {/* Simple progress bar */}
-              <div style={{ width: '200px', height: '4px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden' }}>
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: '100%' }}
-                  transition={{ duration: 10, repeat: Infinity }}
-                  style={{ height: '100%', background: 'linear-gradient(90deg, #4f46e5, #7c3aed)' }}
-                />
-              </div>
+            <div className="writer-loading-state">
+              {(() => {
+                const LoadingIcon = LOADING_PHASES[loadingStep].icon;
+                return <LoadingIcon size={28} />;
+              })()}
+              <Loader2 size={42} className="writer-spinner" />
+              <strong>{LOADING_PHASES[loadingStep].label}</strong>
+              <span>{papers.length} kaynak üzerinden akademik metin hazırlanıyor.</span>
             </div>
           )}
 
           {generatedText && (
-            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <article className="writer-document-paper">
               {isGenerating && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  marginBottom: '1.25rem', padding: '6px 12px',
-                  background: 'rgba(79,70,229,0.06)', borderRadius: '10px', width: 'fit-content',
-                }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4f46e5', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                  <span style={{ fontSize: '0.75rem', color: '#4f46e5', fontWeight: 800 }}>Yazılıyor...</span>
+                <div className="writer-writing-badge">
+                  <span />
+                  Yazılıyor
                 </div>
               )}
-
-              {/* Output Actions Header */}
-              {!isGenerating && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
-                  <button
-                    onClick={handleCopy}
-                    style={{
-                      padding: '8px 14px', background: copied ? '#10b981' : 'white',
-                      color: copied ? 'white' : '#4f46e5', border: copied ? '1px solid #059669' : '1px solid #c7d2fe',
-                      borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
-                      fontSize: '0.8rem', fontWeight: 700, boxShadow: '0 2px 8px rgba(79,70,229,0.1)',
-                      transition: 'all 0.2s', zIndex: 10
-                    }}
-                  >
-                    {copied ? <Check size={16} /> : <Copy size={16} />}
-                    {copied ? 'Kopyalandı' : 'Metni Kopyala'}
-                  </button>
-                </div>
-              )}
-
-              <div
-                className="writer-output"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(generatedText) }}
-                style={{ fontSize: '1.05rem', lineHeight: 1.85, color: '#1e293b' }}
-              />
-            </div>
+              <div className="writer-output" dangerouslySetInnerHTML={{ __html: renderMarkdown(generatedText) }} />
+            </article>
           )}
 
-          {!isGenerating && !generatedText && phase === 'idle' && (
-            <div style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              gap: '1.25rem', padding: '3rem 2rem', textAlign: 'center', color: '#94a3b8',
-            }}>
-              <div style={{
-                width: '64px', height: '64px', borderRadius: '20px',
-                background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9'
-              }}>
-                <PenLine size={28} color="#e2e8f0" />
-              </div>
-              <div>
-                <p style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 800, color: '#cbd5e1' }}>
-                  Çalışma Alanı Hazır
-                </p>
-                <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0', lineHeight: 1.6 }}>
-                  Lütfen yukarıdan üretim ayarlarını seçin ve<br />analiz için bir yönlendirme girin.
-                </p>
-              </div>
+          {!isGenerating && !generatedText && (
+            <div className="writer-empty-editor">
+              <PenLine size={34} />
+              <strong>Henüz metin yok</strong>
+              <span>Ayarları kontrol edip yeniden oluşturmayı deneyin.</span>
             </div>
           )}
         </div>
 
-        {/* ── Footer Stats ──────────────────────────────────────── */}
-        <div style={{
-          padding: '0.75rem 1.5rem',
-          borderTop: '1px solid #f1f5f9',
-          background: 'white',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          flexShrink: 0,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Activity size={12} color="#10b981" />
-            <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 700 }}>
-              AI Engine: Llama 3.3 (70B)
-            </span>
+        <div className="writer-document-footer">
+          <button type="button" className="writer-secondary-action" onClick={() => setView('settings')}>
+            Ayarları Düzenle
+          </button>
+          <div>
+            {postcheck ? (
+              <span>
+                Postcheck v1 · {statusLabel(postcheck.status)} · {warningCount} uyarı
+              </span>
+            ) : (
+              <span>{isGenerating ? 'Kontrol üretimden sonra çalışacak.' : 'Henüz rapor oluşturulmadı.'}</span>
+            )}
+            {requestId && <code>{requestId}</code>}
           </div>
-          <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>
-            LiteratureAI v1.2.0 Production
-          </span>
         </div>
       </div>
-    </motion.div>
+    </section>
+  );
+
+  return (
+    <MotionDiv
+      className={`writer-shell writer-shell--${size} ${showDocument ? 'writer-shell--document' : 'writer-shell--setup'}`}
+      initial={{ x: shellStartX, opacity: 0 }}
+      animate={{ x: 0, opacity: 1, width: shellWidth }}
+      exit={{ x: shellStartX, opacity: 0 }}
+      transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+    >
+      <div className="writer-backdrop" />
+
+      <header className="writer-topbar">
+        <div className="writer-title">
+          <span><PenLine size={18} /></span>
+          <div>
+            <strong>Yapay Zeka Yazar</strong>
+            <small>{showDocument ? 'Belge önizleme' : 'Yazım ayarları'}</small>
+          </div>
+        </div>
+
+        <div className="writer-mode-title">
+          {showDocument ? <FileText size={15} /> : <Settings size={15} />}
+          <span>{showDocument ? 'Floating document preview' : selectedType.label}</span>
+        </div>
+
+        <div className="writer-window-actions">
+          <button type="button" className={size === 'default' ? 'active' : ''} onClick={() => setSize('default')} title="Kenar panel">
+            <PanelRight size={15} />
+          </button>
+          <button type="button" className={size === 'half' ? 'active' : ''} onClick={() => setSize('half')} title="Yarım ekran">
+            <PanelRightOpen size={15} />
+          </button>
+          <button type="button" className={size === 'full' ? 'active' : ''} onClick={() => setSize('full')} title="Tam ekran">
+            <Monitor size={15} />
+          </button>
+          <button type="button" onClick={onClose} title="Kapat">
+            <X size={17} />
+          </button>
+        </div>
+      </header>
+
+      <main className={`writer-flow ${showDocument ? 'writer-flow--document' : 'writer-flow--settings'}`}>
+        {showDocument ? renderDocumentStage() : renderSettingsStage()}
+      </main>
+
+      <AnimatePresence>
+        {showDocument && reportOpen && (
+          <MotionDiv
+            className={`writer-report-drawer ${isMobile ? 'writer-report-drawer--mobile' : ''}`}
+            initial={isMobile ? { y: '100%' } : { x: 380 }}
+            animate={isMobile ? { y: 0 } : { x: 0 }}
+            exit={isMobile ? { y: '100%' } : { x: 380 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+          >
+            {renderReportPanel()}
+          </MotionDiv>
+        )}
+      </AnimatePresence>
+    </MotionDiv>
   );
 };
 
