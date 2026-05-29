@@ -15,30 +15,57 @@ import { WriterCache } from '../models/WriterCache.js';
 export async function generateAcademicText(safePapers, prompt, outputType, tone, length, language, res, req, bibliographyFormat = 'APA 7') {
   const geminiKey = process.env.GEMINI_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
-  const isRequestAborted = () => Boolean(req?.aborted || req?.destroyed);
+  const isRequestAborted = () => Boolean(req?.aborted || res?.writableEnded || res?.destroyed);
+  const buildRequestHash = (fingerprint) =>
+    crypto.createHash('sha256').update(JSON.stringify(fingerprint)).digest('hex');
+  const promptText = prompt.trim();
 
   // Response Cache Kontrolü
+  const stablePaperIds = safePapers
+    .map((p) => String(p.id || p.doi || p.url || p.title || p.ref))
+    .sort();
+  const legacyPaperRefs = safePapers.map((p) => p.ref).sort();
   const requestFingerprint = {
-    prompt: prompt.trim(),
-    papers: safePapers.map(p => p.id || p.ref).sort(),
+    prompt: promptText,
+    papers: stablePaperIds,
     outputType, tone, length, language, bibliographyFormat,
     promptVersion: "academic-writing-v5"
   };
-  const requestHash = crypto.createHash('sha256').update(JSON.stringify(requestFingerprint)).digest('hex');
+  const legacyRequestFingerprint = {
+    ...requestFingerprint,
+    papers: legacyPaperRefs,
+  };
+  const requestHash = buildRequestHash(requestFingerprint);
+  const legacyRequestHash = buildRequestHash(legacyRequestFingerprint);
+  console.log('[CACHE] Calculated Request Hash:', requestHash);
 
   try {
-    const cachedResponse = await WriterCache.findOne({ requestHash });
-    if (cachedResponse) {
-      console.log(`[CACHE] Writer Cache Hit: ${requestHash}`);
-      const text = cachedResponse.generatedText;
+    const cacheLookups = requestHash === legacyRequestHash
+      ? [{ hash: requestHash, label: 'primary' }]
+      : [
+          { hash: requestHash, label: 'primary' },
+          { hash: legacyRequestHash, label: 'legacy' },
+        ];
+
+    for (const lookup of cacheLookups) {
+      const cachedResponse = await WriterCache.findOne({ requestHash: lookup.hash });
+      if (!cachedResponse) continue;
+
+      const text = typeof cachedResponse.generatedText === 'string' ? cachedResponse.generatedText : '';
+      if (!text.trim()) {
+        console.warn(`[CACHE] Empty Writer Cache ignored: ${lookup.hash}`);
+        continue;
+      }
+
+      console.log(`[CACHE] Writer Cache Hit (${lookup.label}): ${lookup.hash}`);
       res.write(`data: ${JSON.stringify({ meta: { provider: 'cache' } })}\n\n`);
-      // Cached metni parça parça stream et (doğal görünmesi için)
+      // Cached metni parca parca stream et (dogal gorunmesi icin)
       const words = text.split(' ');
       for (let i = 0; i < words.length; i += 10) {
         if (isRequestAborted()) break;
         const chunk = words.slice(i, i + 10).join(' ') + ' ';
         res.write(`data: ${JSON.stringify({ token: chunk })}\n\n`);
-        await new Promise(r => setTimeout(r, 20)); // Hafif gecikme
+        await new Promise(r => setTimeout(r, 20));
       }
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
@@ -312,7 +339,7 @@ ${bibliographyInstruction}`;
 
   const userPrompt = `Aşağıdaki ${safePapers.length} makalenin bilgilerini ve özetlerini dikkatlice analiz et.
 
-YÖNLENDIRME / KONU: ${prompt.trim()}
+YÖNLENDIRME / KONU: ${promptText}
 
 KAYNAKLARIN ÖZETLERİ (LİTERATÜR):
 ${paperListText}
@@ -325,11 +352,12 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
   // 1. GEMINI İLE DENE
   if (geminiKey) {
     try {
-      console.log('[AI] Model: GEMINI (1.5 Flash)');
+      const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+      console.log(`[AI] Model: GEMINI (${geminiModel})`);
       const genAI = new GoogleGenerativeAI(geminiKey);
       // Gemini'de system prompt'u model oluştururken verebiliriz veya user prompt içine yedirebiliriz.
       const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
+        model: geminiModel,
         systemInstruction: systemPrompt
       });
 
@@ -340,7 +368,7 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
           maxOutputTokens: 3000,
         }
       });
-      res.write(`data: ${JSON.stringify({ meta: { provider: 'gemini', model: 'gemini-1.5-flash' } })}\n\n`);
+      res.write(`data: ${JSON.stringify({ meta: { provider: 'gemini', model: geminiModel } })}\n\n`);
 
       for await (const chunk of streamResult.stream) {
         if (isRequestAborted()) break;
@@ -351,12 +379,16 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
         }
       }
 
+      if (!fullGeneratedText.trim()) {
+        throw new Error('Gemini returned an empty response.');
+      }
+
       if (!isRequestAborted()) {
         // Arka planda cache'e kaydet
         WriterCache.create({
           requestHash,
           generatedText: fullGeneratedText,
-          prompt: prompt.trim(),
+          prompt: promptText,
           papersCount: safePapers.length
         }).catch(err => console.warn('[CACHE] Kaydetme hatası:', err.message));
 
@@ -478,13 +510,17 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
       }
     }
 
+    if (!fullGeneratedText.trim()) {
+      throw new Error('Groq returned an empty response.');
+    }
+
     res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
     
     // Arka planda cache'e kaydet
     WriterCache.create({
       requestHash,
       generatedText: fullGeneratedText,
-      prompt: prompt.trim(),
+      prompt: promptText,
       papersCount: safePapers.length
     }).catch(err => console.warn('[CACHE] Kaydetme hatası:', err.message));
 

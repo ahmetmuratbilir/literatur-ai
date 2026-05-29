@@ -138,6 +138,25 @@ export async function runWriterPipeline({
       ? generation.doneEventCount
       : Number(Boolean(generation.doneSeen));
 
+    if (!generatedText.trim()) {
+      pipelineLogger.error({
+        requestId,
+        stage: 'generation',
+        status: 'failed',
+        error: 'Generation returned empty text',
+        metrics: {
+          provider,
+          doneSeenInLegacyStream: Boolean(generation.doneSeen),
+          legacyDoneEventCount,
+        },
+      });
+      emitSse(res, req, {
+        error: 'AI servisi boş yanıt döndürdü. Lütfen tekrar deneyin.',
+      });
+      if (!res.writableEnded) res.end();
+      return;
+    }
+
     pipelineLogger.info({
       requestId,
       stage: 'generation',

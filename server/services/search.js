@@ -73,6 +73,17 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
 
   const categorizeError = (reason) => {
     const msg = (reason?.message || '').toLowerCase();
+    if (
+      msg.includes('401') ||
+      msg.includes('403') ||
+      msg.includes('auth') ||
+      msg.includes('unauthorized') ||
+      msg.includes('yetkisiz') ||
+      msg.includes('invalid api key') ||
+      msg.includes('insttoken') ||
+      msg.includes('credential') ||
+      msg.includes('access')
+    ) return 'CREDENTIAL_ACCESS';
     if (reason?.name === 'AbortError' || msg.includes('timeout') || msg.includes('zaman aşımı')) return 'TIMEOUT';
     if (msg.includes('429') || msg.includes('quota') || msg.includes('kota') || msg.includes('limit')) return 'QUOTA';
     return 'ERROR';

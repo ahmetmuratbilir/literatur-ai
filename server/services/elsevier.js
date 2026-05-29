@@ -3,10 +3,11 @@ import { fetchWithTimeout } from '../utils/http.js';
 
 const REQUEST_TYPE = 'GET';
 const API_URL = 'https://api.elsevier.com';
-const apiKey = process.env.ELSEVIER_API_KEY || '';
-const instToken = process.env.ELSEVIER_INSTTOKEN || process.env.SCOPUS_INSTTOKEN || '';
 const SCOPUS_TIMEOUT_MS = 15000;
 const SCOPUS_MAX_ATTEMPTS = 2;
+
+const getApiKey = () => process.env.ELSEVIER_API_KEY || process.env.SCOPUS_API_KEY || '';
+const getInstToken = () => process.env.ELSEVIER_INSTTOKEN || process.env.SCOPUS_INSTTOKEN || '';
 
 const isRetryableNetworkError = (error) => {
   const message = String(error?.message || '').toLowerCase();
@@ -19,6 +20,8 @@ const isRetryableNetworkError = (error) => {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function buildHeaders() {
+  const apiKey = getApiKey();
+  const instToken = getInstToken();
   const headers = {
     Accept: 'application/json',
     'X-ELS-APIKey': apiKey,
@@ -49,6 +52,7 @@ function formatResetDate(resetValueRaw) {
 }
 
 async function buildElsevierError(response, quotaInfo) {
+  const instToken = getInstToken();
   const cleanStatus = String(quotaInfo.status || 'RATE_LIMIT')
     .split('-')[0]
     .trim();
@@ -129,12 +133,12 @@ async function fetchPage(query, start, count) {
 }
 
 export async function searchLiterature(query, count, weights = null, queryContext) {
-  if (!process.env.ELSEVIER_API_KEY?.trim()) {
-    console.warn('[Scopus] ELSEVIER_API_KEY tanimli degil; Scopus atlaniyor.');
+  if (!getApiKey().trim()) {
+    console.warn('[Scopus] ELSEVIER_API_KEY/SCOPUS_API_KEY tanimli degil; Scopus atlaniyor.');
     return { totalFound: 0, results: [], quotaInfo: {} };
   }
 
-  if (!instToken) {
+  if (!getInstToken()) {
     console.warn('[Scopus] ELSEVIER_INSTTOKEN tanimli degil. Kurumsal erisim gerekiyorsa 401 alinabilir.');
   }
 

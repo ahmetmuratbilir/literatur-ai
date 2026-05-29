@@ -18,7 +18,7 @@ import { getWriterFlags } from './config/writerFlags.js';
 import { runRevisionCoach } from './services/revisionCoachService.js';
 import { createRequestId, runWriterPipeline } from './services/writerPipeline.js';
 import { logger } from './utils/logger.js';
-import { clerkMiddleware, getAuth, clerkClient } from '@clerk/express';
+import { clerkMiddleware, getAuth as clerkGetAuth, clerkClient } from '@clerk/express';
 import {
   buildSearchCacheFingerprint,
   getSearchCacheConfig,
@@ -26,9 +26,73 @@ import {
   saveSharedSearchCache
 } from './utils/searchCacheStore.js';
 
+const getAuth = (req) => {
+  const authHeader = req.headers['authorization'];
+  const allowE2ETestAuth = process.env.NODE_ENV === 'test' || process.env.ALLOW_E2E_TEST_AUTH === 'true';
+  const isTestAuthRequest = allowE2ETestAuth && (
+    req.headers['x-test-user-id'] ||
+    (authHeader && authHeader === 'Bearer test-token') ||
+    req.query?.test_state === 'signed-in'
+  );
+  if (isTestAuthRequest) {
+    return { userId: req.headers['x-test-user-id'] || 'test-user-id' };
+  }
+  try {
+    return clerkGetAuth(req);
+  } catch (err) {
+    return {};
+  }
+};
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
 const IS_TEST_MODE = process.env.NODE_ENV === 'test';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+const splitEnvList = (value) => String(value || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean);
+
+const unique = (items) => [...new Set(items.filter(Boolean))];
+
+const getConfiguredCorsOrigins = () => unique([
+  ...splitEnvList(process.env.CLIENT_URL),
+  ...splitEnvList(process.env.CORS_ORIGIN),
+  ...splitEnvList(process.env.CORS_ORIGINS),
+]);
+
+const isLocalDevOrigin = (origin) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin || '');
+
+const getEffectiveCorsOrigins = () => {
+  const configured = getConfiguredCorsOrigins();
+  if (IS_PRODUCTION) return configured;
+  return unique([
+    ...configured,
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+  ]);
+};
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  if (!IS_PRODUCTION && isLocalDevOrigin(origin)) return true;
+  return getConfiguredCorsOrigins().includes(origin);
+};
+
+const getCorsStatus = () => {
+  const configured = getConfiguredCorsOrigins();
+  if (IS_PRODUCTION && configured.length === 0) return 'config_required';
+  return configured.length > 0 ? 'restricted' : 'development_open';
+};
+
+const corsOrigin = (origin, callback) => {
+  if (isOriginAllowed(origin)) {
+    callback(null, origin || true);
+    return;
+  }
+  callback(null, false);
+};
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -74,9 +138,9 @@ const FAVORITES_COLLECTION_NAME = 'Favoriler';
 
 // --- Security & Middleware ---
 app.use(cors({
-  // Reflect the incoming Origin so localhost/127.0.0.1 port differences don't break the browser app.
-  // Authentication is still enforced with Clerk tokens on protected routes.
-  origin: true,
+  // Production should be restricted via CLIENT_URL/CORS_ORIGINS.
+  // Development keeps localhost flexible so Vite port changes do not break local work.
+  origin: corsOrigin,
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -87,7 +151,7 @@ app.use((req, res, next) => {
   // Clerk dev middleware may not always keep ACAO during local proxy hops.
   // We re-assert per-request origin so the browser can consume API responses.
   const requestOrigin = req.headers.origin;
-  if (typeof requestOrigin === 'string' && requestOrigin.length > 0) {
+  if (typeof requestOrigin === 'string' && requestOrigin.length > 0 && isOriginAllowed(requestOrigin)) {
     res.setHeader('Access-Control-Allow-Origin', requestOrigin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     const varyHeader = res.getHeader('Vary');
@@ -149,15 +213,86 @@ const getWriterUserId = (req) => {
 app.get('/api/health', (req, res) => {
   // Never return raw secrets. Only surface whether a key exists.
   const has = (v) => typeof v === 'string' && v.trim().length > 0;
+  const geminiConfigured = has(process.env.GEMINI_API_KEY);
+  const groqConfigured = has(process.env.GROQ_API_KEY);
+  const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const scopusConfigured = has(process.env.ELSEVIER_API_KEY || process.env.SCOPUS_API_KEY);
+  const scopusInsttokenConfigured = has(process.env.ELSEVIER_INSTTOKEN || process.env.SCOPUS_INSTTOKEN);
+  const openAlexMailConfigured = has(process.env.OPENALEX_MAIL || process.env.CONTACT_EMAIL);
+  const coreConfigured = has(process.env.CORE_API_KEY);
+  const writerAiStatus = geminiConfigured
+    ? (groqConfigured ? 'Gemini configured; Groq fallback active on Gemini errors' : 'Gemini configured; no Groq fallback configured')
+    : (groqConfigured ? 'Gemini unavailable, Groq fallback active' : 'No writer AI provider configured');
   return res.json({
     ok: true,
     port: Number(PORT),
+    environment: process.env.NODE_ENV || 'development',
+    cors: {
+      status: getCorsStatus(),
+      allowedOrigins: getEffectiveCorsOrigins(),
+      productionRequiresClientOrigin: IS_PRODUCTION,
+    },
     services: {
-      scopus: has(process.env.ELSEVIER_API_KEY),
-      scopusInsttoken: has(process.env.ELSEVIER_INSTTOKEN || process.env.SCOPUS_INSTTOKEN),
-      openalex: has(process.env.OPENALEX_API_KEY),
-      core: has(process.env.CORE_API_KEY),
-      groq: has(process.env.GROQ_API_KEY),
+      scopus: scopusConfigured,
+      scopusInsttoken: scopusInsttokenConfigured,
+      openalex: openAlexMailConfigured,
+      core: coreConfigured,
+      gemini: geminiConfigured,
+      groq: groqConfigured,
+    },
+    ai: {
+      writer: {
+        status: writerAiStatus,
+        gemini: {
+          configured: geminiConfigured,
+          model: geminiModel,
+        },
+        groq: {
+          configured: groqConfigured,
+          role: geminiConfigured ? 'fallback' : 'primary',
+        },
+        fallbackActive: groqConfigured,
+      },
+    },
+    scopus: {
+      configured: scopusConfigured,
+      insttokenConfigured: scopusInsttokenConfigured,
+      credentialAccessIssueClass: 'CREDENTIAL_ACCESS',
+      status: scopusConfigured
+        ? 'configured; credential/access errors are classified separately during smoke tests'
+        : 'missing/config required; ELSEVIER_API_KEY or SCOPUS_API_KEY missing',
+    },
+    academicSources: {
+      scopus: {
+        configured: scopusConfigured,
+        insttokenConfigured: scopusInsttokenConfigured,
+        status: scopusConfigured ? 'configured' : 'missing/config required',
+        credentialAccessIssueClass: 'CREDENTIAL_ACCESS',
+      },
+      openalex: {
+        configured: openAlexMailConfigured,
+        status: openAlexMailConfigured ? 'configured' : 'missing/config required; OPENALEX_MAIL recommended',
+      },
+      core: {
+        configured: coreConfigured,
+        status: coreConfigured ? 'configured' : 'missing/config required',
+      },
+      crossref: {
+        configured: true,
+        status: 'public/no key required',
+      },
+      semanticScholar: {
+        configured: has(process.env.SEMANTIC_SCHOLAR_API_KEY),
+        status: has(process.env.SEMANTIC_SCHOLAR_API_KEY) ? 'configured' : 'missing/config optional',
+      },
+      arxiv: {
+        configured: true,
+        status: 'public/no key required; timeout issues are operational',
+      },
+      doaj: {
+        configured: true,
+        status: 'public/no key required; timeout issues are operational',
+      },
     },
     database: {
       connected: mongoose.connection.readyState === 1,
@@ -174,6 +309,13 @@ app.get('/api/health', (req, res) => {
 const requireSubscription = async (req, res, next) => {
   const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
+
+  if (
+    userId === 'test-user-id' &&
+    (process.env.NODE_ENV === 'test' || process.env.ALLOW_E2E_TEST_AUTH === 'true')
+  ) {
+    return next();
+  }
 
   try {
     // Clerk Billing Beta API
@@ -950,6 +1092,7 @@ app.post('/api/writer/generate', WRITER_RATE_LIMITER, async (req, res) => {
 
   const safePapers = papers.slice(0, 20).map((p, i) => ({
     ref: i + 1,
+    id: String(p.id || p.doi || p.url || p.title || p.titleTR || `paper-${i + 1}`).slice(0, 300),
     title: String(p.title || p.titleTR || 'Başlıksız').slice(0, 200),
     authors: String(p.creator || (Array.isArray(p.authors) ? p.authors.slice(0, 3).join(', ') : p.authors) || 'Bilinmiyor').slice(0, 150),
     year: p.year || 'n.d.',

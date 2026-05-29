@@ -63,7 +63,7 @@ export async function searchOpenAlex(queryContext, params, booleanQuery) {
     urlParams.set('search', searchQuery);
   }
 
-  const mailto = process.env.CONTACT_EMAIL || 'ahmet@literatureai.com';
+  const mailto = process.env.OPENALEX_MAIL || process.env.CONTACT_EMAIL || 'ahmet@literatureai.com';
   if (mailto) urlParams.set('mailto', mailto);
 
   const url = `https://api.openalex.org/works?${urlParams.toString()}`;
