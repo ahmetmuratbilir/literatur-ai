@@ -9,6 +9,12 @@ const SCOPUS_MAX_ATTEMPTS = 2;
 const getApiKey = () => process.env.ELSEVIER_API_KEY || process.env.SCOPUS_API_KEY || '';
 const getInstToken = () => process.env.ELSEVIER_INSTTOKEN || process.env.SCOPUS_INSTTOKEN || '';
 
+const SCOPUS_FALLBACK_STOPWORDS = new Set([
+  'and', 'or', 'the', 'for', 'with', 'from', 'into', 'over', 'under', 'between',
+  'this', 'that', 'these', 'those', 'effect', 'effects', 'impact', 'impacts',
+  'alanindaki', 'etkileri', 'icin', 'ile', 've', 'bir', 'bu', 'su', 'olan',
+]);
+
 const isRetryableNetworkError = (error) => {
   const message = String(error?.message || '').toLowerCase();
   return error?.name === 'AbortError'
@@ -18,6 +24,45 @@ const isRetryableNetworkError = (error) => {
 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function buildFallbackQuery(queryContext) {
+  const terms = String(queryContext || '')
+    .toLowerCase()
+    .replace(/["'()]/g, ' ')
+    .split(/[^a-z0-9]+/i)
+    .map((term) => term.trim())
+    .filter((term) => term.length > 2 && !SCOPUS_FALLBACK_STOPWORDS.has(term));
+
+  const termSet = new Set(terms);
+  const concepts = [];
+
+  if (termSet.has('artificial') && termSet.has('intelligence')) {
+    concepts.push('"artificial intelligence"');
+  }
+  if (termSet.has('machine') && termSet.has('learning')) {
+    concepts.push('"machine learning"');
+  }
+  if (termSet.has('deep') && termSet.has('learning')) {
+    concepts.push('"deep learning"');
+  }
+  if (termSet.has('medical') && termSet.has('imaging')) {
+    concepts.push('"medical imaging"');
+  }
+  if (['healthcare', 'health', 'medical', 'saglik'].some((term) => termSet.has(term))) {
+    concepts.push('(healthcare OR health OR medical)');
+  }
+  if (['ethics', 'ethical', 'ethic', 'etik'].some((term) => termSet.has(term))) {
+    concepts.push('(ethic* OR ethical OR ethics)');
+  }
+
+  if (concepts.length >= 2) {
+    return `TITLE-ABS-KEY(${concepts.join(' AND ')})`;
+  }
+
+  const uniqueTerms = [...new Set(terms)].slice(0, 8);
+  if (uniqueTerms.length === 0) return '';
+  return `TITLE-ABS-KEY(${uniqueTerms.join(' OR ')})`;
+}
 
 function buildHeaders() {
   const apiKey = getApiKey();
@@ -148,6 +193,7 @@ export async function searchLiterature(query, count, weights = null, queryContex
   let totalResults = 0;
 
   try {
+    let activeQuery = query;
     const { data: firstPage, quotaInfo } = await fetchPage(query, 0, chunkSize);
     lastQuota = quotaInfo;
 
@@ -156,7 +202,26 @@ export async function searchLiterature(query, count, weights = null, queryContex
     }
 
     totalResults = Number.parseInt(firstPage['search-results']['opensearch:totalResults'], 10) || 0;
-    const initialEntry = firstPage['search-results'].entry || [];
+    let initialEntry = firstPage['search-results'].entry || [];
+
+    if (totalResults === 0 && queryContext) {
+      const fallbackQuery = buildFallbackQuery(queryContext);
+      if (fallbackQuery && fallbackQuery !== query) {
+        console.warn(`[Scopus] Exact query returned 0 results. Retrying with fallback query: ${fallbackQuery}`);
+        const fallbackPage = await fetchPage(fallbackQuery, 0, chunkSize);
+        activeQuery = fallbackQuery;
+        lastQuota = fallbackPage.quotaInfo;
+
+        if (fallbackPage.data['search-results']) {
+          totalResults = Number.parseInt(
+            fallbackPage.data['search-results']['opensearch:totalResults'],
+            10
+          ) || 0;
+          initialEntry = fallbackPage.data['search-results'].entry || [];
+        }
+      }
+    }
+
     rawListings.push(...initialEntry);
 
     console.log(`[Scopus] Toplam bulunan: ${totalResults}. Istenen: ${count}`);
@@ -168,7 +233,7 @@ export async function searchLiterature(query, count, weights = null, queryContex
       const start = index * chunkSize;
 
       try {
-        const { data: pageData, quotaInfo: pageQuota } = await fetchPage(query, start, chunkSize);
+        const { data: pageData, quotaInfo: pageQuota } = await fetchPage(activeQuery, start, chunkSize);
         lastQuota = pageQuota;
 
         if (pageData['search-results']?.entry) {

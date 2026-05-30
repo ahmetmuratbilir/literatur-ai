@@ -7,7 +7,7 @@ const DEFAULT_TTL_DAYS = 30;
 const DEFAULT_MAX_BYTES = 512 * 1024 * 1024;
 const DEFAULT_MAX_RESULTS = 100;
 const DEFAULT_MAX_DOC_BYTES = 12 * 1024 * 1024;
-const SEARCH_CACHE_VERSION = 'v4';
+const SEARCH_CACHE_VERSION = 'v5-scopus-fallback';
 
 const toPositiveInt = (value, fallback) => {
   const parsed = Number.parseInt(value, 10);

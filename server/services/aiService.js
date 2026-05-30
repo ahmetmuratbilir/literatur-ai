@@ -5,6 +5,72 @@ import { getEmbedding, getEmbeddingsForChunks, searchSimilarChunksWithAtlas, cos
 import crypto from 'crypto';
 import { WriterCache } from '../models/WriterCache.js';
 
+const REFERENCE_HEADING_RE = /^#{1,3}\s*(kullan(?:ilan|[ıi]lan|\?lan) kaynaklar|kaynak(?:ca|[çc]a|\?a)|references|bibliography)\s*$/im;
+
+function cleanBibliographyValue(value, fallback = '') {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text || text.toLowerCase() === 'undefined' || text.toLowerCase() === 'null') return fallback;
+  return text;
+}
+
+function getPaperLocator(paper) {
+  const doi = cleanBibliographyValue(paper.doi);
+  if (doi && doi !== 'Mevcut degil') {
+    return doi.startsWith('http') ? doi : `https://doi.org/${doi}`;
+  }
+  return cleanBibliographyValue(paper.url);
+}
+
+function getBibliographyPapers(safePapers) {
+  const seen = new Set();
+  return safePapers.filter((paper) => {
+    const key = cleanBibliographyValue(paper.id || paper.doi || paper.url || paper.title || paper.ref);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function formatBibliographyEntry(paper, index, bibliographyFormat) {
+  const title = cleanBibliographyValue(paper.title, 'Basliksiz kaynak');
+  const authors = cleanBibliographyValue(paper.authors, 'Bilinmeyen Yazar');
+  const year = cleanBibliographyValue(paper.year, 'n.d.');
+  const journal = cleanBibliographyValue(paper.journal, 'Bilinmeyen yayin');
+  const locator = getPaperLocator(paper);
+  const suffix = locator ? ` ${locator}` : '';
+
+  if (bibliographyFormat === 'IEEE') {
+    return `[${index}] ${authors}, "${title}," ${journal}, ${year}.${suffix}`;
+  }
+  if (bibliographyFormat === 'MLA') {
+    return `${authors}. "${title}." ${journal}, ${year}.${suffix}`;
+  }
+  if (bibliographyFormat === 'Chicago') {
+    return `${authors}. "${title}." ${journal} ${year}.${suffix}`;
+  }
+  return `${authors}. (${year}). ${title}. ${journal}.${suffix}`;
+}
+
+function buildBibliographySection(safePapers, bibliographyFormat) {
+  const papers = getBibliographyPapers(safePapers);
+  if (papers.length === 0) return '';
+  const entries = papers.map((paper, index) =>
+    formatBibliographyEntry(paper, index + 1, bibliographyFormat)
+  );
+  return `## Kaynakca\n\n${entries.join('\n')}`;
+}
+
+function getMissingBibliographyAppendix(text, safePapers, bibliographyFormat) {
+  if (REFERENCE_HEADING_RE.test(String(text || ''))) return '';
+  const section = buildBibliographySection(safePapers, bibliographyFormat);
+  return section ? `\n\n${section}` : '';
+}
+
+function ensureBibliography(text, safePapers, bibliographyFormat) {
+  const appendix = getMissingBibliographyAppendix(text, safePapers, bibliographyFormat);
+  return appendix ? `${String(text || '').trimEnd()}${appendix}` : text;
+}
+
 /**
  * Ücretsiz / Yüksek Limitli Model Seçici (Fallback Mantığı)
  * Öncelik Sırası:
@@ -29,7 +95,7 @@ export async function generateAcademicText(safePapers, prompt, outputType, tone,
     prompt: promptText,
     papers: stablePaperIds,
     outputType, tone, length, language, bibliographyFormat,
-    promptVersion: "academic-writing-v5"
+    promptVersion: "academic-writing-v6-bibliography-guard"
   };
   const legacyRequestFingerprint = {
     ...requestFingerprint,
@@ -51,12 +117,13 @@ export async function generateAcademicText(safePapers, prompt, outputType, tone,
       const cachedResponse = await WriterCache.findOne({ requestHash: lookup.hash });
       if (!cachedResponse) continue;
 
-      const text = typeof cachedResponse.generatedText === 'string' ? cachedResponse.generatedText : '';
-      if (!text.trim()) {
+      const cachedText = typeof cachedResponse.generatedText === 'string' ? cachedResponse.generatedText : '';
+      if (!cachedText.trim()) {
         console.warn(`[CACHE] Empty Writer Cache ignored: ${lookup.hash}`);
         continue;
       }
 
+      const text = ensureBibliography(cachedText, safePapers, bibliographyFormat);
       console.log(`[CACHE] Writer Cache Hit (${lookup.label}): ${lookup.hash}`);
       res.write(`data: ${JSON.stringify({ meta: { provider: 'cache' } })}\n\n`);
       // Cached metni parca parca stream et (dogal gorunmesi icin)
@@ -384,6 +451,12 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
       }
 
       if (!isRequestAborted()) {
+        const bibliographyAppendix = getMissingBibliographyAppendix(fullGeneratedText, safePapers, bibliographyFormat);
+        if (bibliographyAppendix) {
+          fullGeneratedText = `${fullGeneratedText.trimEnd()}${bibliographyAppendix}`;
+          res.write(`data: ${JSON.stringify({ token: bibliographyAppendix })}\n\n`);
+        }
+
         // Arka planda cache'e kaydet
         WriterCache.create({
           requestHash,
@@ -512,6 +585,12 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
 
     if (!fullGeneratedText.trim()) {
       throw new Error('Groq returned an empty response.');
+    }
+
+    const bibliographyAppendix = getMissingBibliographyAppendix(fullGeneratedText, safePapers, bibliographyFormat);
+    if (bibliographyAppendix) {
+      fullGeneratedText = `${fullGeneratedText.trimEnd()}${bibliographyAppendix}`;
+      res.write(`data: ${JSON.stringify({ token: bibliographyAppendix })}\n\n`);
     }
 
     res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
