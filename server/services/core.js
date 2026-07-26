@@ -48,7 +48,7 @@ export async function searchCore(queryContext, params, booleanQuery) {
         headers['Authorization'] = `Bearer ${apiKey}`;
     }
 
-    const response = await fetchWithTimeout(url, { method: 'GET', headers });
+    const response = await fetchWithTimeout(url, { method: 'GET', headers }, 15000);
 
     const quotaInfo = {
       limit: response.headers.get('x-ratelimit-limit') || 5000,

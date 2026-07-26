@@ -4,6 +4,9 @@ import { normalizePublicationDate } from '../utils/dateNormalization.js';
 /**
  * Semantic Scholar API Service
  * Documentation: https://api.semanticscholar.org/api-docs/graph#tag/Paper-Data/operation/get_graph_get_paper_search
+ *
+ * Rate limiting: 429 hatası geldiğinde exponential backoff ile yeniden dener.
+ * Max 3 deneme: 1s → 2s → 4s bekleme aralıkları.
  */
 
 function logDateNormalization(sourceName, dateMetadata) {
@@ -13,6 +16,8 @@ function logDateNormalization(sourceName, dateMetadata) {
   const selectedYear = dateMetadata.publicationYear ?? dateMetadata.metadataYear ?? null;
   console.log(`[DATE] ${sourceName} → ${sourceField} → ${selectedYear ?? 'null'} (${dateMetadata.yearConfidence})`);
 }
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const searchSemanticScholar = async (query, count = 10) => {
   if (!query || !String(query).trim()) {
@@ -25,15 +30,35 @@ export const searchSemanticScholar = async (query, count = 10) => {
     const headers = {};
     if (apiKey) headers['x-api-key'] = apiKey;
 
-    const response = await axios.get('https://api.semanticscholar.org/graph/v1/paper/search', {
-      params: {
-        query: query,
-        limit: Math.min(count, 100),
-        fields: 'title,authors,year,publicationDate,url,abstract,citationCount,venue,externalIds'
-      },
-      headers,
-      timeout: 5000
-    });
+    const MAX_RETRIES = 3;
+    const BASE_DELAY_MS = 1000;
+    let response;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        response = await axios.get('https://api.semanticscholar.org/graph/v1/paper/search', {
+          params: {
+            query: query,
+            limit: Math.min(count, 100),
+            fields: 'title,authors,year,publicationDate,url,abstract,citationCount,venue,externalIds'
+          },
+          headers,
+          timeout: 10000
+        });
+        break; // Başarılıysa döngüden çık
+      } catch (err) {
+        const is429 = err.response?.status === 429;
+        const isLast = attempt === MAX_RETRIES;
+
+        if (is429 && !isLast) {
+          const waitMs = BASE_DELAY_MS * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+          console.warn(`[S2] 429 Rate limit (${attempt}/${MAX_RETRIES}). ${waitMs}ms bekleniyor...`);
+          await sleep(waitMs);
+        } else {
+          throw err; // 429 değilse veya son denemeyse fırlat
+        }
+      }
+    }
 
     if (!response.data || !response.data.data) {
       console.warn('[S2] Yanıtta data alanı yok');
