@@ -1,0 +1,82 @@
+﻿:root {
+  /* Brand */
+  --brand-primary: #4f46e5;
+  --brand-primary-hover: #4338ca;
+  --brand-primary-soft: #eef2ff;
+  --brand-secondary: #0ea5e9;
+  --brand-accent: #a855f7;
+
+  /* Neutrals (slate scale) */
+  --slate-50:  #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+
+  /* Surfaces */
+  --bg-main: var(--slate-50);
+  --bg-card: #ffffff;
+  --bg-subtle: var(--slate-50);
+
+  /* Text */
+  --text-main: var(--slate-900);
+  --text-muted: var(--slate-600);
+  --text-light: var(--slate-400);
+
+  /* Status */
+  --score-high: #059669;
+  --score-high-bg: #ecfdf5;
+  --score-med: #d97706;
+  --score-med-bg: #fffbeb;
+  --score-low: #dc2626;
+  --score-low-bg: #fef2f2;
+
+  /* Borders */
+  --border-light: var(--slate-200);
+  --border-focus: var(--brand-primary);
+
+  /* Shadows â€” soft & layered (SaaS feel) */
+  --shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.04);
+  --shadow-sm: 0 1px 3px 0 rgb(15 23 42 / 0.06), 0 1px 2px -1px rgb(15 23 42 / 0.04);
+  --shadow-md: 0 4px 12px -2px rgb(15 23 42 / 0.08), 0 2px 4px -2px rgb(15 23 42 / 0.04);
+  --shadow-lg: 0 12px 28px -8px rgb(15 23 42 / 0.12), 0 4px 12px -4px rgb(15 23 42 / 0.06);
+  --shadow-accent: 0 8px 20px -6px rgba(79, 70, 229, 0.35);
+  --shadow-premium: 0 4px 16px -4px rgb(15 23 42 / 0.10), 0 1px 4px -1px rgb(15 23 42 / 0.06);
+  --shadow-subtle: 0 1px 4px 0 rgb(15 23 42 / 0.05);
+
+  /* Radii */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  /* Spacing scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Type scale */
+  --fs-xs:  0.75rem;   /* 12 */
+  --fs-sm:  0.875rem;  /* 14 */
+  --fs-base:0.9375rem; /* 15 */
+  --fs-md:  1rem;      /* 16 */
+  --fs-lg:  1.125rem;  /* 18 */
+  --fs-xl:  1.25rem;   /* 20 */
+  --fs-2xl: 1.5rem;    /* 24 */
+  --fs-3xl: 1.875rem;  /* 30 */
+  --fs-4xl: 2.25rem;   /* 36 */
+  --fs-5xl: 3rem;      /* 48 */
+}
