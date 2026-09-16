@@ -210,8 +210,20 @@ const getWriterUserId = (req) => {
 };
 
 
+// Genel sağlık kontrolü — sadece servis ayakta mı bilgisi, detay yok
 app.get('/api/health', (req, res) => {
-  // Never return raw secrets. Only surface whether a key exists.
+  return res.json({
+    ok: true,
+    status: 'operational',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Detaylı sağlık kontrolü — yalnızca kimlik doğrulaması yapılmış kullanıcılara
+app.get('/api/health/details', (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
+
   const has = (v) => typeof v === 'string' && v.trim().length > 0;
   const geminiConfigured = has(process.env.GEMINI_API_KEY);
   const groqConfigured = has(process.env.GROQ_API_KEY);
@@ -223,6 +235,7 @@ app.get('/api/health', (req, res) => {
   const writerAiStatus = geminiConfigured
     ? (groqConfigured ? 'Gemini configured; Groq fallback active on Gemini errors' : 'Gemini configured; no Groq fallback configured')
     : (groqConfigured ? 'Gemini unavailable, Groq fallback active' : 'No writer AI provider configured');
+
   return res.json({
     ok: true,
     port: Number(PORT),
@@ -243,14 +256,8 @@ app.get('/api/health', (req, res) => {
     ai: {
       writer: {
         status: writerAiStatus,
-        gemini: {
-          configured: geminiConfigured,
-          model: geminiModel,
-        },
-        groq: {
-          configured: groqConfigured,
-          role: geminiConfigured ? 'fallback' : 'primary',
-        },
+        gemini: { configured: geminiConfigured, model: geminiModel },
+        groq: { configured: groqConfigured, role: geminiConfigured ? 'fallback' : 'primary' },
         fallbackActive: groqConfigured,
       },
     },
@@ -263,36 +270,13 @@ app.get('/api/health', (req, res) => {
         : 'missing/config required; ELSEVIER_API_KEY or SCOPUS_API_KEY missing',
     },
     academicSources: {
-      scopus: {
-        configured: scopusConfigured,
-        insttokenConfigured: scopusInsttokenConfigured,
-        status: scopusConfigured ? 'configured' : 'missing/config required',
-        credentialAccessIssueClass: 'CREDENTIAL_ACCESS',
-      },
-      openalex: {
-        configured: openAlexMailConfigured,
-        status: openAlexMailConfigured ? 'configured' : 'missing/config required; OPENALEX_MAIL recommended',
-      },
-      core: {
-        configured: coreConfigured,
-        status: coreConfigured ? 'configured' : 'missing/config required',
-      },
-      crossref: {
-        configured: true,
-        status: 'public/no key required',
-      },
-      semanticScholar: {
-        configured: has(process.env.SEMANTIC_SCHOLAR_API_KEY),
-        status: has(process.env.SEMANTIC_SCHOLAR_API_KEY) ? 'configured' : 'missing/config optional',
-      },
-      arxiv: {
-        configured: true,
-        status: 'public/no key required; timeout issues are operational',
-      },
-      doaj: {
-        configured: true,
-        status: 'public/no key required; timeout issues are operational',
-      },
+      scopus: { configured: scopusConfigured, insttokenConfigured: scopusInsttokenConfigured, status: scopusConfigured ? 'configured' : 'missing/config required', credentialAccessIssueClass: 'CREDENTIAL_ACCESS' },
+      openalex: { configured: openAlexMailConfigured, status: openAlexMailConfigured ? 'configured' : 'missing/config required; OPENALEX_MAIL recommended' },
+      core: { configured: coreConfigured, status: coreConfigured ? 'configured' : 'missing/config required' },
+      crossref: { configured: true, status: 'public/no key required' },
+      semanticScholar: { configured: has(process.env.SEMANTIC_SCHOLAR_API_KEY), status: has(process.env.SEMANTIC_SCHOLAR_API_KEY) ? 'configured' : 'missing/config optional' },
+      arxiv: { configured: true, status: 'public/no key required; timeout issues are operational' },
+      doaj: { configured: true, status: 'public/no key required; timeout issues are operational' },
     },
     database: {
       connected: mongoose.connection.readyState === 1,
@@ -305,6 +289,7 @@ app.get('/api/health', (req, res) => {
     demoFallback: true,
   });
 });
+
 
 const requireSubscription = async (req, res, next) => {
   const { userId } = getAuth(req);
@@ -322,7 +307,6 @@ const requireSubscription = async (req, res, next) => {
     const subscription = await clerkClient.billing.getUserBillingSubscription(userId);
     
     // Eğer abonelik yoksa veya aktif/deneme değilse engelle
-    // Not: Billing henüz tam kurulmadıysa bu hata fırlatabilir, o durumda geçici olarak izin veriyoruz.
     if (subscription && subscription.status !== 'active' && subscription.status !== 'trialing') {
       return res.status(403).json({ 
         error: 'Aboneliğiniz sona ermiştir veya aktif değildir.',
@@ -331,11 +315,29 @@ const requireSubscription = async (req, res, next) => {
     }
     next();
   } catch (error) {
-    // Dashboard'da billing ayarlanmamışsa veya API hatası alınırsa kullanıcıyı engellemiyoruz
-    console.warn('Billing API uyarısı (Dashboard ayarlarınızı kontrol edin):', error.message);
-    next();
+    // BILLING_FAIL_OPEN=true → eski davranış (billing API hatasında geçir)
+    // BILLING_FAIL_OPEN=false (varsayılan) → hata durumunda engelle
+    const failOpen = process.env.BILLING_FAIL_OPEN === 'true';
+
+    console.error('[Billing] API hatası:', {
+      message: error.message,
+      userId,
+      failOpen,
+      timestamp: new Date().toISOString(),
+    });
+
+    if (failOpen) {
+      console.warn('[Billing] UYARI: fail-open aktif, kullanıcı geçirildi. Dashboard billing ayarlarınızı kontrol edin.');
+      return next();
+    }
+
+    return res.status(503).json({
+      error: 'Abonelik doğrulama servisi şu an kullanılamıyor. Lütfen daha sonra tekrar deneyin.',
+      retryAfter: 30,
+    });
   }
 };
+
 
 app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
   const { userId } = getAuth(req);
