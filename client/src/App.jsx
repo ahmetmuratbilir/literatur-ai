@@ -5,64 +5,23 @@ const MotionDiv = motion.div;
 const MotionH1 = motion.h1;
 
 import {
-  BarChart2,
   Loader2,
   Search,
-  SearchX,
-  Tag,
   User,
   Download,
   Settings,
   AlertCircle,
-  X,
   Zap,
-  WifiOff,
   Sparkles,
-  Sun,
-  FileText,
-  Cpu,
-  Trophy,
-  FileSearch,
-  ChevronDown,
-  Filter,
-  Check,
-  Bookmark,
   Activity,
-  Star,
-  Layers,
   CheckCircle2,
   Share2,
-  MessageCircle,
-  Linkedin,
-  Link2,
-  Copy,
-  Mail,
-  Moon,
-  GraduationCap,
-  Building2,
-  Microscope,
-  Users,
-  Library,
-  ShieldCheck,
-  PenLine
+  PenLine,
+  BarChart2
 } from 'lucide-react';
-import { SignedIn, SignedOut, SignInButton, useAuth } from '@clerk/clerk-react';
-const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 
-import {
-  Document,
-  HeadingLevel,
-  Packer,
-  Paragraph,
-  AlignmentType
-} from 'docx';
-import { saveAs } from 'file-saver';
-import html2pdf from 'html2pdf.js';
-import ResultCard from './components/ResultCard';
-import GlobalStats from './components/GlobalStats';
-import InfiniteTicker from './components/InfiniteTicker';
-import HistorySidebar from './components/HistorySidebar';
-import WriterPanel from './components/WriterPanel';
+const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const LOADING_MESSAGES = [
   'Dünyanın en büyük 7 akademik kaynağına güvenli bağlantı kuruluyor...',
@@ -73,60 +32,42 @@ const LOADING_MESSAGES = [
   'Sizin için en güncel ve alakalı literatür listesi hazırlanıyor...',
 ];
 
-const COPYRIGHT_NOTICE = '© LiteratureAI. Akademik Literatür Analiz ve AHP Skorlama Sistemi.';
+import ResultCard from './components/ResultCard';
+import GlobalStats from './components/GlobalStats';
+import InfiniteTicker from './components/InfiniteTicker';
+import HistorySidebar from './components/HistorySidebar';
+import WriterPanel from './components/WriterPanel';
+import ShareModal from './components/ShareModal';
+import LandingPage from './components/landing/LandingPage';
+import { useWindowSize } from './hooks/useWindowSize';
+import { useCollections } from './hooks/useCollections';
+import { useShare } from './hooks/useShare';
+import { useExport } from './hooks/useExport';
 
+// FeatureHighlights component kept here since it's also used in SignedIn view
 const FEATURE_HIGHLIGHTS = [
   {
     icon: Sparkles,
-    title: 'AI sorgu geni\u015fletme',
-    text: 'T\u00fcrk\u00e7e konunuz \u0130ngilizce Boolean sorguya \u00e7evrilir; 5 alternatif \u00f6neri sunulur.'
+    title: 'AI sorgu genişletme',
+    text: 'Türkçe konunuz İngilizce Boolean sorguya çevrilir; 5 alternatif öneri sunulur.'
   },
   {
     icon: BarChart2,
     title: 'AHP skorlama',
-    text: 'Alaka, at\u0131f ve g\u00fcncellik a\u011f\u0131rl\u0131klar\u0131yla her makale 0-100 aras\u0131 puanlan\u0131r.'
+    text: 'Alaka, atıf ve güncellik ağırlıklarıyla her makale 0-100 arası puanlanır.'
   },
   {
     icon: Download,
-    title: 'Tek t\u0131k d\u0131\u015fa aktar\u0131m',
-    text: 'Sonu\u00e7lar\u0131 PDF, Word veya Excel olarak haz\u0131r rapor halinde indirin.'
+    title: 'Tek tık dışa aktarım',
+    text: 'Sonuçları PDF, Word veya Excel olarak hazır rapor halinde indirin.'
   }
-];
-
-const USER_TIERS = [
-  {
-    icon: Users,
-    title: 'Akademisyenler',
-    text: 'Literatür taramasını saniyeler içinde tamamlayın.'
-  },
-  {
-    icon: Building2,
-    title: 'Kurumlar',
-    text: 'Üniversite kütüphanenizi akıllı asistanla güçlendirin.'
-  },
-  {
-    icon: Microscope,
-    title: 'Araştırmacılar',
-    text: 'Yüzbinlerce döküman içinden doğru veriyi bulun.'
-  },
-  {
-    icon: GraduationCap,
-    title: 'Öğrenciler',
-    text: 'Araştırma ödevlerinizi doğru kaynaklarla tamamlayın.'
-  }
-];
-
-const LANDING_STATS = [
-  { value: '810M+', label: 'Akademik Kaynak' },
-  { value: '1.2B+', label: 'Atıf Verisi' },
-  { value: '60.000+', label: 'Bireysel Araştırmacı' }
 ];
 
 const FeatureHighlights = ({ theme }) => (
-  <div style={{ 
-    display: 'grid', 
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', 
-    gap: '1.5rem', 
+  <div style={{
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+    gap: '1.5rem',
     marginTop: '3rem',
     width: '100%',
     maxWidth: '1100px'
@@ -134,7 +75,7 @@ const FeatureHighlights = ({ theme }) => (
     {FEATURE_HIGHLIGHTS.map((feature, idx) => {
       const FeatureIcon = feature.icon;
       return (
-        <motion.div 
+        <motion.div
           key={feature.title}
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -167,17 +108,17 @@ const FeatureHighlights = ({ theme }) => (
           }}>
             <FeatureIcon size={20} strokeWidth={2.5} />
           </div>
-          <h3 style={{ 
-            fontSize: '1.1rem', 
-            fontWeight: '700', 
+          <h3 style={{
+            fontSize: '1.1rem',
+            fontWeight: '700',
             marginBottom: '0.5rem',
             color: theme === 'light' ? '#0f172a' : '#f8fafc',
             letterSpacing: '-0.01em'
           }}>
             {feature.title}
           </h3>
-          <p style={{ 
-            fontSize: '0.9rem', 
+          <p style={{
+            fontSize: '0.9rem',
             lineHeight: '1.5',
             color: theme === 'light' ? '#64748b' : '#94a3b8'
           }}>
@@ -204,22 +145,21 @@ function App() {
   const [selectedAiQuery, setSelectedAiQuery] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [deviceId, setDeviceId] = useState('');
-  const [collections, setCollections] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [isTablet, setIsTablet] = useState(window.innerWidth >= 768 && window.innerWidth < 1024);
-  const [isCompact, setIsCompact] = useState(window.innerWidth < 640);
   const [loadingStep, setLoadingStep] = useState(0);
   const [isShared, setIsShared] = useState(false);
-  const [shareLoading, setShareLoading] = useState(false);
-  const [shareUrl, setShareUrl] = useState('');
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [activeLandingTab, setActiveLandingTab] = useState(null);
   const [landingTheme, setLandingTheme] = useState('light');
   const [showWriterPanel, setShowWriterPanel] = useState(false);
-  const [writerSize, setWriterSize] = useState('default'); // 'default', 'half', 'full'
+  const [writerSize, setWriterSize] = useState('default');
   const [selectedPapers, setSelectedPapers] = useState([]);
+
+  const { userId, isLoaded, getToken } = useAuth();
+  const { isMobile, isTablet, isCompact } = useWindowSize();
+  const { collections, setCollections, fetchCollections, handleSaveToCollection, handleFavorite, isPaperFavorited } = useCollections({ getToken, userId });
+  const { shareLoading, shareUrl, showShareModal, setShowShareModal, copied, handleShare, copyToClipboard } = useShare({ getToken });
+  const { exportPDF, exportExcel, exportDocx } = useExport();
+
   const canSubmitSearch = Boolean(
     mainTopic.trim() ||
     authorName.trim() ||
@@ -227,35 +167,7 @@ function App() {
     keywords.length > 0
   );
 
-
-  const { userId, isLoaded, getToken } = useAuth();
-  const fetchCollections = useCallback(async () => {
-    if (!userId) return;
-
-    try {
-      const token = await getToken();
-      const response = await axios.get(`${defaultApiUrl}/api/collections`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setCollections(response.data);
-    } catch (err) {
-      console.error('Failed to fetch collections', err);
-    }
-  }, [getToken, userId]);
-
-  useEffect(() => {
-    const handleResize = () => {
-      const w = window.innerWidth;
-      const mobile = w < 768;
-      setIsMobile(mobile);
-      setIsTablet(w >= 768 && w < 1024);
-      setIsCompact(w < 640);
-      if (mobile) setSidebarOpen(false);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
+  // Auth effect
   useEffect(() => {
     if (isLoaded && userId) {
       setDeviceId(userId);
@@ -264,10 +176,10 @@ function App() {
       setDeviceId('');
       setCollections([]);
     }
-  }, [fetchCollections, userId, isLoaded]);
+  }, [fetchCollections, userId, isLoaded, setCollections]);
 
+  // Shared content + refreshCollections listener
   useEffect(() => {
-    // --- Paylaşılan İçerik Kontrolü ---
     const urlParams = new URLSearchParams(window.location.search);
     const sharedId = urlParams.get('s');
     if (sharedId) {
@@ -294,6 +206,12 @@ function App() {
     return () => window.removeEventListener('refreshCollections', refreshCollections);
   }, [fetchCollections]);
 
+  // Resize: close sidebar on mobile
+  useEffect(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
+
+  // Loading messages interval
   useEffect(() => {
     let interval;
     if (loading) {
@@ -304,135 +222,6 @@ function App() {
     }
     return () => clearInterval(interval);
   }, [loading]);
-
-  const handleSaveToCollection = async (collectionId, paper) => {
-    try {
-      const token = await getToken();
-      const response = await axios.post(`${defaultApiUrl}/api/collections/${collectionId}/add`, {
-        paper: {
-          title: paper.title,
-          year: String(paper.year),
-          authors: paper.creator || 'Bilinmeyen',
-          url: paper.url,
-          doi: paper.doi,
-          publicationName: paper.publicationName,
-          citedBy: paper.citedBy,
-          description: paper.description
-        }
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      window.dispatchEvent(new CustomEvent('refreshCollections'));
-      return response.data;
-    } catch (err) {
-      console.error('Kaydetme hatası:', err);
-      throw err;
-    }
-  };
-
-  const exportPDF = () => {
-    const element = document.getElementById('results-container');
-    const opt = {
-      margin: [10, 10],
-      filename: `LiteratureAI_Rapor_${mainTopic || 'Arastirma'}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-    html2pdf().set(opt).from(element).save();
-  };
-
-  const exportExcel = () => {
-    const headers = ['Başlık', 'Yıl', 'Yazar', 'Yayın', 'DOI', 'Atıf', 'URL'];
-    const rows = data.results.map(item => [
-      item.title,
-      item.year,
-      item.creator,
-      item.publicationName,
-      item.doi,
-      item.citedBy,
-      item.url
-    ]);
-    
-    let csvContent = "\uFEFF"; 
-    csvContent += headers.join(",") + "\n";
-    rows.forEach(row => {
-      csvContent += row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",") + "\n";
-    });
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, `LiteratureAI_Veri_${mainTopic || 'Arastirma'}.csv`);
-  };
-
-  const exportDocx = async () => {
-    const docChildren = [
-      new Paragraph({ text: 'LiteratureAI Akademik Raporu', heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER }),
-      new Paragraph({ text: `Konu: ${mainTopic}`, spacing: { before: 200, after: 200 } }),
-    ];
-    data.results.forEach(item => {
-      docChildren.push(
-        new Paragraph({ text: `${item.title || 'İsimsiz'} (${item.year || '-'})`, heading: HeadingLevel.HEADING_2 }),
-        new Paragraph({ text: `Yazarlar: ${item.creator || 'Bilinmeyen'}` }),
-        new Paragraph({ text: `Yayın: ${item.publicationName || '-'}` }),
-        new Paragraph({ text: `DOI: ${item.doi || '-'}`, spacing: { after: 200 } }),
-      );
-    });
-    const doc = new Document({ sections: [{ properties: {}, children: docChildren }] });
-    const blob = await Packer.toBlob(doc);
-    saveAs(blob, `LiteratureAI_Belge_${mainTopic || 'Arastirma'}.docx`);
-  };
-
-  const getPaperIdentity = useCallback((paper) => {
-    const doi = typeof paper?.doi === 'string' ? paper.doi.trim().toLowerCase() : '';
-    if (doi) return `doi:${doi}`;
-    const title = typeof paper?.title === 'string' ? paper.title.trim().toLowerCase() : '';
-    return `title:${title}`;
-  }, []);
-
-  const findFavoriteMatch = useCallback((paper) => {
-    const favoriteCollection = collections.find((collection) => collection.name === 'Favoriler');
-    if (!favoriteCollection) {
-      return { favoriteCollection: null, matchedPaper: null };
-    }
-
-    const identity = getPaperIdentity(paper);
-    const matchedPaper = favoriteCollection.papers?.find((savedPaper) => (
-      getPaperIdentity(savedPaper) === identity
-    )) || null;
-
-    return { favoriteCollection, matchedPaper };
-  }, [collections, getPaperIdentity]);
-
-  const isPaperFavorited = useCallback((paper) => {
-    const { matchedPaper } = findFavoriteMatch(paper);
-    return Boolean(matchedPaper);
-  }, [findFavoriteMatch]);
-
-  const handleFavorite = async (paper) => {
-    if (!userId) throw new Error('Giriş yapmanız gerekiyor');
-    const token = await getToken();
-    let { favoriteCollection, matchedPaper } = findFavoriteMatch(paper);
-
-    if (!favoriteCollection) {
-      const res = await axios.post(`${defaultApiUrl}/api/collections`, {
-        name: 'Favoriler'
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      favoriteCollection = res.data;
-      setCollections((prev) => [...prev, favoriteCollection]);
-    }
-
-    if (matchedPaper?._id) {
-      await axios.delete(`${defaultApiUrl}/api/collections/${favoriteCollection._id}/papers/${matchedPaper._id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      window.dispatchEvent(new CustomEvent('refreshCollections'));
-      return;
-    }
-
-    await handleSaveToCollection(favoriteCollection._id, paper);
-  };
 
   const handleTogglePaper = useCallback((paper) => {
     setSelectedPapers(prev => {
@@ -464,7 +253,6 @@ function App() {
       });
       if (response.data?.intent) {
         setAiAnalysis(response.data);
-
         try {
           await axios.post(`${defaultApiUrl}/api/analyses`, {
             topic: mainTopic.trim(),
@@ -506,10 +294,10 @@ function App() {
     setLoading(true);
     setError(null);
     setData(null);
-    setAiAnalysis(null); // Eski AI önerilerini temizle
-    setShowWriterPanel(false); // Yeni aramada yazım panelini kapat
-    setSelectedPapers([]); // Yeni aramada makale seçimini temizle
-    
+    setAiAnalysis(null);
+    setShowWriterPanel(false);
+    setSelectedPapers([]);
+
     try {
       const token = await getToken();
       const response = await axios.get(`${defaultApiUrl}/api/search`, {
@@ -524,7 +312,7 @@ function App() {
       });
       setData(response.data);
       if (response.data.quota) setQuota(response.data.quota);
-      
+
       await axios.post(`${defaultApiUrl}/api/history`, {
         mainTopic: trimmedTopic,
         authorName: trimmedAuthor,
@@ -541,710 +329,41 @@ function App() {
     }
   };
 
-  const handleShare = async () => {
-    if (!data || !data.results.length) return;
-    setShareLoading(true);
-    try {
-      const token = await getToken();
-      // Trim results to 15 items and remove heavy fields to stay well under 1MB limit
-      const safeResults = data.results.slice(0, 15).map(r => ({
-        title: r.title?.slice(0, 200),
-        titleTR: r.titleTR?.slice(0, 200),
-        authors: r.authors,
-        year: r.year,
-        source: r.source,
-        doi: r.doi,
-        url: r.url,
-        citedBy: r.citedBy || r.citedbyCount,
-        publicationName: r.publicationName,
-        scores: r.scores,
-        totalPoint: r.totalPoint,
-        confidence: r.confidence,
-        explanation: r.explanation,
-        description: r.description?.slice(0, 300),
-        teaserTR: r.teaserTR?.slice(0, 300)
-      }));
-      const res = await axios.post(`${defaultApiUrl}/api/share`, {
-        mainTopic,
-        results: safeResults,
-        aiAnalysis,
-        originalParams: { authorName, keywords, count }
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const fullUrl = res.data.url || `${window.location.origin}${window.location.pathname}?s=${res.data.shareId}`;
-      setShareUrl(fullUrl);
-      setShowShareModal(true);
-    } catch (err) {
-      const msg = err.response?.data?.error || err.message || 'Paylaşım linki oluşturulamadı.';
-      alert(msg);
-    } finally {
-      setShareLoading(false);
-    }
-  };
-
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-        setShowShareModal(false);
-      }, 1200);
-    } catch {
-      console.error('Kopyalama hatası');
-    }
-  };
-
   return (
     <>
       <SignedOut>
-        <div className="landing-page" style={{ 
-          minHeight: '100vh', 
-          background: landingTheme === 'light' ? '#f8fafc' : '#0f172a',
-          color: landingTheme === 'light' ? '#0f172a' : '#f8fafc',
-          overflowX: 'hidden',
-          transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
-        }}>
-          {/* Custom Clerk Styling to make it larger and premium */}
-          <style>{`
-            .cl-modalBackdrop {
-              backdrop-filter: blur(8px) !important;
-              background-color: rgba(0, 0, 0, 0.4) !important;
-            }
-          `}</style>
-          {/* Landing Info Modals */}
-          <AnimatePresence>
-            {activeLandingTab && (
-              <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
-                <motion.div 
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  onClick={() => setActiveLandingTab(null)}
-                  style={{ position: 'absolute', inset: 0, background: landingTheme === 'light' ? 'rgba(15, 23, 42, 0.4)' : 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(10px)' }} 
-                />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                  style={{
-                    position: 'relative', width: '100%', maxWidth: '600px', 
-                    background: landingTheme === 'light' ? 'white' : '#1e293b', 
-                    borderRadius: '32px',
-                    padding: '3rem', 
-                    boxShadow: '0 30px 60px -12px rgba(0,0,0,0.25)', 
-                    border: landingTheme === 'light' ? '1px solid rgba(0,0,0,0.05)' : '1px solid rgba(255,255,255,0.05)',
-                    color: landingTheme === 'light' ? '#0f172a' : '#f8fafc'
-                  }}
-                >
-                  <button onClick={() => setActiveLandingTab(null)} style={{ position: 'absolute', right: '24px', top: '24px', background: landingTheme === 'light' ? '#f1f5f9' : '#334155', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}><X size={18} /></button>
-                  
-                  {activeLandingTab === 'features' && (
-                    <div>
-                      <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: landingTheme === 'light' ? '#eef2ff' : 'rgba(79, 70, 229, 0.1)', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}><Zap size={28} /></div>
-                      <h2 style={{ fontSize: '1.75rem', fontWeight: '800', marginBottom: '1rem', letterSpacing: '-0.02em' }}>Platform Özellikleri</h2>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        <div style={{ padding: '1rem', borderRadius: '16px', background: landingTheme === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: landingTheme === 'light' ? '1px solid #f1f5f9' : '1px solid rgba(255,255,255,0.05)' }}>
-                          <div style={{ fontWeight: '700', marginBottom: '4px' }}>AHP Tabanlı Akıllı Sıralama</div>
-                          <div style={{ fontSize: '0.9rem', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>Makaleleri sadece anahtar kelimeye göre değil; atıf sayısı, güncellik ve alaka düzeyine göre puanlarız.</div>
-                        </div>
-                        <div style={{ padding: '1rem', borderRadius: '16px', background: landingTheme === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: landingTheme === 'light' ? '1px solid #f1f5f9' : '1px solid rgba(255,255,255,0.05)' }}>
-                          <div style={{ fontWeight: '700', marginBottom: '4px' }}>AI Literatür Sentezi</div>
-                          <div style={{ fontSize: '0.9rem', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>Llama 3.1 desteğiyle onlarca makaleyi saniyeler içinde okuyup size akademik bir özet sunarız.</div>
-                        </div>
-                        <div style={{ padding: '1rem', borderRadius: '16px', background: landingTheme === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: landingTheme === 'light' ? '1px solid #f1f5f9' : '1px solid rgba(255,255,255,0.05)' }}>
-                          <div style={{ fontWeight: '700', marginBottom: '4px' }}>Çapraz Kaynak Taraması</div>
-                          <div style={{ fontSize: '0.9rem', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>Scopus, OpenAlex ve Crossref dahil 7 farklı dev veri tabanını aynı anda tararız.</div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeLandingTab === 'how-it-works' && (
-                    <div>
-                      <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: landingTheme === 'light' ? '#f0fdf4' : 'rgba(22, 163, 74, 0.1)', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}><Cpu size={28} /></div>
-                      <h2 style={{ fontSize: '1.75rem', fontWeight: '800', marginBottom: '1rem', letterSpacing: '-0.02em' }}>Sistem Nasıl Çalışır?</h2>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <div style={{ display: 'flex', gap: '15px' }}>
-                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#16a34a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '0.8rem', fontWeight: '800' }}>1</div>
-                          <div>
-                            <div style={{ fontWeight: '700' }}>Akıllı Sorgu Analizi</div>
-                            <div style={{ fontSize: '0.85rem', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>Girdiğiniz konu yapay zeka tarafından analiz edilir ve en geniş sonuç için akademik terimlere dönüştürülür.</div>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '15px' }}>
-                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#16a34a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '0.8rem', fontWeight: '800' }}>2</div>
-                          <div>
-                            <div style={{ fontWeight: '700' }}>Veri Madenciliği ve Filtreleme</div>
-                            <div style={{ fontSize: '0.85rem', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>Milyonlarca kayıt taranır, DOI doğrulamaları yapılır ve mükerrer sonuçlar temizlenir.</div>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '15px' }}>
-                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#16a34a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '0.8rem', fontWeight: '800' }}>3</div>
-                          <div>
-                            <div style={{ fontWeight: '700' }}>AHP Puanlama ve Sunum</div>
-                            <div style={{ fontSize: '0.85rem', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>Matematiksel ağırlıklandırma ile en değerli yayınlar en üste çıkarılarak önünüze getirilir.</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeLandingTab === 'resources' && (
-                    <div>
-                      <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: landingTheme === 'light' ? '#fff7ed' : 'rgba(234, 88, 12, 0.1)', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}><FileSearch size={28} /></div>
-                      <h2 style={{ fontSize: '1.75rem', fontWeight: '800', marginBottom: '1rem', letterSpacing: '-0.02em' }}>Veri Kaynaklarımız</h2>
-                      <p style={{ color: landingTheme === 'light' ? '#64748b' : '#94a3b8', marginBottom: '1.5rem', fontSize: '0.95rem' }}>Literatur AI, dünyanın en saygın ve geniş kapsamlı akademik veri sağlayıcılarıyla tam entegre çalışır:</p>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                        {['Scopus (Elsevier)', 'OpenAlex (Full Open)', 'CORE UK', 'Crossref (DOI)', 'Semantic Scholar', 'ArXiv (Pre-print)', 'DOAJ (Open Access)'].map(src => (
-                          <div key={src} style={{ padding: '12px', border: landingTheme === 'light' ? '1px solid #f1f5f9' : '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '600', color: landingTheme === 'light' ? '#475569' : '#cbd5e1', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ea580c' }}></div>
-                            {src}
-                          </div>
-                        ))}
-                      </div>
-                      <p style={{ marginTop: '1.5rem', fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>* Toplamda 810 milyondan fazla metaveri ve tam metin kaydına erişim sağlanmaktadır.</p>
-                    </div>
-                  )}
-                </motion.div>
-              </div>
-            )}
-          </AnimatePresence>
-          {/* Header */}
-          <nav className="landing-nav" style={{ background: landingTheme === 'light' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(15, 23, 42, 0.8)', borderBottom: landingTheme === 'light' ? '1px solid rgba(0, 0, 0, 0.05)' : '1px solid rgba(255, 255, 255, 0.05)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #4f46e5, #a855f7)', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Zap size={22} color="white" fill="white" />
-              </div>
-              <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.02em', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>Literatur AI</span>
-            </div>
-            
-            <div className="nav-links nav-links-center">
-              <button onClick={() => setActiveLandingTab('features')} className="nav-link" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.95rem', letterSpacing: '0.01em', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>Özellikler</button>
-              <button onClick={() => setActiveLandingTab('how-it-works')} className="nav-link" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.95rem', letterSpacing: '0.01em', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>Nasıl Çalışır?</button>
-              <button onClick={() => setActiveLandingTab('resources')} className="nav-link" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.95rem', letterSpacing: '0.01em', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>Kaynaklar</button>
-            </div>
-
-            <div className="nav-links auth-btns nav-links-auth">
-              <button 
-                onClick={() => setLandingTheme(landingTheme === 'light' ? 'dark' : 'light')}
-                style={{ background: 'transparent', border: 'none', padding: '10px', cursor: 'pointer', color: landingTheme === 'light' ? '#64748b' : '#94a3b8', transition: 'transform 0.3s ease' }}
-              >
-                {landingTheme === 'light' ? <Sun size={20} /> : <Moon size={20} />}
-              </button>
-              <SignInButton mode="modal">
-                <button style={{ background: 'transparent', border: 'none', fontWeight: '700', color: landingTheme === 'light' ? '#1e293b' : '#f8fafc', cursor: 'pointer', fontSize: '0.9rem' }}>Giriş Yap</button>
-              </SignInButton>
-              <SignInButton mode="modal">
-                <button style={{ background: '#4f46e5', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)' }}>Ücretsiz Başlayın</button>
-              </SignInButton>
-            </div>
-          </nav>
-
-          {/* Hero Section */}
-          <div style={{ 
-            padding: '160px 2rem 100px', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            textAlign: 'center' 
-          }}>
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="hero-badge"
-              style={{ background: landingTheme === 'light' ? '#f5f3ff' : 'rgba(124, 58, 237, 0.1)', color: '#7c3aed' }}
-            >
-              <Sparkles size={14} />
-              <span>AI destekli akademik arama & AHP sıralama</span>
-            </motion.div>
-
-            <motion.h1 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              style={{ fontSize: 'min(4rem, 10vw)', fontWeight: '900', maxWidth: '900px', lineHeight: '1.1', marginBottom: '1.5rem', letterSpacing: '-0.04em', color: landingTheme === 'light' ? '#0f172a' : '#ffffff' }}
-            >
-              En iyi akademik makaleleri <span style={{ color: '#6366f1' }}>saniyeler</span> içinde bulun.
-            </motion.h1>
-
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              style={{ color: landingTheme === 'light' ? '#64748b' : '#94a3b8', fontSize: '1.15rem', maxWidth: '600px', marginBottom: '3rem', lineHeight: '1.6' }}
-            >
-              810 milyondan fazla akademik yayını tarayın, analiz edin ve en kaliteli kaynaklara ulaşın.
-            </motion.p>
-
-            {/* Mock Search Bar */}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3 }}
-              style={{ 
-                width: '100%', 
-                maxWidth: '720px', 
-                background: landingTheme === 'light' ? 'white' : '#1e293b', 
-                padding: '8px', 
-                borderRadius: '20px', 
-                display: 'flex', 
-                alignItems: 'center', 
-                boxShadow: landingTheme === 'light' ? '0 20px 50px -12px rgba(0,0,0,0.1)' : '0 20px 50px -12px rgba(0,0,0,0.5)',
-                border: landingTheme === 'light' ? '1px solid rgba(0,0,0,0.05)' : '1px solid rgba(255,255,255,0.05)',
-                marginBottom: '1.5rem'
-              }}
-            >
-              <div style={{ padding: '0 15px', color: '#94a3b8' }}><Search size={22} /></div>
-              <input 
-                readOnly 
-                placeholder="Araştırmak istediğiniz konuyu yazın..." 
-                style={{ flex: 1, border: 'none', outline: 'none', fontSize: '1.1rem', color: landingTheme === 'light' ? '#1e293b' : '#f8fafc', background: 'transparent' }}
-              />
-              <div style={{ padding: '6px 12px', background: landingTheme === 'light' ? '#f1f5f9' : '#334155', borderRadius: '8px', color: '#94a3b8', fontSize: '0.8rem', fontWeight: '700', marginRight: '10px' }}>⌘ K</div>
-              <SignInButton mode="modal">
-                <button style={{ background: '#4f46e5', color: 'white', border: 'none', padding: '12px 32px', borderRadius: '14px', fontWeight: '700', cursor: 'pointer', fontSize: '1rem' }}>Ara</button>
-              </SignInButton>
-            </motion.div>
-
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <span style={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: '600', alignSelf: 'center' }}>Örnek aramalar:</span>
-              {['transportation models', 'sustainable cities', 'AI in healthcare', 'supply chain optimization', 'renewable energy'].map(tag => (
-                <button key={tag} style={{ background: landingTheme === 'light' ? 'white' : 'rgba(255,255,255,0.05)', border: landingTheme === 'light' ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.1)', padding: '6px 16px', borderRadius: '99px', color: landingTheme === 'light' ? '#475569' : '#cbd5e1', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer' }}>{tag}</button>
-              ))}
-            </div>
-
-            {/* User Tiers Section */}
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
-              gap: '1.5rem', 
-              marginTop: '4rem',
-              width: '100%',
-              maxWidth: '1200px'
-            }}>
-              {USER_TIERS.map((tier, idx) => {
-                const TierIcon = tier.icon;
-                return (
-                  <motion.div 
-                    key={tier.title}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 + (idx * 0.1) }}
-                    whileHover={{ y: -8, boxShadow: landingTheme === 'light' ? '0 20px 40px -15px rgba(0,0,0,0.1)' : '0 20px 40px -15px rgba(0,0,0,0.4)' }}
-                    style={{
-                      background: landingTheme === 'light' ? 'white' : 'rgba(30, 41, 59, 0.4)',
-                      padding: '2rem',
-                      borderRadius: '24px',
-                      border: landingTheme === 'light' ? '1px solid rgba(0,0,0,0.05)' : '1px solid rgba(255,255,255,0.05)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      textAlign: 'center',
-                      backdropFilter: 'blur(12px)',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                    }}
-                  >
-                    <div style={{
-                      width: '56px',
-                      height: '56px',
-                      borderRadius: '16px',
-                      background: landingTheme === 'light' ? '#f5f3ff' : 'rgba(99, 102, 241, 0.1)',
-                      color: '#6366f1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: '1.5rem'
-                    }}>
-                      <TierIcon size={28} />
-                    </div>
-                    <h3 style={{ 
-                      fontSize: '1.25rem', 
-                      fontWeight: '800', 
-                      marginBottom: '0.75rem',
-                      color: landingTheme === 'light' ? '#0f172a' : '#f8fafc'
-                    }}>
-                      {tier.title}
-                    </h3>
-                    <p style={{ 
-                      fontSize: '0.9rem', 
-                      lineHeight: '1.6',
-                      color: landingTheme === 'light' ? '#64748b' : '#94a3b8'
-                    }}>
-                      {tier.text}
-                    </p>
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            {/* Stats Section */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              gap: '4rem', 
-              marginTop: '5rem',
-              padding: '4rem 2rem',
-              width: '100%',
-              maxWidth: '900px',
-              borderTop: landingTheme === 'light' ? '1px solid #f1f5f9' : '1px solid rgba(255,255,255,0.05)'
-            }}>
-              {LANDING_STATS.map((stat, idx) => (
-                <motion.div 
-                  key={stat.label}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.8 + (idx * 0.2) }}
-                  style={{ textAlign: 'center', flex: 1 }}
-                >
-                  <div style={{ 
-                    fontSize: '3.5rem', 
-                    fontWeight: '900', 
-                    color: landingTheme === 'light' ? '#0f172a' : '#ffffff',
-                    letterSpacing: '-0.02em',
-                    lineHeight: '1'
-                  }}>
-                    {stat.value}
-                  </div>
-                  <div style={{ 
-                    fontSize: '1rem', 
-                    fontWeight: '700', 
-                    color: '#6366f1',
-                    marginTop: '0.5rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em'
-                  }}>
-                    {stat.label}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Features */}
-            <div className="feature-grid">
-              <div className="feature-item" style={{ background: landingTheme === 'light' ? 'white' : '#1e293b', border: landingTheme === 'light' ? '1px solid rgba(0,0,0,0.04)' : '1px solid rgba(255,255,255,0.05)' }}>
-                <div className="feature-icon-wrapper" style={{ background: landingTheme === 'light' ? '#f5f3ff' : 'rgba(124, 58, 237, 0.1)', color: '#7c3aed' }}><Library size={24} /></div>
-                <div>
-                  <div style={{ fontWeight: '800', fontSize: '1.1rem', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>7 Dev Kaynak</div>
-                  <div style={{ fontSize: '0.8rem', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>En Büyük Veri Tabanları</div>
-                </div>
-              </div>
-              <div className="feature-item" style={{ background: landingTheme === 'light' ? 'white' : '#1e293b', border: landingTheme === 'light' ? '1px solid rgba(0,0,0,0.04)' : '1px solid rgba(255,255,255,0.05)' }}>
-                <div className="feature-icon-wrapper" style={{ background: landingTheme === 'light' ? '#eff6ff' : 'rgba(37, 99, 235, 0.1)', color: '#2563eb' }}><Cpu size={24} /></div>
-                <div>
-                  <div style={{ fontWeight: '800', fontSize: '1.1rem', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>AI Destekli</div>
-                  <div style={{ fontSize: '0.8rem', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>Akıllı Analiz</div>
-                </div>
-              </div>
-              <div className="feature-item" style={{ background: landingTheme === 'light' ? 'white' : '#1e293b', border: landingTheme === 'light' ? '1px solid rgba(0,0,0,0.04)' : '1px solid rgba(255,255,255,0.05)' }}>
-                <div className="feature-icon-wrapper" style={{ background: landingTheme === 'light' ? '#f0fdf4' : 'rgba(22, 163, 74, 0.1)', color: '#16a34a' }}><Trophy size={24} /></div>
-                <div>
-                  <div style={{ fontWeight: '800', fontSize: '1.1rem', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>AHP Sıralama</div>
-                  <div style={{ fontSize: '0.8rem', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>En Doğru Sonuçlar</div>
-                </div>
-              </div>
-              <div className="feature-item" style={{ background: landingTheme === 'light' ? 'white' : '#1e293b', border: landingTheme === 'light' ? '1px solid rgba(0,0,0,0.04)' : '1px solid rgba(255,255,255,0.05)' }}>
-                <div className="feature-icon-wrapper" style={{ background: landingTheme === 'light' ? '#fffbeb' : 'rgba(217, 119, 6, 0.1)', color: '#d97706' }}><Zap size={24} /></div>
-                <div>
-                  <div style={{ fontWeight: '800', fontSize: '1.1rem', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>Hızlı & Etkili</div>
-                  <div style={{ fontSize: '0.8rem', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>Saniyeler İçinde</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Mock Results Preview */}
-            <div className="mock-results-card" style={{ background: landingTheme === 'light' ? 'white' : '#1e293b', border: landingTheme === 'light' ? '1px solid rgba(0,0,0,0.06)' : '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ padding: '20px 30px', borderBottom: landingTheme === 'light' ? '1px solid #f1f5f9' : '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                  <div style={{ color: '#4f46e5' }}><FileSearch size={22} /></div>
-                  <span style={{ fontWeight: '700', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>Arama Sonuçları</span>
-                  <span style={{ padding: '4px 12px', background: landingTheme === 'light' ? '#f1f5f9' : '#334155', borderRadius: '8px', fontSize: '0.8rem', color: '#64748b' }}>transportation models in urban areas</span>
-                </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <div style={{ padding: '8px 16px', background: landingTheme === 'light' ? '#f8fafc' : '#334155', border: landingTheme === 'light' ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', fontSize: '0.85rem', fontWeight: '600', color: landingTheme === 'light' ? '#475569' : '#cbd5e1', display: 'flex', alignItems: 'center', gap: '8px' }}>Sırala: AHP Skor <ChevronDown size={14} /></div>
-                  <div style={{ padding: '8px 16px', background: landingTheme === 'light' ? '#f8fafc' : '#334155', border: landingTheme === 'light' ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', fontSize: '0.85rem', fontWeight: '600', color: landingTheme === 'light' ? '#475569' : '#cbd5e1', display: 'flex', alignItems: 'center', gap: '8px' }}><Download size={14} /> Dışa Aktar</div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex' }}>
-                {/* Mock Filter Sidebar */}
-                <div style={{ width: '220px', padding: '30px', borderRight: landingTheme === 'light' ? '1px solid #f1f5f9' : '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', gap: '25px' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: '800', marginBottom: '15px', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}><Filter size={14} /> Filtreler</div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '10px' }}>Yayın Yılı</div>
-                    <div style={{ height: '4px', background: 'linear-gradient(to right, #4f46e5 80%, #e2e8f0 80%)', borderRadius: '2px', position: 'relative' }}>
-                      <div style={{ position: 'absolute', left: '0', top: '-6px', width: '16px', height: '16px', background: landingTheme === 'light' ? 'white' : '#1e293b', border: '3px solid #4f46e5', borderRadius: '50%' }}></div>
-                      <div style={{ position: 'absolute', right: '15%', top: '-6px', width: '16px', height: '16px', background: landingTheme === 'light' ? 'white' : '#1e293b', border: '3px solid #4f46e5', borderRadius: '50%' }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '10px' }}>Kaynak</div>
-                    {['OpenAlex', 'CORE', 'Crossref', 'Scopus'].map(k => (
-                      <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', fontSize: '0.85rem', fontWeight: '600', color: landingTheme === 'light' ? '#475569' : '#cbd5e1' }}>
-                        <div style={{ width: '16px', height: '16px', background: '#4f46e5', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={12} color="white" /></div>
-                        {k}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Mock List */}
-                <div style={{ flex: 1, padding: '30px' }}>
-                  {[
-                    { title: 'A comprehensive review of urban transportation models', authors: 'Z. Liu, Y. He, X. Zhang', source: 'OpenAlex', score: 0.87, cited: 152, color: landingTheme === 'light' ? '#f5f3ff' : 'rgba(124, 58, 237, 0.1)' },
-                    { title: 'Sustainable urban mobility: modeling and optimization', authors: 'M. Behrisch, L. Bieker', source: 'CORE', score: 0.79, cited: 98, color: landingTheme === 'light' ? '#fffbeb' : 'rgba(217, 119, 6, 0.1)' },
-                    { title: 'Agent-based models in urban transportation planning', authors: 'J. Barceló, P. Picornell', source: 'Crossref', score: 0.71, cited: 84, color: landingTheme === 'light' ? '#f0fdf4' : 'rgba(22, 163, 74, 0.1)' }
-                  ].map((m, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '20px', background: i===0 ? (landingTheme === 'light' ? 'rgba(79,70,229,0.02)' : 'rgba(79,70,229,0.05)') : 'transparent', border: i===0 ? '1px solid rgba(79,70,229,0.1)' : '1px solid transparent', borderRadius: '16px', marginBottom: '10px' }}>
-                      <div style={{ width: '40px', height: '40px', background: m.color, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366f1' }}><FileText size={20} /></div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: '800', fontSize: '0.95rem', marginBottom: '4px', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>{m.title}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{m.authors}</div>
-                      </div>
-                      <div style={{ width: '100px', fontSize: '0.8rem', fontWeight: '700', color: '#4f46e5' }}>{m.source}</div>
-                      <div style={{ width: '150px' }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#4f46e5', marginBottom: '4px' }}>{m.score}</div>
-                        <div style={{ height: '6px', background: landingTheme === 'light' ? '#e2e8f0' : '#334155', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ width: `${m.score*100}%`, height: '100%', background: '#4f46e5' }}></div>
-                        </div>
-                      </div>
-                      <div style={{ width: '60px', textAlign: 'right', fontWeight: '700', fontSize: '0.9rem', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>{m.cited}</div>
-                      <div style={{ color: '#cbd5e1' }}><Bookmark size={18} /></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Comparison Section - Card Grid Version */}
-            <div style={{ width: '100%', maxWidth: '1100px', marginTop: '100px', textAlign: 'center' }}>
-              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc', marginBottom: '1rem' }}>
-                Neden Literatur AI?
-              </h2>
-              <p style={{ fontSize: '1.1rem', color: '#64748b', marginBottom: '3rem' }}>
-                Bilimsel bütünlük ve akademik etik çerçevesinde teknolojik farkımız.
-              </p>
-
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '2rem', padding: '0 1rem' }}>
-                {[
-                  { k: 'Referans Güvenilirliği', l: 'Doğrulanmış Bilimsel Yayınlar', s: 'Halüsinasyon (Uydurma Veri) Riski', icon: <ShieldCheck size={24} /> },
-                  { k: 'Bibliyografik Hassasiyet', l: 'Akademik Format Uyumluluğu', s: 'Standart Dışı veya Hatalı Atıf', icon: <FileText size={24} /> },
-                  { k: 'Kapsanan Literatür', l: 'Milyonlarca İndeksli Yayın', s: 'Genel İnternet ve Web İçeriği', icon: <Library size={24} /> },
-                  { k: 'Veri Güncelliği', l: 'Gerçek Zamanlı Literatür Erişimi', s: 'Kısıtlı Eğitim Seti', icon: <Zap size={24} /> }
-                ].map((row, idx) => (
-                  <MotionDiv
-                    key={idx}
-                    whileHover={{ y: -5 }}
-                    className="glass-panel"
-                    style={{ 
-                      padding: '2rem', 
-                      textAlign: 'left', 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      gap: '1.5rem',
-                      background: landingTheme === 'light' ? 'rgba(255,255,255,0.7)' : 'rgba(30, 41, 59, 0.5)',
-                      border: '1px solid ' + (landingTheme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)')
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ color: '#4f46e5' }}>{row.icon}</div>
-                      <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>{row.k}</h3>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div style={{ 
-                        padding: '1rem 1.25rem', 
-                        background: 'linear-gradient(135deg, #4f46e5, #6366f1)', 
-                        borderRadius: '12px', 
-                        color: 'white',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)'
-                      }}>
-                        <Check size={20} strokeWidth={3} />
-                        <div style={{ fontSize: '0.95rem', fontWeight: '700' }}>{row.l}</div>
-                      </div>
-
-                      <div style={{ 
-                        padding: '1rem 1.25rem', 
-                        background: landingTheme === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.03)', 
-                        borderRadius: '12px', 
-                        color: '#94a3b8',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        border: '1px dashed ' + (landingTheme === 'light' ? '#e2e8f0' : 'rgba(255,255,255,0.1)')
-                      }}>
-                        <X size={20} color="#f43f5e" style={{ opacity: 0.6 }} />
-                        <div style={{ fontSize: '0.9rem', fontWeight: '500', fontStyle: 'italic' }}>{row.s}</div>
-                      </div>
-                    </div>
-                  </MotionDiv>
-                ))}
-              </div>
-            </div>
-
-            {/* Brand logos & Social Proof */}
-            <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '80px', paddingBottom: '60px' }}>
-              <div style={{ display: 'flex', gap: '3rem', opacity: landingTheme === 'light' ? 0.5 : 0.8 }}>
-                {['OpenAlex', 'CORE', 'Crossref', 'Scopus'].map(b => (
-                  <div key={b} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '1rem', color: landingTheme === 'light' ? '#1e293b' : '#cbd5e1' }}>
-                    <div style={{ width: '20px', height: '20px', background: landingTheme === 'light' ? '#cbd5e1' : '#334155', borderRadius: '4px' }}></div>
-                    {b}
-                  </div>
-                ))}
-              </div>
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px', background: landingTheme === 'light' ? 'white' : '#1e293b', padding: '12px 24px', borderRadius: '99px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', border: landingTheme === 'light' ? 'none' : '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ display: 'flex', marginLeft: '10px' }}>
-                  {[1,2,3].map(i => (
-                    <div key={i} style={{ width: '32px', height: '32px', borderRadius: '50%', background: landingTheme === 'light' ? '#e2e8f0' : '#334155', border: '2px solid ' + (landingTheme === 'light' ? 'white' : '#1e293b'), marginLeft: '-10px' }}></div>
-                  ))}
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: '800', color: landingTheme === 'light' ? '#0f172a' : '#f8fafc' }}>60.000+ araştırmacı</div>
-                  <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Literatur AI kullanıyor</div>
-                </div>
-                <div style={{ color: '#4f46e5', marginLeft: '10px' }}><Zap size={18} /></div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <LandingPage
+          landingTheme={landingTheme}
+          activeLandingTab={activeLandingTab}
+          setActiveLandingTab={setActiveLandingTab}
+          setLandingTheme={setLandingTheme}
+          isMobile={isMobile}
+        />
       </SignedOut>
 
       <SignedIn>
         <InfiniteTicker />
-        
-        {/* --- Share Modal --- */}
-        <AnimatePresence>
-          {showShareModal && (
-            <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-              <motion.div 
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                onClick={() => setShowShareModal(false)}
-                style={{ position: 'absolute', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)' }} 
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  maxWidth: '440px',
-                  background: '#1e293b',
-                  borderRadius: '24px',
-                  padding: '2.5rem 1.5rem',
-                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-                  textAlign: 'center',
-                  color: 'white',
-                  border: '1px solid rgba(255, 255, 255, 0.1)'
-                }}
-              >
-                <button 
-                  onClick={() => setShowShareModal(false)}
-                  style={{ position: 'absolute', right: '20px', top: '20px', background: 'none', border: 'none', color: 'rgba(255, 255, 255, 0.5)', cursor: 'pointer' }}
-                >
-                  <X size={20} />
-                </button>
 
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'linear-gradient(135deg, #4f46e5, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
-                    <Share2 size={28} color="white" />
-                  </div>
-                  <h3 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '0.5rem' }}>Araştırmayı Paylaş</h3>
-                  <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.875rem', lineHeight: 1.5 }}>
-                    Bu çalışmayı meslektaşlarınızla paylaşarak literatür tarama sürecini hızlandırın.
-                  </p>
-                </div>
+        {/* Share Modal */}
+        <ShareModal
+          show={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          shareUrl={shareUrl}
+          copied={copied}
+          onCopy={copyToClipboard}
+        />
 
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', marginTop: '2rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                    <button 
-                      onClick={copyToClipboard}
-                      className="share-circle-btn"
-                      style={{ 
-                        width: '64px', height: '64px', borderRadius: '50%', background: copied ? '#10b981' : 'white', 
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', transform: copied ? 'scale(1.05)' : 'scale(1)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
-                      }}
-                    >
-                      {copied ? <CheckCircle2 size={24} color="white" strokeWidth={3} /> : <Link2 size={24} color="#1e293b" strokeWidth={2.5} />}
-                    </button>
-                    <span style={{ fontSize: '0.75rem', fontWeight: '700', color: copied ? '#10b981' : 'rgba(255, 255, 255, 0.7)', letterSpacing: '0.02em' }}>
-                      {copied ? 'Kopyalandı!' : 'Bağlantı'}
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                    <a 
-                      href={`https://wa.me/?text=${encodeURIComponent('Harika bir akademik araştırma buldum: \n\n' + shareUrl)}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="share-circle-btn"
-                      style={{ 
-                        width: '64px', height: '64px', borderRadius: '50%', background: '#25D366', 
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer',
-                        color: 'white', transition: 'all 0.3s ease', textDecoration: 'none',
-                        boxShadow: '0 4px 12px rgba(37, 211, 102, 0.3)'
-                      }}
-                    >
-                      <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor">
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                      </svg>
-                    </a>
-                    <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'rgba(255, 255, 255, 0.7)', letterSpacing: '0.02em' }}>WhatsApp</span>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                    <a 
-                      href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="share-circle-btn"
-                      style={{ 
-                        width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.1)', 
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer',
-                        color: 'white', transition: 'all 0.3s ease', textDecoration: 'none',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                      }}
-                    >
-                      <Linkedin size={22} strokeWidth={2.5} fill="currentColor" />
-                    </a>
-                    <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'rgba(255, 255, 255, 0.7)', letterSpacing: '0.02em' }}>LinkedIn</span>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                    <a
-                      href={`mailto:?subject=${encodeURIComponent('LiteratureAI Araştırma Paylaşımı')}&body=${encodeURIComponent('Merhaba,\n\nBu akademik araştırmayı seninle paylaşmak istedim:\n\n' + shareUrl)}`}
-                      className="share-circle-btn"
-                      style={{
-                        width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.1)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer',
-                        color: 'white', transition: 'all 0.3s ease', textDecoration: 'none',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                      }}
-                    >
-                      <Mail size={22} strokeWidth={2.5} />
-                    </a>
-                    <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'rgba(255, 255, 255, 0.7)', letterSpacing: '0.02em' }}>E-posta</span>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-
-        <HistorySidebar 
+        <HistorySidebar
           isOpen={sidebarOpen}
           setIsOpen={setSidebarOpen}
-          deviceId={deviceId} 
-          apiUrl={defaultApiUrl} 
+          deviceId={deviceId}
+          apiUrl={defaultApiUrl}
           onSelectHistory={(item) => {
             setMainTopic(item.mainTopic || '');
             setAuthorName(item.authorName || '');
             setKeywords(item.keywords || []);
             handleSearch(null, item.aiQuery);
-          }} 
+          }}
           onDeleteHistoryEntry={async (id) => {
             const token = await getToken();
             await axios.delete(`${defaultApiUrl}/api/history/entry/${id}`, {
@@ -1265,14 +384,14 @@ function App() {
 
         <main className="app-main" style={{
           marginLeft: isMobile ? '0px' : (sidebarOpen ? '280px' : '72px'),
-          marginRight: (!isMobile && showWriterPanel) 
-            ? (writerSize === 'default' ? '420px' : (writerSize === 'half' ? '50vw' : '100vw')) 
+          marginRight: (!isMobile && showWriterPanel)
+            ? (writerSize === 'default' ? '420px' : (writerSize === 'half' ? '50vw' : '100vw'))
             : '0px',
           transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
           padding: isMobile ? '3.5rem 1rem 2rem' : (isTablet ? '3.5rem 1.5rem' : '4rem 2rem')
         }}>
           <div className="query-workspace" style={{ maxWidth: '1000px', margin: '0 auto' }}>
-            
+
             <header className="query-hero" style={{ textAlign: 'center', marginBottom: isMobile ? '2rem' : '3rem' }}>
               <MotionDiv
                 initial={{ opacity: 0, y: 8 }}
@@ -1298,7 +417,7 @@ function App() {
                     <CheckCircle2 size={16} /> Paylaşılan Araştırma Görüntüleniyor
                   </div>
                   <h2 style={{ fontSize: 'var(--fs-xl)', fontWeight: '700', color: 'var(--text-main)', margin: '0 0 1rem 0' }}>{mainTopic}</h2>
-                  <button 
+                  <button
                     onClick={() => { window.location.href = window.location.pathname; }}
                     className="btn"
                     style={{ height: '44px', width: 'auto', padding: '0 24px', margin: '0 auto' }}
@@ -1501,7 +620,7 @@ function App() {
                     <Sparkles size={18} color="var(--brand-primary)" />
                     <h3 style={{ fontSize: 'var(--fs-md)', fontWeight: '700', color: 'var(--text-main)' }}>AI Araştırma Analizi</h3>
                   </div>
-                  
+
                   <div style={{ background: 'var(--slate-50)', padding: '1rem', borderRadius: 'var(--radius-sm)', marginBottom: '1.25rem' }}>
                     <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-main)', lineHeight: 1.6, fontWeight: '500' }}>
                       <span style={{ color: 'var(--brand-primary)', fontWeight: '700' }}>Hedef:</span> {aiAnalysis.intent}
@@ -1547,15 +666,15 @@ function App() {
 
             {data && (
               <div style={{ marginTop: '2rem' }}>
-                <GlobalStats 
-                  totalFound={data.totalFound} 
-                  analyzed={data.analyzedCount} 
+                <GlobalStats
+                  totalFound={data.totalFound}
+                  analyzed={data.analyzedCount}
                   quota={quota}
                   sourceBreakdown={data.sourceBreakdown}
                   totalFromAPIs={data.totalFromAPIs}
                   failedSources={data.failedSources}
                 />
-                
+
                 <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', marginBottom: '1rem' }}>
                   <div style={{ fontWeight: '600', color: 'var(--slate-600)', fontSize: 'var(--fs-sm)' }}>
                     <span style={{ color: 'var(--brand-primary)', fontWeight: '700' }}>{selectedPapers.length}</span> kaynak seçildi
@@ -1578,18 +697,18 @@ function App() {
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {!isShared && (
-                      <button onClick={handleShare} disabled={shareLoading} className="btn" style={{ background: 'var(--brand-primary)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
+                      <button onClick={() => handleShare({ data, mainTopic, aiAnalysis, authorName, keywords, count })} disabled={shareLoading} className="btn" style={{ background: 'var(--brand-primary)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
                         {shareLoading ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
                         {shareLoading ? 'Link hazırlanıyor...' : 'Araştırmayı Paylaş'}
                       </button>
                     )}
-                    <button onClick={exportPDF} className="btn-secondary" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
+                    <button onClick={() => exportPDF(mainTopic)} className="btn-secondary" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
                       <Download size={14} /> PDF
                     </button>
-                    <button onClick={exportExcel} className="btn-secondary" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
+                    <button onClick={() => exportExcel(data, mainTopic)} className="btn-secondary" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
                       <Download size={14} /> CSV
                     </button>
-                    <button onClick={exportDocx} className="btn-secondary" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
+                    <button onClick={() => exportDocx(data, mainTopic)} className="btn-secondary" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
                       <Download size={14} /> DOCX
                     </button>
                   </div>
@@ -1600,12 +719,12 @@ function App() {
                     const isFavorited = isPaperFavorited(item);
                     const isSelected = selectedPapers.some(p => (p.doi && p.doi === item.doi) || (p.url && p.url === item.url) || p.title === item.title);
                     return (
-                      <ResultCard 
-                        key={item.doi || item.url || item.title || idx} 
-                        item={item} 
-                        rank={idx + 1} 
-                        collections={collections} 
-                        onSaveToCollection={handleSaveToCollection} 
+                      <ResultCard
+                        key={item.doi || item.url || item.title || idx}
+                        item={item}
+                        rank={idx + 1}
+                        collections={collections}
+                        onSaveToCollection={handleSaveToCollection}
                         onFavorite={handleFavorite}
                         isFavorited={isFavorited}
                         isSelected={isSelected}
@@ -1638,7 +757,7 @@ function App() {
             key="writer-float"
             initial={{ opacity: 0, y: 20, scale: 0.9 }}
             animate={{
-              opacity: writerSize === 'full' && showWriterPanel ? 0 : 1, 
+              opacity: writerSize === 'full' && showWriterPanel ? 0 : 1,
               y: 0, scale: 1,
               right: showWriterPanel ? (writerSize === 'default' ? 440 : (writerSize === 'half' ? 'calc(50vw + 20px)' : 0)) : 32,
             }}
@@ -1686,4 +805,3 @@ function App() {
 }
 
 export default App;
-
