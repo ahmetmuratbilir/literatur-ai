@@ -78,6 +78,22 @@ function ensureBibliography(text, safePapers, bibliographyFormat) {
  * 2. Groq (Gemini yoksa veya hata verirse)
  */
 
+/**
+ * Gemini basarisiz oldugunda Groq'a dusulup dusulemeyecegini belirler.
+ *
+ * Istemciye token gonderilmisse dusulemez: Groq ikinci bir meta olayi yazar ve
+ * kendi metnini akitir, istemci ikisini birlestirir. Sonuc, yarim bir Gemini
+ * metni ile tam bir Groq metninin yapistirilmis hali olur; fullGeneratedText
+ * hic sifirlanmadigi icin bu karisim WriterCache'e de yazilir ve sonraki ayni
+ * isteklere servis edilir.
+ */
+export function resolveGeminiFallback({ tokensSent }) {
+  if (tokensSent > 0) {
+    return { canFallback: false, reason: 'stream_already_started' };
+  }
+  return { canFallback: true, reason: 'no_output_yet' };
+}
+
 export async function generateAcademicText(safePapers, prompt, outputType, tone, length, language, res, req, bibliographyFormat = 'APA 7') {
   const geminiKey = process.env.GEMINI_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
@@ -143,6 +159,7 @@ export async function generateAcademicText(safePapers, prompt, outputType, tone,
   }
 
   let fullGeneratedText = '';
+  let geminiTokensSent = 0;
   const chunks = createChunksFromArticles(safePapers);
   
   let relevantChunks = scoreChunksByKeywords(chunks, prompt, 20);
@@ -471,12 +488,18 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
           maxOutputTokens: 3000,
         }
       });
-      res.write(`data: ${JSON.stringify({ meta: { provider: 'gemini', model: geminiModel } })}\n\n`);
+      // meta olayi ilk gercek token'a kadar bekletiliyor: Gemini akis
+      // baslamadan hata verirse istemciye hicbir sey gonderilmemis olur
+      // ve Groq'a temiz bicimde dusulebilir.
 
       for await (const chunk of streamResult.stream) {
         if (isRequestAborted()) break;
         const text = chunk.text();
         if (text) {
+          if (geminiTokensSent === 0) {
+            res.write(`data: ${JSON.stringify({ meta: { provider: 'gemini', model: geminiModel } })}\n\n`);
+          }
+          geminiTokensSent++;
           fullGeneratedText += text;
           res.write(`data: ${JSON.stringify({ token: text })}\n\n`);
         }
@@ -506,8 +529,37 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
       }
       return; // Başarılıysa çık
     } catch (err) {
+      const { canFallback } = resolveGeminiFallback({ tokensSent: geminiTokensSent });
+
+      if (!canFallback) {
+        // Istemci zaten kismi metin aldi. Groq'a dusmek iki saglayicinin
+        // ciktisini birlestirip bozuk bir metin uretir; bunun yerine elimizdeki
+        // kismi metni duzgun kapatiyoruz.
+        console.error('[ERROR] Gemini akis ortasinda kesildi, Groq fallback atlandi:', err.message);
+
+        if (!isRequestAborted()) {
+          res.write(`data: ${JSON.stringify({
+            meta: { provider: 'gemini', truncated: true, reason: 'stream_interrupted' },
+          })}
+
+`);
+          res.write(`data: ${JSON.stringify({
+            warning: 'Metin uretimi yarida kesildi. Gosterilen icerik eksik olabilir.',
+          })}
+
+`);
+          res.write(`data: ${JSON.stringify({ done: true })}
+
+`);
+          res.end();
+        }
+        // Yarim metin cache'lenmez: sonraki ayni istekler de eksik alirdi.
+        return;
+      }
+
       console.error('[ERROR] Gemini hatası, Groq Fallback devrede:', err.message);
-      // Hata olursa Groq'a düşmesi için aşağı devam eder.
+      // Hicbir token gonderilmedi; birikmis kismi metni temizleyip Groq'a gec.
+      fullGeneratedText = '';
     }
   } else {
     console.log('[AI] GEMINI_API_KEY bulunamadı. Groq Fallback kullanılıyor.');
