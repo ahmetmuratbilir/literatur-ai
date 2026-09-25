@@ -51,6 +51,30 @@ function computeKeywordScores(item, queryTokens) {
   return { keyCount, expandedSimilarity };
 }
 
+/**
+ * Kaynak hatasini siniflandirir. Test edilebilir olmasi icin modul seviyesinde.
+ */
+export function classifySourceError(reason) {
+  const msg = (reason?.message || '').toLowerCase();
+  if (
+    msg.includes('401') ||
+    msg.includes('403') ||
+    msg.includes('auth') ||
+    msg.includes('unauthorized') ||
+    msg.includes('yetkisiz') ||
+    msg.includes('invalid api key') ||
+    // Scopus'un gercek metni: "The provided apiKey is invalid." (bosluksuz)
+    msg.includes('apikey') ||
+    msg.includes('api_key') ||
+    msg.includes('insttoken') ||
+    msg.includes('credential') ||
+    msg.includes('access')
+  ) return 'CREDENTIAL_ACCESS';
+  if (reason?.name === 'AbortError' || msg.includes('timeout') || msg.includes('zaman aşımı')) return 'TIMEOUT';
+  if (msg.includes('429') || msg.includes('406') || msg.includes('quota') || msg.includes('kota') || msg.includes('limit')) return 'QUOTA';
+  return 'ERROR';
+}
+
 export async function searchAll(params, queryContext, scopusQuery, booleanQuery) {
   const startTime = performance.now();
 
@@ -67,23 +91,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     searchDOAJ(queryContext, displayCount)
   ]);
 
-  const categorizeError = (reason) => {
-    const msg = (reason?.message || '').toLowerCase();
-    if (
-      msg.includes('401') ||
-      msg.includes('403') ||
-      msg.includes('auth') ||
-      msg.includes('unauthorized') ||
-      msg.includes('yetkisiz') ||
-      msg.includes('invalid api key') ||
-      msg.includes('insttoken') ||
-      msg.includes('credential') ||
-      msg.includes('access')
-    ) return 'CREDENTIAL_ACCESS';
-    if (reason?.name === 'AbortError' || msg.includes('timeout') || msg.includes('zaman aşımı')) return 'TIMEOUT';
-    if (msg.includes('429') || msg.includes('quota') || msg.includes('kota') || msg.includes('limit')) return 'QUOTA';
-    return 'ERROR';
-  };
+  const categorizeError = classifySourceError;
+
 
   let allResults = [];
   let scopusQuota = null;
