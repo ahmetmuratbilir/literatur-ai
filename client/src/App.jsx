@@ -20,7 +20,7 @@ import {
   PenLine,
   BarChart2
 } from 'lucide-react';
-import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
+import { AuthedOnly, AnonOnly, useAppAuth } from './auth/clerkBridge.js';
 
 const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -155,7 +155,7 @@ function App() {
   const [writerSize, setWriterSize] = useState('default');
   const [selectedPapers, setSelectedPapers] = useState([]);
 
-  const { userId, isLoaded, getToken } = useAuth();
+  const { userId, isLoaded, getToken } = useAppAuth();
   const { isMobile, isTablet, isCompact } = useWindowSize();
   const { collections, setCollections, fetchCollections, handleSaveToCollection, handleFavorite, isPaperFavorited } = useCollections({ getToken, userId });
   const { shareLoading, shareUrl, showShareModal, setShowShareModal, copied, handleShare, copyToClipboard } = useShare({ getToken });
@@ -343,7 +343,7 @@ function App() {
 
   return (
     <>
-      <SignedOut>
+      <AnonOnly>
         <LandingPage
           landingTheme={landingTheme}
           activeLandingTab={activeLandingTab}
@@ -351,9 +351,9 @@ function App() {
           setLandingTheme={setLandingTheme}
           isMobile={isMobile}
         />
-      </SignedOut>
+      </AnonOnly>
 
-      <SignedIn>
+      <AuthedOnly>
         <InfiniteTicker />
 
         {/* Share Modal */}
@@ -784,7 +784,7 @@ function App() {
 
           </div>
         </main>
-      </SignedIn>
+      </AuthedOnly>
 
       {/* Writer Panel Float Button */}
       <AnimatePresence>
