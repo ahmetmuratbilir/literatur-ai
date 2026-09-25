@@ -102,6 +102,7 @@ export async function getEmbeddingsForChunks(chunks) {
         await ChunkEmbedding.create({
           sourceIndex: String(chunk.sourceIndex || '0'),
           title: chunk.title || 'Bilinmiyor',
+          authors: chunk.authors || 'Bilinmiyor',
           year: String(chunk.year || '0'),
           chunkText: chunk.chunkText,
           embedding: chunk.embedding,
@@ -123,8 +124,22 @@ export async function getEmbeddingsForChunks(chunks) {
 /**
  * MongoDB Atlas Vector Search kullanarak benzer chunkları bulur.
  * Faz 3D-2: Index hazırlığı ve sorgu testi.
+ *
+ * ÖNEMLİ: ChunkEmbedding koleksiyonu tüm kullanıcılar için ortak bir cache'tir.
+ * allowedContentHashes verilmezse sorgu tüm koleksiyona açılır ve başka
+ * kullanıcıların makale içerikleri sonuca karışır. Bu yüzden filtre zorunludur.
+ *
+ * @param {number[]} queryEmbedding - Sorgu vektörü
+ * @param {number} limit - Dönecek chunk sayısı
+ * @param {string[]} allowedContentHashes - Yalnızca bu hash'lere sahip chunk'lar aranır
  */
-export async function searchSimilarChunksWithAtlas(queryEmbedding, limit = 12) {
+export async function searchSimilarChunksWithAtlas(queryEmbedding, limit = 12, allowedContentHashes) {
+  if (!Array.isArray(allowedContentHashes) || allowedContentHashes.length === 0) {
+    throw new Error(
+      'Atlas Vector Search kapsam filtresi olmadan çağrılamaz (allowedContentHashes boş).'
+    );
+  }
+
   try {
     const results = await ChunkEmbedding.aggregate([
       {
@@ -132,7 +147,8 @@ export async function searchSimilarChunksWithAtlas(queryEmbedding, limit = 12) {
           index: "chunk_embedding_vector_index",
           path: "embedding",
           queryVector: queryEmbedding,
-          numCandidates: limit * 5,
+          filter: { contentHash: { $in: allowedContentHashes } },
+          numCandidates: Math.max(limit * 5, allowedContentHashes.length),
           limit: limit
         }
       },
@@ -141,8 +157,10 @@ export async function searchSimilarChunksWithAtlas(queryEmbedding, limit = 12) {
           _id: 0,
           sourceIndex: 1,
           title: 1,
+          authors: 1,
           year: 1,
           chunkText: 1,
+          contentHash: 1,
           semanticScore: { $meta: "vectorSearchScore" }
         }
       }

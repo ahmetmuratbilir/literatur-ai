@@ -163,9 +163,21 @@ export async function generateAcademicText(safePapers, prompt, outputType, tone,
 
     // 2. Atlas Vector Search mümkünse kullan
     const queryEmbedding = await getEmbedding(prompt);
-    
+
+    // ChunkEmbedding koleksiyonu tüm kullanıcılar için ortak bir cache olduğundan,
+    // aramayı YALNIZCA bu isteğin makalelerinden üretilen chunk'larla sınırlıyoruz.
+    // Filtre olmadan başka kullanıcıların içerikleri bağlama sızar ve üretilen
+    // metin, kullanıcının seçmediği kaynaklara atıf yapar.
+    const allowedContentHashes = chunksWithEmbeddings
+      .map((chunk) => chunk.contentHash)
+      .filter(Boolean);
+
     try {
-      const atlasResults = await searchSimilarChunksWithAtlas(queryEmbedding, 12);
+      const atlasResults = await searchSimilarChunksWithAtlas(
+        queryEmbedding,
+        12,
+        allowedContentHashes
+      );
       if (atlasResults && atlasResults.length > 0) {
         relevantChunks = atlasResults;
         retrievalMode = 'ATLAS_VECTOR_SEARCH';
@@ -197,8 +209,32 @@ export async function generateAcademicText(safePapers, prompt, outputType, tone,
     retrievalMode = 'KEYWORD_FALLBACK';
   }
 
+  // Savunma katmani: hangi retrieval modu calismis olursa olsun, baglama yalnizca
+  // bu istekte secilen makalelerden gelen chunk'lar girebilir. Govdede uretilen
+  // [Kaynak N] atiflari kaynakca ile ayni kume uzerinden numaralanmak zorunda.
+  const allowedRefs = new Set(safePapers.map((paper) => String(paper.ref)));
+  const scopedChunks = relevantChunks.filter((chunk) =>
+    allowedRefs.has(String(chunk.sourceIndex))
+  );
+
+  if (scopedChunks.length !== relevantChunks.length) {
+    console.warn(
+      `[RETRIEVAL] Kapsam disi ${relevantChunks.length - scopedChunks.length} chunk elendi ` +
+      `(mod: ${retrievalMode}).`
+    );
+  }
+
+  // Tum chunk'lar elendiyse metni kaynaksiz uretmektense keyword secimine geri don.
+  if (scopedChunks.length === 0) {
+    console.warn('[RETRIEVAL] Kapsamli chunk kalmadi, keyword secimine donuluyor.');
+    relevantChunks = scoreChunksByKeywords(chunks, prompt, 12);
+    retrievalMode = 'KEYWORD_FALLBACK';
+  } else {
+    relevantChunks = scopedChunks;
+  }
+
   console.log(`\n[AI] RETRIEVAL MODU: ${retrievalMode}`);
-  console.log(`[AI] Seçilen en iyi chunklar hazır.`);
+  console.log(`[AI] Seçilen en iyi chunklar hazır (${relevantChunks.length} chunk).`);
 
   const paperListText = buildContextFromChunks(relevantChunks, 12);
 
