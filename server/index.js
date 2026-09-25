@@ -905,14 +905,31 @@ app.post('/api/share', async (req, res) => {
 
 app.get('/api/share/:id', async (req, res) => {
   try {
-    if (!requireDb(res)) return;
     const { id } = req.params;
-    
-    const share = await SharedSearch.findOne({ shareId: id });
-    if (!share) return res.status(404).json({ error: 'Paylaşım bulunamadı veya süresi dolmuş' });
 
-    share.viewCount += 1;
-    await share.save();
+    // shareId crypto.randomBytes(8).toString('hex') ile uretiliyor.
+    // Bicim kontrolu veritabanina danismadan once yapiliyor: gecersiz bir kimlik
+    // icin baglanti durumunu sorgulamanin anlami yok.
+    if (typeof id !== 'string' || !/^[a-f0-9]{16}$/.test(id)) {
+      return res.status(404).json({ error: 'Paylaşım bulunamadı veya süresi dolmuş' });
+    }
+
+    if (!requireDb(res)) return;
+
+    // Tek atomik islem. Onceki surum dokumani okuyup viewCount'u artirip save()
+    // cagiriyordu; bu her goruntulemede tum results dizisini (100 kayda kadar)
+    // yeniden yaziyor ve es zamanli iki istek birbirinin sayacini eziyordu.
+    //
+    // Projeksiyon userId'yi disarida birakiyor: yanit tum mongoose dokumanini
+    // donduruyordu, yani baglantiya sahip herkes paylasan kullanicinin Clerk
+    // kimligini gorebiliyordu.
+    const share = await SharedSearch.findOneAndUpdate(
+      { shareId: id },
+      { $inc: { viewCount: 1 } },
+      { new: true, projection: { userId: 0, __v: 0 } }
+    ).lean();
+
+    if (!share) return res.status(404).json({ error: 'Paylaşım bulunamadı veya süresi dolmuş' });
 
     return res.json(share);
   } catch (error) {
