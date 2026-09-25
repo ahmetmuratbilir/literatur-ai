@@ -16,6 +16,7 @@ import crypto from 'crypto';
 import Analysis from './models/Analysis.js';
 import { getWriterFlags } from './config/writerFlags.js';
 import { validateEnvironment, formatEnvReport } from './config/envValidation.js';
+import { probeAllServices } from './services/keyHealthService.js';
 import { runRevisionCoach } from './services/revisionCoachService.js';
 import { createRequestId, runWriterPipeline } from './services/writerPipeline.js';
 import { logger } from './utils/logger.js';
@@ -281,6 +282,18 @@ const getWriterUserId = (req) => {
  *
  * Abonelik kontrolu yapmaz: admin islemleri faturalamadan bagimsizdir.
  */
+// Canli servis yoklamasi 12 dis istek atar ve saglayici kotasindan yer.
+const ADMIN_PROBE_RATE_LIMITER = IS_TEST_MODE
+  ? (req, res, next) => next()
+  : rateLimit({
+    windowMs: 5 * 60 * 1000,
+    max: 4,
+    keyGenerator: (req) => getWriterUserId(req) || ipKeyGenerator(req.ip),
+    message: { error: 'Cok sik kontrol edildi. Lutfen birkac dakika bekleyin.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
 const requireAdmin = (req, res, next) => {
   const userId = getWriterUserId(req);
   if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
@@ -398,6 +411,39 @@ app.get('/api/health/details', requireAdmin, (req, res) => {
     },
     demoFallback: true,
   });
+});
+
+/**
+ * Her saglayiciya canli istek atip anahtarlarin gercekten calisip
+ * calismadigini raporlar. npm run verify-keys ile ayni mantigi kullanir.
+ *
+ * Yavas (12 dis istek) ve kota tuketir, bu yuzden ayri ve sikI bir rate limit
+ * altinda. Anahtar degerleri yanitta yer almaz.
+ */
+app.post('/api/admin/verify-keys', ADMIN_PROBE_RATE_LIMITER, requireAdmin, async (req, res) => {
+  const requestId = createRequestId();
+
+  try {
+    const report = await probeAllServices();
+
+    logger.info({
+      requestId,
+      stage: 'adminVerifyKeys',
+      status: 'ok',
+      okCount: report.summary.ok,
+      failingCount: report.summary.failing,
+    });
+
+    return res.json({ requestId, ...report });
+  } catch (error) {
+    logger.error({
+      requestId,
+      stage: 'adminVerifyKeys',
+      status: 'failed',
+      error: error?.message || 'Bilinmeyen hata',
+    });
+    return res.status(500).json({ error: 'Servis kontrolu tamamlanamadi.' });
+  }
 });
 
 

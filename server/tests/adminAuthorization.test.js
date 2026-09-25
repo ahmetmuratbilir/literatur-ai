@@ -94,3 +94,18 @@ test('admin listesi bos ise hic kimse admin degildir', async () => {
     process.env.ADMIN_USER_IDS = previous;
   }
 });
+
+test('canli servis kontrolu admin olmayana kapali', async (t) => {
+  const server = await startServer();
+  t.after(() => new Promise((r) => server.close(r)));
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  const anon = await fetch(`${base}/api/admin/verify-keys`, { method: 'POST' });
+  assert.equal(anon.status, 401);
+
+  const normal = await fetch(`${base}/api/admin/verify-keys`, {
+    method: 'POST',
+    ...asUser('test-user-normal'),
+  });
+  assert.equal(normal.status, 403);
+});

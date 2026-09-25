@@ -12,6 +12,7 @@ import {
   Settings,
   AlertCircle,
   AlertTriangle,
+  ShieldCheck,
   Zap,
   Sparkles,
   Activity,
@@ -21,6 +22,8 @@ import {
   BarChart2
 } from 'lucide-react';
 import { AuthedOnly, AnonOnly, useAppAuth } from './auth/clerkBridge.js';
+import { useAdmin } from './hooks/useAdmin';
+import AdminPanel from './components/AdminPanel.jsx';
 
 const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -156,6 +159,8 @@ function App() {
   const [selectedPapers, setSelectedPapers] = useState([]);
 
   const { userId, isLoaded, getToken } = useAppAuth();
+  const { isAdmin } = useAdmin({ getToken, userId });
+  const [showAdmin, setShowAdmin] = useState(false);
   const { isMobile, isTablet, isCompact } = useWindowSize();
   const { collections, setCollections, fetchCollections, handleSaveToCollection, handleFavorite, isPaperFavorited } = useCollections({ getToken, userId });
   const { shareLoading, shareUrl, showShareModal, setShowShareModal, copied, handleShare, copyToClipboard } = useShare({ getToken });
@@ -355,6 +360,47 @@ function App() {
 
       <AuthedOnly>
         <InfiniteTicker />
+
+        {/* Yonetici kisayolu. Dugme yalnizca gorunurlugu kontrol eder;
+            asil yetki kontrolu her admin ucunda sunucuda yapilir. */}
+        {isAdmin && !showAdmin && (
+          <button
+            type="button"
+            onClick={() => setShowAdmin(true)}
+            style={{
+              position: 'fixed', top: '14px', right: '16px', zIndex: 60,
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              padding: '7px 13px', borderRadius: '999px', border: '1px solid #c7d2fe',
+              background: 'white', color: '#4338ca', fontWeight: 600,
+              fontSize: '0.78rem', cursor: 'pointer',
+              boxShadow: '0 6px 16px -8px rgba(79,70,229,0.5)',
+            }}
+          >
+            <ShieldCheck size={14} /> Sistem
+          </button>
+        )}
+
+        {showAdmin && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Sistem durumu"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowAdmin(false); }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 100,
+              background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(3px)',
+              overflowY: 'auto', padding: '24px 16px',
+            }}
+          >
+            <div style={{
+              maxWidth: '920px', margin: '0 auto', background: '#f8fafc',
+              borderRadius: '16px', padding: '22px 24px',
+              boxShadow: '0 30px 60px -20px rgba(15,23,42,0.5)',
+            }}>
+              <AdminPanel getToken={getToken} onClose={() => setShowAdmin(false)} />
+            </div>
+          </div>
+        )}
 
         {/* Share Modal */}
         <ShareModal
