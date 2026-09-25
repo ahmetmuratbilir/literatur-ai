@@ -1,6 +1,7 @@
 import pkg from 'natural';
 import { enrichPaperRanking } from './journalRankingService.js';
 import { mergeDateMetadata } from '../utils/dateNormalization.js';
+import { normalizePublicationType } from '../utils/dataUtils.js';
 const { JaroWinklerDistance } = pkg;
 
 function isTrustedYearConfidence(confidence) {
@@ -104,6 +105,24 @@ function cannotReachSimilarityThreshold(lengthA, lengthB) {
   return shorter / longer < 0.7;
 }
 
+// Bu üç kaynakta yer alan her kayıt tanımı gereği açık erişimdir; kaynaklar
+// ayrıca bir bayrak dönmediği için türetmek zorundayız.
+const ALWAYS_OPEN_ACCESS_SOURCES = new Set(['DOAJ', 'ArXiv', 'CORE']);
+
+// Bazı kaynaklar tek tip içerik barındırdığı için ham tip alanı vermez:
+// DOAJ yalnızca hakemli dergi makalesi, arXiv yalnızca preprint indeksler.
+const SOURCE_DEFAULT_PUB_TYPE = {
+  DOAJ: 'fla',
+  ArXiv: 'pre',
+};
+
+function resolveOpenAccess(result) {
+  if (typeof result.openAccess === 'boolean') return result.openAccess;
+  if (result.openAccess === '1' || result.openAccess === 1) return true;
+  if (result.isOpenAccess === true) return true;
+  return ALWAYS_OPEN_ACCESS_SOURCES.has(result.source);
+}
+
 export function normalizeSearchResult(result) {
   const normalizedDateMetadata = {
     publicationYear: result.publicationYear ?? null,
@@ -120,6 +139,13 @@ export function normalizeSearchResult(result) {
     abstract: (result.description || result.abstract || '').trim(),
     year: resolvePublicationYear(normalizedDateMetadata),
     ...normalizedDateMetadata,
+    // AHP'nin kalite (%18) ve açık erişim (%5) kriterleri bu iki alana bakıyor.
+    // Hiçbir canlı adaptör bunları doldurmadığı için ikisi de sabit değere
+    // düşüyordu; burada kaynakların ham tip alanlarından türetiyoruz.
+    pubType: normalizePublicationType(
+      result.pubType || result.type || result.subtypeDescription || result.publicationTypes
+    ) || SOURCE_DEFAULT_PUB_TYPE[result.source] || null,
+    openAccess: resolveOpenAccess(result),
     sourceList: [result.source || 'Unknown']
   };
   return enrichPaperRanking(normalized);

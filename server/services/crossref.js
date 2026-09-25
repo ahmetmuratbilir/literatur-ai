@@ -68,6 +68,8 @@ export const searchCrossref = async (query, count = 10) => {
         citedBy: parseInt(item['is-referenced-by-count'], 10) || 0,
         description: item.abstract ? item.abstract.replace(/<[^>]*>?/gm, '').substring(0, 500) : '',
         source: 'Crossref',
+        // AHP kalite kriteri icin ham yayin tipi (select'te zaten isteniyordu).
+        type: item.type || null,
         keyCount: 0
       };
     });

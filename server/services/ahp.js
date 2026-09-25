@@ -104,16 +104,49 @@ function resolveTrustedPublicationYear(item) {
 /**
  * Final AHP Calculation
  */
+export const DEFAULT_WEIGHTS = {
+  keyword: 0.20,
+  similarity: 0.12,
+  citation: 0.23,
+  quality: 0.18,
+  recency: 0.12,
+  reliability: 0.10,
+  oa: 0.05
+};
+
+/**
+ * customWeights'i doğrular ve toplamı 1 olacak şekilde normalize eder.
+ *
+ * Önceki sürümde parametre imzada vardı ama gövdede hiç okunmuyordu; üç
+ * çağrının üçü de null geçtiği için fark edilmemişti. Geçersiz veya eksik
+ * girdide sessizce yanlış sıralama üretmek yerine varsayılana dönüyoruz.
+ */
+export function resolveWeights(customWeights) {
+  if (!customWeights || typeof customWeights !== 'object') return { ...DEFAULT_WEIGHTS };
+
+  const resolved = {};
+  let sum = 0;
+
+  for (const criterion of Object.keys(DEFAULT_WEIGHTS)) {
+    const raw = Number(customWeights[criterion]);
+    const value = Number.isFinite(raw) && raw >= 0 ? raw : DEFAULT_WEIGHTS[criterion];
+    resolved[criterion] = value;
+    sum += value;
+  }
+
+  if (sum <= 0) return { ...DEFAULT_WEIGHTS };
+
+  // Ağırlıklar bir oran vektörüdür; toplamları 1 değilse skorlar
+  // karşılaştırılamaz hale gelir.
+  for (const criterion of Object.keys(resolved)) {
+    resolved[criterion] /= sum;
+  }
+
+  return resolved;
+}
+
 export async function calculateAHP(dataset, customWeights = null) {
-  const DEFAULT_WEIGHTS = {
-    keyword: 0.20,
-    similarity: 0.12,
-    citation: 0.23,
-    quality: 0.18,
-    recency: 0.12,
-    reliability: 0.10,
-    oa: 0.05
-  };
+  const weights = resolveWeights(customWeights);
 
   const processedData = dataset.map(item => {
     // 1. Calculate Individual Scores
@@ -126,17 +159,14 @@ export async function calculateAHP(dataset, customWeights = null) {
     const sRel = calculateReliabilityScore(item);
     const sOA = item.openAccess ? 1.0 : 0.0;
 
-    // 2. Base weights
-    let currentWeights = { ...DEFAULT_WEIGHTS };
-    
-    // 3. Final Score Calculation
-    let totalScore = (currentWeights.keyword * sKey) +
-                     (currentWeights.similarity * sSim) +
-                     (currentWeights.citation * sCit) +
-                     (currentWeights.quality * sQuality) +
-                     (currentWeights.recency * sRecency) +
-                     (currentWeights.reliability * sRel) +
-                     (currentWeights.oa * sOA);
+    // 2. Final Score Calculation
+    let totalScore = (weights.keyword * sKey) +
+                     (weights.similarity * sSim) +
+                     (weights.citation * sCit) +
+                     (weights.quality * sQuality) +
+                     (weights.recency * sRecency) +
+                     (weights.reliability * sRel) +
+                     (weights.oa * sOA);
 
     // 4. Quality Boost for Quartiles / SourceTypes
     const qBoost = calculateQuartileBoost(item.quartile, item.sourceType);
