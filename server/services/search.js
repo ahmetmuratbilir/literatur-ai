@@ -7,7 +7,6 @@ import { searchArXiv } from './arxiv.js';
 import { searchDOAJ } from './doaj.js';
 import { enrichWithCitations } from './opencitations.js';
 import { calculateAHP } from './ahp.js';
-import { normalizeData } from '../utils/normalization.js';
 import { normalizeAndClean } from '../utils/dataUtils.js';
 import { enrichPaperRanking } from './journalRankingService.js';
 import { batchTranslateAcademic } from '../utils/translation.js';
