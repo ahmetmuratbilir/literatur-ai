@@ -4,6 +4,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import crypto from 'crypto';
 import { ChunkEmbedding } from '../models/ChunkEmbedding.js';
 
+// Cache anahtarinin parcasi: farkli model farkli vektor boyutu uretir.
+const EMBEDDING_MODEL = 'gemini-embedding-001';
+
 function createHash(text) {
   return crypto.createHash('sha256').update(text).digest('hex');
 }
@@ -12,6 +15,18 @@ function createHash(text) {
  * 2 vektör arasındaki Cosine Similarity skoru
  */
 export function cosineSimilarity(vecA, vecB) {
+  if (!Array.isArray(vecA) || !Array.isArray(vecB)) return 0;
+
+  // Boyut uyuşmazlığı sessizce NaN üretirdi: döngü vecA.length üzerinden
+  // dönüp vecB'den undefined okuyordu. NaN hata fırlatmaz ama sort()
+  // karşılaştırıcısını bozarak sıralamayı rastgeleleştirir.
+  if (vecA.length !== vecB.length) {
+    console.warn(
+      `[EMBEDDING] Vektör boyutları uyuşmuyor (${vecA.length} vs ${vecB.length}); benzerlik 0 kabul edildi.`
+    );
+    return 0;
+  }
+
   let dotProduct = 0.0;
   let normA = 0.0;
   let normB = 0.0;
@@ -35,7 +50,7 @@ export async function getEmbedding(text) {
   }
   const genAI = new GoogleGenerativeAI(apiKey);
   // Gemini gemini-embedding-001
-  const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
+  const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL });
   const result = await model.embedContent(text);
   return result.embedding.values;
 }
@@ -50,66 +65,106 @@ export async function getEmbeddingsForChunks(chunks) {
     throw new Error('GEMINI_API_KEY bulunamadı veya geçersiz.');
   }
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
-  
+  const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL });
+
   // Fazla maliyet/limit riski için sadece ilk 20'yi alıyoruz
   const safeChunks = chunks.slice(0, 20);
   const resultChunks = [];
   const chunksToEmbed = [];
 
-  let cacheHits = 0;
-  let cacheMisses = 0;
-
-  // 1. Cache kontrolü için hash üret ve DB'de ara
-  for (let chunk of safeChunks) {
+  for (const chunk of safeChunks) {
     const textToEmbed = (chunk.title || '') + '\n' + (chunk.chunkText || '');
-    const hash = createHash(textToEmbed);
-    chunk.contentHash = hash;
+    chunk.contentHash = createHash(textToEmbed);
     chunk.textToEmbed = textToEmbed;
+  }
 
-    try {
-      // mongoose yüklü ve db bağlı varsayıyoruz
-      const cached = await ChunkEmbedding.findOne({ contentHash: hash });
-      if (cached && cached.embedding && cached.embedding.length > 0) {
-        chunk.embedding = cached.embedding;
-        resultChunks.push(chunk);
-        cacheHits++;
-      } else {
-        chunksToEmbed.push(chunk);
+  // 1. Cache kontrolü: tek sorgu.
+  //
+  // Önceki sürüm chunk başına ayrı findOne çağırıyordu — 20 chunk için 20 ardışık
+  // Atlas gidiş-dönüşü. Ayrıca yalnızca contentHash ile sorguluyordu; embedding
+  // modeli değiştiğinde farklı boyuttaki eski vektörler cache'ten servis edilip
+  // cosineSimilarity'yi NaN üretmeye zorluyordu. Model artık sorgunun parçası.
+  const cacheByHash = new Map();
+  try {
+    const hashes = safeChunks.map((chunk) => chunk.contentHash);
+    const cachedDocs = await ChunkEmbedding.find({
+      contentHash: { $in: hashes },
+      embeddingModel: EMBEDDING_MODEL,
+    }).lean();
+
+    for (const doc of cachedDocs) {
+      if (doc.embedding && doc.embedding.length > 0) {
+        cacheByHash.set(doc.contentHash, doc.embedding);
       }
-    } catch (e) {
-      console.warn('[CACHE] MongoDB okuma hatası:', e.message);
+    }
+  } catch (e) {
+    console.warn('[CACHE] MongoDB okuma hatası:', e.message);
+  }
+
+  for (const chunk of safeChunks) {
+    const cached = cacheByHash.get(chunk.contentHash);
+    if (cached) {
+      chunk.embedding = cached;
+      resultChunks.push(chunk);
+    } else {
       chunksToEmbed.push(chunk);
     }
   }
 
+  const cacheHits = resultChunks.length;
+  const cacheMisses = chunksToEmbed.length;
+
   // 2. Eksik olanlar (Miss) için API çağrısı yap
   if (chunksToEmbed.length > 0) {
-    cacheMisses = chunksToEmbed.length;
     const requests = chunksToEmbed.map(c => ({
       content: { parts: [{ text: c.textToEmbed }] }
     }));
-    
+
     const apiResult = await model.batchEmbedContents({ requests });
-    
-    // 3. API'den gelenleri kaydet ve sonuca ekle
+    const embeddings = apiResult?.embeddings;
+
+    // İndeks hizalaması varsayımı doğrulanmadan kullanılıyordu; API eksik
+    // dönerse `embeddings[i].values` TypeError fırlatır.
+    if (!Array.isArray(embeddings) || embeddings.length !== chunksToEmbed.length) {
+      throw new Error(
+        `Embedding API ${chunksToEmbed.length} vektör beklenirken ${embeddings?.length ?? 0} döndü.`
+      );
+    }
+
+    const documentsToCache = [];
+
     for (let i = 0; i < chunksToEmbed.length; i++) {
       const chunk = chunksToEmbed[i];
-      chunk.embedding = apiResult.embeddings[i].values;
+      const values = embeddings[i]?.values;
+      if (!Array.isArray(values) || values.length === 0) {
+        console.warn(`[EMBEDDING] ${i}. vektör boş döndü, chunk atlandı.`);
+        continue;
+      }
+
+      chunk.embedding = values;
       resultChunks.push(chunk);
 
+      documentsToCache.push({
+        sourceIndex: String(chunk.sourceIndex || '0'),
+        title: chunk.title || 'Bilinmiyor',
+        year: String(chunk.year || '0'),
+        chunkText: chunk.chunkText,
+        embedding: chunk.embedding,
+        embeddingModel: EMBEDDING_MODEL,
+        contentHash: chunk.contentHash,
+      });
+    }
+
+    // 3. Tek yazma. Önceki sürüm chunk başına ayrı create() bekliyordu.
+    // ordered:false sayesinde tek bir duplicate-key hatası kalanları engellemez.
+    if (documentsToCache.length > 0) {
       try {
-        await ChunkEmbedding.create({
-          sourceIndex: String(chunk.sourceIndex || '0'),
-          title: chunk.title || 'Bilinmiyor',
-          year: String(chunk.year || '0'),
-          chunkText: chunk.chunkText,
-          embedding: chunk.embedding,
-          embeddingModel: 'gemini-embedding-001',
-          contentHash: chunk.contentHash
-        });
+        await ChunkEmbedding.insertMany(documentsToCache, { ordered: false });
       } catch (dbErr) {
-        if (dbErr.code !== 11000) { // 11000 duplicate key (zaten var hatası)
+        const onlyDuplicates =
+          dbErr.code === 11000 ||
+          (Array.isArray(dbErr.writeErrors) && dbErr.writeErrors.every((e) => e.code === 11000));
+        if (!onlyDuplicates) {
           console.warn('[CACHE] MongoDB yazma hatası:', dbErr.message);
         }
       }
