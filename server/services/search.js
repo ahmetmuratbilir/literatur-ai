@@ -6,7 +6,7 @@ import { searchSemanticScholar } from './semanticscholar.js';
 import { searchArXiv } from './arxiv.js';
 import { searchDOAJ } from './doaj.js';
 import { enrichWithCitations } from './opencitations.js';
-import { calculateAHP } from './ahp.js';
+import { calculateAHP, getWeightingMethodology } from './ahp.js';
 import { normalizeAndClean } from '../utils/dataUtils.js';
 import { enrichPaperRanking } from './journalRankingService.js';
 import { batchTranslateAcademic } from '../utils/translation.js';
@@ -378,6 +378,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
     sourceBreakdown,
     totalFromAPIs,
     opencitations: { verified: openCitationVerifiedCount || 0 },
+    methodology: getWeightingMethodology(),
     quota: {
         scopus:   { limit: scopusQuota?.limit,   remaining: scopusQuota?.remaining,   reset: formatResetDate(scopusQuota)   },
         openalex: { limit: openAlexQuota?.limit, remaining: openAlexQuota?.remaining, reset: formatResetDate(openAlexQuota) },

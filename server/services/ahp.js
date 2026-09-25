@@ -1,4 +1,5 @@
 import { PUB_TYPE_SCORES, SOURCE_TYPE_SCORES } from '../utils/dataUtils.js';
+import { getAhpWeights, PAIRWISE_MATRIX, CRITERIA } from './ahpMatrix.js';
 
 /**
  * Advanced Academic AHP Scoring Logic (7 Criteria)
@@ -104,15 +105,38 @@ function resolveTrustedPublicationYear(item) {
 /**
  * Final AHP Calculation
  */
-export const DEFAULT_WEIGHTS = {
-  keyword: 0.20,
-  similarity: 0.12,
-  citation: 0.23,
-  quality: 0.18,
-  recency: 0.12,
-  reliability: 0.10,
-  oa: 0.05
-};
+/**
+ * Kriter agirliklari artik elle yazilmis sabitler degil; ikili karsilastirma
+ * matrisinin asal ozvektorunden turetiliyor (bkz. ahpMatrix.js).
+ *
+ * Turetilen degerler onceki sabitlere yakin (en buyuk sapma quality'de +0.029),
+ * dolayisiyla siralama koklu bicimde degismiyor; degisen, agirliklarin
+ * gerekcelendirilebilir ve tutarliligi olculebilir olmasi.
+ */
+export const DEFAULT_WEIGHTS = getAhpWeights().weights;
+
+/**
+ * Siralamanin yontem kunyesi. Akademik bir ciktida kullanilan agirliklandirma
+ * yonteminin ve tutarlilik oraninin raporlanabilmesi icin.
+ */
+export function getWeightingMethodology() {
+  const { weights, lambdaMax, consistencyIndex, randomIndex, consistencyRatio, isConsistent } =
+    getAhpWeights();
+
+  return {
+    method: 'AHP (Analytic Hierarchy Process)',
+    reference: 'Saaty, T.L. (1980). The Analytic Hierarchy Process.',
+    criteria: CRITERIA,
+    pairwiseMatrix: PAIRWISE_MATRIX,
+    weights,
+    lambdaMax,
+    consistencyIndex,
+    randomIndex,
+    consistencyRatio,
+    isConsistent,
+    consistencyThreshold: 0.1,
+  };
+}
 
 /**
  * customWeights'i doğrular ve toplamı 1 olacak şekilde normalize eder.
