@@ -195,7 +195,7 @@ export async function runWriterPipeline({
         pipelineLogger,
         errorCode: 'CITATION_COMPLIANCE_STAGE_THROW',
         findingsMessage: 'Citation compliance check failed, continuing with fail-open.',
-        handler: () => citationService(generatedText),
+        handler: () => citationService(generatedText, { papers: safePapers }),
       });
     } else {
       citationReport = skippedStage('citationCompliance', 'flag_disabled');

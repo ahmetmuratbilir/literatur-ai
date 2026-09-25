@@ -115,7 +115,133 @@ function computeMaxSeverity(findings) {
   return 'low';
 }
 
-export function runCitationCompliance(text) {
+
+/**
+ * Makale listesindeki yazar soyadlarini toplar.
+ *
+ * Kaynaklar yazarlari farkli bicimlerde veriyor: "Doe, J.", "John Doe",
+ * "Doe J; Roe R". Hepsinden soyadi cikarmak yerine, iki karakterden uzun
+ * TUM ad parcalarini kumeye atiyoruz. Amac uydurma ismi yakalamak; gercek bir
+ * ismi yanlislikla uydurma saymak, tersinden cok daha kotu olurdu.
+ */
+function collectPaperNameTokens(papers) {
+  const tokens = new Set();
+  for (const paper of papers) {
+    const raw = Array.isArray(paper?.authors) ? paper.authors.join(', ') : paper?.authors;
+    const text = String(raw || '');
+    if (!text || /^(bilinmiyor|unknown|bilinmeyen yazar|n\.?a\.?)$/i.test(text.trim())) continue;
+    for (const token of text.toLowerCase().split(/[^\p{L}]+/u)) {
+      if (token.length > 2) tokens.add(token);
+    }
+  }
+  return tokens;
+}
+
+function normalizeDoiValue(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\/(dx\.)?doi\.org\//, '')
+    .replace(/[),.;]+$/, '');
+}
+
+function collectPaperDois(papers) {
+  const dois = new Set();
+  for (const paper of papers) {
+    const doi = normalizeDoiValue(paper?.doi);
+    if (doi) dois.add(doi);
+  }
+  return dois;
+}
+
+/**
+ * Metindeki atiflarin, kullanicinin SECTIGI makalelere karsilik gelip
+ * gelmedigini denetler.
+ *
+ * Bu kontrol olmadan servis yalnizca metnin kendi icindeki tutarliliga
+ * bakiyordu: modelin uydurdugu bir kaynagi hem govdede hem kaynakcada
+ * tutarli bicimde yazmasi yeterliydi ve denetimden temiz geciyordu.
+ */
+function verifyAgainstSelection({ body, referenceLines, style, papers }) {
+  const findings = [];
+  const metrics = {};
+
+  if (!Array.isArray(papers) || papers.length === 0) {
+    metrics.sourceVerification = 'skipped_no_papers';
+    return { findings, metrics };
+  }
+
+  metrics.sourceVerification = 'performed';
+  metrics.selectedPaperCount = papers.length;
+
+  // 1. IEEE: atif numarasi secilen makale sayisini asamaz.
+  if (style.style === 'ieee' || style.style === 'mixed') {
+    const outOfRange = [...extractInTextIeeeNumbers(body)].filter(
+      (n) => n < 1 || n > papers.length
+    );
+    if (outOfRange.length > 0) {
+      findings.push({
+        code: 'CITATION_OUTSIDE_SELECTION',
+        severity: 'high',
+        message:
+          `${outOfRange.length} atif numarasi secilen ${papers.length} makalenin disinda ` +
+          `(${outOfRange.slice(0, 5).join(', ')}). Metin var olmayan bir kaynaga atif yapiyor.`,
+      });
+    }
+    metrics.outOfRangeCitationCount = outOfRange.length;
+  }
+
+  // 2. Yazar-yil: govdede gecen soyadi listede bulunmali.
+  if (style.style === 'apa' || style.style === 'mixed') {
+    const known = collectPaperNameTokens(papers);
+    if (known.size > 0) {
+      const unknownNames = [];
+      for (const key of extractAuthorYearKeysFromInText(body)) {
+        const surname = key.split('-')[0];
+        if (surname.length > 2 && !known.has(surname)) unknownNames.push(surname);
+      }
+      if (unknownNames.length > 0) {
+        findings.push({
+          code: 'CITATION_AUTHOR_NOT_IN_SELECTION',
+          severity: 'high',
+          message:
+            `${unknownNames.length} atifta gecen yazar adi secilen makalelerde yok ` +
+            `(${[...new Set(unknownNames)].slice(0, 5).join(', ')}).`,
+        });
+      }
+      metrics.unknownAuthorCount = unknownNames.length;
+    } else {
+      metrics.authorVerification = 'skipped_no_author_data';
+    }
+  }
+
+  // 3. Kaynakcadaki DOI'ler secilen makalelerin DOI'leri olmali.
+  const knownDois = collectPaperDois(papers);
+  if (knownDois.size > 0) {
+    const doiRe = /(https?:\/\/(?:dx\.)?doi\.org\/[^\s)]+|10\.\d{4,9}\/[^\s),.;]+)/gi;
+    const unknownDois = [];
+    for (const line of referenceLines) {
+      for (const token of line.match(doiRe) || []) {
+        const doi = normalizeDoiValue(token);
+        if (doi && !knownDois.has(doi)) unknownDois.push(doi);
+      }
+    }
+    if (unknownDois.length > 0) {
+      findings.push({
+        code: 'REFERENCE_DOI_NOT_IN_SELECTION',
+        severity: 'high',
+        message:
+          `${unknownDois.length} kaynakca DOI'si secilen makalelere ait degil ` +
+          `(${unknownDois.slice(0, 3).join(', ')}).`,
+      });
+    }
+    metrics.unknownDoiCount = unknownDois.length;
+  }
+
+  return { findings, metrics };
+}
+
+export function runCitationCompliance(text, options = {}) {
   const startedAt = Date.now();
   try {
     const { body, references } = splitBodyAndReferences(text);
@@ -181,6 +307,14 @@ export function runCitationCompliance(text) {
       });
     }
 
+    const selection = verifyAgainstSelection({
+      body,
+      referenceLines,
+      style,
+      papers: options.papers,
+    });
+    findings.push(...selection.findings);
+
     if (referenceLines.length === 0) {
       findings.push({
         code: 'REFERENCE_SECTION_MISSING',
@@ -207,6 +341,7 @@ export function runCitationCompliance(text) {
         orphanReferenceCount,
         doiCount: doiTokens.length,
         invalidDoiCount: invalidDoiTokens.length,
+        ...selection.metrics,
       },
       durationMs,
     });
