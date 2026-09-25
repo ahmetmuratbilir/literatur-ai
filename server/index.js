@@ -26,9 +26,19 @@ import {
   saveSharedSearchCache
 } from './utils/searchCacheStore.js';
 
+// Üretimde test kimliği asla kabul edilmez: aksi halde ALLOW_E2E_TEST_AUTH'u
+// açık unutmak, tek bir x-test-user-id başlığıyla tam kimlik atlatması demek.
+// process.env her çağrıda okunuyor; güvenlik kontrolü modül yükleme sırasına
+// veya sabitlerin tanımlanma anına bağlı olmamalı.
+const isTestAuthAllowed = () => {
+  const env = process.env.NODE_ENV;
+  if (env === 'production') return false;
+  return env === 'test' || process.env.ALLOW_E2E_TEST_AUTH === 'true';
+};
+
 const getAuth = (req) => {
   const authHeader = req.headers['authorization'];
-  const allowE2ETestAuth = process.env.NODE_ENV === 'test' || process.env.ALLOW_E2E_TEST_AUTH === 'true';
+  const allowE2ETestAuth = isTestAuthAllowed();
   const isTestAuthRequest = allowE2ETestAuth && (
     req.headers['x-test-user-id'] ||
     (authHeader && authHeader === 'Bearer test-token') ||
@@ -220,7 +230,7 @@ const getWriterUserId = (req) => {
     const authUserId = getAuth(req)?.userId;
     if (isValidUserId(authUserId)) return authUserId;
   } catch {}
-  if (IS_TEST_MODE) {
+  if (isTestAuthAllowed()) {
     const testUserId = req.headers['x-test-user-id'];
     if (isValidUserId(testUserId)) return testUserId;
   }
@@ -317,29 +327,31 @@ app.get('/api/health/details', (req, res) => {
 });
 
 
-const requireSubscription = async (req, res, next) => {
-  const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
+const isTestBypassUser = (userId) =>
+  isTestAuthAllowed() && typeof userId === 'string' && userId.startsWith('test-user');
 
-  if (
-    userId === 'test-user-id' &&
-    (process.env.NODE_ENV === 'test' || process.env.ALLOW_E2E_TEST_AUTH === 'true')
-  ) {
-    return next();
-  }
+/**
+ * Aboneliği doğrular. Geçerliyse true döner; değilse yanıtı kendisi yazar.
+ *
+ * Kullanıcı kimliğini parametre olarak alır çünkü writer uçları kimliği
+ * getWriterUserId() üzerinden çözüyor (test başlığı desteği için).
+ */
+const hasActiveSubscription = async (res, userId) => {
+  if (isTestBypassUser(userId)) return true;
 
   try {
     // Clerk Billing Beta API
     const subscription = await clerkClient.billing.getUserBillingSubscription(userId);
-    
+
     // Eğer abonelik yoksa veya aktif/deneme değilse engelle
     if (subscription && subscription.status !== 'active' && subscription.status !== 'trialing') {
-      return res.status(403).json({ 
+      res.status(403).json({
         error: 'Aboneliğiniz sona ermiştir veya aktif değildir.',
-        needsBilling: true 
+        needsBilling: true
       });
+      return false;
     }
-    next();
+    return true;
   } catch (error) {
     // BILLING_FAIL_OPEN=true → eski davranış (billing API hatasında geçir)
     // BILLING_FAIL_OPEN=false (varsayılan) → hata durumunda engelle
@@ -354,14 +366,37 @@ const requireSubscription = async (req, res, next) => {
 
     if (failOpen) {
       console.warn('[Billing] UYARI: fail-open aktif, kullanıcı geçirildi. Dashboard billing ayarlarınızı kontrol edin.');
-      return next();
+      return true;
     }
 
-    return res.status(503).json({
+    res.status(503).json({
       error: 'Abonelik doğrulama servisi şu an kullanılamıyor. Lütfen daha sonra tekrar deneyin.',
       retryAfter: 30,
     });
+    return false;
   }
+};
+
+const requireSubscription = async (req, res, next) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
+
+  if (await hasActiveSubscription(res, userId)) next();
+};
+
+/**
+ * Writer uçları için abonelik kontrolü.
+ *
+ * /api/writer/generate sistemin en pahalı işlemi (LLM üretimi) olmasına rağmen
+ * yalnızca rate limit ve kimlik doğrulamasıyla korunuyordu; /api/search ve
+ * /api/analyze-query abonelik istiyordu. Aboneliği olmayan giriş yapmış bir
+ * kullanıcı LLM üretimini serbestçe kullanabiliyordu.
+ */
+const requireWriterSubscription = async (req, res, next) => {
+  const userId = getWriterUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
+
+  if (await hasActiveSubscription(res, userId)) next();
 };
 
 
@@ -1085,7 +1120,7 @@ const WRITER_RATE_LIMITER = IS_TEST_MODE
     legacyHeaders: false,
   });
 
-app.post('/api/writer/generate', WRITER_RATE_LIMITER, async (req, res) => {
+app.post('/api/writer/generate', WRITER_RATE_LIMITER, requireWriterSubscription, async (req, res) => {
   const userId = getWriterUserId(req);
   if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
 
@@ -1158,7 +1193,7 @@ app.post('/api/writer/generate', WRITER_RATE_LIMITER, async (req, res) => {
   }
 });
 
-app.post('/api/writer/revision-roadmap', WRITER_RATE_LIMITER, async (req, res) => {
+app.post('/api/writer/revision-roadmap', WRITER_RATE_LIMITER, requireWriterSubscription, async (req, res) => {
   const userId = getWriterUserId(req);
   if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
 
