@@ -15,6 +15,7 @@ import SharedSearch from './models/SharedSearch.js';
 import crypto from 'crypto';
 import Analysis from './models/Analysis.js';
 import { getWriterFlags } from './config/writerFlags.js';
+import { validateEnvironment, formatEnvReport } from './config/envValidation.js';
 import { runRevisionCoach } from './services/revisionCoachService.js';
 import { createRequestId, runWriterPipeline } from './services/writerPipeline.js';
 import { logger } from './utils/logger.js';
@@ -48,6 +49,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
 const IS_TEST_MODE = process.env.NODE_ENV === 'test';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+// Yer tutucu degerler varlik kontrolunu gecip sistemin calisir gorunmesine yol
+// aciyordu; hata ancak canli API 401 dondugunde ve kaynak bazinda sessizce
+// yutuldugunda ortaya cikiyordu. Bunu baslangicta ve yuksek sesle yakaliyoruz.
+const ENV_VALIDATION = validateEnvironment();
+
+if (!IS_TEST_MODE) {
+  const summary = formatEnvReport(ENV_VALIDATION);
+  if (ENV_VALIDATION.errors.length > 0) {
+    console.error(summary);
+    if (IS_PRODUCTION) {
+      console.error('[ENV] Uretim ortaminda eksik zorunlu yapilandirmayla baslatilmaz.');
+      process.exit(1);
+    }
+  } else if (ENV_VALIDATION.warnings.length > 0) {
+    console.warn(summary);
+  }
+}
 
 const splitEnvList = (value) => String(value || '')
   .split(',')
@@ -277,6 +296,17 @@ app.get('/api/health/details', (req, res) => {
       semanticScholar: { configured: has(process.env.SEMANTIC_SCHOLAR_API_KEY), status: has(process.env.SEMANTIC_SCHOLAR_API_KEY) ? 'configured' : 'missing/config optional' },
       arxiv: { configured: true, status: 'public/no key required; timeout issues are operational' },
       doaj: { configured: true, status: 'public/no key required; timeout issues are operational' },
+    },
+    environment_validation: {
+      // configured | placeholder | malformed | missing
+      // Onceki 'configured' bayraklari yalnizca varlik kontroluydu ve sablon
+      // metnini gecerli deger sayiyordu.
+      ...Object.fromEntries(
+        Object.entries(ENV_VALIDATION.report).map(([name, info]) => [
+          name,
+          { state: info.state, required: info.required, detail: info.detail },
+        ])
+      ),
     },
     database: {
       connected: mongoose.connection.readyState === 1,
