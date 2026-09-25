@@ -11,6 +11,7 @@ import {
   Download,
   Settings,
   AlertCircle,
+  AlertTriangle,
   Zap,
   Sparkles,
   Activity,
@@ -312,7 +313,17 @@ function App() {
       });
       setData(response.data);
       if (response.data.quota) setQuota(response.data.quota);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Arama sırasında hata oluştu.');
+      setLoading(false);
+      return;
+    }
 
+    // Geçmişe kaydetme ayrı ele alınıyor. Önceki sürümde aynı try bloğundaydı:
+    // veritabanı kapalıyken arama başarıyla dönüyor, sonuçlar ekranda duruyor
+    // ama kullanıcı "Arama sırasında hata oluştu" uyarısı görüyordu.
+    try {
+      const token = await getToken();
       await axios.post(`${defaultApiUrl}/api/history`, {
         mainTopic: trimmedTopic,
         authorName: trimmedAuthor,
@@ -322,8 +333,9 @@ function App() {
         headers: { Authorization: `Bearer ${token}` }
       });
       window.dispatchEvent(new CustomEvent('refreshHistory'));
-    } catch (err) {
-      setError(err.response?.data?.error || 'Arama sırasında hata oluştu.');
+    } catch (historyErr) {
+      // Arama sonucunu etkilemez; yalnızca geçmiş kaydı yapılamadı.
+      console.warn('Arama geçmişe kaydedilemedi:', historyErr?.message);
     } finally {
       setLoading(false);
     }
@@ -666,6 +678,30 @@ function App() {
 
             {data && (
               <div style={{ marginTop: '2rem' }}>
+                {/* Sunucu hicbir kaynaga ulasamadiginda yerel ornek veri seti
+                    donuyor (demoMode). Bu bayrak arayuzde hic kullanilmiyordu,
+                    yani kullanici ornek veriyi gercek arama sonucu saniyordu. */}
+                {data.demoMode && (
+                  <div
+                    role="status"
+                    style={{
+                      display: 'flex', alignItems: 'flex-start', gap: '10px',
+                      padding: '12px 16px', marginBottom: '1rem',
+                      background: '#fffbeb', border: '1px solid #fcd34d',
+                      borderRadius: 'var(--radius-md)', color: '#92400e',
+                      fontSize: 'var(--fs-sm)', lineHeight: 1.5
+                    }}
+                  >
+                    <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '1px' }} />
+                    <div>
+                      <strong>Örnek veri gösteriliyor.</strong>{' '}
+                      Hiçbir akademik kaynağa ulaşılamadı (API anahtarı eksik, kota dolu
+                      veya bağlantı sorunu olabilir). Aşağıdaki sonuçlar yerel örnek veri
+                      setinden gelmektedir ve güncel literatürü yansıtmaz.
+                    </div>
+                  </div>
+                )}
+
                 <GlobalStats
                   totalFound={data.totalFound}
                   analyzed={data.analyzedCount}
