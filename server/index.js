@@ -48,6 +48,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
 const IS_TEST_MODE = process.env.NODE_ENV === 'test';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const CLERK_CONFIGURED = typeof process.env.CLERK_SECRET_KEY === 'string'
+  && process.env.CLERK_SECRET_KEY.trim().length > 0;
 
 const splitEnvList = (value) => String(value || '')
   .split(',')
@@ -146,7 +148,23 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({ limit: '1mb' }));
-app.use(clerkMiddleware());
+
+// Clerk, anahtarlari eksikse clerkMiddleware() icinden exception firlatir ve
+// global middleware oldugu icin TUM endpointler 500 doner (401 degil).
+// Anahtar yoksa middleware'i hic takmiyoruz: getAuth() zaten bos donup
+// korumali uclarin temiz bir 401 uretmesini sagliyor.
+if (CLERK_CONFIGURED) {
+  app.use(clerkMiddleware());
+} else if (IS_PRODUCTION) {
+  console.error(
+    '[FATAL] CLERK_SECRET_KEY tanimli degil. Kimlik dogrulama ve abonelik kontrolu calismaz.'
+  );
+  process.exit(1);
+} else {
+  console.warn(
+    '[AUTH] CLERK_SECRET_KEY yok - kimlik dogrulama devre disi. Korumali uclar 401 donecek.'
+  );
+}
 app.use((req, res, next) => {
   // Clerk dev middleware may not always keep ACAO during local proxy hops.
   // We re-assert per-request origin so the browser can consume API responses.
@@ -277,6 +295,14 @@ app.get('/api/health/details', (req, res) => {
       semanticScholar: { configured: has(process.env.SEMANTIC_SCHOLAR_API_KEY), status: has(process.env.SEMANTIC_SCHOLAR_API_KEY) ? 'configured' : 'missing/config optional' },
       arxiv: { configured: true, status: 'public/no key required; timeout issues are operational' },
       doaj: { configured: true, status: 'public/no key required; timeout issues are operational' },
+    },
+    auth: {
+      provider: 'clerk',
+      configured: CLERK_CONFIGURED,
+      middlewareMounted: CLERK_CONFIGURED,
+      status: CLERK_CONFIGURED
+        ? 'configured'
+        : 'missing/config required; CLERK_SECRET_KEY yok - tum korumali uclar 401 doner',
     },
     database: {
       connected: mongoose.connection.readyState === 1,
@@ -1167,6 +1193,23 @@ app.post('/api/writer/revision-roadmap', WRITER_RATE_LIMITER, async (req, res) =
     report: stageResult,
     roadmap,
   });
+});
+
+// Son savunma hatti: buraya dusen her hata, istemciye stack trace sizdirmadan
+// JSON olarak doner. Express'in varsayilan handler'i HTML icinde dosya yollarini
+// ve node_modules ic yapisini aciga cikariyordu.
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+
+  logger.error({
+    stage: 'unhandled',
+    status: 'failed',
+    path: req.path,
+    method: req.method,
+    error: err?.message || 'Unknown error',
+  });
+
+  return res.status(500).json({ error: 'Sunucu hatasi olustu.' });
 });
 
 if (!IS_TEST_MODE) {
