@@ -249,32 +249,6 @@ export function calculateRelevanceScore(result, userQuery, expandedQueries = [])
   return Math.max(0, parseFloat(score.toFixed(3)));
 }
 
-export function applyHardFilter(results, minThreshold = 0.15) {
-  // Tier 1: Normal threshold
-  let filtered = results.filter(r => r.relevanceScore >= minThreshold);
-  console.log(`[HardFilter] Tier1 (score >= ${minThreshold}): ${filtered.length}/${results.length}`);
-
-  // Tier 2: Fallback - if less than 10 survive, lower threshold to 0.05
-  if (filtered.length < 10 && results.length >= 5) {
-    filtered = results.filter(r => r.relevanceScore >= 0.05);
-    console.log(`[HardFilter] Tier2 fallback (score >= 0.05): ${filtered.length}`);
-  }
-
-  // Tier 3: Emergency - if still less than 5, take everything sorted by score
-  if (filtered.length < 5 && results.length > 0) {
-    filtered = [...results].sort((a, b) => b.relevanceScore - a.relevanceScore);
-    console.log(`[HardFilter] Tier3 EMERGENCY - taking all ${filtered.length} results (no filter)`);
-  }
-
-  const rejectedCount = results.length - filtered.length;
-  const rejectedSamples = results
-    .filter(r => !filtered.includes(r))
-    .sort((a, b) => a.relevanceScore - b.relevanceScore)
-    .slice(0, 5);
-
-  return { filteredResults: filtered, rejectedCount, rejectedSamples };
-}
-
 export function selectFinalResults(results, limit = 25) {
   if (!results || results.length === 0) {
     console.log('[SelectFinal] WARN: Input results array is empty!');
