@@ -40,7 +40,7 @@ export const searchSemanticScholar = async (query, count = 10) => {
           params: {
             query: query,
             limit: Math.min(count, 100),
-            fields: 'title,authors,year,publicationDate,url,abstract,citationCount,venue,externalIds'
+            fields: 'title,authors,year,publicationDate,url,abstract,citationCount,venue,externalIds,publicationTypes,isOpenAccess'
           },
           headers,
           timeout: 10000
@@ -91,6 +91,9 @@ export const searchSemanticScholar = async (query, count = 10) => {
         citationCount: item.citationCount || 0,
         description: item.abstract ? item.abstract.substring(0, 500) : '',
         source: 'Semantic Scholar',
+        // AHP kalite ve acik erisim kriterleri icin ham alanlar.
+        publicationTypes: item.publicationTypes || null,
+        openAccess: Boolean(item.isOpenAccess),
         keyCount: 0
       };
     });

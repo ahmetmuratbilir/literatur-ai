@@ -203,11 +203,53 @@ export const PUB_TYPE_SCORES = {
   fla: 1.0,   // Journal Article - highest
   rev: 0.95,  // Review
   chp: 0.75,  // Book Chapter
+  cnf: 0.70,  // Conference Paper
   sco: 0.65,  // Short Communication
   ssu: 0.60,  // Special Issue
   crp: 0.40,  // Correction
   pre: 0.30,  // Preprint
 };
+
+/**
+ * Kaynaklar yayın tipini birbirinden çok farklı biçimlerde veriyor:
+ * Scopus 'Article', OpenAlex 'article', Crossref 'journal-article',
+ * Semantic Scholar 'JournalArticle'. PUB_TYPE_SCORES ise Scopus'un üç harfli
+ * kodlarıyla yazılmış. Bu eşleme olmadan pubType her zaman tanımsız kalıyor ve
+ * AHP'nin %18 ağırlıklı kalite kriteri sabit 0.4 fallback'ine düşüyor.
+ */
+const PUB_TYPE_ALIASES = {
+  // Makale
+  'fla': 'fla', 'article': 'fla', 'journal-article': 'fla', 'journalarticle': 'fla',
+  'research-article': 'fla', 'article in press': 'fla',
+  // Derleme
+  'rev': 'rev', 'review': 'rev', 'reviewarticle': 'rev', 'review-article': 'rev',
+  // Kitap bölümü
+  'chp': 'chp', 'book-chapter': 'chp', 'bookchapter': 'chp', 'book chapter': 'chp',
+  'booksection': 'chp', 'book-part': 'chp',
+  // Konferans
+  'cnf': 'cnf', 'proceedings-article': 'cnf', 'conference paper': 'cnf',
+  'conferencepaper': 'cnf', 'conference-paper': 'cnf', 'proceedings': 'cnf',
+  // Kısa iletişim
+  'sco': 'sco', 'short survey': 'sco', 'letter': 'sco', 'note': 'sco',
+  // Özel bölüm
+  'ssu': 'ssu',
+  // Düzeltme / editöryal
+  'crp': 'crp', 'erratum': 'crp', 'correction': 'crp', 'editorial': 'crp',
+  'errata': 'crp', 'retraction': 'crp',
+  // Preprint
+  'pre': 'pre', 'preprint': 'pre', 'posted-content': 'pre', 'submitted': 'pre',
+};
+
+/**
+ * Herhangi bir kaynaktan gelen ham yayın tipini PUB_TYPE_SCORES koduna çevirir.
+ * Eşleşme bulunamazsa null döner (çağıran taraf fallback uygular).
+ */
+export function normalizePublicationType(raw) {
+  if (!raw) return null;
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const key = String(value).toLowerCase().trim();
+  return PUB_TYPE_ALIASES[key] || null;
+}
 
 /**
  * Kaynak türüne göre kalite puanı (AHP kriteri).
@@ -217,6 +259,11 @@ export const SOURCE_TYPE_SCORES = {
   Book: 0.8,
   'Book Series': 0.75,
   'Conference Proceeding': 0.7,
+  // journalRankingService 'Conference' ve 'Preprint' uretiyor. Bu iki anahtar
+  // tabloda yoktu, dolayisiyla ikisi de 0.5 fallback'ine dusuyor ve hakemli bir
+  // konferans bildirisi ile hakemsiz bir preprint ayni kalite puanini aliyordu.
+  Conference: 0.7,
+  Preprint: 0.35,
   EBook: 0.65,
   'Reference Work': 0.6,
   'Report': 0.5,

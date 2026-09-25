@@ -122,6 +122,9 @@ export async function searchOpenAlex(queryContext, params, booleanQuery) {
         normalized.citedBy = item.cited_by_count || 0;
         normalized.url = openAlexLinkUrl(item);
         normalized.source = 'OpenAlex';
+        // AHP kalite ve acik erisim kriterleri icin ham alanlar.
+        normalized.type = item.type || null;
+        normalized.openAccess = Boolean(item.open_access?.is_oa);
 
         // Keyword count (AHP için)
         let keyCount = 0;
