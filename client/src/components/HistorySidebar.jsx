@@ -7,7 +7,7 @@ import {
   History, Trash2, PlusCircle, FolderHeart, Plus, Zap, ShieldCheck, Settings,
   HelpCircle, Star, ChevronRight, ChevronLeft, Menu, FileSearch, Bookmark
 } from 'lucide-react';
-import { UserButton, useAuth, useUser } from '@clerk/clerk-react';
+import { AppUserButton, useAppAuth, useAppUser } from '../auth/clerkBridge.js';
 
 const SidebarItem = ({ icon, label, isOpen, active, onClick, badge }) => (
   <button
@@ -39,8 +39,8 @@ const HistorySidebar = ({ isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, 
   const [collError, setCollError] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-  const { user } = useUser();
-  const { getToken } = useAuth();
+  const { user } = useAppUser();
+  const { getToken } = useAppAuth();
 
   const toggleCollection = (id) => {
     setExpandedCollectionIds(prev => {
@@ -336,7 +336,7 @@ const HistorySidebar = ({ isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, 
           <SidebarItem icon={<HelpCircle size={16} />} label="Yardım" isOpen={isOpen} active={false} onClick={() => {}} />
           {user && (
             <div style={{ marginTop: '12px', padding: isOpen ? '12px 8px' : '8px 0', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: isOpen ? 'flex-start' : 'center', gap: '12px', overflow: 'hidden' }}>
-              <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: { width: '36px', height: '36px', border: '2px solid rgba(99, 102, 241, 0.3)', boxShadow: '0 8px 18px -10px rgba(99, 102, 241, 0.8)' } } }} />
+              <AppUserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: { width: '36px', height: '36px', border: '2px solid rgba(99, 102, 241, 0.3)', boxShadow: '0 8px 18px -10px rgba(99, 102, 241, 0.8)' } } }} />
               {isOpen && (
                 <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.fullName}</span>

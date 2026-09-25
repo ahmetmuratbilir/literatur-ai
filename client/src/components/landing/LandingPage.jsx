@@ -28,7 +28,7 @@ import {
   Microscope,
   Users
 } from 'lucide-react';
-import { SignInButton } from '@clerk/clerk-react';
+import { AppSignInButton } from '../../auth/clerkBridge.js';
 
 const FEATURE_HIGHLIGHTS = [
   {
@@ -213,12 +213,12 @@ export default function LandingPage({ landingTheme, activeLandingTab, setActiveL
           >
             {landingTheme === 'light' ? <Sun size={20} /> : <Moon size={20} />}
           </button>
-          <SignInButton mode="modal">
+          <AppSignInButton mode="modal">
             <button style={{ background: 'transparent', border: 'none', fontWeight: '700', color: landingTheme === 'light' ? '#1e293b' : '#f8fafc', cursor: 'pointer', fontSize: '0.9rem' }}>Giriş Yap</button>
-          </SignInButton>
-          <SignInButton mode="modal">
+          </AppSignInButton>
+          <AppSignInButton mode="modal">
             <button style={{ background: '#4f46e5', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)' }}>Ücretsiz Başlayın</button>
-          </SignInButton>
+          </AppSignInButton>
         </div>
       </nav>
 
@@ -283,9 +283,9 @@ export default function LandingPage({ landingTheme, activeLandingTab, setActiveL
             style={{ flex: 1, border: 'none', outline: 'none', fontSize: '1.1rem', color: landingTheme === 'light' ? '#1e293b' : '#f8fafc', background: 'transparent' }}
           />
           <div style={{ padding: '6px 12px', background: landingTheme === 'light' ? '#f1f5f9' : '#334155', borderRadius: '8px', color: '#94a3b8', fontSize: '0.8rem', fontWeight: '700', marginRight: '10px' }}>⌘ K</div>
-          <SignInButton mode="modal">
+          <AppSignInButton mode="modal">
             <button style={{ background: '#4f46e5', color: 'white', border: 'none', padding: '12px 32px', borderRadius: '14px', fontWeight: '700', cursor: 'pointer', fontSize: '1rem' }}>Ara</button>
-          </SignInButton>
+          </AppSignInButton>
         </motion.div>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>

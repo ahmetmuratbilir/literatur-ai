@@ -1,4 +1,5 @@
-import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, SignInButton, UserButton, useAuth, useUser } from '@clerk/clerk-react';
+import { DevUserButton, DevSignInButton } from './devAuthComponents.jsx';
 
 /**
  * Clerk ile uygulama arasındaki köprü.
@@ -46,3 +47,18 @@ export const AuthedOnly = CLERK_ENABLED ? SignedIn : PassThrough;
 
 /** Giriş yapmamış kullanıcıya gösterilen bölüm. Clerk kapalıyken hiç gösterilmez. */
 export const AnonOnly = CLERK_ENABLED ? SignedOut : RenderNothing;
+
+const devUser = {
+  isLoaded: true,
+  isSignedIn: true,
+  user: { id: 'test-user-id', fullName: 'Geliştirme Kullanıcısı' },
+};
+
+/** Clerk'in useUser'i. Kapaliyken sabit bir gelistirme kullanicisi doner. */
+export const useAppUser = CLERK_ENABLED ? useUser : () => devUser;
+
+/** Profil/oturum dugmesi. */
+export const AppUserButton = CLERK_ENABLED ? UserButton : DevUserButton;
+
+/** Giris dugmesi. Clerk kapaliyken yalnizca icerigini gosterir. */
+export const AppSignInButton = CLERK_ENABLED ? SignInButton : DevSignInButton;
