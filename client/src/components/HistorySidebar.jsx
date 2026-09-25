@@ -86,7 +86,7 @@ const HistorySidebar = ({ isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, 
         setShowNewCollForm(false);
         window.dispatchEvent(new CustomEvent('refreshCollections'));
       }
-    } catch (e) {
+    } catch {
       setCollError('Bağlantı hatası.');
     } finally {
       setCreatingColl(false);

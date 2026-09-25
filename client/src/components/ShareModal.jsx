@@ -1,4 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion';
+
+// App.jsx ile ayni kalip. ESLint yapilandirmasinda eslint-plugin-react yok,
+// bu yuzden JSX icindeki motion.div kullanimi "kullanim" sayilmiyor ve `motion`
+// "kullanilmayan degisken" olarak raporlaniyor. Buyuk harfle baslayan bir
+// takma ad hem bu yanlis pozitifi kaldiriyor hem de kod tabanini tutarli
+// kiliyor.
+const MotionDiv = motion.div;
 import {
   X,
   Share2,
@@ -15,12 +22,12 @@ export default function ShareModal({ show, onClose, shareUrl, copied, onCopy }) 
     <AnimatePresence>
       {show && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
             style={{ position: 'absolute', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)' }}
           />
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -129,7 +136,7 @@ export default function ShareModal({ show, onClose, shareUrl, copied, onCopy }) 
                 <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'rgba(255, 255, 255, 0.7)', letterSpacing: '0.02em' }}>E-posta</span>
               </div>
             </div>
-          </motion.div>
+          </MotionDiv>
         </div>
       )}
     </AnimatePresence>
