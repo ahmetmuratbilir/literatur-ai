@@ -15,42 +15,39 @@ import fs from 'fs/promises';
 import { performance } from 'perf_hooks';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import pkg from 'natural';
 import {
   normalizeSearchResult,
   deduplicateResults,
   calculateRelevanceScore,
-  applyHardFilter,
-  selectFinalResults
+  selectFinalResults,
+  toTokenSet
 } from './searchRankingService.js';
-
-const { WordTokenizer } = pkg;
-const tokenizer = new WordTokenizer();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-function recomputeKeyCount(item, queryTokens, fullQuery) {
+/**
+ * AHP'nin keyword ve similarity kriterleri için skor üretir.
+ *
+ * Token kümesi üzerinden çalışır: önceki alt-dize karşılaştırması ("act"
+ * token'ı "reactor" içinde eşleşiyordu) keyCount'u sistematik olarak şişirip
+ * AHP'nin %20 ağırlıklı keyword kriterini bozuyordu.
+ */
+function computeKeywordScores(item, queryTokens) {
+  const titleTokens = toTokenSet(item.title);
+  const descTokens = toTokenSet(item.abstract || item.description);
+
   let keyCount = 0;
-  const title = String(item.title || '').toLowerCase();
-  const description = String(item.description || '').toLowerCase();
-
-  // 1. Keyword Relevance (Exact matches)
-  if (title) {
-    const titleTokens = tokenizer.tokenize(title) || [];
-    titleTokens.forEach(t => { if (queryTokens.includes(t)) keyCount += 3; });
-  }
-  if (description) {
-    const descTokens = tokenizer.tokenize(description) || [];
-    descTokens.forEach(t => { if (queryTokens.includes(t)) keyCount += 1; });
+  for (const token of queryTokens) {
+    if (titleTokens.has(token)) keyCount += 3;
+    if (descTokens.has(token)) keyCount += 1;
   }
 
-  // 2. Expanded Query Similarity (Dice Coefficient)
-  // fullQuery contains the expanded context from LLM
-  const diceTitle = pkg.DiceCoefficient(fullQuery.toLowerCase(), title);
-  const diceDesc = description ? pkg.DiceCoefficient(fullQuery.toLowerCase(), description) : 0;
-  
-  // Combine title (weight 0.7) and description (weight 0.3) for similarity
-  const expandedSimilarity = (diceTitle * 0.7) + (diceDesc * 0.3);
+  const querySet = new Set(queryTokens);
+  let intersection = 0;
+  for (const token of querySet) {
+    if (titleTokens.has(token)) intersection++;
+  }
+  const expandedSimilarity = querySet.size > 0 ? intersection / querySet.size : 0;
 
   return { keyCount, expandedSimilarity };
 }
@@ -282,32 +279,19 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   console.log(`[Ranking] 2. Deduplicate Sonrası: ${deduplicatedCount} (Elenen: ${rawPoolCount - deduplicatedCount})`);
 
   const cleanQuery = `${params.mainTopic || ''} ${queryContext || ''}`.trim();
-  const queryTokens = cleanQuery.toLowerCase()
-    .replace(/[()"]/g, ' ')
-    .split(/\s+/)
-    .filter(t => t.length > 2 && t !== 'or' && t !== 'and' && t !== 'title' && t !== 'key' && t !== 'abs');
+  // Sorgu token'lari da makale metinleriyle ayni sekilde normalize edilmeli;
+  // aksi halde "reactor," gibi noktalamali bir token hicbir zaman eslesmez.
+  const BOOLEAN_NOISE = new Set(['or', 'and', 'not', 'title', 'key', 'abs']);
+  const queryTokens = [...toTokenSet(cleanQuery)].filter((t) => !BOOLEAN_NOISE.has(t));
 
   const expandedQueries = queryContext
     ? queryContext.split(' ').filter(x => x.length > 2)
     : [];
 
   uniqueResults.forEach(r => {
-    const title = (r.title || '').toLowerCase();
-    const desc  = (r.abstract || r.description || '').toLowerCase();
-
-    // keyCount (AHP için)
-    let keyCount = 0;
-    for (const t of queryTokens) {
-      if (title.includes(t)) keyCount += 3;
-      if (desc.includes(t))  keyCount += 1;
-    }
+    const { keyCount, expandedSimilarity } = computeKeywordScores(r, queryTokens);
     r.keyCount = keyCount;
-
-    // expandedSimilarity (AHP için)
-    const titleTokens = new Set(title.split(/\s+/).filter(x => x.length > 2));
-    const querySet    = new Set(queryTokens);
-    const intersection = [...querySet].filter(x => titleTokens.has(x)).length;
-    r.expandedSimilarity = querySet.size > 0 ? intersection / querySet.size : 0;
+    r.expandedSimilarity = expandedSimilarity;
 
     // relevanceScore (ranking için)
     r.relevanceScore = calculateRelevanceScore(r, cleanQuery, expandedQueries);

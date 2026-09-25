@@ -25,6 +25,13 @@ function applyDateMetadata(target, dateMetadata) {
   return target;
 }
 
+/**
+ * Aynı makalenin iki kaydını birleştirir.
+ *
+ * Kaynaklar birbirini tamamlar: Crossref genelde abstract vermez ama DOI'si
+ * kesindir, OpenAlex abstract ve atıf sayısı taşır, arXiv tam metin linki verir.
+ * Bu yüzden "ilk gelen kazanır" yerine alan bazında en zengin değeri alıyoruz.
+ */
 function mergeDuplicateResult(existing, incoming) {
   if (incoming.source && !existing.sourceList.includes(incoming.source)) {
     existing.sourceList.push(incoming.source);
@@ -33,7 +40,68 @@ function mergeDuplicateResult(existing, incoming) {
   const mergedDateMetadata = mergeDateMetadata(existing, incoming);
   applyDateMetadata(existing, mergedDateMetadata);
 
+  // Daha uzun özet daha fazla bilgi taşır; boş abstract sıralamada -2.0 ceza alıyor.
+  const existingAbstract = String(existing.abstract || '');
+  const incomingAbstract = String(incoming.abstract || incoming.description || '');
+  if (incomingAbstract.length > existingAbstract.length) {
+    existing.abstract = incomingAbstract;
+    existing.description = incomingAbstract;
+  }
+
+  // Atıf sayısında kaynaklar ciddi şekilde ayrışır; en yükseği en güncel olanıdır.
+  const existingCited = Number.parseInt(existing.citedBy ?? existing.citedbyCount, 10) || 0;
+  const incomingCited = Number.parseInt(incoming.citedBy ?? incoming.citedbyCount, 10) || 0;
+  if (incomingCited > existingCited) {
+    existing.citedBy = incomingCited;
+    existing.citedbyCount = incomingCited;
+  }
+
+  // Eksik kalan tanımlayıcıları tamamla (varsa üzerine yazma).
+  for (const field of ['doi', 'url', 'publicationName', 'authors', 'pubType']) {
+    if (!existing[field] && incoming[field]) {
+      existing[field] = incoming[field];
+    }
+  }
+
+  // Dergi sıralaması yalnızca bazı kaynaklarda çözülebiliyor.
+  if (!existing.quartile && incoming.quartile) existing.quartile = incoming.quartile;
+  if (!existing.sjr && incoming.sjr) existing.sjr = incoming.sjr;
+  if (!existing.sourceType && incoming.sourceType) existing.sourceType = incoming.sourceType;
+
+  if (!existing.openAccess && incoming.openAccess) existing.openAccess = incoming.openAccess;
+
   return existing;
+}
+
+function normalizeDoi(value) {
+  if (!value) return '';
+  const raw = String(value).trim().toLowerCase();
+  if (raw.length <= 5) return '';
+  return raw.replace(/^https?:\/\/(dx\.)?doi\.org\//, '');
+}
+
+function normalizeTitleForComparison(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^\w\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Jaro-Winkler karşılaştırmasını atlamanın güvenli olduğu durum.
+ *
+ * Jaro üst sınırı J <= (r + 2) / 3 (r = kısa/uzun uzunluk oranı). Winkler ön ek
+ * bonusu en fazla JW = 0.6*J + 0.4 verir. r < 0.7 için JW < 0.95 olduğundan,
+ * bu oranın altındaki çiftler eşik değerini hiçbir zaman geçemez ve hesaplama
+ * yapılmadan elenebilir. O(n^2) taramada en büyük kazanç buradan geliyor.
+ */
+function cannotReachSimilarityThreshold(lengthA, lengthB) {
+  const shorter = Math.min(lengthA, lengthB);
+  const longer = Math.max(lengthA, lengthB);
+  if (longer === 0) return true;
+  return shorter / longer < 0.7;
 }
 
 export function normalizeSearchResult(result) {
@@ -59,49 +127,71 @@ export function normalizeSearchResult(result) {
 
 export function deduplicateResults(results) {
   const uniqueMap = new Map();
-  
+
+  // DOI ve başlık ayrı birer alias indeksinde tutuluyor. Önceki sürüm DOI
+  // anahtarını hesaplayıp hemen ardından `title:` ile eziyordu; bu yüzden
+  // DOI'li hiçbir kayıt `doi:` anahtarıyla saklanmıyor ve aynı DOI ikinci kez
+  // geldiğinde bulunamıyordu. Aynı makale 4 kaynaktan gelip başlıkları birebir
+  // aynı değilse listede 4 kez görünüyordu.
+  const doiIndex = new Map();
+  const titleEntries = [];
+
   for (const item of results) {
-    let key = null;
-    
-    // Check DOI
-    if (item.doi && String(item.doi).trim().length > 5) {
-      let doiStr = String(item.doi).trim().toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, '');
-      key = `doi:${doiStr}`;
-    }
-    
-    if (key && uniqueMap.has(key)) {
-      // Merge sources
-      const existing = uniqueMap.get(key);
-      mergeDuplicateResult(existing, item);
+    const doi = normalizeDoi(item.doi);
+    const titleClean = normalizeTitleForComparison(item.title);
+
+    // 1. DOI kesin eşleşme
+    if (doi && doiIndex.has(doi)) {
+      mergeDuplicateResult(uniqueMap.get(doiIndex.get(doi)), item);
       continue;
     }
 
-    // Check Title Similarity if no DOI key matched
-    const titleClean = (item.title || '').toLowerCase().normalize('NFKD').replace(/[^\w\s]/g, '');
+    // 2. Başlık benzerliği
     if (titleClean.length > 10) {
-      let foundSimilar = false;
-      for (const [existingKey, existingItem] of uniqueMap.entries()) {
-        const existingTitle = (existingItem.title || '').toLowerCase().normalize('NFKD').replace(/[^\w\s]/g, '');
-        if (existingTitle.length > 10) {
-          const similarity = JaroWinklerDistance(titleClean, existingTitle);
-          if (similarity > 0.95) { // Highly similar
-            mergeDuplicateResult(existingItem, item);
-            foundSimilar = true;
-            break;
-          }
+      let matchedKey = null;
+      for (const entry of titleEntries) {
+        if (cannotReachSimilarityThreshold(titleClean.length, entry.titleClean.length)) continue;
+        if (JaroWinklerDistance(titleClean, entry.titleClean) > 0.95) {
+          matchedKey = entry.key;
+          break;
         }
       }
-      if (foundSimilar) continue;
-      
-      key = `title:${titleClean}`;
-    } else {
-      key = `id:${item.id || Math.random().toString()}`;
+
+      if (matchedKey) {
+        mergeDuplicateResult(uniqueMap.get(matchedKey), item);
+        // Bu kayıt DOI taşıyorsa, aynı DOI'nin sonraki kopyaları da bulunabilsin.
+        if (doi && !doiIndex.has(doi)) doiIndex.set(doi, matchedKey);
+        continue;
+      }
     }
 
+    // 3. Yeni kayıt
+    let key;
+    if (doi) key = `doi:${doi}`;
+    else if (titleClean.length > 10) key = `title:${titleClean}`;
+    else key = `id:${item.id || `${uniqueMap.size}-${titleClean}`}`;
+
     uniqueMap.set(key, item);
+    if (doi) doiIndex.set(doi, key);
+    if (titleClean.length > 10) titleEntries.push({ titleClean, key });
   }
-  
+
   return Array.from(uniqueMap.values());
+}
+
+/**
+ * Metni karşılaştırma için token kümesine çevirir.
+ * `includes()` ile yapılan alt-dize eşleşmesi "act" sorgusunu "reactor" ve
+ * "reaction" içinde de eşleştirip skorları şişiriyordu.
+ */
+export function toTokenSet(text) {
+  return new Set(
+    String(text || '')
+      .toLowerCase()
+      .normalize('NFKD')
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter((token) => token.length > 2)
+  );
 }
 
 export function calculateRelevanceScore(result, userQuery, expandedQueries = []) {
@@ -111,11 +201,16 @@ export function calculateRelevanceScore(result, userQuery, expandedQueries = [])
   const query = (userQuery || '').toLowerCase();
   const tokens = query.split(/\s+/).filter(t => t.length > 2 && t !== 'or' && t !== 'and');
 
+  // Kelime eşleşmesi token sınırına saygı duymalı: alt-dize karşılaştırması
+  // "act" sorgusunu "reactor"/"reaction" icinde de eşleştiriyordu.
+  const titleTokens = toTokenSet(title);
+  const abstractTokens = toTokenSet(abstract);
+
   // Title Match
   if (title.includes(query)) score += 3.0; // Exact phrase match in title
   else {
     let titleMatches = 0;
-    for (const t of tokens) if (title.includes(t)) titleMatches++;
+    for (const t of tokens) if (titleTokens.has(t)) titleMatches++;
     if (tokens.length > 0) score += (titleMatches / tokens.length) * 2.0;
   }
 
@@ -123,7 +218,7 @@ export function calculateRelevanceScore(result, userQuery, expandedQueries = [])
   if (abstract) {
     if (abstract.includes(query)) score += 1.5; // Exact phrase match
     let absMatches = 0;
-    for (const t of tokens) if (abstract.includes(t)) absMatches++;
+    for (const t of tokens) if (abstractTokens.has(t)) absMatches++;
     if (tokens.length > 0) score += (absMatches / tokens.length) * 1.0;
     
     // Very short abstract penalty
