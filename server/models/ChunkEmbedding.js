@@ -4,6 +4,7 @@ const chunkEmbeddingSchema = new mongoose.Schema({
   articleId: { type: String }, // Opsiyonel
   sourceIndex: { type: String, required: true },
   title: { type: String },
+  authors: { type: String },
   year: { type: String },
   chunkText: { type: String, required: true },
   embedding: { type: [Number], required: true },

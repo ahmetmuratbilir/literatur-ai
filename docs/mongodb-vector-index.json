@@ -8,6 +8,10 @@
         "path": "embedding",
         "numDimensions": 3072,
         "similarity": "cosine"
+      },
+      {
+        "type": "filter",
+        "path": "contentHash"
       }
     ]
   }
