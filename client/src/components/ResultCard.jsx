@@ -33,6 +33,28 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Koleksiyon menüsü dışarı tıklanınca kapansın
+  useEffect(() => {
+    if (!showCollMenu) return;
+    const handleClickOutside = (e) => {
+      if (collMenuRef.current && !collMenuRef.current.contains(e.target)) {
+        setShowCollMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showCollMenu]);
+
+  // Favori feedback temizle
+  useEffect(() => {
+    if (!favFeedback) return;
+    const t = setTimeout(() => setFavFeedback(null), 2000);
+    return () => clearTimeout(t);
+  }, [favFeedback]);
+
+  // TUM hook cagrilari bu satirin uzerinde kalmali. Bu erken donus daha once
+  // iki useEffect'in ONUNDEYDI: item tanimsiz gelen tek bir kayit, o karti
+  // 9 yerine 7 hook ile render ettiriyor ve React'in hook sirasini bozuyordu.
   if (!item) return null;
 
   const renderRankingBadge = () => {
@@ -122,25 +144,6 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
   const hasExtraSourceSummary = Boolean(teaserText && sourceSummary && sourceSummary !== teaserText);
   const canExpandSummary = hasExtraSourceSummary || summaryPreview.length > 180;
   const yearDisplay = getYearDisplay(item);
-
-  // Koleksiyon menüsü dışarı tıklanınca kapansın
-  useEffect(() => {
-    if (!showCollMenu) return;
-    const handleClickOutside = (e) => {
-      if (collMenuRef.current && !collMenuRef.current.contains(e.target)) {
-        setShowCollMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showCollMenu]);
-
-  // Favori feedback temizle
-  useEffect(() => {
-    if (!favFeedback) return;
-    const t = setTimeout(() => setFavFeedback(null), 2000);
-    return () => clearTimeout(t);
-  }, [favFeedback]);
 
   const handleFavClick = async (e) => {
     e.stopPropagation();
