@@ -7,3 +7,6 @@ cleardata2.json
 server/scratch/
 test_output.txt
 package - Kopya.json
+.env.bak.*
+.env.local
+.env.*.local

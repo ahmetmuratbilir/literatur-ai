@@ -87,6 +87,26 @@ const splitEnvList = (value) => String(value || '')
 
 const unique = (items) => [...new Set(items.filter(Boolean))];
 
+/**
+ * Admin kullanicilari, virgulle ayrilmis Clerk kullanici kimlikleri olarak
+ * ADMIN_USER_IDS icinde tanimlanir (ornek: user_2abc...,user_2def...).
+ *
+ * Bu proje halka acilacagi icin sistem durumu — hangi API anahtarinin
+ * yapilandirildigi, veritabani baglantisi, kalan kota — siradan kullaniciya
+ * gosterilemez. Bu bilgi bir saldirgana hangi servisin kapali oldugunu ve
+ * nereye yuklenmesi gerektigini soyler.
+ */
+const getAdminUserIds = () => new Set(splitEnvList(process.env.ADMIN_USER_IDS));
+
+const isAdminUser = (userId) => {
+  if (!userId) return false;
+  const admins = getAdminUserIds();
+  // Hic admin tanimlanmamissa kimse admin degildir. "Bos liste = herkes admin"
+  // yorumu, unutulmus bir yapilandirmayi tam yetkiye cevirirdi.
+  if (admins.size === 0) return false;
+  return admins.has(userId);
+};
+
 const getConfiguredCorsOrigins = () => unique([
   ...splitEnvList(process.env.CLIENT_URL),
   ...splitEnvList(process.env.CORS_ORIGIN),
@@ -256,6 +276,24 @@ const getWriterUserId = (req) => {
   return null;
 };
 
+/**
+ * Yalnizca ADMIN_USER_IDS icinde listelenen kullanicilar gecer.
+ *
+ * Abonelik kontrolu yapmaz: admin islemleri faturalamadan bagimsizdir.
+ */
+const requireAdmin = (req, res, next) => {
+  const userId = getWriterUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
+
+  if (!isAdminUser(userId)) {
+    // 404 degil 403: kaynagin varligi zaten dokumante, gizlemenin faydasi yok.
+    return res.status(403).json({ error: 'Bu alana erişim yetkiniz yok.' });
+  }
+
+  return next();
+};
+
+
 
 // Genel sağlık kontrolü — sadece servis ayakta mı bilgisi, detay yok
 app.get('/api/health', (req, res) => {
@@ -266,11 +304,17 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Detaylı sağlık kontrolü — yalnızca kimlik doğrulaması yapılmış kullanıcılara
-app.get('/api/health/details', (req, res) => {
-  const { userId } = getAuth(req);
+// Oturum sahibinin kim oldugu ve admin olup olmadigi.
+// Arayuz admin sekmesini yalnizca bu yanit isAdmin:true dondugunde gosterir.
+app.get('/api/me', (req, res) => {
+  const userId = getWriterUserId(req);
   if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
 
+  return res.json({ userId, isAdmin: isAdminUser(userId) });
+});
+
+// Detaylı sağlık kontrolü — yalnızca kimlik doğrulaması yapılmış kullanıcılara
+app.get('/api/health/details', requireAdmin, (req, res) => {
   const has = (v) => typeof v === 'string' && v.trim().length > 0;
   const geminiConfigured = has(process.env.GEMINI_API_KEY);
   const groqConfigured = has(process.env.GROQ_API_KEY);

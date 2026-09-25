@@ -7,6 +7,8 @@ process.env.NODE_ENV = 'test';
 process.env.MONGODB_URI = '';
 delete process.env.CLERK_SECRET_KEY;
 delete process.env.CLERK_PUBLISHABLE_KEY;
+// /api/health/details artik admin yetkisi istiyor.
+process.env.ADMIN_USER_IDS = 'test-user-001';
 
 const { app } = await import('../index.js');
 

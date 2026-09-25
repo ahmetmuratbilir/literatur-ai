@@ -46,6 +46,11 @@ const VARIABLES = [
     purpose: 'Kimlik doğrulama ve abonelik kontrolü',
   },
   {
+    name: 'ADMIN_USER_IDS',
+    required: false,
+    purpose: 'Admin panelini gorebilecek Clerk kullanici kimlikleri',
+  },
+  {
     name: 'GEMINI_API_KEY',
     required: false,
     purpose: 'Birincil metin üretimi ve embedding',

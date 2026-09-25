@@ -101,6 +101,7 @@ test('tam gecerli ortam hata uretmez', () => {
   const result = validateEnvironment({
     MONGODB_URI: 'mongodb+srv://appuser:pass@prod-shard.ab12c.mongodb.net/db',
     CLERK_SECRET_KEY: 'sk_test_abcdef',
+    ADMIN_USER_IDS: 'user_2abcdef123',
     GEMINI_API_KEY: 'AIzaGercekDeger',
     GROQ_API_KEY: 'gsk_gercekdeger',
     SCOPUS_API_KEY: 'gercek-scopus',
