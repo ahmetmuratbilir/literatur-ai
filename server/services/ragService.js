@@ -77,6 +77,18 @@ function getPhrases(keywords) {
  * @param {number} maxChunks - Döndürülecek maksimum chunk sayısı
  * @param {object} options - Hybrid scoring ayarları
  */
+// Yıl cezasının üst sınırı. Güncellik bir tercih sebebidir, eleme sebebi değil:
+// çarpımsal ve sınırlı uygulanır ki alaka skoru her zaman baskın kalsın.
+const RECENCY_PENALTY_PER_YEAR = 0.01;
+const RECENCY_MAX_PENALTY = 0.3;
+
+function recencyFactor(year, currentYear) {
+  const parsed = Number.parseInt(year, 10);
+  if (!Number.isFinite(parsed) || parsed <= 1900) return 1;
+  const age = Math.max(0, currentYear - parsed);
+  return 1 - Math.min(RECENCY_MAX_PENALTY, age * RECENCY_PENALTY_PER_YEAR);
+}
+
 export function scoreChunksByKeywords(chunks, userPrompt, maxChunks = 12, options = {}) {
   const {
     maxChunksPerArticle = 3,
@@ -96,46 +108,48 @@ export function scoreChunksByKeywords(chunks, userPrompt, maxChunks = 12, option
   const currentYear = new Date().getFullYear();
 
   const scoredChunks = chunks.map(chunk => {
-    let score = 0;
+    let relevanceScore = 0;
     const titleText = (chunk.title || '').toLowerCase();
     const chunkBodyText = (chunk.chunkText || '').toLowerCase();
-    
+
     // 1. Text (Abstract/Body) Match
     keywords.forEach(kw => {
       const regex = new RegExp(`\\b${kw}\\b`, 'gi');
       const matches = chunkBodyText.match(regex);
-      if (matches) score += (matches.length * textWeight);
+      if (matches) relevanceScore += (matches.length * textWeight);
     });
 
     // 2. Title Match
     keywords.forEach(kw => {
       const regex = new RegExp(`\\b${kw}\\b`, 'gi');
       const matches = titleText.match(regex);
-      if (matches) score += (matches.length * titleWeight);
+      if (matches) relevanceScore += (matches.length * titleWeight);
     });
 
     // 3. Phrase Match
     phrases.forEach(phrase => {
-      if (chunkBodyText.includes(phrase)) score += phraseWeight;
-      if (titleText.includes(phrase)) score += (phraseWeight * titleWeight);
+      if (chunkBodyText.includes(phrase)) relevanceScore += phraseWeight;
+      if (titleText.includes(phrase)) relevanceScore += (phraseWeight * titleWeight);
     });
 
-    // 4. Year Decay (Çok eski makalelere ufak bir eksi puan, veya yenilere artı)
-    // 2024'ten ne kadar eskiyse o kadar -0.1 puan (Eğer yıl verisi varsa)
-    const year = parseInt(chunk.year);
-    if (!isNaN(year) && year > 1900) {
-      const age = Math.max(0, currentYear - year);
-      score -= (age * 0.1); 
-    }
+    // 4. Güncellik ağırlığı.
+    //
+    // Önceki sürüm skordan `yaş * 0.1` çıkarıyordu. Skorun birimi "kelime
+    // eşleşme sayısı" olduğu için bu ceza sınırsızdı: 1985 tarihli bir makale
+    // 4 puan kaybediyor, ardından aşağıdaki `score <= 0` filtresine takılıp
+    // bağlamdan tamamen çıkıyordu. Nükleer mühendislikte temel kaynakların
+    // çoğu 1970-1990 aralığında olduğundan bu, alakalı literatürü sistematik
+    // olarak eliyordu. Artık çarpımsal ve en fazla %30 ile sınırlı.
+    const score = relevanceScore * recencyFactor(chunk.year, currentYear);
 
-    return { ...chunk, score };
+    return { ...chunk, score, relevanceScore };
   });
 
   // Skora göre büyükten küçüğe sırala
   scoredChunks.sort((a, b) => b.score - a.score);
 
-  // Eğer en iyi skor 0 veya daha düşükse (alakasızsa), eski düzende dön
-  if (scoredChunks.length > 0 && scoredChunks[0].score <= 0) {
+  // Hiçbir chunk anahtar kelime eşleşmesi taşımıyorsa eski düzende dön
+  if (scoredChunks.length > 0 && scoredChunks[0].relevanceScore <= 0) {
     return chunks.slice(0, maxChunks);
   }
 
@@ -145,8 +159,8 @@ export function scoreChunksByKeywords(chunks, userPrompt, maxChunks = 12, option
 
   for (const chunk of scoredChunks) {
     if (finalChunks.length >= maxChunks) break;
-    // Sadece skoru 0'dan büyük olanları (anlamlı olanları) dahil edelim
-    if (chunk.score <= 0) continue;
+    // Eleme ölçütü alaka; yaş tek başına bir chunk'ı bağlam dışı bırakamaz.
+    if (chunk.relevanceScore <= 0) continue;
 
     const sourceId = chunk.sourceIndex;
     if (!articleCounts[sourceId]) articleCounts[sourceId] = 0;
