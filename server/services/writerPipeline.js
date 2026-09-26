@@ -131,6 +131,9 @@ export async function runWriterPipeline({
       onToken: (token) => {
         emitSse(res, req, { token });
       },
+      onMeta: (meta) => {
+        emitSse(res, req, meta.warning ? { warning: meta.warning } : { meta });
+      },
     });
     generatedText = generation.text || '';
     provider = generation.provider || provider;

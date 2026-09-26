@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { getGroqModel, getGeminiModel } from '../config/aiModels.js';
+import { getGroqModel, getGeminiModel, getDeepseekModel, getActiveProviders } from '../config/aiModels.js';
+import { streamWithDeepseek } from './deepseek.js';
 import { fetch } from 'undici';
 import { createChunksFromArticles, scoreChunksByKeywords, buildContextFromChunks } from './ragService.js';
 import { getEmbedding, getEmbeddingsForChunks, searchSimilarChunksWithAtlas, cosineSimilarity } from './embeddingService.js';
@@ -470,8 +471,96 @@ ${paperMetadataText}
 
 Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kaynakçayı belirtilen "${bibliographyFormat}" stiline göre düzenleyen akademik bir metin üret:`;
 
+  const activeProviders = getActiveProviders();
+
+  // 0. DEEPSEEK ILE DENE (birincil)
+  //
+  // Gemini dalindaki dersi burada da uyguluyoruz: meta olayi ilk gercek
+  // token'a kadar bekletiliyor, boylece akis baslamadan olusan bir hata
+  // istemciye hicbir sey gondermemis olur ve yedege temiz gecilebilir.
+  if (activeProviders.includes('deepseek')) {
+    const deepseekModel = getDeepseekModel('quality');
+    let deepseekTokensSent = 0;
+
+    try {
+      console.log(`[AI] Model: DEEPSEEK (${deepseekModel})`);
+
+      fullGeneratedText = await streamWithDeepseek({
+        system: systemPrompt,
+        user: userPrompt,
+        profile: 'quality',
+        temperature: 0.4,
+        maxTokens: 3000,
+        shouldStop: isRequestAborted,
+        onReasoningStart: () => {
+          // Dusunme modunda ilk token gelene kadar uzun bir sessizlik olur.
+          // Arayuz bos ekran gostermesin diye durumu bildiriyoruz.
+          res.write(`data: ${JSON.stringify({ meta: { provider: 'deepseek', model: deepseekModel, thinking: true } })}
+
+`);
+        },
+        onToken: (token) => {
+          if (deepseekTokensSent === 0) {
+            res.write(`data: ${JSON.stringify({ meta: { provider: 'deepseek', model: deepseekModel } })}
+
+`);
+          }
+          deepseekTokensSent++;
+          res.write(`data: ${JSON.stringify({ token })}
+
+`);
+        },
+      });
+
+      if (!isRequestAborted()) {
+        const bibliographyAppendix = getMissingBibliographyAppendix(fullGeneratedText, safePapers, bibliographyFormat);
+        if (bibliographyAppendix) {
+          fullGeneratedText = `${fullGeneratedText.trimEnd()}${bibliographyAppendix}`;
+          res.write(`data: ${JSON.stringify({ token: bibliographyAppendix })}
+
+`);
+        }
+
+        WriterCache.create({
+          requestHash,
+          generatedText: fullGeneratedText,
+          prompt: promptText,
+          papersCount: safePapers.length
+        }).catch(err => console.warn('[CACHE] Kaydetme hatası:', err.message));
+
+        res.write(`data: ${JSON.stringify({ done: true })}
+
+`);
+        res.end();
+      }
+      return;
+    } catch (err) {
+      const { canFallback } = resolveGeminiFallback({ tokensSent: deepseekTokensSent });
+
+      if (!canFallback) {
+        console.error('[ERROR] DeepSeek akis ortasinda kesildi, yedege gecilmedi:', err.message);
+        if (!isRequestAborted()) {
+          res.write(`data: ${JSON.stringify({ meta: { provider: 'deepseek', truncated: true, reason: 'stream_interrupted' } })}
+
+`);
+          res.write(`data: ${JSON.stringify({ warning: 'Metin uretimi yarida kesildi. Gosterilen icerik eksik olabilir.' })}
+
+`);
+          res.write(`data: ${JSON.stringify({ done: true })}
+
+`);
+          res.end();
+        }
+        return;
+      }
+
+      console.error('[ERROR] DeepSeek hatasi, yedege geciliyor:', err.message);
+      fullGeneratedText = '';
+    }
+  }
+
   // 1. GEMINI İLE DENE
-  if (geminiKey) {
+  if (geminiKey && activeProviders.includes('gemini')) {
     try {
       const geminiModel = getGeminiModel();
       console.log(`[AI] Model: GEMINI (${geminiModel})`);
@@ -567,8 +656,10 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
   }
 
   // 2. GROQ İLE DENE (Fallback veya ana yöntem)
-  if (!groqKey) {
-    throw new Error("Ne GEMINI_API_KEY ne de GROQ_API_KEY mevcut. Metin üretilemez.");
+  if (!groqKey || !activeProviders.includes('groq')) {
+    throw new Error(
+      `Yapilandirilmis hicbir saglayici metin uretemedi (aktif: ${activeProviders.join(', ') || 'yok'}).`
+    );
   }
 
   const groqModel = getGroqModel();

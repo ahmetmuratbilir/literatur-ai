@@ -1,10 +1,10 @@
 import { fetch } from 'undici';
-import { getGroqModel } from '../config/aiModels.js';
+import { resolveChatProvider } from '../config/aiModels.js';
 
 export async function analyzeAndExpandQuery(topic) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    throw new Error('GROQ_API_KEY is not defined in .env');
+  const provider = resolveChatProvider({ profile: 'fast' });
+  if (!provider) {
+    throw new Error('Yapilandirilmis bir sohbet saglayicisi yok (AI_PROVIDERS).');
   }
 
   const systemPrompt = `You are an expert academic research assistant. 
@@ -33,14 +33,14 @@ RULES:
   const startTime = Date.now();
   console.log(`\n--- Groq AI Analizi Başlatıldı: "${topic}" ---`);
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const response = await fetch(provider.url, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      'Authorization': `Bearer ${provider.key}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: getGroqModel(),
+      model: provider.model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }

@@ -11,7 +11,7 @@
  * Yalnızca servis adı, durum ve HTTP sonucu.
  */
 import dns from 'node:dns/promises';
-import { getGroqModel, getGeminiModel } from '../config/aiModels.js';
+import { getGroqModel, getGeminiModel, getDeepseekModel, getProviderOrder, DEEPSEEK_BASE_URL } from '../config/aiModels.js';
 import net from 'node:net';
 
 const DEFAULT_TIMEOUT_MS = 12000;
@@ -98,6 +98,39 @@ async function probeMongo(uri) {
  */
 export async function probeAllServices(env = process.env) {
   const rows = [];
+
+  const providerOrder = getProviderOrder();
+  const isPrimary = (name) => providerOrder[0] === name;
+
+  // --- DeepSeek ---
+  if (env.DEEPSEEK_API_KEY) {
+    const model = getDeepseekModel('quality');
+    const result = await request(`${DEEPSEEK_BASE_URL}/models`, {
+      headers: { Authorization: `Bearer ${env.DEEPSEEK_API_KEY}` },
+    });
+    let { state, detail } = classify(result);
+
+    // DeepSeek 24 Tem 2026'da deepseek-chat/deepseek-reasoner adlarini
+    // emekliye ayirdi. Anahtar gecerli olsa bile eski ad 404 doner.
+    if (state === 'ok') {
+      let available = [];
+      try {
+        available = (JSON.parse(result.body).data || []).map((m) => m.id);
+      } catch {
+        // Govde kirpilmis olabilir.
+      }
+      if (available.length > 0 && !available.includes(model)) {
+        state = 'model_missing';
+        detail = `anahtar gecerli ama "${model}" modeli yok — DEEPSEEK_MODEL_QUALITY ayarlanmali`;
+      } else {
+        detail += ` — model: ${model}`;
+      }
+    }
+    rows.push(row('DeepSeek', isPrimary('deepseek'), state, detail, result.ms));
+  } else if (providerOrder.includes('deepseek')) {
+    rows.push(row('DeepSeek', isPrimary('deepseek'), 'missing',
+      'AI_PROVIDERS listesinde ama DEEPSEEK_API_KEY yok'));
+  }
 
   // --- Gemini ---
   if (env.GEMINI_API_KEY) {

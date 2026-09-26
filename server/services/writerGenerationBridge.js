@@ -18,6 +18,7 @@ export async function streamAcademicTextWithBridge({
   bibliographyFormat = 'APA 7',
   req,
   onToken,
+  onMeta,
 }) {
   let generatedText = '';
   let bridgeError = null;
@@ -53,6 +54,12 @@ export async function streamAcademicTextWithBridge({
           provider = String(payload.provider);
         } else if (payload.meta?.provider) {
           provider = String(payload.meta.provider);
+          // Meta olaylari bu katmanda yutuluyordu. Dusunme modunda ilk metin
+          // token'i 10-20 saniye sonra geldigi icin arayuzun bu sureyi
+          // bilmesi gerekiyor; aksi halde bos ekran gosteriyor.
+          if (typeof onMeta === 'function') onMeta(payload.meta);
+        } else if (payload.warning) {
+          if (typeof onMeta === 'function') onMeta({ warning: payload.warning });
         } else if (payload.error) {
           bridgeError = new Error(String(payload.error));
         }

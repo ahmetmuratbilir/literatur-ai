@@ -1,10 +1,8 @@
 import { fetch } from 'undici';
-import { getGroqModel } from '../config/aiModels.js';
+import { resolveChatProvider } from '../config/aiModels.js';
 import { withTimeout } from './http.js';
 
 const TRANSLATE_TIMEOUT_MS = 10000;
-const GROQ_TRANSLATION_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_TRANSLATION_MODEL = getGroqModel();
 const GROQ_MAX_ATTEMPTS = 3;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -19,19 +17,25 @@ function parseRetryAfterMs(response, attempt) {
 }
 
 async function requestGroqJson({ apiKey, prompt, temperature, timeoutMessage, taskLabel }) {
+  // Saglayici AI_PROVIDERS sirasina gore secilir; DeepSeek ve Groq ayni
+  // OpenAI gövdesini kabul ettigi icin cagri sekli degismiyor.
+  const provider = resolveChatProvider({ profile: 'fast' });
+  if (!provider) {
+    throw new Error('Yapilandirilmis bir ceviri saglayicisi yok (AI_PROVIDERS).');
+  }
   let lastError = null;
 
   for (let attempt = 1; attempt <= GROQ_MAX_ATTEMPTS; attempt += 1) {
     try {
       const response = await withTimeout(
-        fetch(GROQ_TRANSLATION_URL, {
+        fetch(provider.url, {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${apiKey}`,
+            Authorization: `Bearer ${provider.key}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: GROQ_TRANSLATION_MODEL,
+            model: provider.model,
             messages: [{ role: 'user', content: prompt }],
             temperature,
             response_format: { type: 'json_object' },
@@ -109,8 +113,10 @@ export async function translateToEnglish(text) {
   const sourceText = typeof text === 'string' ? text.trim() : '';
   if (!sourceText) return { text: '' };
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return { text: sourceText };
+  // Ceviri saglayicisi yoksa metni oldugu gibi birak: ceviri kayip,
+  // arama calismaya devam ediyor.
+  if (!resolveChatProvider({ profile: 'fast' })) return { text: sourceText };
+  const apiKey = null;
 
   const prompt = `Translate the following academic search text into concise, natural English.
 Preserve boolean operators and search punctuation when present.
@@ -142,11 +148,11 @@ ${sourceText}`;
 export async function batchTranslateAcademic(items) {
   if (!items || !items.length) return items;
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    console.warn('GROQ_API_KEY missing, batch translation skipped.');
+  if (!resolveChatProvider({ profile: 'fast' })) {
+    console.warn('[Translate] Yapilandirilmis saglayici yok, ceviri atlandi.');
     return items;
   }
+  const apiKey = null;
 
   const attempts = [
     { includeTeasers: true, taskLabel: 'batch translation' },
