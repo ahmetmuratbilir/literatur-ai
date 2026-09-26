@@ -1,4 +1,5 @@
 import { fetch } from 'undici';
+import { getGroqModel } from '../config/aiModels.js';
 
 export async function analyzeAndExpandQuery(topic) {
   const apiKey = process.env.GROQ_API_KEY;
@@ -39,7 +40,7 @@ RULES:
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: getGroqModel(),
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }

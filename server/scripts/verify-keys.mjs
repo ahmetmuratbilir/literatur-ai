@@ -46,6 +46,7 @@ const LABELS = {
   quota: 'KOTA DOLU',
   unreachable: 'ERİŞİLEMİYOR',
   missing: 'TANIMSIZ',
+  model_missing: 'MODEL YOK',
   error: 'HATA',
 };
 

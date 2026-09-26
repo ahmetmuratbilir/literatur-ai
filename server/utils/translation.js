@@ -1,9 +1,10 @@
 import { fetch } from 'undici';
+import { getGroqModel } from '../config/aiModels.js';
 import { withTimeout } from './http.js';
 
 const TRANSLATE_TIMEOUT_MS = 10000;
 const GROQ_TRANSLATION_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_TRANSLATION_MODEL = 'llama-3.1-8b-instant';
+const GROQ_TRANSLATION_MODEL = getGroqModel();
 const GROQ_MAX_ATTEMPTS = 3;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

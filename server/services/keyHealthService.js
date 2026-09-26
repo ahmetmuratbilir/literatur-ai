@@ -11,6 +11,7 @@
  * Yalnızca servis adı, durum ve HTTP sonucu.
  */
 import dns from 'node:dns/promises';
+import { getGroqModel, getGeminiModel } from '../config/aiModels.js';
 import net from 'node:net';
 
 const DEFAULT_TIMEOUT_MS = 12000;
@@ -101,8 +102,23 @@ export async function probeAllServices(env = process.env) {
   // --- Gemini ---
   if (env.GEMINI_API_KEY) {
     const key = encodeURIComponent(env.GEMINI_API_KEY);
+    const model = getGeminiModel();
     const result = await request(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
-    const { state, detail } = classify(result);
+    let { state, detail } = classify(result);
+
+    // Gecerli anahtar + kaldirilmis model = 404. Sadece anahtari dogrulamak
+    // bunu kacirir; model adini da sormak zorundayiz.
+    if (state === 'ok') {
+      const probe = await request(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}?key=${key}`
+      );
+      if (!probe.ok) {
+        state = 'model_missing';
+        detail = `anahtar gecerli ama "${model}" modeli hesapta yok (HTTP ${probe.status})`;
+      } else {
+        detail += ` — model: ${model}`;
+      }
+    }
     rows.push(row('Gemini', false, state, detail, result.ms));
   } else {
     rows.push(row('Gemini', false, 'missing', 'GEMINI_API_KEY yok — metin üretimi çalışmaz'));
@@ -110,10 +126,34 @@ export async function probeAllServices(env = process.env) {
 
   // --- Groq ---
   if (env.GROQ_API_KEY) {
+    const model = getGroqModel();
     const result = await request('https://api.groq.com/openai/v1/models', {
       headers: { Authorization: `Bearer ${env.GROQ_API_KEY}` },
     });
-    const { state, detail } = classify(result);
+    let { state, detail } = classify(result);
+
+    // Groq katalogdan model kaldirabiliyor (Llama boyle gitti). Anahtar
+    // gecerli kalir, cagri 404 doner ve ceviri sessizce calismaz.
+    if (state === 'ok') {
+      let available = [];
+      try {
+        available = (JSON.parse(result.body).data || []).map((m) => m.id);
+      } catch {
+        // Govde kirpilmis olabilir; ayri bir istekle modeli dogrudan sor.
+      }
+      const known = available.length > 0
+        ? available.includes(model)
+        : (await request(`https://api.groq.com/openai/v1/models/${model}`, {
+            headers: { Authorization: `Bearer ${env.GROQ_API_KEY}` },
+          })).ok;
+
+      if (!known) {
+        state = 'model_missing';
+        detail = `anahtar gecerli ama "${model}" modeli hesapta yok — GROQ_MODEL ayarlanmali`;
+      } else {
+        detail += ` — model: ${model}`;
+      }
+    }
     rows.push(row('Groq', false, state, detail, result.ms));
   } else {
     rows.push(row('Groq', false, 'missing', 'GROQ_API_KEY yok — yedek LLM ve Türkçe çeviri kapalı'));

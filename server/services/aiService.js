@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getGroqModel, getGeminiModel } from '../config/aiModels.js';
 import { fetch } from 'undici';
 import { createChunksFromArticles, scoreChunksByKeywords, buildContextFromChunks } from './ragService.js';
 import { getEmbedding, getEmbeddingsForChunks, searchSimilarChunksWithAtlas, cosineSimilarity } from './embeddingService.js';
@@ -472,7 +473,7 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
   // 1. GEMINI İLE DENE
   if (geminiKey) {
     try {
-      const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+      const geminiModel = getGeminiModel();
       console.log(`[AI] Model: GEMINI (${geminiModel})`);
       const genAI = new GoogleGenerativeAI(geminiKey);
       // Gemini'de system prompt'u model oluştururken verebiliriz veya user prompt içine yedirebiliriz.
@@ -570,8 +571,10 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
     throw new Error("Ne GEMINI_API_KEY ne de GROQ_API_KEY mevcut. Metin üretilemez.");
   }
 
+  const groqModel = getGroqModel();
+
   try {
-    console.log('[AI] Model: GROQ (Llama 3.3 70B)');
+    console.log(`[AI] Model: GROQ (${groqModel})`);
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -579,7 +582,7 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: groqModel,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -594,7 +597,7 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
       if (groqRes.status === 429) {
         const retryAfter = groqRes.headers.get('retry-after');
         console.error(`\n[ERROR] GROQ RATE LIMIT (429)`);
-        console.error(`- Model: llama-3.3-70b-versatile`);
+        console.error(`- Model: ${groqModel}`);
         console.error(`- Hata Kodu: 429 Rate Limit Exceeded`);
         console.error(`- Bekleme Süresi (Retry-After): ${retryAfter || 'Bilinmiyor'} saniye\n`);
         
@@ -606,7 +609,7 @@ Lütfen kurallara SIKI SIKIYA bağlı kalarak, uydurma bilgi içermeyen ve kayna
       const errText = await groqRes.text();
       throw new Error(`Groq Status: ${groqRes.status} - ${errText}`);
     }
-    res.write(`data: ${JSON.stringify({ meta: { provider: 'groq', model: 'llama-3.3-70b-versatile' } })}\n\n`);
+    res.write(`data: ${JSON.stringify({ meta: { provider: 'groq', model: groqModel } })}\n\n`);
 
     let reader = null;
     let useAsyncIterator = false;

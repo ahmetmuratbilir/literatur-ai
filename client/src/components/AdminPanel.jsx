@@ -17,6 +17,7 @@ const STATE_STYLE = {
   quota: { label: 'Kota dolu', color: '#a16207', bg: '#fef9c3', Icon: AlertTriangle },
   unreachable: { label: 'Erişilemiyor', color: '#b91c1c', bg: '#fee2e2', Icon: XCircle },
   missing: { label: 'Tanımsız', color: '#57534e', bg: '#f5f5f4', Icon: MinusCircle },
+  model_missing: { label: 'Model yok', color: '#a16207', bg: '#fef9c3', Icon: AlertTriangle },
   error: { label: 'Hata', color: '#b91c1c', bg: '#fee2e2', Icon: XCircle },
   placeholder: { label: 'Şablon değeri', color: '#a16207', bg: '#fef9c3', Icon: AlertTriangle },
   malformed: { label: 'Biçim hatalı', color: '#a16207', bg: '#fef9c3', Icon: AlertTriangle },
