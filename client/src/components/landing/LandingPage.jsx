@@ -130,7 +130,7 @@ export default function LandingPage({ landingTheme, activeLandingTab, setActiveL
                     </div>
                     <div style={{ padding: '1rem', borderRadius: '16px', background: landingTheme === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: landingTheme === 'light' ? '1px solid #f1f5f9' : '1px solid rgba(255,255,255,0.05)' }}>
                       <div style={{ fontWeight: '700', marginBottom: '4px' }}>AI Literatür Sentezi</div>
-                      <div style={{ fontSize: '0.9rem', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>Llama 3.1 desteğiyle onlarca makaleyi saniyeler içinde okuyup size akademik bir özet sunarız.</div>
+                      <div style={{ fontSize: '0.9rem', color: landingTheme === 'light' ? '#64748b' : '#94a3b8' }}>Seçtiğiniz makalelerin özetlerini okuyup atıflı bir akademik taslak üretiriz; iç atıflar ve kaynakça yalnızca sizin seçtiğiniz makalelerle sınırlıdır.</div>
                     </div>
                     <div style={{ padding: '1rem', borderRadius: '16px', background: landingTheme === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: landingTheme === 'light' ? '1px solid #f1f5f9' : '1px solid rgba(255,255,255,0.05)' }}>
                       <div style={{ fontWeight: '700', marginBottom: '4px' }}>Çapraz Kaynak Taraması</div>
