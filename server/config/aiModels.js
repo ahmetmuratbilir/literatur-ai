@@ -16,7 +16,14 @@ const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 // DeepSeek 24 Temmuz 2026'da deepseek-chat ve deepseek-reasoner adlarini
 // emekliye ayirdi. Guncel adlar bunlar.
 const DEFAULT_DEEPSEEK_FAST = 'deepseek-flash';
-const DEFAULT_DEEPSEEK_QUALITY = 'deepseek-v4-pro';
+// Her iki profil de flash. Pro ~4 kat pahali ($1.32/$3.96 vs $0.30/$1.20 per 1M)
+// ve olculen kalite farki bu is icin bunu hakli cikarmadi.
+// Pro'ya donmek icin: DEEPSEEK_MODEL_QUALITY=deepseek-v4-pro
+//
+// Varsayilan da degistirildi cunku yalnizca .env'e yazmak, degiskenin
+// ayarlanmadigi bir ortamda (ornegin Render) sessizce pahali modele
+// dusmek demekti — bu oturumda defalarca gordugumuz yapilandirma sapmasi.
+const DEFAULT_DEEPSEEK_QUALITY = 'deepseek-flash';
 
 export const DEEPSEEK_BASE_URL = 'https://api.deepseek.com';
 
