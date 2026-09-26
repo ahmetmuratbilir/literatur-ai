@@ -47,18 +47,21 @@ RULES:
       ],
       temperature: 0.1, // Lower temperature for more consistent JSON
       max_tokens: 1024,
-      response_format: { type: "json_object" }
+      response_format: { type: "json_object" },
+      // Dusunme acik kalirsa akil yurutme max_tokens butcesini tuketiyor ve
+      // content bos donuyor; bu cagri kisa ve kesin bir JSON istiyor.
+      ...(provider.body || {}),
     })
   });
 
   const duration = (Date.now() - startTime) / 1000;
-  console.log(`Groq AI Yanıt Süresi: ${duration.toFixed(2)} sn`);
+  console.log(`${provider.name} yanit suresi: ${duration.toFixed(2)} sn`);
 
   if (!response.ok) {
     const status = response.status;
     const errorText = await response.text();
-    console.error(`Groq API Error (Status ${status}):`, errorText);
-    throw new Error(`Groq API failed with status ${status}: ${errorText}`);
+    console.error(`${provider.name} API hatasi (HTTP ${status}):`, errorText);
+    throw new Error(`${provider.name} API failed with status ${status}: ${errorText}`);
   }
 
   const data = await response.json();
@@ -68,7 +71,7 @@ RULES:
     const result = JSON.parse(content);
     return result;
   } catch (error) {
-    console.error('Failed to parse Groq JSON response:', content);
+    console.error(`${provider.name} gecerli JSON dondurmedi:`, JSON.stringify(content).slice(0, 200));
     throw new Error('AI returned invalid JSON format');
   }
 }

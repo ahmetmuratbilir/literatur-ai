@@ -100,6 +100,11 @@ export function resolveChatProvider({ profile = 'fast' } = {}) {
         url: `${DEEPSEEK_BASE_URL}/chat/completions`,
         key: process.env.DEEPSEEK_API_KEY,
         model: getDeepseekModel(profile),
+        // V4 modelleri varsayilan olarak dusunur. Akil yurutme max_tokens
+        // butcesinden harcandigi icin uzun promptlarda content BOS kaliyor
+        // ve JSON ayristirmasi patliyor. Bu cagri yerleri kisa ve kesin
+        // cevap istedigi icin dusunme kapatiliyor.
+        body: { thinking: { type: 'disabled' } },
       };
     }
     if (provider === 'groq') {
@@ -108,6 +113,7 @@ export function resolveChatProvider({ profile = 'fast' } = {}) {
         url: 'https://api.groq.com/openai/v1/chat/completions',
         key: process.env.GROQ_API_KEY,
         model: getGroqModel(),
+        body: {},
       };
     }
   }

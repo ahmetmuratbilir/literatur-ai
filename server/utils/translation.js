@@ -39,6 +39,7 @@ async function requestGroqJson({ apiKey, prompt, temperature, timeoutMessage, ta
             messages: [{ role: 'user', content: prompt }],
             temperature,
             response_format: { type: 'json_object' },
+            ...(provider.body || {}),
           }),
         }),
         TRANSLATE_TIMEOUT_MS,
