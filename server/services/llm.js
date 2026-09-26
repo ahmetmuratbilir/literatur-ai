@@ -1,5 +1,6 @@
 import { fetch } from 'undici';
 import { resolveChatProvider } from '../config/aiModels.js';
+import { logAiUsage } from '../utils/aiUsage.js';
 
 export async function analyzeAndExpandQuery(topic) {
   const provider = resolveChatProvider({ profile: 'fast' });
@@ -65,6 +66,7 @@ RULES:
   }
 
   const data = await response.json();
+  logAiUsage(`${provider.name}/query-analysis`, data?.usage);
   const content = data.choices?.[0]?.message?.content || '';
   
   try {

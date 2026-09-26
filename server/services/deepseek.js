@@ -5,11 +5,18 @@
  * neredeyse aynı. Ayrı bir SDK gerekmiyor.
  *
  * Önbellek notu: DeepSeek ön-ek bazlı önbellek kullanıyor ve isabet eden girdi
- * token'ı ~50 kat ucuz. Bu yüzden çağıranlar sabit talimatları prompt'un
- * BAŞINA, değişken içeriği SONUNA koymalı.
+ * token'ı belirgin biçimde ucuz. Bu yüzden çağıranlar sabit talimatları
+ * prompt'un BAŞINA, değişken içeriği SONUNA koymalı. En büyük çağıran olan
+ * writer akışı bunu writerPrompt.js'teki iki parçalı yapıyla uyguluyor; yeni
+ * bir çağrı yeri eklerken aynı düzen izlenmeli.
+ *
+ * İsabet oranı her yanıtta loglanıyor (utils/aiUsage.js). Bir prompt
+ * düzenlemesinden sonra [AI-USAGE] satırındaki oran düştüyse, düzenleme sabit
+ * ön eki bölmüştür.
  */
 import { fetch } from 'undici';
 import { DEEPSEEK_BASE_URL, getDeepseekModel } from '../config/aiModels.js';
+import { logAiUsage } from '../utils/aiUsage.js';
 
 const DEFAULT_TIMEOUT_MS = 180000;
 
@@ -91,6 +98,7 @@ export async function completeWithDeepseek({
   });
 
   const payload = await response.json();
+  logAiUsage(`deepseek/${profile}`, payload?.usage);
   const text = payload?.choices?.[0]?.message?.content;
 
   if (typeof text !== 'string' || !text.trim()) {
@@ -127,6 +135,9 @@ export async function streamWithDeepseek({
     temperature,
     max_tokens: maxTokens,
     stream: true,
+    // Akista usage varsayilan olarak hic gelmez; bu bayrak olmadan writer
+    // akisinin onbellek isabet orani olculemez.
+    stream_options: { include_usage: true },
     ...(thinking ? { thinking } : {}),
   });
 
@@ -137,6 +148,8 @@ export async function streamWithDeepseek({
   let full = '';
   let buffer = '';
   let reasoningAnnounced = false;
+  // usage yalnizca en son SSE olayinda gelir; o olayda choices bos olur.
+  let usage = null;
 
   for await (const chunk of response.body) {
     if (typeof shouldStop === 'function' && shouldStop()) break;
@@ -155,7 +168,10 @@ export async function streamWithDeepseek({
       if (data === '[DONE]') continue;
 
       try {
-        const delta = JSON.parse(data)?.choices?.[0]?.delta;
+        const event = JSON.parse(data);
+        if (event?.usage) usage = event.usage;
+
+        const delta = event?.choices?.[0]?.delta;
         if (!delta) continue;
 
         // Dusunme ciktisi kullaniciya gitmez; yalnizca "dusunuyor" bilgisini
@@ -177,6 +193,8 @@ export async function streamWithDeepseek({
       }
     }
   }
+
+  logAiUsage(`deepseek/${profile} (stream)`, usage);
 
   if (!full.trim()) {
     throw new Error('DeepSeek boş yanıt döndürdü.');

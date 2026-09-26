@@ -1,6 +1,7 @@
 import { fetch } from 'undici';
 import { resolveChatProvider } from '../config/aiModels.js';
 import { withTimeout } from './http.js';
+import { logAiUsage } from './aiUsage.js';
 
 const TRANSLATE_TIMEOUT_MS = 10000;
 const GROQ_MAX_ATTEMPTS = 3;
@@ -47,7 +48,9 @@ async function requestGroqJson({ apiKey, prompt, temperature, timeoutMessage, ta
       );
 
       if (response.ok) {
-        return response.json();
+        const payload = await response.json();
+        logAiUsage(`${provider.name}/${taskLabel}`, payload?.usage);
+        return payload;
       }
 
       if (response.status === 429 && attempt < GROQ_MAX_ATTEMPTS) {
