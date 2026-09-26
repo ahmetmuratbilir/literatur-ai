@@ -63,6 +63,10 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const CLERK_CONFIGURED = typeof process.env.CLERK_SECRET_KEY === 'string'
   && process.env.CLERK_SECRET_KEY.trim().length > 0;
 
+// Abonelik zorunlulugu acikca acilmadikca uygulanmaz. Varsayilan olarak acik
+// olmasi, ucret alinmayan bir kurulumda tum kullanicilari disarida birakiyordu.
+const BILLING_REQUIRED = process.env.BILLING_REQUIRED === 'true';
+
 // Yer tutucu degerler varlik kontrolunu gecip sistemin calisir gorunmesine yol
 // aciyordu; hata ancak canli API 401 dondugunde ve kaynak bazinda sessizce
 // yutuldugunda ortaya cikiyordu. Bunu baslangicta ve yuksek sesle yakaliyoruz.
@@ -382,6 +386,13 @@ app.get('/api/health/details', requireAdmin, (req, res) => {
       arxiv: { configured: true, status: 'public/no key required; timeout issues are operational' },
       doaj: { configured: true, status: 'public/no key required; timeout issues are operational' },
     },
+    billing: {
+      enforced: BILLING_REQUIRED,
+      failOpen: process.env.BILLING_FAIL_OPEN === 'true',
+      status: BILLING_REQUIRED
+        ? 'abonelik zorunlu'
+        : 'abonelik kontrolu kapali (BILLING_REQUIRED=true ile acilir)',
+    },
     auth: {
       provider: 'clerk',
       configured: CLERK_CONFIGURED,
@@ -456,8 +467,39 @@ const isTestBypassUser = (userId) =>
  * Kullanıcı kimliğini parametre olarak alır çünkü writer uçları kimliği
  * getWriterUserId() üzerinden çözüyor (test başlığı desteği için).
  */
+/**
+ * "Bu kullanicinin aboneligi yok" hatasini, "abonelik servisi coktu"
+ * hatasindan ayirir.
+ *
+ * Clerk Billing acik degilse ya da kullanicinin abonelik kaydi yoksa
+ * getUserBillingSubscription() 404 firlatir. Bu bir arıza degil, normal bir
+ * durum: kullanici ucretsiz katmanda.
+ */
+const isNoSubscriptionError = (error) => {
+  if (error?.status === 404 || error?.statusCode === 404) return true;
+  const codes = (error?.errors || []).map((e) => String(e?.code || ''));
+  if (codes.some((code) => code.includes('not_found'))) return true;
+  return /404|not[_ ]found|no subscription/i.test(String(error?.message || ''));
+};
+
+/**
+ * Abonelik dogrulamasi.
+ *
+ * BILLING_REQUIRED=false (varsayilan) oldugunda kontrol hic yapilmaz. Sebebi:
+ * uygulama henuz ucret almiyorsa, var olmayan bir aboneligi dogrulamaya
+ * calisip kullaniciyi disarida birakmanin bir karsiligi yok. aba6160 bu
+ * kontrolu "hata varsa engelle" yonune cevirmisti; Billing yapilandirilmamis
+ * bir kurulumda bu, giris yapan HERKESE 503 donmesi demek — uretimde tam
+ * olarak bu oldu.
+ *
+ * BILLING_REQUIRED=true oldugunda kontrol calisir ve uc durum ayrilir:
+ *   - abonelik yok            -> gecir (ucretsiz katman)
+ *   - abonelik var, aktif degil -> 403
+ *   - servis hatasi           -> BILLING_FAIL_OPEN karar verir
+ */
 const hasActiveSubscription = async (res, userId) => {
   if (isTestBypassUser(userId)) return true;
+  if (!BILLING_REQUIRED) return true;
 
   try {
     // Clerk Billing Beta API
@@ -473,6 +515,11 @@ const hasActiveSubscription = async (res, userId) => {
     }
     return true;
   } catch (error) {
+    // Abonelik kaydinin olmamasi bir ariza degil: ucretsiz katman.
+    if (isNoSubscriptionError(error)) {
+      return true;
+    }
+
     // BILLING_FAIL_OPEN=true → eski davranış (billing API hatasında geçir)
     // BILLING_FAIL_OPEN=false (varsayılan) → hata durumunda engelle
     const failOpen = process.env.BILLING_FAIL_OPEN === 'true';

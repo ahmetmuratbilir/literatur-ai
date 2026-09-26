@@ -292,6 +292,15 @@ export default function AdminPanel({ getToken, onClose }) {
               </span>
             </div>
             <div><strong>Ortam:</strong> {health.environment}</div>
+            {health.billing && (
+              <div>
+                <strong>Abonelik kontrolü:</strong>{' '}
+                <StatusPill state={health.billing.enforced ? 'ok' : 'missing'} />
+                <span style={{ marginLeft: '8px', color: '#94a3b8' }}>
+                  {health.billing.status}
+                </span>
+              </div>
+            )}
             <div><strong>CORS:</strong> {health.cors?.status}</div>
             {health.auth && (
               <div>
