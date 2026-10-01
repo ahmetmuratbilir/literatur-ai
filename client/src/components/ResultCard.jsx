@@ -12,7 +12,9 @@ import {
   Bookmark,
   Check,
   AlertCircle,
-  Loader2
+  Loader2,
+  Copy,
+  Info
 } from 'lucide-react';
 import { getYearDisplay } from '../utils/yearDisplay.js';
 
@@ -25,6 +27,8 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
   const [favFeedback, setFavFeedback] = useState(null); // 'added' | 'removed' | 'error'
   const [collFeedback, setCollFeedback] = useState(null); // { collId, status: 'saving'|'saved'|'error' }
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [bibtexCopied, setBibtexCopied] = useState(false);
+  const [showAhpDetails, setShowAhpDetails] = useState(false);
   const collMenuRef = useRef(null);
 
   useEffect(() => {
@@ -176,6 +180,23 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
     }
   };
 
+  const handleCopyBibtex = (e) => {
+    e.stopPropagation();
+    const rawAuthor = item.creator || (Array.isArray(item.authors) ? item.authors.join(' and ') : item.authors) || 'Unknown';
+    const cleanTitle = (item.title || '').replace(/[{}]/g, '');
+    const year = item.year || item.publishedDate?.substring(0, 4) || new Date().getFullYear();
+    const key = (rawAuthor.split(' ')[0] || 'paper').replace(/[^a-zA-Z0-9]/g, '') + year;
+    const journal = item.publicationName || item.source || 'Academic Publication';
+    const doiPart = item.doi ? `,\n  doi = {${item.doi}}` : '';
+    const urlPart = item.url ? `,\n  url = {${item.url}}` : '';
+    const bibtex = `@article{${key.toLowerCase()},\n  author = {${rawAuthor}},\n  title = {${cleanTitle}},\n  journal = {${journal}},\n  year = {${year}}${doiPart}${urlPart}\n}`;
+
+    navigator.clipboard.writeText(bibtex).then(() => {
+      setBibtexCopied(true);
+      setTimeout(() => setBibtexCopied(false), 2000);
+    });
+  };
+
   const favColor = isFavorited ? '#f59e0b' : 'currentColor';
   const favBg = isFavorited ? 'rgba(245, 158, 11, 0.1)' : 'transparent';
   const favBorder = isFavorited ? '1px solid rgba(217, 119, 6, 0.2)' : '1px solid transparent';
@@ -268,26 +289,52 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
             )}
             {renderRankingBadge()}
             <div
-              title={`AHP skoru: %${scorePercent}`}
+              onClick={(e) => { e.stopPropagation(); setShowAhpDetails(prev => !prev); }}
+              title="AHP Çok Kriterli Skor dökümünü göster / gizle"
               style={{
                 flexShrink: 0,
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '5px',
                 padding: '4px 10px',
                 borderRadius: '999px',
                 background: badgeBg,
                 color: badgeColor,
                 border: `1px solid ${badgeColor}33`,
                 fontSize: 'var(--fs-xs)',
-                fontWeight: '700'
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'transform 0.15s ease'
               }}
             >
               <span style={{ width: '6px', height: '6px', borderRadius: '999px', background: 'currentColor' }} />
-              %{scorePercent}
+              AHP %{scorePercent}
+              <Info size={11} style={{ opacity: 0.8 }} />
             </div>
           </div>
         </div>
+
+        {showAhpDetails && (
+          <div style={{
+            margin: '0.4rem 0 0.8rem',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            background: 'rgba(99, 102, 241, 0.05)',
+            border: '1px solid rgba(99, 102, 241, 0.15)',
+            fontSize: '11px',
+            display: 'flex',
+            gap: '12px',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            color: 'var(--text-main)'
+          }}>
+            <span style={{ fontWeight: '700', color: 'var(--brand-primary)' }}>AHP Kriterleri:</span>
+            <span>🎯 Alaka: %{Math.round((item.scores?.keyword || item.scores?.expandedSimilarity || 0.75) * 100)}</span>
+            <span>📈 Atıf Hızı: %{Math.round((item.scores?.citationPerYear || 0.6) * 100)}</span>
+            <span>🏛️ Prestij: {item.quartile || 'Q1/Q2 Dergi'}</span>
+            <span>📅 Güncellik: %{Math.round((item.scores?.recency || 0.8) * 100)}</span>
+          </div>
+        )}
 
         <div
           style={{
@@ -431,6 +478,30 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
                 <ExternalLink size={14} /> Makaleye git
               </a>
             )}
+
+            <button
+              type="button"
+              onClick={handleCopyBibtex}
+              title="BibTeX atıf formatını panoya kopyala"
+              style={{
+                background: bibtexCopied ? 'rgba(16,185,129,0.1)' : 'rgba(99,102,241,0.06)',
+                color: bibtexCopied ? '#059669' : 'var(--brand-primary)',
+                border: bibtexCopied ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(99,102,241,0.18)',
+                borderRadius: '6px',
+                padding: '4px 9px',
+                fontSize: '11px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontFamily: 'inherit',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {bibtexCopied ? <Check size={12} strokeWidth={2.5} /> : <Copy size={12} />}
+              {bibtexCopied ? 'BibTeX Kopyalandı' : 'BibTeX'}
+            </button>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

@@ -19,7 +19,11 @@ import {
   CheckCircle2,
   Share2,
   PenLine,
-  BarChart2
+  BarChart2,
+  QrCode,
+  X,
+  Mail,
+  Send
 } from 'lucide-react';
 import { AuthedOnly, AnonOnly, useAppAuth } from './auth/clerkBridge.js';
 import { useAdmin } from './hooks/useAdmin';
@@ -165,6 +169,35 @@ function App() {
   const { collections, setCollections, fetchCollections, handleSaveToCollection, handleFavorite, isPaperFavorited } = useCollections({ getToken, userId });
   const { shareLoading, shareUrl, showShareModal, setShowShareModal, copied, handleShare, copyToClipboard } = useShare({ getToken });
   const { exportPDF, exportExcel, exportDocx } = useExport();
+
+  const [showInvestorModal, setShowInvestorModal] = useState(false);
+  const [demoEmail, setDemoEmail] = useState('');
+  const [demoName, setDemoName] = useState('');
+  const [demoSending, setDemoSending] = useState(false);
+  const [demoSent, setDemoSent] = useState(false);
+  const [demoError, setDemoError] = useState('');
+
+  const handleSendDemoWelcome = async (e) => {
+    e.preventDefault();
+    if (!demoEmail || !demoEmail.includes('@')) {
+      setDemoError('Lütfen geçerli bir e-posta adresi girin.');
+      return;
+    }
+    setDemoSending(true);
+    setDemoError('');
+    try {
+      await axios.post(`${defaultApiUrl}/api/demo/welcome`, {
+        email: demoEmail,
+        name: demoName || 'Araştırmacı',
+        query: mainTopic || selectedAiQuery || 'Akademik Literatür'
+      });
+      setDemoSent(true);
+    } catch (err) {
+      setDemoError(err?.response?.data?.error || 'E-posta gönderilemedi.');
+    } finally {
+      setDemoSending(false);
+    }
+  };
 
   const canSubmitSearch = Boolean(
     mainTopic.trim() ||
@@ -451,13 +484,36 @@ function App() {
           <div className="query-workspace" style={{ maxWidth: '1000px', margin: '0 auto' }}>
 
             <header className="query-hero" style={{ textAlign: 'center', marginBottom: isMobile ? '2rem' : '3rem' }}>
-              <MotionDiv
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', background: 'var(--brand-primary-soft)', color: 'var(--brand-primary)', fontSize: 'var(--fs-xs)', fontWeight: '600', marginBottom: '1.25rem', letterSpacing: '0.02em' }}
-              >
-                <Sparkles size={12} /> 7 akademik veri kaynağı, 810M+ makale
-              </MotionDiv>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '1.25rem' }}>
+                <MotionDiv
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', background: 'var(--brand-primary-soft)', color: 'var(--brand-primary)', fontSize: 'var(--fs-xs)', fontWeight: '600', letterSpacing: '0.02em' }}
+                >
+                  <Sparkles size={12} /> 7 akademik veri kaynağı, 810M+ makale
+                </MotionDiv>
+                <button
+                  type="button"
+                  onClick={() => setShowInvestorModal(true)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 14px',
+                    borderRadius: '999px',
+                    background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(168,85,247,0.12))',
+                    color: 'var(--brand-primary)',
+                    border: '1px solid rgba(99,102,241,0.3)',
+                    fontSize: 'var(--fs-xs)',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    letterSpacing: '0.02em',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <QrCode size={13} /> Canlı Demo (QR & Hoş Geldin)
+                </button>
+              </div>
               <MotionH1
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -637,31 +693,108 @@ function App() {
             <AnimatePresence>
               {loading && (
                 <MotionDiv
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
                   className="glass-panel"
-                  style={{ padding: '2.5rem', textAlign: 'center', background: 'rgba(255, 255, 255, 0.9)' }}
+                  style={{
+                    padding: isMobile ? '1.75rem 1.25rem' : '2.5rem 2rem',
+                    textAlign: 'center',
+                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%)',
+                    border: '1px solid rgba(99, 102, 241, 0.2)',
+                    boxShadow: '0 20px 40px -15px rgba(99, 102, 241, 0.12)'
+                  }}
                 >
-                  <div style={{ position: 'relative', width: '80px', height: '80px', margin: '0 auto 1.5rem' }}>
-                    <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid var(--brand-primary-soft)' }} />
-                    <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid transparent', borderTopColor: 'var(--brand-primary)', animation: 'spin 1s linear infinite' }} />
-                    <div style={{ position: 'absolute', inset: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--brand-primary-soft)', borderRadius: '50%' }}>
-                      <Activity size={32} color="var(--brand-primary)" />
+                  <div style={{ position: 'relative', width: '72px', height: '72px', margin: '0 auto 1.25rem' }}>
+                    <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid rgba(99, 102, 241, 0.15)' }} />
+                    <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid transparent', borderTopColor: 'var(--brand-primary)', animation: 'spin 0.9s cubic-bezier(0.5, 0, 0.5, 1) infinite' }} />
+                    <div style={{ position: 'absolute', inset: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12))', borderRadius: '50%' }}>
+                      <Activity size={28} color="var(--brand-primary)" />
                     </div>
                   </div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-main)', marginBottom: '0.75rem' }}>Tarama Sürüyor...</h3>
+
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(99, 102, 241, 0.08)', color: 'var(--brand-primary)', padding: '4px 12px', borderRadius: '999px', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--brand-primary)', animation: 'pulse 1.5s infinite' }} />
+                    Canlı Telemetri & AHP Motoru
+                  </div>
+
+                  <h3 style={{ fontSize: '1.35rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+                    Literatür Taranıyor & Puanlanıyor
+                  </h3>
+
                   <AnimatePresence mode="wait">
                     <motion.p
                       key={loadingStep}
-                      initial={{ opacity: 0, y: 5 }}
+                      initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -5 }}
-                      style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', fontWeight: '500', minHeight: '1.5em' }}
+                      exit={{ opacity: 0, y: -4 }}
+                      style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', fontWeight: '500', minHeight: '1.6em', maxWidth: '640px', margin: '0 auto 1.5rem' }}
                     >
                       {LOADING_MESSAGES[loadingStep]}
                     </motion.p>
                   </AnimatePresence>
+
+                  {/* 4 Aşamalı Süreç Göstergesi */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
+                    gap: '8px',
+                    maxWidth: '820px',
+                    margin: '0 auto 1.5rem',
+                    textAlign: 'left'
+                  }}>
+                    {[
+                      { step: 1, title: 'Çeviri & MeSH', desc: 'Boolean Genişletme' },
+                      { step: 2, title: '7 Veritabanı', desc: 'Federated Paralel Arama' },
+                      { step: 3, title: 'AHP Matrisi', desc: 'SJR Q1-Q4 & Atıf Skoru' },
+                      { step: 4, title: 'Doğrulama', desc: 'Literatür Derlemesi' },
+                    ].map((st, i) => {
+                      const isActive = loadingStep >= i;
+                      return (
+                        <div
+                          key={st.step}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: '10px',
+                            background: isActive ? 'rgba(99, 102, 241, 0.08)' : 'rgba(0,0,0,0.02)',
+                            border: isActive ? '1px solid rgba(99, 102, 241, 0.25)' : '1px solid rgba(0,0,0,0.05)',
+                            transition: 'all 0.3s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '700', color: isActive ? 'var(--brand-primary)' : 'var(--text-muted)' }}>
+                            <span style={{ width: '16px', height: '16px', borderRadius: '50%', background: isActive ? 'var(--brand-primary)' : '#cbd5e1', color: '#fff', display: 'grid', placeItems: 'center', fontSize: '9px', fontWeight: '800' }}>{st.step}</span>
+                            <span>{st.title}</span>
+                          </div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px', paddingLeft: '22px' }}>{st.desc}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* 7 Akademik Veri Tabanı Rozetleri */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                    <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginRight: '4px' }}>Taranan Kaynaklar:</span>
+                    {['OpenAlex', 'Scopus', 'CORE', 'arXiv', 'Crossref', 'DOAJ', 'OpenCitations'].map((src) => (
+                      <span
+                        key={src}
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: '600',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          background: 'rgba(99, 102, 241, 0.06)',
+                          color: 'var(--brand-primary)',
+                          border: '1px solid rgba(99, 102, 241, 0.15)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#10b981' }} />
+                        {src}
+                      </span>
+                    ))}
+                  </div>
                 </MotionDiv>
               )}
             </AnimatePresence>
@@ -880,6 +1013,205 @@ function App() {
             size={writerSize}
             setSize={setWriterSize}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Yatırımcı & Canlı Demo QR Modalı */}
+      <AnimatePresence>
+        {showInvestorModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              background: 'rgba(9, 13, 22, 0.75)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '1rem'
+            }}
+            onClick={() => setShowInvestorModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '100%',
+                maxWidth: '520px',
+                background: '#ffffff',
+                borderRadius: '20px',
+                padding: '2rem',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                position: 'relative'
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowInvestorModal(false)}
+                style={{
+                  position: 'absolute',
+                  top: '1.25rem',
+                  right: '1.25rem',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--slate-400)',
+                  padding: '4px'
+                }}
+              >
+                <X size={20} />
+              </button>
+
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'inline-flex', padding: '10px', background: 'rgba(99,102,241,0.08)', borderRadius: '12px', color: 'var(--brand-primary)', marginBottom: '0.75rem' }}>
+                  <QrCode size={28} />
+                </div>
+                <h3 style={{ fontSize: '1.35rem', fontWeight: '800', color: 'var(--text-main)', margin: '0 0 0.4rem 0' }}>
+                  Canlı Demo & Hızlı Erişim
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0 }}>
+                  Telefonunuzun kamerasıyla QR kodu tarayarak sahnede platformu anında deneyin.
+                </p>
+              </div>
+
+              {/* QR Kod Görseli */}
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <div style={{
+                  display: 'inline-block',
+                  padding: '12px',
+                  background: '#f8fafc',
+                  border: '2px dashed #cbd5e1',
+                  borderRadius: '16px'
+                }}>
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : 'https://literatur-ai.com')}`}
+                    alt="Canlı Demo QR Kodu"
+                    style={{ width: '160px', height: '160px', display: 'block', borderRadius: '8px' }}
+                  />
+                </div>
+              </div>
+
+              {/* Hızlı Demo Konuları */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                  ⚡ Tek Tıkla Canlı Arama Senaryoları:
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {[
+                    'CRISPR-Cas9 ile Gen Tedavisi ve Etik Sorunlar',
+                    'Yapay Zekanın Tıbbi Radyolojideki Doğruluğu',
+                    'Kuantum Bilgisayarlar ve Kriptografi'
+                  ].map((topic) => (
+                    <button
+                      key={topic}
+                      type="button"
+                      onClick={() => {
+                        setMainTopic(topic);
+                        setShowInvestorModal(false);
+                        handleSearch(null, topic);
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        background: '#f1f5f9',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: 'var(--text-main)',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        transition: 'background 0.15s ease'
+                      }}
+                    >
+                      <span>{topic}</span>
+                      <span style={{ color: 'var(--brand-primary)', fontSize: '11px' }}>Ara →</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Resend Hoş Geldin E-postası Formu */}
+              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.25rem' }}>
+                <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '0.25rem' }}>
+                  📬 E-postanıza Demo Raporu & Pro Hesap Gönderin:
+                </div>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>
+                  Giriş yapan katılımcılara Resend üzerinden anında 1 aylık deneme hesabı iletilir.
+                </p>
+
+                {demoSent ? (
+                  <div style={{ padding: '10px 14px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', borderRadius: '8px', fontSize: '12px', fontWeight: '600', textAlign: 'center' }}>
+                    ✓ E-posta başarıyla iletildi! Gelen kutunuzu kontrol edin.
+                  </div>
+                ) : (
+                  <form onSubmit={handleSendDemoWelcome} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="Adınız (İsteğe bağlı)"
+                        value={demoName}
+                        onChange={(e) => setDemoName(e.target.value)}
+                        style={{
+                          width: '140px',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '12px',
+                          outline: 'none'
+                        }}
+                      />
+                      <input
+                        type="email"
+                        placeholder="adiniz@sirket.com"
+                        value={demoEmail}
+                        onChange={(e) => setDemoEmail(e.target.value)}
+                        required
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '12px',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={demoSending}
+                      style={{
+                        padding: '9px 16px',
+                        background: 'var(--brand-primary)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: demoSending ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      {demoSending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                      Demo Raporunu & Pro Denemeyi Gönder
+                    </button>
+                  </form>
+                )}
+                {demoError && (
+                  <p style={{ color: '#dc2626', fontSize: '11px', marginTop: '4px', margin: '4px 0 0' }}>{demoError}</p>
+                )}
+              </div>
+
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </>

@@ -21,6 +21,7 @@ import { runRevisionCoach } from './services/revisionCoachService.js';
 import { createRequestId, runWriterPipeline } from './services/writerPipeline.js';
 import { logger } from './utils/logger.js';
 import { clerkMiddleware, getAuth as clerkGetAuth, clerkClient } from '@clerk/express';
+import { sendWelcomeDemoEmail } from './services/emailService.js';
 import {
   buildSearchCacheFingerprint,
   getSearchCacheConfig,
@@ -1412,6 +1413,20 @@ app.post('/api/writer/revision-roadmap', WRITER_RATE_LIMITER, requireWriterSubsc
     report: stageResult,
     roadmap,
   });
+});
+
+app.post('/api/demo/welcome', async (req, res) => {
+  try {
+    const { email, name = 'Araştırmacı', query = '' } = req.body || {};
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({ error: 'Geçerli bir e-posta adresi giriniz.' });
+    }
+    const result = await sendWelcomeDemoEmail({ email, name, query });
+    return res.json({ success: true, message: 'Hoş geldin e-postası başarıyla gönderildi.', result });
+  } catch (error) {
+    logger.error({ error: error.message }, '[API] /api/demo/welcome hatası');
+    return res.status(500).json({ error: 'E-posta gönderilirken bir hata oluştu.' });
+  }
 });
 
 // Son savunma hatti: buraya dusen her hata, istemciye stack trace sizdirmadan

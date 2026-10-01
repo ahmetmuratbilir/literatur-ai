@@ -24,8 +24,10 @@
         "express-rate-limit": "^8.4.1",
         "fast-xml-parser": "^5.7.2",
         "google-translate-api-x": "^10.7.2",
+        "jsonwebtoken": "^9.0.3",
         "mongoose": "^9.6.1",
         "natural": "^8.1.1",
+        "resend": "^6.32.0",
         "undici": "^8.2.0"
     },
     "overrides": {
