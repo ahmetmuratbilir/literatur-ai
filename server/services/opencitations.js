@@ -15,7 +15,9 @@ import axios from 'axios';
  *   v1 + doi: onekli -> 400   |  v1 oneksiz -> 200 (1806)
  *   v2 + doi: onekli -> 200 (1806)  |  v2 oneksiz -> 400
  */
-const OPENCITATIONS_BASE = 'https://opencitations.net/index/api/v2';
+// 1 Eki 2026: eski adres (opencitations.net/index/api/v2) 301 ile buraya
+// yonlendiriyor; yonlendirme her istegi ~0,33 sn'den ~0,68 sn'ye cikariyordu.
+const OPENCITATIONS_BASE = 'https://api.opencitations.net/index/v2';
 // Hiz (1 Eki 2026 olcumu): 5'li paketler SIRAYLA + paketler arasi 200 ms +
 // istek basina 3 sn zaman asimi, 10 makale icin aramaya 4,16 sn ekliyordu
 // (tum kaynaklar birlikte 4,65 sn). Simdi: en fazla 10 eszamanli istek,

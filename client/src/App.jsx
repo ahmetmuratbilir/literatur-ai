@@ -31,8 +31,7 @@ import { useI18n } from './i18n/context.js';
 const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 import ResultCard from './components/ResultCard';
-import RankingProfiles from './components/RankingProfiles';
-import AdvancedWeights from './components/AdvancedWeights';
+import RankingPanel from './components/RankingPanel';
 import GlobalStats from './components/GlobalStats';
 import HistorySidebar from './components/HistorySidebar';
 import WriterPanel from './components/WriterPanel';
@@ -671,18 +670,14 @@ function App() {
                       Sonuçlar geldikten sonra değiştirilirse mevcut sonuçlar
                       yeniden sıralanır. */}
                   <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 'var(--space-5)' }}>
-                    <RankingProfiles
+                    <RankingPanel
                       apiUrl={defaultApiUrl}
-                      value={customWeights ? null : (data?.ranking?.source === 'custom' ? null : (data?.ranking?.profileId || profileId))}
-                      onChange={handleProfileChange}
+                      profileId={profileId}
+                      customWeights={customWeights}
+                      onProfile={handleProfileChange}
+                      onCustom={handleWeightsApply}
                       disabled={rerankLoading || loading}
                       warnings={rankingWarnings}
-                    />
-                    <AdvancedWeights
-                      apiUrl={defaultApiUrl}
-                      onApply={handleWeightsApply}
-                      disabled={rerankLoading || loading}
-                      active={Boolean(customWeights)}
                       hasResults={Boolean(data?.results?.length)}
                     />
                   </div>
