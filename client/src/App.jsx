@@ -168,7 +168,8 @@ function App() {
   const { isMobile, isTablet, isCompact } = useWindowSize();
   const { collections, setCollections, fetchCollections, handleSaveToCollection, handleFavorite, isPaperFavorited } = useCollections({ getToken, userId });
   const { shareLoading, shareUrl, showShareModal, setShowShareModal, copied, handleShare, copyToClipboard } = useShare({ getToken });
-  const { exportPDF, exportExcel, exportDocx } = useExport();
+  const { exportPDF, exportExcel, exportDocx, exportBibTeX, exportRIS } = useExport();
+  const [resultFilter, setResultFilter] = useState('all');
 
   const [showInvestorModal, setShowInvestorModal] = useState(false);
   const [demoEmail, setDemoEmail] = useState('');
@@ -926,27 +927,84 @@ function App() {
                     <button onClick={() => exportDocx(data, mainTopic)} className="btn-secondary" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
                       <Download size={14} /> DOCX
                     </button>
+                    <button onClick={() => exportBibTeX(data, mainTopic)} className="btn-secondary" title="Zotero / Mendeley için toplu BibTeX indir" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
+                      <Download size={14} /> BibTeX
+                    </button>
+                    <button onClick={() => exportRIS(data, mainTopic)} className="btn-secondary" title="EndNote / Zotero için RIS formatı indir" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
+                      <Download size={14} /> RIS
+                    </button>
                   </div>
                 </div>
 
+                {/* Hızlı Filtreleme Sekmeleri */}
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '0.85rem', marginBottom: '0.25rem', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginRight: '4px' }}>
+                    Filtre:
+                  </span>
+                  {[
+                    { id: 'all', label: `Tümü (${data.results.length})` },
+                    { id: 'q1q2', label: '🏆 Q1 / Q2 Dergiler' },
+                    { id: 'recent', label: '⚡ Son 3 Yıl' },
+                    { id: 'openaccess', label: '🔓 Açık Erişim (OA)' },
+                    { id: 'highcitations', label: '🔥 Yüksek Atıf (10+)' },
+                  ].map(f => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setResultFilter(f.id)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '999px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        border: resultFilter === f.id ? '1px solid var(--brand-primary)' : '1px solid var(--border-light)',
+                        background: resultFilter === f.id ? 'var(--brand-primary-soft)' : 'white',
+                        color: resultFilter === f.id ? 'var(--brand-primary)' : 'var(--text-muted)',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
                 <div id="results-container" style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
-                  {data.results.map((item, idx) => {
-                    const isFavorited = isPaperFavorited(item);
-                    const isSelected = selectedPapers.some(p => (p.doi && p.doi === item.doi) || (p.url && p.url === item.url) || p.title === item.title);
-                    return (
-                      <ResultCard
-                        key={item.doi || item.url || item.title || idx}
-                        item={item}
-                        rank={idx + 1}
-                        collections={collections}
-                        onSaveToCollection={handleSaveToCollection}
-                        onFavorite={handleFavorite}
-                        isFavorited={isFavorited}
-                        isSelected={isSelected}
-                        onToggleSelect={() => handleTogglePaper(item)}
-                      />
-                    );
-                  })}
+                  {data.results
+                    .filter(item => {
+                      if (resultFilter === 'all') return true;
+                      if (resultFilter === 'q1q2') return item.quartile === 'Q1' || item.quartile === 'Q2';
+                      if (resultFilter === 'recent') {
+                        const year = parseInt(item.year, 10);
+                        const currentYear = new Date().getFullYear();
+                        return year && (currentYear - year <= 3);
+                      }
+                      if (resultFilter === 'openaccess') {
+                        return Boolean(item.isOpenAccess || item.openAccess || item.isOA);
+                      }
+                      if (resultFilter === 'highcitations') {
+                        const c = parseInt(item.citedBy || item.citedbyCount, 10) || 0;
+                        return c >= 10;
+                      }
+                      return true;
+                    })
+                    .map((item, idx) => {
+                      const isFavorited = isPaperFavorited(item);
+                      const isSelected = selectedPapers.some(p => (p.doi && p.doi === item.doi) || (p.url && p.url === item.url) || p.title === item.title);
+                      return (
+                        <ResultCard
+                          key={item.doi || item.url || item.title || idx}
+                          item={item}
+                          rank={idx + 1}
+                          collections={collections}
+                          onSaveToCollection={handleSaveToCollection}
+                          onFavorite={handleFavorite}
+                          isFavorited={isFavorited}
+                          isSelected={isSelected}
+                          onToggleSelect={() => handleTogglePaper(item)}
+                        />
+                      );
+                    })}
                 </div>
               </div>
             )}

@@ -55,5 +55,45 @@ export function useExport() {
     saveAs(blob, `LiteratureAI_Belge_${mainTopic || 'Arastirma'}.docx`);
   };
 
-  return { exportPDF, exportExcel, exportDocx };
+  const exportBibTeX = (data, mainTopic) => {
+    if (!data?.results?.length) return;
+    const bibtexItems = data.results.map((item, idx) => {
+      const author = item.creator || (Array.isArray(item.authors) ? item.authors.join(' and ') : item.authors) || 'Unknown';
+      const cleanTitle = (item.title || '').replace(/[{}]/g, '');
+      const year = item.year || item.publishedDate?.substring(0, 4) || new Date().getFullYear();
+      const firstWord = (author.split(' ')[0] || 'paper').replace(/[^a-zA-Z0-9]/g, '');
+      const key = `${firstWord}${year}_${idx + 1}`.toLowerCase();
+      const journal = item.publicationName || item.source || 'Academic Publication';
+      const doi = item.doi ? `,\n  doi = {${item.doi}}` : '';
+      const url = item.url ? `,\n  url = {${item.url}}` : '';
+      return `@article{${key},\n  author = {${author}},\n  title = {${cleanTitle}},\n  journal = {${journal}},\n  year = {${year}}${doi}${url}\n}`;
+    });
+
+    const content = bibtexItems.join('\n\n');
+    const blob = new Blob([content], { type: 'application/x-bibtex;charset=utf-8;' });
+    saveAs(blob, `LiteratureAI_${mainTopic ? mainTopic.replace(/[^a-zA-Z0-9]/g, '_') : 'Arastirma'}.bib`);
+  };
+
+  const exportRIS = (data, mainTopic) => {
+    if (!data?.results?.length) return;
+    const risItems = data.results.map(item => {
+      const author = item.creator || (Array.isArray(item.authors) ? item.authors.join(' and ') : item.authors) || 'Unknown';
+      const year = item.year || item.publishedDate?.substring(0, 4) || '';
+      let entry = 'TY  - JOUR\n';
+      entry += `TI  - ${item.title || ''}\n`;
+      entry += `AU  - ${author}\n`;
+      if (item.publicationName) entry += `JO  - ${item.publicationName}\n`;
+      if (year) entry += `PY  - ${year}\n`;
+      if (item.doi) entry += `DO  - ${item.doi}\n`;
+      if (item.url) entry += `UR  - ${item.url}\n`;
+      entry += 'ER  - \n';
+      return entry;
+    });
+
+    const content = risItems.join('\n');
+    const blob = new Blob([content], { type: 'application/x-research-info-systems;charset=utf-8;' });
+    saveAs(blob, `LiteratureAI_${mainTopic ? mainTopic.replace(/[^a-zA-Z0-9]/g, '_') : 'Arastirma'}.ris`);
+  };
+
+  return { exportPDF, exportExcel, exportDocx, exportBibTeX, exportRIS };
 }
