@@ -14,13 +14,26 @@ import {
   AlertCircle,
   Loader2,
   Copy,
-  Info
+  Info,
+  Search,
+  BookOpen
 } from 'lucide-react';
 import { getYearDisplay } from '../utils/yearDisplay.js';
 
 const MotionDiv = motion.div;
 
-const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveToCollection, isSelected, onToggleSelect }) => {
+const ResultCard = ({
+  item,
+  rank,
+  onFavorite,
+  isFavorited,
+  collections,
+  onSaveToCollection,
+  isSelected,
+  onToggleSelect,
+  onFindSimilar,
+  onOpenReader
+}) => {
   const [expanded, setExpanded] = useState(false);
   const [showCollMenu, setShowCollMenu] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
@@ -262,6 +275,8 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
       <div style={{ minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.5rem', flexDirection: isMobile ? 'column' : 'row' }}>
           <h3
+            onClick={() => onOpenReader && onOpenReader(item)}
+            title={onOpenReader ? "Makaleyi detaylı incelemek için tıklayın" : undefined}
             style={{
               margin: 0,
               fontSize: 'var(--fs-lg)',
@@ -270,7 +285,9 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
               lineHeight: 1.35,
               letterSpacing: '-0.01em',
               flex: 1,
-              minWidth: 0
+              minWidth: 0,
+              cursor: onOpenReader ? 'pointer' : 'default',
+              transition: 'color 0.15s ease'
             }}
           >
             {item.titleTR || item.title || 'İsimsiz Makale'}
@@ -502,6 +519,55 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, collections, onSaveTo
               {bibtexCopied ? <Check size={12} strokeWidth={2.5} /> : <Copy size={12} />}
               {bibtexCopied ? 'BibTeX Kopyalandı' : 'BibTeX'}
             </button>
+
+            {onFindSimilar && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onFindSimilar(item); }}
+                title="Bu makalenin konusundan benzer makaleleri ara"
+                style={{
+                  background: 'rgba(99,102,241,0.06)',
+                  color: 'var(--brand-primary)',
+                  border: '1px solid rgba(99,102,241,0.18)',
+                  borderRadius: '6px',
+                  padding: '4px 9px',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontFamily: 'inherit',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Search size={12} /> Benzerini Bul
+              </button>
+            )}
+
+            {onOpenReader && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onOpenReader(item); }}
+                title="Makaleyi detaylı incele"
+                style={{
+                  background: 'none',
+                  color: 'var(--text-muted)',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: '6px',
+                  padding: '4px 9px',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontFamily: 'inherit'
+                }}
+              >
+                <BookOpen size={12} /> İncele
+              </button>
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

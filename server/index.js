@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import mongoose from 'mongoose';
 import { searchAll } from './services/search.js';
-import { analyzeAndExpandQuery } from './services/llm.js';
+import { analyzeAndExpandQuery, generateConsensusSnapshot } from './services/llm.js';
 import { translateToEnglish } from './utils/translation.js';
 import SearchHistory from './models/SearchHistory.js';
 import Collection from './models/Collection.js';
@@ -1426,6 +1426,20 @@ app.post('/api/demo/welcome', async (req, res) => {
   } catch (error) {
     logger.error({ error: error.message }, '[API] /api/demo/welcome hatası');
     return res.status(500).json({ error: 'E-posta gönderilirken bir hata oluştu.' });
+  }
+});
+
+app.post('/api/consensus', async (req, res) => {
+  try {
+    const { topic = '', papers = [] } = req.body || {};
+    if (!topic || typeof topic !== 'string' || topic.trim().length === 0) {
+      return res.status(400).json({ error: 'Konu parametresi gereklidir.' });
+    }
+    const snapshot = await generateConsensusSnapshot(topic, papers);
+    return res.json({ success: true, snapshot });
+  } catch (error) {
+    logger.error({ error: error.message }, '[API] /api/consensus hatası');
+    return res.status(500).json({ error: 'Literatür konsensüsü oluşturulamadı.' });
   }
 });
 

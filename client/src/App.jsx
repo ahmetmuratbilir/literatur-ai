@@ -47,6 +47,9 @@ import HistorySidebar from './components/HistorySidebar';
 import WriterPanel from './components/WriterPanel';
 import ShareModal from './components/ShareModal';
 import LandingPage from './components/landing/LandingPage';
+import PublicationTimeline from './components/PublicationTimeline.jsx';
+import PaperReaderDrawer from './components/PaperReaderDrawer.jsx';
+import ConsensusSnapshot from './components/ConsensusSnapshot.jsx';
 import { useWindowSize } from './hooks/useWindowSize';
 import { useCollections } from './hooks/useCollections';
 import { useShare } from './hooks/useShare';
@@ -170,6 +173,41 @@ function App() {
   const { shareLoading, shareUrl, showShareModal, setShowShareModal, copied, handleShare, copyToClipboard } = useShare({ getToken });
   const { exportPDF, exportExcel, exportDocx, exportBibTeX, exportRIS } = useExport();
   const [resultFilter, setResultFilter] = useState('all');
+  const [selectedYear, setSelectedYear] = useState(null);
+  const [activeReaderPaper, setActiveReaderPaper] = useState(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const isInput = tag === 'input' || tag === 'textarea' || document.activeElement?.isContentEditable;
+
+      // Cmd+K / Ctrl+K veya input dışındayken '/' -> Arama kutusuna odaklan
+      if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') || (!isInput && e.key === '/')) {
+        e.preventDefault();
+        const searchInput = document.getElementById('main-search-input');
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      }
+
+      // Cmd+J / Ctrl+J -> Yazar Panelini aç/kapat
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        setShowWriterPanel(prev => !prev);
+      }
+
+      // Esc -> Modalları / Çekmeceleri kapat
+      if (e.key === 'Escape') {
+        setActiveReaderPaper(null);
+        setShowInvestorModal(false);
+        setShowShareModal(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setShowShareModal]);
 
   const [showInvestorModal, setShowInvestorModal] = useState(false);
   const [demoEmail, setDemoEmail] = useState('');
@@ -317,8 +355,12 @@ function App() {
 
   const handleSearch = async (e, directQuery = null) => {
     if (e) e.preventDefault();
-    const query = directQuery || selectedAiQuery;
-    const trimmedTopic = mainTopic.trim();
+    const activeTopic = directQuery ? directQuery.trim() : mainTopic.trim();
+    if (directQuery) {
+      setMainTopic(directQuery);
+    }
+    const query = directQuery ? '' : selectedAiQuery;
+    const trimmedTopic = activeTopic;
     const trimmedAuthor = authorName.trim();
     const normalizedQuery = typeof query === 'string' ? query.trim() : '';
     const cleanKeywords = Array.isArray(keywords)
@@ -549,6 +591,7 @@ function App() {
                     <div className="input-wrapper query-input-shell" style={{ position: 'relative' }}>
                       <Search style={{ position: 'absolute', left: '16px', top: isCompact ? '24px' : '50%', transform: isCompact ? 'none' : 'translateY(-50%)', color: 'var(--slate-400)' }} size={18} />
                       <input
+                        id="main-search-input"
                         type="text"
                         className="input"
                         style={{
@@ -936,6 +979,20 @@ function App() {
                   </div>
                 </div>
 
+                {/* AI Literature Consensus Snapshot */}
+                <ConsensusSnapshot
+                  topic={mainTopic || selectedAiQuery}
+                  papers={data.results}
+                  apiUrl={defaultApiUrl}
+                />
+
+                {/* Interactive Publication Timeline */}
+                <PublicationTimeline
+                  results={data.results}
+                  selectedYear={selectedYear}
+                  onSelectYear={setSelectedYear}
+                />
+
                 {/* Hızlı Filtreleme Sekmeleri */}
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '0.85rem', marginBottom: '0.25rem', alignItems: 'center' }}>
                   <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginRight: '4px' }}>
@@ -967,11 +1024,34 @@ function App() {
                       {f.label}
                     </button>
                   ))}
+                  {selectedYear && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedYear(null)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '999px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        border: '1px solid #fecaca',
+                        background: '#fef2f2',
+                        color: '#dc2626',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <span>📅 {selectedYear}</span>
+                      <X size={12} />
+                    </button>
+                  )}
                 </div>
 
                 <div id="results-container" style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
                   {data.results
                     .filter(item => {
+                      if (selectedYear && parseInt(item.year, 10) !== selectedYear) return false;
                       if (resultFilter === 'all') return true;
                       if (resultFilter === 'q1q2') return item.quartile === 'Q1' || item.quartile === 'Q2';
                       if (resultFilter === 'recent') {
@@ -1002,6 +1082,11 @@ function App() {
                           isFavorited={isFavorited}
                           isSelected={isSelected}
                           onToggleSelect={() => handleTogglePaper(item)}
+                          onOpenReader={(paper) => setActiveReaderPaper(paper)}
+                          onFindSimilar={(paper) => {
+                            setMainTopic(paper.title);
+                            handleSearch(null, paper.title);
+                          }}
                         />
                       );
                     })}
@@ -1272,6 +1357,19 @@ function App() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Slide-over Paper Reader Drawer */}
+      <PaperReaderDrawer
+        paper={activeReaderPaper}
+        onClose={() => setActiveReaderPaper(null)}
+        isSelected={activeReaderPaper ? selectedPapers.some(p => (p.doi && p.doi === activeReaderPaper.doi) || (p.url && p.url === activeReaderPaper.url) || p.title === activeReaderPaper.title) : false}
+        onToggleSelect={handleTogglePaper}
+        onFindSimilar={(paper) => {
+          setActiveReaderPaper(null);
+          setMainTopic(paper.title);
+          handleSearch(null, paper.title);
+        }}
+      />
     </>
   );
 }

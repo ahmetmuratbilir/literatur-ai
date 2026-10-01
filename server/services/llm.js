@@ -75,3 +75,67 @@ RULES:
     throw new Error('AI returned invalid JSON format');
   }
 }
+
+export async function generateConsensusSnapshot(topic, papers = []) {
+  const provider = resolveChatProvider({ profile: 'fast' });
+  if (!provider) {
+    throw new Error('Yapilandirilmis bir sohbet saglayicisi yok (AI_PROVIDERS).');
+  }
+
+  const paperSummaries = (papers || []).slice(0, 6).map((p, i) => 
+    `[${i + 1}] ${p.title} (${p.year || 'N/A'}, Atif: ${p.citedBy || 0}): ${p.abstract || p.description || ''}`
+  ).join('\n\n');
+
+  const systemPrompt = `You are an expert academic consensus research engine.
+Analyze the provided scientific papers on the research topic and synthesize a clear academic consensus snapshot in TURKISH.
+You MUST ALWAYS return a valid JSON object with the following structure:
+{
+  "consensusScore": 85,
+  "consensusSummary": "1-2 sentence core scientific conclusion in Turkish",
+  "keyTakeaways": [
+    "Takeaway 1 in Turkish",
+    "Takeaway 2 in Turkish",
+    "Takeaway 3 in Turkish"
+  ],
+  "researchGap": "1 sentence identifying the current debate or open gap in Turkish"
+}
+RULES:
+1. All text fields MUST be in Turkish.
+2. consensusScore is an integer between 60 and 98.
+3. keyTakeaways MUST contain exactly 3 concise points.
+4. NO markdown, NO code block formatting, ONLY valid raw JSON.`;
+
+  const userPrompt = `Topic: "${topic}"\n\nPapers:\n${paperSummaries}`;
+
+  const response = await fetch(provider.url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${provider.key}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: provider.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.2,
+      max_tokens: 800,
+      response_format: { type: "json_object" },
+      ...(provider.body || {})
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Consensus API failed (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content || '{}';
+  try {
+    return JSON.parse(content);
+  } catch {
+    throw new Error('AI returned invalid consensus JSON format');
+  }
+}
