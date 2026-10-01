@@ -194,6 +194,24 @@ function getCandidateConfigs(sourceName) {
     return configs;
   }
 
+  // Europe PMC: firstPublicationDate (ilk yayin, gun hassasiyetinde) ve pubYear.
+  if (lowerSource.includes('europepmc') || lowerSource.includes('europe pmc')) {
+    pub('firstPublicationDate', 'firstPublicationDate', 10, 'high');
+    pub('pubYear', 'pubYear', 20, 'medium');
+    return configs;
+  }
+
+  // DOAJ: bibjson.year / bibjson.month yayincinin bildirdigi yayin tarihi.
+  // doaj.js bunlari `publication_date` olarak birlestirip gonderiyor.
+  // Onceki surumde DOAJ icin hic yapilandirma yoktu; her DOAJ makalesi
+  // "yil bilinmiyor" sayiliyor ve guncellikte 0 aliyordu.
+  if (lowerSource.includes('doaj')) {
+    pub('publication_date', 'bibjson year/month', 10, 'medium');
+    meta('created_date', 'created_date');
+    meta('last_updated', 'last_updated');
+    return configs;
+  }
+
   if (lowerSource.includes('semantic')) {
     pub('publicationDate', 'publicationDate', 10);
     pub('publication_date', 'publicationDate', 10);

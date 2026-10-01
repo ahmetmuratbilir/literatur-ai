@@ -25,30 +25,22 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
+import { useI18n } from '../i18n/context.js';
 
 const MotionDiv = motion.div;
 
+// `value` sunucuya giden protokol değeridir, değişmez; etiketler sözlükten gelir.
 const OUTPUT_TYPES = [
-  { value: 'literature-review', label: 'Literatür İncelemesi', icon: BookOpen, desc: 'Kaynakları sentezleyen akademik inceleme' },
-  { value: 'introduction', label: 'Giriş', icon: FileText, desc: 'Makale girişi ve arka plan' },
-  { value: 'methodology', label: 'Yöntem', icon: PenLine, desc: 'Araştırma yönteminin akademik anlatımı' },
-  { value: 'results', label: 'Bulgular', icon: Sparkles, desc: 'Bulgular ve veri odaklı metin' },
-  { value: 'discussion', label: 'Tartışma', icon: MessageSquare, desc: 'Bulguları literatürle tartışan bölüm' },
-  { value: 'conclusion', label: 'Sonuç', icon: Lightbulb, desc: 'Çıkarımlar ve gelecek önerileri' },
+  { value: 'literature-review', icon: BookOpen },
+  { value: 'introduction', icon: FileText },
+  { value: 'methodology', icon: PenLine },
+  { value: 'results', icon: Sparkles },
+  { value: 'discussion', icon: MessageSquare },
+  { value: 'conclusion', icon: Lightbulb },
 ];
 
-const TONE_OPTIONS = [
-  { value: 'akademik', label: 'Akademik' },
-  { value: 'sade', label: 'Daha Sade' },
-  { value: 'tez', label: 'Tez Dili' },
-  { value: 'makale', label: 'Makale Dili' },
-];
-
-const LENGTH_OPTIONS = [
-  { value: 'kisa', label: 'Kısa' },
-  { value: 'orta', label: 'Orta' },
-  { value: 'uzun', label: 'Uzun' },
-];
+const TONE_OPTIONS = ['akademik', 'sade', 'tez', 'makale'];
+const LENGTH_OPTIONS = ['kisa', 'orta', 'uzun'];
 
 const BIBLIOGRAPHY_OPTIONS = [
   { value: 'APA 7', label: 'APA 7' },
@@ -57,17 +49,11 @@ const BIBLIOGRAPHY_OPTIONS = [
   { value: 'Chicago', label: 'Chicago' },
 ];
 
-const STAGE_LABELS = {
-  citationReport: 'Atıf ve Kaynakça',
-  qualityReport: 'Yazım Kalitesi',
-  gateReport: 'Çıkış Kontrolü',
-};
-
 const LOADING_PHASES = [
-  { label: 'Makaleler analiz ediliyor', icon: Layers },
-  { label: 'Akademik bağlam kuruluyor', icon: BookMarked },
-  { label: 'Metin üretimi başladı', icon: Sparkles },
-  { label: 'Atıf ve kalite kontrolleri hazırlanıyor', icon: ShieldCheck },
+  { key: 'analyzing', icon: Layers },
+  { key: 'context', icon: BookMarked },
+  { key: 'writing', icon: Sparkles },
+  { key: 'checks', icon: ShieldCheck },
 ];
 
 function escapeHtml(value) {
@@ -133,25 +119,21 @@ function countWarnings(postcheck) {
   }, 0);
 }
 
-function severityLabel(severity) {
-  if (severity === 'high') return 'Yüksek';
-  if (severity === 'medium') return 'Orta';
-  return 'Düşük';
-}
-
-function statusLabel(status) {
-  if (status === 'failed') return 'Kontrol hatası';
-  if (status === 'warn') return 'Uyarı var';
-  return 'Temiz';
-}
+const severityKey = (severity) => (severity === 'high' || severity === 'medium' ? severity : 'low');
+const statusKey = (status) => (status === 'failed' || status === 'warn' ? status : 'clean');
 
 const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default', setSize }) => {
+  const { t, lang } = useI18n();
+  const severityLabel = (s) => t(`writer.severity.${severityKey(s)}`);
+  const statusLabel = (s) => t(`writer.status.${statusKey(s)}`);
+  const typeLabel = (v) => t(`writer.types.${v}.label`);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [view, setView] = useState('settings');
   const [outputType, setOutputType] = useState('literature-review');
   const [tone, setTone] = useState('akademik');
   const [length, setLength] = useState('orta');
-  const [language, setLanguage] = useState('tr');
+  // Üretim dili arayüz dilinden başlar; kullanıcı panelde değiştirebilir.
+  const [language, setLanguage] = useState(lang);
   const [prompt, setPrompt] = useState('');
   const [generatedText, setGeneratedText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -162,7 +144,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
   const [bibliographyFormat, setBibliographyFormat] = useState('APA 7');
   const [postcheck, setPostcheck] = useState(null);
   const [requestId, setRequestId] = useState(null);
-  const [doneEventCount, setDoneEventCount] = useState(0);
+  const [, setDoneEventCount] = useState(0);
   const [reportOpen, setReportOpen] = useState(false);
   const [lastCompletedAt, setLastCompletedAt] = useState(null);
 
@@ -226,11 +208,11 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
   const handleGenerate = useCallback(async () => {
     if (isGenerating) return;
     if (papers.length === 0) {
-      setError('Lütfen önce en az bir makale seçin.');
+      setError(t('writer.errNoPapers'));
       return;
     }
     if (!prompt.trim() || prompt.trim().length < 10) {
-      setError('Yönlendirme metni en az 10 karakter olmalıdır.');
+      setError(t('writer.errPromptShort'));
       return;
     }
 
@@ -270,7 +252,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
         const errData = await response.json().catch(() => ({}));
         throw new Error(errData.error || `HTTP ${response.status}`);
       }
-      if (!response.body) throw new Error('Stream cevabı alınamadı.');
+      if (!response.body) throw new Error(t('writer.errNoStream'));
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
@@ -318,18 +300,18 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
 
       setLastCompletedAt(new Date());
       if (localDoneCount === 0) {
-        setError('Üretim tamamlandı ancak done eventi alınamadı.');
+        setError(t('writer.errNoDone'));
       }
     } catch (err) {
       if (err.name === 'AbortError') return;
-      setError(err.message || 'Metin üretimi başarısız oldu.');
+      setError(err.message || t('writer.errGenerate'));
       if (!streamedText) setView('settings');
     } finally {
       setIsGenerating(false);
       abortRef.current = null;
       setCooldown(5);
     }
-  }, [papers, prompt, outputType, tone, length, language, bibliographyFormat, apiUrl, getToken, isGenerating]);
+  }, [papers, prompt, outputType, tone, length, language, bibliographyFormat, apiUrl, getToken, isGenerating, t]);
 
   const handleStop = () => {
     if (abortRef.current) {
@@ -349,7 +331,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      setError('Kopyalama başarısız.');
+      setError(t('writer.errCopy'));
     }
   };
 
@@ -358,7 +340,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `literatureai_${outputType}_${Date.now()}.txt`;
+    a.download = `literatur-ai_${outputType}_${Date.now()}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -384,12 +366,12 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `literatureai_${outputType}_${Date.now()}.docx`;
+      a.download = `literatur-ai_${outputType}_${Date.now()}.docx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('DOCX export error', err);
-      setError('DOCX indirme başarısız oldu.');
+      setError(t('writer.errDocx'));
     }
   };
 
@@ -411,22 +393,22 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
         pdf.text(line, margin, y);
         y += 17;
       });
-      pdf.save(`literatureai_${outputType}_${Date.now()}.pdf`);
+      pdf.save(`literatur-ai_${outputType}_${Date.now()}.pdf`);
     } catch (err) {
       console.error('PDF export error', err);
-      setError('PDF indirme başarısız oldu.');
+      setError(t('writer.errPdf'));
     }
   };
 
   const renderSettingsStage = () => (
-    <section className="writer-setup-stage" aria-label="Yazım ayarları">
+    <section className="writer-setup-stage" aria-label={t('writer.settings')}>
       <div className="writer-setup-card">
         <div className="writer-setup-hero">
           <span className="writer-setup-icon"><Settings size={22} /></span>
           <div>
-            <p>Yazım Ayarları</p>
-            <h2>Önce isteği netleştir, sonra metni rahatça oku.</h2>
-            <small>{papers.length} kaynak seçili · {bibliographyFormat} · {language.toUpperCase()}</small>
+            <p>{t('writer.settings')}</p>
+            <h2>{t('writer.settingsHeadline')}</h2>
+            <small>{t('writer.selectedMeta', { n: papers.length, style: bibliographyFormat, lang: language.toUpperCase() })}</small>
           </div>
         </div>
 
@@ -440,20 +422,20 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
         <div className="writer-source-strip">
           <div className="writer-card-title">
             <BookMarked size={16} />
-            Seçilen Kaynaklar
+            {t('writer.selectedSources')}
             <span>{papers.length}</span>
           </div>
           <div className="writer-source-list">
             {papers.length > 0 ? papers.slice(0, 4).map((paper, index) => (
               <div key={`${paper.doi || paper.url || paper.title || index}`} className="writer-source-row">
                 <span>{index + 1}</span>
-                <p>{paper.title || paper.titleTR || 'Başlıksız kaynak'}</p>
+                <p>{paper.title || paper.titleTR || t('writer.untitledSource')}</p>
               </div>
             )) : (
-              <p className="writer-muted">Metin üretmek için önce arama sonuçlarından kaynak seçin.</p>
+              <p className="writer-muted">{t('writer.noSourcesHint')}</p>
             )}
           </div>
-          {papers.length > 4 && <div className="writer-more-sources">+{papers.length - 4} kaynak daha</div>}
+          {papers.length > 4 && <div className="writer-more-sources">{t('writer.moreSources', { n: papers.length - 4 })}</div>}
         </div>
 
         <form className="writer-settings-form" onSubmit={(event) => {
@@ -462,37 +444,37 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
         }}>
           <div className="writer-field-grid">
             <label>
-              <span className="writer-label">Metin türü</span>
+              <span className="writer-label">{t('writer.textType')}</span>
               <select className="writer-field" value={outputType} onChange={(event) => setOutputType(event.target.value)} disabled={isGenerating}>
-                {OUTPUT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+                {OUTPUT_TYPES.map((type) => <option key={type.value} value={type.value}>{typeLabel(type.value)}</option>)}
               </select>
-              <small>{selectedType.desc}</small>
+              <small>{t(`writer.types.${selectedType.value}.desc`)}</small>
             </label>
 
             <label>
-              <span className="writer-label">Kaynakça stili</span>
+              <span className="writer-label">{t('writer.bibStyle')}</span>
               <select className="writer-field" value={bibliographyFormat} onChange={(event) => setBibliographyFormat(event.target.value)} disabled={isGenerating}>
                 {BIBLIOGRAPHY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             </label>
 
             <label>
-              <span className="writer-label">Ton</span>
+              <span className="writer-label">{t('writer.tone')}</span>
               <select className="writer-field" value={tone} onChange={(event) => setTone(event.target.value)} disabled={isGenerating}>
-                {TONE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                {TONE_OPTIONS.map((value) => <option key={value} value={value}>{t(`writer.tones.${value}`)}</option>)}
               </select>
             </label>
 
             <label>
-              <span className="writer-label">Uzunluk</span>
+              <span className="writer-label">{t('writer.length')}</span>
               <select className="writer-field" value={length} onChange={(event) => setLength(event.target.value)} disabled={isGenerating}>
-                {LENGTH_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                {LENGTH_OPTIONS.map((value) => <option key={value} value={value}>{t(`writer.lengths.${value}`)}</option>)}
               </select>
             </label>
           </div>
 
           <div className="writer-language-row">
-            <span className="writer-label">Dil</span>
+            <span className="writer-label">{t('writer.outputLanguage')}</span>
             <div className="writer-segment">
               <button type="button" className={language === 'tr' ? 'active' : ''} onClick={() => setLanguage('tr')} disabled={isGenerating}>
                 <Languages size={14} /> TR
@@ -504,38 +486,37 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
           </div>
 
           <label className="writer-prompt-block">
-            <span className="writer-label">Konu ve yönlendirme</span>
+            <span className="writer-label">{t('writer.prompt')}</span>
             <textarea
               className="writer-prompt"
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
               disabled={isGenerating}
-              placeholder="Örn: Bu makaleleri sentezleyerek yapay zekanın sağlık alanındaki etik etkilerini akademik dille tartış."
+              placeholder={t('writer.promptPlaceholder')}
             />
-            <span className="writer-char-count">{prompt.length} karakter</span>
+            <span className="writer-char-count">{t('writer.chars', { n: prompt.length })}</span>
           </label>
 
           <div className="writer-setup-footer">
             <div className="writer-run-state">
-              <div><ShieldCheck size={15} /> Akademik kontrol aktif</div>
-              <div><Activity size={15} /> Gate modu: warn only</div>
-              {lastCompletedAt && <div>Son üretim: {lastCompletedAt.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</div>}
+              <div><ShieldCheck size={15} /> {t('writer.checksOn')}</div>
+              {lastCompletedAt && <div><Activity size={15} /> {t('writer.lastRun', { time: lastCompletedAt.toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}</div>}
             </div>
 
             <div className="writer-setup-actions">
               {generatedText && !isGenerating && (
                 <button type="button" className="writer-secondary-action" onClick={() => setView('document')}>
-                  Sonucu Göster
+                  {t('writer.showResult')}
                 </button>
               )}
               {!isGenerating ? (
                 <button type="submit" className="writer-primary-action" disabled={!canGenerate}>
                   <Sparkles size={17} />
-                  {cooldown > 0 ? `Bekleyin (${cooldown}s)` : (generatedText ? 'Yeniden Oluştur' : 'Oluştur')}
+                  {cooldown > 0 ? t('writer.wait', { n: cooldown }) : (generatedText ? t('writer.regenerate') : t('writer.generate'))}
                 </button>
               ) : (
                 <button type="button" className="writer-stop-action" onClick={handleStop}>
-                  <X size={17} /> Üretimi Durdur
+                  <X size={17} /> {t('writer.stop')}
                 </button>
               )}
             </div>
@@ -557,10 +538,10 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
       <section className="writer-report-card">
         <div className="writer-report-header">
           <div>
-            <p>Akademik Kontrol</p>
-            <h3>{safePostcheck ? statusLabel(safePostcheck.status) : 'Rapor bekleniyor'}</h3>
+            <p>{t('writer.check')}</p>
+            <h3>{safePostcheck ? statusLabel(safePostcheck.status) : t('writer.reportPending')}</h3>
           </div>
-          <button type="button" onClick={() => setReportOpen(false)} title="Raporu gizle">
+          <button type="button" onClick={() => setReportOpen(false)} title={t('writer.hideReport')} aria-label={t('writer.hideReport')}>
             <X size={16} />
           </button>
         </div>
@@ -568,33 +549,29 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
         {!safePostcheck ? (
           <div className="writer-report-empty">
             <ShieldCheck size={28} />
-            <strong>Henüz rapor oluşturulmadı</strong>
-            <span>Metin üretimi tamamlandığında atıf, kalite ve gate sonuçları burada görünür.</span>
+            <strong>{t('writer.noReport')}</strong>
+            <span>{t('writer.noReportText')}</span>
           </div>
         ) : (
           <>
             <div className="writer-report-summary">
               <div>
-                <span>Durum</span>
+                <span>{t('writer.statusLabel')}</span>
                 <strong className={`writer-status writer-status--${safePostcheck.status}`}>{statusLabel(safePostcheck.status)}</strong>
               </div>
               <div>
-                <span>Max severity</span>
+                <span>{t('writer.severityLabel')}</span>
                 <strong className={`writer-severity writer-severity--${safePostcheck.severity}`}>{severityLabel(safePostcheck.severity)}</strong>
               </div>
               <div>
-                <span>Warning</span>
+                <span>{t('writer.warningsLabel')}</span>
                 <strong>{warningCount}</strong>
-              </div>
-              <div>
-                <span>Done</span>
-                <strong>{doneEventCount}</strong>
               </div>
             </div>
 
             {requestId && (
               <div className="writer-request-id">
-                <span>requestId</span>
+                <span>{t('writer.supportRef')}</span>
                 <code>{requestId}</code>
               </div>
             )}
@@ -603,7 +580,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
               {stages.map(([key, report]) => (
                 <article key={key} className="writer-stage-card">
                   <div className="writer-stage-title">
-                    <strong>{STAGE_LABELS[key]}</strong>
+                    <strong>{t(`writer.stages.${key}`)}</strong>
                     <span className={`writer-status writer-status--${report?.status || 'ok'}`}>
                       {statusLabel(report?.status || 'ok')}
                     </span>
@@ -616,13 +593,13 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
                     <div className="writer-finding-list">
                       {report.findings.map((finding, index) => (
                         <div key={`${finding.code || key}-${index}`} className={`writer-finding writer-finding--${finding.severity || 'low'}`}>
-                          <strong>{finding.code || 'UYARI'}</strong>
-                          <p>{finding.message || 'Kontrol uyarısı oluştu.'}</p>
+                          <strong>{finding.code || t('writer.warningCode')}</strong>
+                          <p>{finding.message || t('writer.warningDefault')}</p>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="writer-stage-clean">Bu bölümde uyarı yok.</p>
+                    <p className="writer-stage-clean">{t('writer.stageClean')}</p>
                   )}
                 </article>
               ))}
@@ -634,57 +611,57 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
   };
 
   const renderDocumentStage = () => (
-    <section className="writer-document-stage" aria-label="Oluşturulan metin">
+    <section className="writer-document-stage" aria-label={t('writer.generatedText')}>
       <div className="writer-document-modal">
         <div className="writer-document-head">
           <div className="writer-document-meta">
-            <span><SelectedTypeIcon size={16} /> {selectedType.label}</span>
-            <small>{papers.length} kaynak · {bibliographyFormat} · {language.toUpperCase()}</small>
+            <span><SelectedTypeIcon size={16} /> {typeLabel(selectedType.value)}</span>
+            <small>{t('writer.docMeta', { n: papers.length, style: bibliographyFormat, lang: language.toUpperCase() })}</small>
           </div>
 
           <div className="writer-document-actions">
-            <button type="button" onClick={handleCopy} disabled={!generatedText} title="Kopyala">
+            <button type="button" onClick={handleCopy} disabled={!generatedText} title={t('writer.copy')}>
               {copied ? <Check size={16} /> : <Copy size={16} />}
-              <span>{copied ? 'Kopyalandı' : 'Kopyala'}</span>
+              <span>{copied ? t('writer.copied') : t('writer.copy')}</span>
             </button>
-            <button type="button" onClick={handleDownloadDocx} disabled={!generatedText} title="DOCX indir">
+            <button type="button" onClick={handleDownloadDocx} disabled={!generatedText} title={t('writer.download', { f: 'DOCX' })}>
               <FileDown size={16} />
               <span>DOCX</span>
             </button>
-            <button type="button" onClick={handleDownloadPdf} disabled={!generatedText} title="PDF indir">
+            <button type="button" onClick={handleDownloadPdf} disabled={!generatedText} title={t('writer.download', { f: 'PDF' })}>
               <Download size={16} />
               <span>PDF</span>
             </button>
-            <button type="button" onClick={handleDownloadTxt} disabled={!generatedText} title="TXT indir">
+            <button type="button" onClick={handleDownloadTxt} disabled={!generatedText} title={t('writer.download', { f: 'TXT' })}>
               <Download size={16} />
               <span>TXT</span>
             </button>
             {!isGenerating ? (
-              <button type="button" onClick={handleGenerate} disabled={!canGenerate} title="Yeniden üret">
+              <button type="button" onClick={handleGenerate} disabled={!canGenerate} title={t('writer.regenerate')}>
                 <RefreshCw size={16} />
-                <span>Yeniden Üret</span>
+                <span>{t('writer.regenerate')}</span>
               </button>
             ) : (
-              <button type="button" className="writer-danger-button" onClick={handleStop} title="Üretimi durdur">
+              <button type="button" className="writer-danger-button" onClick={handleStop} title={t('writer.stop')}>
                 <X size={16} />
-                <span>Durdur</span>
+                <span>{t('writer.stopShort')}</span>
               </button>
             )}
             <button
               type="button"
               className={reportOpen ? 'active' : ''}
               onClick={() => setReportOpen((value) => !value)}
-              title="Akademik kontrol raporu"
+              title={t('writer.report')}
             >
               <ShieldCheck size={16} />
-              <span>Akademik Kontrol Raporu</span>
+              <span>{t('writer.report')}</span>
             </button>
             <button
               type="button"
               className="writer-document-close"
               onClick={onClose}
-              title="Ana ekrana dön"
-              aria-label="Yazar modunu kapat"
+              title={t('writer.backToResults')}
+              aria-label={t('writer.close')}
             >
               <X size={16} />
             </button>
@@ -706,8 +683,8 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
                 return <LoadingIcon size={28} />;
               })()}
               <Loader2 size={42} className="writer-spinner" />
-              <strong>{LOADING_PHASES[loadingStep].label}</strong>
-              <span>{papers.length} kaynak üzerinden akademik metin hazırlanıyor.</span>
+              <strong>{t(`writer.phases.${LOADING_PHASES[loadingStep].key}`)}</strong>
+              <span>{t('writer.preparing', { n: papers.length })}</span>
             </div>
           )}
 
@@ -716,7 +693,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
               {isGenerating && (
                 <div className="writer-writing-badge">
                   <span />
-                  Yazılıyor
+                  {t('writer.writing')}
                 </div>
               )}
               <div className="writer-output" dangerouslySetInnerHTML={{ __html: renderMarkdown(generatedText) }} />
@@ -726,25 +703,24 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
           {!isGenerating && !generatedText && (
             <div className="writer-empty-editor">
               <PenLine size={34} />
-              <strong>Henüz metin yok</strong>
-              <span>Ayarları kontrol edip yeniden oluşturmayı deneyin.</span>
+              <strong>{t('writer.noText')}</strong>
+              <span>{t('writer.noTextHint')}</span>
             </div>
           )}
         </div>
 
         <div className="writer-document-footer">
           <button type="button" className="writer-secondary-action" onClick={() => setView('settings')}>
-            Ayarları Düzenle
+            {t('writer.editSettings')}
           </button>
           <div>
             {postcheck ? (
               <span>
-                Postcheck v1 · {statusLabel(postcheck.status)} · {warningCount} uyarı
+                {t('writer.footerStatus', { status: statusLabel(postcheck.status), n: warningCount })}
               </span>
             ) : (
-              <span>{isGenerating ? 'Kontrol üretimden sonra çalışacak.' : 'Henüz rapor oluşturulmadı.'}</span>
+              <span>{isGenerating ? t('writer.checkAfter') : t('writer.noReport')}</span>
             )}
-            {requestId && <code>{requestId}</code>}
           </div>
         </div>
       </div>
@@ -765,27 +741,27 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
         <div className="writer-title">
           <span><PenLine size={18} /></span>
           <div>
-            <strong>Yapay Zeka Yazar</strong>
-            <small>{showDocument ? 'Belge önizleme' : 'Yazım ayarları'}</small>
+            <strong>{t('writer.title')}</strong>
+            <small>{showDocument ? t('writer.preview') : t('writer.settings')}</small>
           </div>
         </div>
 
         <div className="writer-mode-title">
           {showDocument ? <FileText size={15} /> : <Settings size={15} />}
-          <span>{showDocument ? 'Floating document preview' : selectedType.label}</span>
+          <span>{showDocument ? t('writer.preview') : typeLabel(selectedType.value)}</span>
         </div>
 
         <div className="writer-window-actions">
-          <button type="button" className={size === 'default' ? 'active' : ''} onClick={() => setSize('default')} title="Kenar panel">
+          <button type="button" className={size === 'default' ? 'active' : ''} onClick={() => setSize('default')} title={t('writer.sizeSide')} aria-label={t('writer.sizeSide')}>
             <PanelRight size={15} />
           </button>
-          <button type="button" className={size === 'half' ? 'active' : ''} onClick={() => setSize('half')} title="Yarım ekran">
+          <button type="button" className={size === 'half' ? 'active' : ''} onClick={() => setSize('half')} title={t('writer.sizeHalf')} aria-label={t('writer.sizeHalf')}>
             <PanelRightOpen size={15} />
           </button>
-          <button type="button" className={size === 'full' ? 'active' : ''} onClick={() => setSize('full')} title="Tam ekran">
+          <button type="button" className={size === 'full' ? 'active' : ''} onClick={() => setSize('full')} title={t('writer.sizeFull')} aria-label={t('writer.sizeFull')}>
             <Monitor size={15} />
           </button>
-          <button type="button" onClick={onClose} title="Kapat">
+          <button type="button" onClick={onClose} title={t('common.close')} aria-label={t('common.close')}>
             <X size={17} />
           </button>
         </div>

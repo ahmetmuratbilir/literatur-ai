@@ -45,7 +45,34 @@ test('ozet sayilari satirlarla tutarli', async () => {
 
   assert.equal(report.summary.total, report.rows.length);
   assert.equal(report.summary.ok, report.rows.filter((r) => r.state === 'ok').length);
-  assert.equal(report.summary.ok + report.summary.failing, report.summary.total);
   assert.ok(report.summary.requiredFailing >= 1, 'Clerk ve MongoDB zorunlu');
   assert.equal(typeof report.checkedAt, 'string');
+
+  // Durum modeli artik ikili degil: 'skipped' (bilerek kapatilmis, or. Scopus)
+  // ve 'unused' (tanimli ama kullanilmayan degisken) ariza SAYILMAZ. Onceki
+  // surumdeki `ok + failing === total` varsayimi bu yuzden dustu; kapatilmis
+  // bir kaynagi ariza saymak paneli gereksiz kirmiziya boyuyordu.
+  const neutral = report.rows.filter((r) => r.state === 'skipped' || r.state === 'unused').length;
+  assert.equal(report.summary.ok + report.summary.failing + neutral, report.summary.total);
+  assert.equal(
+    report.summary.failing,
+    report.rows.filter((r) => !['ok', 'skipped', 'unused'].includes(r.state)).length
+  );
+});
+
+test('anahtar gecerliyken bos sonuc ok DEGIL zero_results olarak isaretlenir', async () => {
+  // Eski classify() `if (result.ok) return 'ok'` diyordu, yani HTTP 200 +
+  // total 0 saglikli sayiliyordu. DOAJ'in sessiz sifiri buradan kacti.
+  // Bu test durumun sozlesmede var oldugunu ve ariza sayildigini korur.
+  const report = await probeAllServices({});
+  assert.equal(typeof report.summary.zeroResults, 'number');
+  assert.ok(!['ok', 'skipped', 'unused'].includes('zero_results'));
+});
+
+test('SCOPUS_ENABLED kapaliyken Scopus ariza degil kapali raporlanir', async () => {
+  const report = await probeAllServices({ SCOPUS_ENABLED: 'false', SCOPUS_API_KEY: 'x'.repeat(32) });
+  const scopus = report.rows.find((r) => r.service === 'Scopus');
+
+  assert.equal(scopus.state, 'skipped');
+  assert.match(scopus.detail, /arama akisinda degil/);
 });

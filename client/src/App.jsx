@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
 const MotionDiv = motion.div;
-const MotionH1 = motion.h1;
 
 import {
   Loader2,
@@ -12,7 +11,6 @@ import {
   Settings,
   AlertCircle,
   AlertTriangle,
-  ShieldCheck,
   Zap,
   Sparkles,
   Activity,
@@ -24,117 +22,67 @@ import {
 import { AuthedOnly, AnonOnly, useAppAuth } from './auth/clerkBridge.js';
 import { useAdmin } from './hooks/useAdmin';
 import AdminPanel from './components/AdminPanel.jsx';
+import { useI18n } from './i18n/context.js';
 
 const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-const LOADING_MESSAGES = [
-  'Dünyanın en büyük 7 akademik kaynağına güvenli bağlantı kuruluyor...',
-  'Scopus, OpenAlex, CORE ve Crossref veri havuzları taranıyor...',
-  'OpenCitations ile atıf verileri çapraz kontrolden geçiriliyor...',
-  '810 Milyondan fazla kayıt arasında konu eşleşmesi yapılıyor...',
-  'AHP algoritması ile en yüksek kaliteli yayınlar önceliklendiriliyor...',
-  'Sizin için en güncel ve alakalı literatür listesi hazırlanıyor...',
-];
-
 import ResultCard from './components/ResultCard';
+import RankingProfiles from './components/RankingProfiles';
+import AdvancedWeights from './components/AdvancedWeights';
 import GlobalStats from './components/GlobalStats';
-import InfiniteTicker from './components/InfiniteTicker';
 import HistorySidebar from './components/HistorySidebar';
 import WriterPanel from './components/WriterPanel';
 import ShareModal from './components/ShareModal';
 import LandingPage from './components/landing/LandingPage';
+import AppTopBar from './components/AppTopBar';
+import ExportMenu from './components/ExportMenu';
 import { useWindowSize } from './hooks/useWindowSize';
 import { useCollections } from './hooks/useCollections';
+import { useBasket } from './hooks/useBasket';
+import { flyToBasket } from './utils/flyToBasket';
+import Toasts from './components/Toasts';
 import { useShare } from './hooks/useShare';
 import { useExport } from './hooks/useExport';
 
-// FeatureHighlights component kept here since it's also used in SignedIn view
-const FEATURE_HIGHLIGHTS = [
-  {
-    icon: Sparkles,
-    title: 'AI sorgu genişletme',
-    text: 'Türkçe konunuz İngilizce Boolean sorguya çevrilir; 5 alternatif öneri sunulur.'
-  },
-  {
-    icon: BarChart2,
-    title: 'AHP skorlama',
-    text: 'Alaka, atıf ve güncellik ağırlıklarıyla her makale 0-100 arası puanlanır.'
-  },
-  {
-    icon: Download,
-    title: 'Tek tık dışa aktarım',
-    text: 'Sonuçları PDF, Word veya Excel olarak hazır rapor halinde indirin.'
-  }
+const FEATURES = [
+  { icon: Sparkles, title: 'features.aiTitle', text: 'features.aiText' },
+  { icon: BarChart2, title: 'features.ahpTitle', text: 'features.ahpText' },
+  { icon: Download, title: 'features.exportTitle', text: 'features.exportText' },
 ];
 
-const FeatureHighlights = ({ theme }) => (
-  <div style={{
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-    gap: '1.5rem',
-    marginTop: '3rem',
-    width: '100%',
-    maxWidth: '1100px'
-  }}>
-    {FEATURE_HIGHLIGHTS.map((feature, idx) => {
-      const FeatureIcon = feature.icon;
-      return (
-        <motion.div
-          key={feature.title}
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 + (idx * 0.05) }}
-          whileHover={{ y: -5, transition: { duration: 0.2 } }}
-          style={{
-            background: theme === 'light' ? 'white' : 'rgba(30, 41, 59, 0.4)',
-            padding: '1.75rem',
-            borderRadius: '20px',
-            border: theme === 'light' ? '1px solid rgba(0,0,0,0.05)' : '1px solid rgba(255,255,255,0.05)',
-            boxShadow: theme === 'light' ? '0 4px 20px -10px rgba(0,0,0,0.05)' : '0 10px 30px -15px rgba(0,0,0,0.3)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            textAlign: 'left',
-            backdropFilter: 'blur(8px)',
-            transition: 'all 0.3s ease'
-          }}
-        >
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '12px',
-            background: theme === 'light' ? '#f0f4ff' : 'rgba(79, 70, 229, 0.1)',
-            color: '#4f46e5',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: '1.25rem'
-          }}>
-            <FeatureIcon size={20} strokeWidth={2.5} />
+const FeatureHighlights = () => {
+  const { t } = useI18n();
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-4)' }}>
+      {FEATURES.map((feature) => {
+        const FeatureIcon = feature.icon;
+        return (
+          <div key={feature.title} className="ui-panel" style={{ padding: 'var(--space-5)', boxShadow: 'none' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--brand-primary-soft)', color: 'var(--brand-primary)', display: 'grid', placeItems: 'center', marginBottom: 'var(--space-3)' }}>
+              <FeatureIcon size={18} strokeWidth={2.25} />
+            </div>
+            <h3 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, margin: '0 0 4px', letterSpacing: '-0.01em' }}>{t(feature.title)}</h3>
+            <p style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--text-muted)', margin: 0 }}>{t(feature.text)}</p>
           </div>
-          <h3 style={{
-            fontSize: '1.1rem',
-            fontWeight: '700',
-            marginBottom: '0.5rem',
-            color: theme === 'light' ? '#0f172a' : '#f8fafc',
-            letterSpacing: '-0.01em'
-          }}>
-            {feature.title}
-          </h3>
-          <p style={{
-            fontSize: '0.9rem',
-            lineHeight: '1.5',
-            color: theme === 'light' ? '#64748b' : '#94a3b8'
-          }}>
-            {feature.text}
-          </p>
-        </motion.div>
-      );
-    })}
-  </div>
-);
+        );
+      })}
+    </div>
+  );
+};
+
+// Arama kaynakları (sunucunun failedSources adları -> gösterilen ad)
+const SEARCH_SOURCE_NAMES = {
+  OpenAlex: 'OpenAlex',
+  Crossref: 'Crossref',
+  SemanticScholar: 'Semantic Scholar',
+  EuropePMC: 'Europe PMC',
+  DOAJ: 'DOAJ',
+  ArXiv: 'arXiv',
+  CORE: 'CORE',
+};
 
 function App() {
+  const { t } = useI18n();
   const [mainTopic, setMainTopic] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [keywords, setKeywords] = useState([]);
@@ -142,7 +90,6 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [quota, setQuota] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(null);
   const [aiAnalysis, setAiAnalysis] = useState(null);
@@ -156,15 +103,44 @@ function App() {
   const [landingTheme, setLandingTheme] = useState('light');
   const [showWriterPanel, setShowWriterPanel] = useState(false);
   const [writerSize, setWriterSize] = useState('default');
-  const [selectedPapers, setSelectedPapers] = useState([]);
+  // Siralama profili. Tarayicida hatirlanir (MongoDB baglaninca kullanici
+  // profiline tasinacak). localStorage gizli pencerede atabilir; sessizce
+  // varsayilana duser.
+  const [profileId, setProfileId] = useState(() => {
+    try { return window.localStorage.getItem('rankingProfile') || 'dengeli'; } catch { return 'dengeli'; }
+  });
+  const [lastSearchParams, setLastSearchParams] = useState(null);
+  const [rerankLoading, setRerankLoading] = useState(false);
+  // Gelismis moddan gelen ozel agirliklar. Doluysa profilin yerine gecer.
+  const [customWeights, setCustomWeights] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem('rankingCustomWeights') || 'null'); } catch { return null; }
+  });
+  // Metin degil bayrak: dil degisince uyari da yeni dilde gorunmeli.
+  const [inconsistentRanking, setInconsistentRanking] = useState(false);
+  const rankingParams = customWeights
+    ? { weights: JSON.stringify(customWeights) }
+    : { profileId };
 
   const { userId, isLoaded, getToken } = useAppAuth();
   const { isAdmin } = useAdmin({ getToken, userId });
   const [showAdmin, setShowAdmin] = useState(false);
   const { isMobile, isTablet, isCompact } = useWindowSize();
-  const { collections, setCollections, fetchCollections, handleSaveToCollection, handleFavorite, isPaperFavorited } = useCollections({ getToken, userId });
+  const { setCollections, fetchCollections, handleFavorite, isPaperFavorited } = useCollections({ getToken, userId });
+  // Kaynak sepeti: aramalar arasında kalır; yeni arama onu silmez.
+  const basket = useBasket({ getToken, userId });
+  // Sağ üst bildirimler (kaynak durumu, "liste dolu" vb.)
+  const [toasts, setToasts] = useState([]);
+  const dismissToast = useCallback((id) => setToasts((list) => list.filter((x) => x.id !== id)), []);
+  const pushToast = useCallback((toast) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setToasts((list) => [...list.slice(-2), { ...toast, id }]);
+  }, []);
+  // AI önerileri gelince sayfa onlara kaysın; kullanıcı birini seçecek.
+  const aiPanelRef = useRef(null);
   const { shareLoading, shareUrl, showShareModal, setShowShareModal, copied, handleShare, copyToClipboard } = useShare({ getToken });
   const { exportPDF, exportExcel, exportDocx } = useExport();
+
+  const loadingSteps = t('loading.steps');
 
   const canSubmitSearch = Boolean(
     mainTopic.trim() ||
@@ -199,7 +175,7 @@ function App() {
           if (res.data.aiAnalysis) setAiAnalysis(res.data.aiAnalysis);
           setIsShared(true);
         } catch {
-          setError('Paylaşılan araştırma bulunamadı veya süresi dolmuş.');
+          setError(t('search.sharedNotFound'));
         } finally {
           setLoading(false);
         }
@@ -210,6 +186,8 @@ function App() {
     const refreshCollections = () => fetchCollections();
     window.addEventListener('refreshCollections', refreshCollections);
     return () => window.removeEventListener('refreshCollections', refreshCollections);
+    // t bilerek bagimlilik degil: paylasim yalnizca acilista bir kez okunur.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchCollections]);
 
   // Resize: close sidebar on mobile
@@ -223,31 +201,52 @@ function App() {
     if (loading) {
       setLoadingStep(0);
       interval = setInterval(() => {
-        setLoadingStep((prev) => (prev + 1) % LOADING_MESSAGES.length);
+        setLoadingStep((prev) => prev + 1);
       }, 2000);
     }
     return () => clearInterval(interval);
   }, [loading]);
 
-  const handleTogglePaper = useCallback((paper) => {
-    setSelectedPapers(prev => {
-      const exists = prev.find(p => (p.doi && p.doi === paper.doi) || (p.url && p.url === paper.url) || p.title === paper.title);
-      if (exists) return prev.filter(p => p !== exists);
-      return [...prev, paper];
-    });
-  }, []);
+  const handleToggleBasket = useCallback(async (paper, sourceEl) => {
+    if (basket.has(paper)) {
+      await basket.remove(paper);
+      return;
+    }
+    if (basket.papers.length >= basket.limit) {
+      pushToast({ tone: 'warn', title: t('basket.full', { n: basket.limit }) });
+      return;
+    }
+    flyToBasket(sourceEl, paper.title || '');
+    const result = await basket.add(paper);
+    if (!result.ok && result.reason === 'full') pushToast({ tone: 'warn', title: t('basket.full', { n: basket.limit }) });
+    else if (!result.ok && result.reason === 'error') pushToast({ tone: 'warn', title: t('basket.addFailed') });
+  }, [basket, t, pushToast]);
 
-  const handleSelectAll = useCallback(() => {
-    if (data?.results) setSelectedPapers([...data.results]);
-  }, [data]);
+  // Panel yükseklik animasyonuyla açılıyor; animasyon sürerken başlatılan
+  // yumuşak kaydırma iptal oluyordu. Açılış bittikten sonra kaydır.
+  useEffect(() => {
+    if (!aiAnalysis) return undefined;
+    const timer = setTimeout(() => aiPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 350);
+    return () => clearTimeout(timer);
+  }, [aiAnalysis]);
 
-  const handleClearSelection = useCallback(() => {
-    setSelectedPapers([]);
-  }, []);
+  // Arama bitince kaynak durumu: yeşil "listelendi", yanıt vermeyen varsa sarı.
+  const announceSources = useCallback((result) => {
+    const failed = [...new Set((result?.failedSources || [])
+      .map((f) => SEARCH_SOURCE_NAMES[typeof f === 'string' ? f : (f?.name || f?.source)])
+      .filter(Boolean))];
+    const total = Object.keys(SEARCH_SOURCE_NAMES).length;
+    const ok = total - failed.length;
+    const n = Array.isArray(result?.results) ? result.results.length : 0;
+    pushToast({ tone: 'success', title: t('sources.listed', { n }), text: t('sources.answered', { ok, total }) });
+    if (failed.length > 0) {
+      pushToast({ tone: 'warn', title: t('sources.unavailable', { names: failed.join(', ') }), duration: 8000 });
+    }
+  }, [pushToast, t]);
 
   const handleAiSuggest = async () => {
     if (!mainTopic.trim()) {
-      setAiError('Lütfen önce bir konu giriniz.');
+      setAiError(t('search.aiNeedTopic'));
       return;
     }
     setAiLoading(true);
@@ -274,11 +273,64 @@ function App() {
       }
     } catch (err) {
       console.error('AI analyze error:', err);
-      const msg = err.response?.data?.error || 'AI analizi başarısız oldu.';
-      setAiError(msg);
+      setAiError(err.response?.data?.error || t('search.aiFailed'));
     } finally {
       setAiLoading(false);
     }
+  };
+
+  /**
+   * Profil degisince yalnizca YENIDEN SIRALAR. handleSearch'u cagirmiyoruz:
+   * o fonksiyon AI analizini ve yazara secilmis makaleleri siliyor, gecmise
+   * ikinci bir kayit ekliyor. Sunucu ayni sorguyu onbellekten bu profilin
+   * agirliklariyla yeniden siraladigi icin istek hizli doner.
+   */
+  const rerank = async (nextRankingParams) => {
+    if (!lastSearchParams || isShared) return;
+    setRerankLoading(true);
+    try {
+      const token = await getToken();
+      const response = await axios.get(`${defaultApiUrl}/api/search`, {
+        params: { ...lastSearchParams, ...rankingParams, ...nextRankingParams },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setData(response.data);
+    } catch (err) {
+      setError(err.response?.data?.error || t('search.rerankFailed'));
+    } finally {
+      setRerankLoading(false);
+    }
+  };
+
+  const handleProfileChange = async (nextProfileId) => {
+    setProfileId(nextProfileId);
+    setCustomWeights(null);
+    setInconsistentRanking(false);
+    try {
+      window.localStorage.setItem('rankingProfile', nextProfileId);
+      window.localStorage.removeItem('rankingCustomWeights');
+    } catch { /* yok say */ }
+    // Ozel agirlik temizlendigi icin weights parametresini de ez.
+    await rerank({ profileId: nextProfileId, weights: undefined });
+  };
+
+  /** Unpaywall: DOI için yasal ücretsiz kopya (kart düğmesinden, arama sırasında değil). */
+  const findFreePdf = async (doi) => {
+    const token = await getToken();
+    const { data: oa } = await axios.get(`${defaultApiUrl}/api/oa`, {
+      params: { doi },
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return oa;
+  };
+
+  const handleWeightsApply = async (weights, { inconsistent = false } = {}) => {
+    setCustomWeights(weights);
+    // Kullanici tutarsiz tercihlerle devam etmeyi secerse kilitlemiyoruz, ama
+    // siralamanin bu sekilde uretildigini gizlemiyoruz.
+    setInconsistentRanking(inconsistent);
+    try { window.localStorage.setItem('rankingCustomWeights', JSON.stringify(weights)); } catch { /* yok say */ }
+    await rerank({ weights: JSON.stringify(weights), profileId: undefined });
   };
 
   const handleSearch = async (e, directQuery = null) => {
@@ -293,7 +345,7 @@ function App() {
     const hasKeywords = cleanKeywords.length > 0;
 
     if (!trimmedTopic && !normalizedQuery && !trimmedAuthor && !hasKeywords) {
-      setError('Arama için en az bir alan doldurun (konu, yazar, AI sorgusu veya anahtar kelime).');
+      setError(t('search.needInput'));
       return;
     }
 
@@ -302,7 +354,6 @@ function App() {
     setData(null);
     setAiAnalysis(null);
     setShowWriterPanel(false);
-    setSelectedPapers([]);
 
     try {
       const token = await getToken();
@@ -312,14 +363,22 @@ function App() {
           authorName: trimmedAuthor,
           count: count,
           aiQuery: normalizedQuery,
-          keywords: JSON.stringify(cleanKeywords)
+          keywords: JSON.stringify(cleanKeywords),
+          ...rankingParams
         },
         headers: { Authorization: `Bearer ${token}` }
       });
       setData(response.data);
-      if (response.data.quota) setQuota(response.data.quota);
+      announceSources(response.data);
+      setLastSearchParams({
+        mainTopic: trimmedTopic,
+        authorName: trimmedAuthor,
+        count,
+        aiQuery: normalizedQuery,
+        keywords: JSON.stringify(cleanKeywords)
+      });
     } catch (err) {
-      setError(err.response?.data?.error || 'Arama sırasında hata oluştu.');
+      setError(err.response?.data?.error || t('search.failed'));
       setLoading(false);
       return;
     }
@@ -346,6 +405,15 @@ function App() {
     }
   };
 
+  const openWriter = () => setShowWriterPanel(true);
+  const rankingWarnings = [...(data?.ranking?.warnings || []), ...(inconsistentRanking ? [t('results.inconsistentNote')] : [])];
+
+  // Yalnızca geliştirmede: Clerk kapalıyken tanıtım sayfası hiç görünmediği
+  // için ?landing ile önizlenebilir.
+  if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('landing')) {
+    return <LandingPage landingTheme={landingTheme} setLandingTheme={setLandingTheme} />;
+  }
+
   return (
     <>
       <AnonOnly>
@@ -359,32 +427,11 @@ function App() {
       </AnonOnly>
 
       <AuthedOnly>
-        <InfiniteTicker />
-
-        {/* Yonetici kisayolu. Dugme yalnizca gorunurlugu kontrol eder;
-            asil yetki kontrolu her admin ucunda sunucuda yapilir. */}
-        {isAdmin && !showAdmin && (
-          <button
-            type="button"
-            onClick={() => setShowAdmin(true)}
-            style={{
-              position: 'fixed', top: '14px', right: '16px', zIndex: 60,
-              display: 'inline-flex', alignItems: 'center', gap: '6px',
-              padding: '7px 13px', borderRadius: '999px', border: '1px solid #c7d2fe',
-              background: 'white', color: '#4338ca', fontWeight: 600,
-              fontSize: '0.78rem', cursor: 'pointer',
-              boxShadow: '0 6px 16px -8px rgba(79,70,229,0.5)',
-            }}
-          >
-            <ShieldCheck size={14} /> Sistem
-          </button>
-        )}
-
         {showAdmin && (
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Sistem durumu"
+            aria-label={t('shell.systemStatus')}
             onClick={(e) => { if (e.target === e.currentTarget) setShowAdmin(false); }}
             style={{
               position: 'fixed', inset: 0, zIndex: 100,
@@ -393,16 +440,15 @@ function App() {
             }}
           >
             <div style={{
-              maxWidth: '920px', margin: '0 auto', background: '#f8fafc',
-              borderRadius: '16px', padding: '22px 24px',
-              boxShadow: '0 30px 60px -20px rgba(15,23,42,0.5)',
+              maxWidth: '920px', margin: '0 auto', background: 'var(--bg-main)',
+              borderRadius: 'var(--radius-lg)', padding: '22px 24px',
+              boxShadow: 'var(--shadow-lg)',
             }}>
               <AdminPanel getToken={getToken} onClose={() => setShowAdmin(false)} />
             </div>
           </div>
         )}
 
-        {/* Share Modal */}
         <ShareModal
           show={showShareModal}
           onClose={() => setShowShareModal(false)}
@@ -429,6 +475,8 @@ function App() {
             });
             window.dispatchEvent(new CustomEvent('refreshHistory'));
           }}
+          basket={basket}
+          onOpenWriter={openWriter}
           onNewSearch={() => {
             setData(null);
             setMainTopic('');
@@ -445,64 +493,62 @@ function App() {
           marginRight: (!isMobile && showWriterPanel)
             ? (writerSize === 'default' ? '420px' : (writerSize === 'half' ? '50vw' : '100vw'))
             : '0px',
-          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-          padding: isMobile ? '3.5rem 1rem 2rem' : (isTablet ? '3.5rem 1.5rem' : '4rem 2rem')
+          transition: 'margin 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          minHeight: '100vh',
         }}>
-          <div className="query-workspace" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <AppTopBar
+            isMobile={isMobile}
+            onOpenMenu={() => setSidebarOpen(true)}
+            isAdmin={isAdmin}
+            onOpenSystem={() => setShowAdmin(true)}
+          />
 
-            <header className="query-hero" style={{ textAlign: 'center', marginBottom: isMobile ? '2rem' : '3rem' }}>
-              <MotionDiv
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', background: 'var(--brand-primary-soft)', color: 'var(--brand-primary)', fontSize: 'var(--fs-xs)', fontWeight: '600', marginBottom: '1.25rem', letterSpacing: '0.02em' }}
-              >
-                <Sparkles size={12} /> 7 akademik veri kaynağı, 810M+ makale
-              </MotionDiv>
-              <MotionH1
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 }}
-                style={{ fontSize: isMobile ? '2.5rem' : (isTablet ? '3.5rem' : '4.5rem'), fontWeight: '800', letterSpacing: '-0.04em', color: 'var(--text-main)', margin: '0 0 0.75rem 0', lineHeight: 1.1 }}
-              >
-                <span style={{ background: 'linear-gradient(135deg, #4f46e5, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Literatur</span> AI
-              </MotionH1>
-            </header>
+          <div className="query-workspace" style={{
+            maxWidth: '1000px',
+            margin: '0 auto',
+            // Alt boşluk: seçim çubuğu sabit olduğu için son kartı örtmesin.
+            padding: isMobile ? '1.25rem 1rem 6rem' : (isTablet ? '2rem 1.5rem 6rem' : '2.5rem 2rem 6rem'),
+          }}>
 
-            <section className="glass-panel query-panel" style={{ padding: isMobile ? '1.25rem' : (isTablet ? '1.75rem' : '2rem'), marginBottom: isMobile ? '2rem' : '3rem' }}>
+            {!isShared && (
+              <header className="ui-page-head">
+                <h1 className="ui-page-head__logo">
+                  <span className="ui-brand-mark ui-brand-mark--lg" aria-hidden="true"><Zap size={26} fill="currentColor" /></span>
+                  {t('shell.brand')}
+                </h1>
+              </header>
+            )}
+
+            <section className="ui-panel query-panel" style={{ marginBottom: 'var(--space-6)' }}>
               {isShared ? (
-                <div style={{ textAlign: 'center', padding: '1rem' }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(16, 185, 129, 0.1)', color: '#059669', padding: '8px 16px', borderRadius: '99px', fontSize: 'var(--fs-sm)', fontWeight: '600', marginBottom: '1rem' }}>
-                    <CheckCircle2 size={16} /> Paylaşılan Araştırma Görüntüleniyor
+                <div style={{ textAlign: 'center', padding: '0.5rem' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'var(--score-high-bg)', color: 'var(--score-high)', padding: '6px 14px', borderRadius: '999px', fontSize: 'var(--fs-sm)', fontWeight: 600, marginBottom: 'var(--space-3)' }}>
+                    <CheckCircle2 size={16} /> {t('shared.viewing')}
                   </div>
-                  <h2 style={{ fontSize: 'var(--fs-xl)', fontWeight: '700', color: 'var(--text-main)', margin: '0 0 1rem 0' }}>{mainTopic}</h2>
-                  <button
-                    onClick={() => { window.location.href = window.location.pathname; }}
-                    className="btn"
-                    style={{ height: '44px', width: 'auto', padding: '0 24px', margin: '0 auto' }}
-                  >
-                    <Zap size={18} /> Kendi Literatür Taramamı Başlat
+                  <h2 style={{ fontSize: 'var(--fs-xl)', fontWeight: 700, margin: '0 0 var(--space-4)' }}>{mainTopic}</h2>
+                  <button type="button" onClick={() => { window.location.href = window.location.pathname; }} className="ui-btn ui-btn--primary ui-btn--lg">
+                    <Zap size={18} /> {t('shared.startOwn')}
                   </button>
                 </div>
               ) : (
-                <form className="query-form" onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  <div style={{ position: 'relative' }}>
-                    <label style={{ display: 'block', fontWeight: '600', color: 'var(--text-main)', fontSize: 'var(--fs-sm)', marginBottom: '0.5rem' }}>
-                      Araştırma Konusu
-                    </label>
+                <form className="query-form" onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+                  <div>
+                    <label htmlFor="topic-input" className="ui-field-label">{t('search.topicLabel')}</label>
                     <div className="input-wrapper query-input-shell" style={{ position: 'relative' }}>
-                      <Search style={{ position: 'absolute', left: '16px', top: isCompact ? '24px' : '50%', transform: isCompact ? 'none' : 'translateY(-50%)', color: 'var(--slate-400)' }} size={18} />
+                      <Search style={{ position: 'absolute', left: '16px', top: isCompact ? '26px' : '50%', transform: 'translateY(-50%)', color: 'var(--slate-400)' }} size={18} />
                       <input
+                        id="topic-input"
                         type="text"
                         className="input"
                         style={{
                           height: '52px',
                           paddingLeft: '46px',
-                          paddingRight: isCompact ? '16px' : '210px',
+                          paddingRight: isCompact ? '16px' : '170px',
                           fontSize: 'var(--fs-md)',
                           borderRadius: 'var(--radius-md)',
                           width: '100%'
                         }}
-                        placeholder="Örn: AI in drug discovery, author:Smith, year:2023"
+                        placeholder={t('search.topicPlaceholder')}
                         value={mainTopic}
                         onChange={(e) => setMainTopic(e.target.value)}
                         inputMode="search"
@@ -515,61 +561,32 @@ function App() {
                         type="button"
                         onClick={handleAiSuggest}
                         disabled={aiLoading}
-                        className={isCompact ? 'query-ai-button' : 'btn-secondary query-ai-button'}
-                        style={{
-                          position: isCompact ? 'static' : 'absolute',
-                          marginTop: isCompact ? '0.5rem' : '0',
-                          right: '8px',
-                          top: '50%',
-                          transform: isCompact ? 'none' : 'translateY(-50%)',
-                          background: isCompact ? 'var(--brand-primary-soft)' : '#ffffff',
-                          border: isCompact ? '1px solid #dbe1ff' : '1px solid var(--border-light)',
-                          borderRadius: 'var(--radius-sm)',
-                          padding: '8px 14px',
-                          color: 'var(--brand-primary)',
-                          fontSize: 'var(--fs-sm)',
-                          fontWeight: '600',
-                          fontFamily: 'inherit',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          cursor: aiLoading ? 'not-allowed' : 'pointer',
-                          transition: 'background 0.15s ease, border-color 0.15s ease',
-                          width: isCompact ? '100%' : 'auto',
-                          height: isCompact ? '44px' : '36px'
-                        }}
+                        className="ui-btn ui-btn--outline"
+                        style={isCompact
+                          ? { width: '100%', marginTop: 'var(--space-2)', height: '42px', color: 'var(--brand-primary)' }
+                          : { position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--brand-primary)' }}
                       >
                         {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                        {aiLoading ? 'Analiz ediliyor…' : 'AI ile geliştir'}
+                        {aiLoading ? t('search.aiAnalyzing') : t('search.aiImprove')}
                       </button>
                     </div>
                     {aiError && (
-                      <div style={{ marginTop: '0.625rem', color: '#b91c1c', fontSize: 'var(--fs-sm)', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ marginTop: 'var(--space-2)', color: 'var(--score-low)', fontSize: 'var(--fs-sm)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <AlertCircle size={14} /> {aiError}
                       </div>
                     )}
+                    <p className="ui-hint" style={{ marginTop: 'var(--space-2)' }}>{t('search.sourcesLine')}</p>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="btn-ghost query-advanced-toggle"
-                    style={{
-                      alignSelf: 'flex-start',
-                      fontSize: 'var(--fs-xs)',
-                      color: 'var(--brand-primary)',
-                      fontWeight: '600',
-                      padding: '4px 8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
+                    className="ui-btn ui-btn--ghost ui-btn--sm"
+                    aria-expanded={showAdvanced}
+                    style={{ alignSelf: 'flex-start', color: 'var(--brand-primary)', marginTop: '-8px' }}
                   >
-                    {showAdvanced ? 'Gelişmiş seçenekleri gizle' : 'Gelişmiş arama seçenekleri'}
-                    <motion.span animate={{ rotate: showAdvanced ? 180 : 0 }}>
-                      <Settings size={12} />
-                    </motion.span>
+                    <Settings size={13} />
+                    {showAdvanced ? t('search.advancedHide') : t('search.advancedShow')}
                   </button>
 
                   <AnimatePresence>
@@ -580,25 +597,27 @@ function App() {
                         exit={{ height: 0, opacity: 0 }}
                         style={{ overflow: 'hidden' }}
                       >
-                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.25rem', paddingTop: '0.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 'var(--space-4)' }}>
                           <div>
-                            <label style={{ display: 'block', fontWeight: '600', color: 'var(--text-main)', fontSize: 'var(--fs-xs)', marginBottom: '0.5rem' }}>Yazar Adı</label>
+                            <label htmlFor="author-input" className="ui-field-label">{t('search.authorLabel')}</label>
                             <div style={{ position: 'relative' }}>
                               <User style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-400)' }} size={16} />
                               <input
+                                id="author-input"
                                 type="text"
                                 className="input"
                                 style={{ height: '44px', paddingLeft: '40px', fontSize: 'var(--fs-sm)', width: '100%' }}
-                                placeholder="Örn: John Doe"
+                                placeholder={t('search.authorPlaceholder')}
                                 value={authorName}
                                 onChange={(e) => setAuthorName(e.target.value)}
                               />
                             </div>
                           </div>
                           <div>
-                            <label style={{ display: 'block', fontWeight: '600', color: 'var(--text-main)', fontSize: 'var(--fs-xs)', marginBottom: '0.5rem' }}>Maksimum Sonuç</label>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <label htmlFor="count-input" className="ui-field-label">{t('search.maxResults')}</label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '44px' }}>
                               <input
+                                id="count-input"
                                 type="range"
                                 min="10"
                                 max="100"
@@ -607,7 +626,7 @@ function App() {
                                 onChange={(e) => setCount(parseInt(e.target.value))}
                                 style={{ flex: 1, accentColor: 'var(--brand-primary)' }}
                               />
-                              <span style={{ fontSize: 'var(--fs-sm)', fontWeight: '700', color: 'var(--brand-primary)', minWidth: '32px' }}>{count}</span>
+                              <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--brand-primary)', minWidth: '32px', fontVariantNumeric: 'tabular-nums' }}>{count}</span>
                             </div>
                           </div>
                         </div>
@@ -615,51 +634,67 @@ function App() {
                     )}
                   </AnimatePresence>
 
+                  {/* Sıralama tercihi ARAMADAN ÖNCE seçilir; varsayılan "Dengeli".
+                      Sonuçlar geldikten sonra değiştirilirse mevcut sonuçlar
+                      yeniden sıralanır. */}
+                  <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 'var(--space-5)' }}>
+                    <RankingProfiles
+                      apiUrl={defaultApiUrl}
+                      value={customWeights ? null : (data?.ranking?.source === 'custom' ? null : (data?.ranking?.profileId || profileId))}
+                      onChange={handleProfileChange}
+                      disabled={rerankLoading || loading}
+                      warnings={rankingWarnings}
+                    />
+                    <AdvancedWeights
+                      apiUrl={defaultApiUrl}
+                      onApply={handleWeightsApply}
+                      disabled={rerankLoading || loading}
+                      active={Boolean(customWeights)}
+                      hasResults={Boolean(data?.results?.length)}
+                    />
+                  </div>
+
                   <button
                     type="submit"
                     disabled={loading || !canSubmitSearch}
-                    className="btn query-submit-button"
-                    style={{ height: '52px', marginTop: '0.5rem', width: '100%', fontSize: 'var(--fs-md)' }}
+                    className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block"
                   >
-                    {loading ? <Loader2 className="animate-spin" size={20} /> : <Search size={20} />}
-                    {loading ? 'Literatür Taranıyor...' : 'Araştırmayı Başlat'}
+                    {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
+                    {loading ? t('search.submitting') : t('search.submit')}
                   </button>
                 </form>
               )}
             </section>
 
-            {!data && !loading && !aiAnalysis && !error && (
-              <div style={{ display: 'flex', justifyContent: 'center', width: '100%', padding: '0 2rem' }}>
-                <FeatureHighlights theme={landingTheme} />
-              </div>
-            )}
+            {!data && !loading && !aiAnalysis && !error && <FeatureHighlights />}
 
             <AnimatePresence>
               {loading && (
                 <MotionDiv
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="glass-panel"
-                  style={{ padding: '2.5rem', textAlign: 'center', background: 'rgba(255, 255, 255, 0.9)' }}
+                  exit={{ opacity: 0 }}
+                  className="ui-panel"
+                  style={{ padding: 'var(--space-8)', textAlign: 'center' }}
+                  role="status"
                 >
-                  <div style={{ position: 'relative', width: '80px', height: '80px', margin: '0 auto 1.5rem' }}>
+                  <div style={{ position: 'relative', width: '64px', height: '64px', margin: '0 auto var(--space-4)' }}>
                     <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid var(--brand-primary-soft)' }} />
                     <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid transparent', borderTopColor: 'var(--brand-primary)', animation: 'spin 1s linear infinite' }} />
-                    <div style={{ position: 'absolute', inset: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--brand-primary-soft)', borderRadius: '50%' }}>
-                      <Activity size={32} color="var(--brand-primary)" />
+                    <div style={{ position: 'absolute', inset: '9px', display: 'grid', placeItems: 'center', background: 'var(--brand-primary-soft)', borderRadius: '50%' }}>
+                      <Activity size={24} color="var(--brand-primary)" />
                     </div>
                   </div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-main)', marginBottom: '0.75rem' }}>Tarama Sürüyor...</h3>
+                  <h3 style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, margin: '0 0 var(--space-2)' }}>{t('loading.title')}</h3>
                   <AnimatePresence mode="wait">
                     <motion.p
                       key={loadingStep}
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -5 }}
-                      style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', fontWeight: '500', minHeight: '1.5em' }}
+                      style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', fontWeight: 500, minHeight: '1.5em', margin: 0 }}
                     >
-                      {LOADING_MESSAGES[loadingStep]}
+                      {loadingSteps[loadingStep % loadingSteps.length]}
                     </motion.p>
                   </AnimatePresence>
                 </MotionDiv>
@@ -669,51 +704,44 @@ function App() {
             <AnimatePresence>
               {aiAnalysis && !loading && (
                 <MotionDiv
+                  ref={aiPanelRef}
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
-                  className="glass-panel"
-                  style={{ marginBottom: '2rem', padding: isMobile ? '1.25rem' : '1.5rem', borderLeft: '4px solid var(--brand-primary)' }}
+                  className="ui-panel"
+                  style={{ marginBottom: 'var(--space-6)', borderLeft: '4px solid var(--brand-primary)', scrollMarginTop: '16px' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-4)' }}>
                     <Sparkles size={18} color="var(--brand-primary)" />
-                    <h3 style={{ fontSize: 'var(--fs-md)', fontWeight: '700', color: 'var(--text-main)' }}>AI Araştırma Analizi</h3>
+                    <h3 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, margin: 0 }}>{t('ai.title')}</h3>
                   </div>
 
-                  <div style={{ background: 'var(--slate-50)', padding: '1rem', borderRadius: 'var(--radius-sm)', marginBottom: '1.25rem' }}>
-                    <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-main)', lineHeight: 1.6, fontWeight: '500' }}>
-                      <span style={{ color: 'var(--brand-primary)', fontWeight: '700' }}>Hedef:</span> {aiAnalysis.intent}
+                  <div style={{ background: 'var(--slate-50)', padding: 'var(--space-4)', borderRadius: 'var(--radius-sm)', marginBottom: 'var(--space-5)' }}>
+                    <p style={{ margin: 0, fontSize: 'var(--fs-sm)', lineHeight: 1.6, fontWeight: 500 }}>
+                      <span style={{ color: 'var(--brand-primary)', fontWeight: 700 }}>{t('ai.goal')}</span> {aiAnalysis.intent}
                     </p>
                   </div>
 
                   <div>
-                    <h4 style={{ fontSize: 'var(--fs-xs)', fontWeight: '700', color: 'var(--slate-500)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Önerilen Akademik Sorgular</h4>
-                    <div style={{ display: 'grid', gap: '0.625rem' }}>
+                    <h4 className="ui-section-label" style={{ margin: '0 0 var(--space-3)' }}>{t('ai.suggested')}</h4>
+                    <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
                       {aiAnalysis.queries.map((q, i) => (
                         <button
                           key={i}
+                          type="button"
                           onClick={() => {
                             setSelectedAiQuery(q.text);
                             handleSearch(null, q.text);
                           }}
                           className="ai-query-card"
                           style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            textAlign: 'left',
-                            padding: '12px 16px',
-                            background: 'white',
-                            border: '1px solid var(--border-light)',
-                            borderRadius: 'var(--radius-sm)',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            width: '100%',
-                            fontFamily: 'inherit'
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-4)',
+                            textAlign: 'left', padding: '12px 16px', background: 'var(--bg-card)',
+                            border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)',
+                            cursor: 'pointer', width: '100%', fontFamily: 'inherit'
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '1rem' }}>
-                            <span style={{ fontSize: 'var(--fs-sm)', fontWeight: '500', color: 'var(--text-main)', wordBreak: 'break-word', textAlign: 'left' }}>{q.text}</span>
-                            <span className="badge badge-info" style={{ flexShrink: 0 }}>%{q.relevanceScore}</span>
-                          </div>
+                          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-main)', wordBreak: 'break-word' }}>{q.text}</span>
+                          <span className="badge badge-info" style={{ flexShrink: 0 }}>%{q.relevanceScore}</span>
                         </button>
                       ))}
                     </div>
@@ -723,94 +751,78 @@ function App() {
             </AnimatePresence>
 
             {data && (
-              <div style={{ marginTop: '2rem' }}>
+              <div>
                 {/* Sunucu hicbir kaynaga ulasamadiginda yerel ornek veri seti
-                    donuyor (demoMode). Bu bayrak arayuzde hic kullanilmiyordu,
-                    yani kullanici ornek veriyi gercek arama sonucu saniyordu. */}
+                    donuyor (demoMode); kullanici bunu gercek sonuc sanmamali. */}
                 {data.demoMode && (
-                  <div
-                    role="status"
-                    style={{
-                      display: 'flex', alignItems: 'flex-start', gap: '10px',
-                      padding: '12px 16px', marginBottom: '1rem',
-                      background: '#fffbeb', border: '1px solid #fcd34d',
-                      borderRadius: 'var(--radius-md)', color: '#92400e',
-                      fontSize: 'var(--fs-sm)', lineHeight: 1.5
-                    }}
-                  >
-                    <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '1px' }} />
-                    <div>
-                      <strong>Örnek veri gösteriliyor.</strong>{' '}
-                      Hiçbir akademik kaynağa ulaşılamadı (API anahtarı eksik, kota dolu
-                      veya bağlantı sorunu olabilir). Aşağıdaki sonuçlar yerel örnek veri
-                      setinden gelmektedir ve güncel literatürü yansıtmaz.
-                    </div>
+                  <div role="status" className="ui-notice ui-notice--warn" style={{ marginBottom: 'var(--space-4)' }}>
+                    <AlertTriangle size={18} />
+                    <div><strong>{t('results.demoTitle')}</strong> {t('results.demoText')}</div>
                   </div>
                 )}
 
                 <GlobalStats
                   totalFound={data.totalFound}
                   analyzed={data.analyzedCount}
-                  quota={quota}
-                  sourceBreakdown={data.sourceBreakdown}
-                  totalFromAPIs={data.totalFromAPIs}
-                  failedSources={data.failedSources}
                 />
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', marginBottom: '1rem' }}>
-                  <div style={{ fontWeight: '600', color: 'var(--slate-600)', fontSize: 'var(--fs-sm)' }}>
-                    <span style={{ color: 'var(--brand-primary)', fontWeight: '700' }}>{selectedPapers.length}</span> kaynak seçildi
+                <div className="ui-toolbar export-actions">
+                  <div className="ui-toolbar__meta" aria-live="polite">
+                    {rerankLoading ? t('results.updating') : (
+                      <>
+                        <strong>{t('results.count', { n: data.results.length })}</strong>
+                        {data.relevance?.dropped > 0 && <> · {t('results.dropped', { n: data.relevance.dropped })}</>}
+                      </>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={handleSelectAll} style={{ padding: '4px 10px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 'var(--fs-xs)', fontWeight: '600', color: 'var(--slate-600)' }}>
-                      Tümünü seç
-                    </button>
-                    <button onClick={handleClearSelection} style={{ padding: '4px 10px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 'var(--fs-xs)', fontWeight: '600', color: 'var(--slate-600)' }}>
-                      Temizle
-                    </button>
-                  </div>
-                </div>
-
-                <div className="export-actions" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', fontWeight: '500' }}>
-                      {data.results.length} makale listeleniyor
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div className="ui-toolbar__group">
                     {!isShared && (
-                      <button onClick={() => handleShare({ data, mainTopic, aiAnalysis, authorName, keywords, count })} disabled={shareLoading} className="btn" style={{ background: 'var(--brand-primary)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
-                        {shareLoading ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
-                        {shareLoading ? 'Link hazırlanıyor...' : 'Araştırmayı Paylaş'}
+                      <button type="button" className="ui-btn ui-btn--outline" onClick={openWriter} title={t('results.writerTitle')}>
+                        <PenLine size={14} /> {t('results.writer')}
                       </button>
                     )}
-                    <button onClick={() => exportPDF(mainTopic)} className="btn-secondary" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
-                      <Download size={14} /> PDF
-                    </button>
-                    <button onClick={() => exportExcel(data, mainTopic)} className="btn-secondary" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
-                      <Download size={14} /> CSV
-                    </button>
-                    <button onClick={() => exportDocx(data, mainTopic)} className="btn-secondary" style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', fontWeight: '500', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
-                      <Download size={14} /> DOCX
-                    </button>
+                    <ExportMenu
+                      onPdf={() => exportPDF(mainTopic)}
+                      onCsv={() => exportExcel(data, mainTopic)}
+                      onDocx={() => exportDocx(data, mainTopic)}
+                    />
+                    {!isShared && (
+                      <button
+                        type="button"
+                        className="ui-btn ui-btn--primary"
+                        onClick={() => handleShare({ data, mainTopic, aiAnalysis, authorName, keywords, count })}
+                        disabled={shareLoading}
+                      >
+                        {shareLoading ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+                        {shareLoading ? t('results.sharing') : t('results.share')}
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                <div id="results-container" style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
+                {data.relevance?.level === 'partial' && (
+                  <div role="status" className="ui-notice ui-notice--warn" style={{ marginBottom: 'var(--space-3)' }}>
+                    <AlertTriangle size={16} />
+                    <div>{t('results.partial')}</div>
+                  </div>
+                )}
+
+                <div id="results-container" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--space-3)' }}>
                   {data.results.map((item, idx) => {
                     const isFavorited = isPaperFavorited(item);
-                    const isSelected = selectedPapers.some(p => (p.doi && p.doi === item.doi) || (p.url && p.url === item.url) || p.title === item.title);
+                    const inBasket = basket.has(item);
                     return (
                       <ResultCard
                         key={item.doi || item.url || item.title || idx}
                         item={item}
                         rank={idx + 1}
-                        collections={collections}
-                        onSaveToCollection={handleSaveToCollection}
+                        appliedWeights={data.methodology?.appliedWeights}
+                        oaEnabled={Boolean(data.features?.unpaywall)}
+                        onFindPdf={findFreePdf}
                         onFavorite={handleFavorite}
                         isFavorited={isFavorited}
-                        isSelected={isSelected}
-                        onToggleSelect={() => handleTogglePaper(item)}
+                        isSelected={inBasket}
+                        onToggleSelect={(el) => handleToggleBasket(item, el)}
                       />
                     );
                   })}
@@ -819,61 +831,52 @@ function App() {
             )}
 
             {error && (
-              <MotionDiv initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '1rem 1.25rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius-md)', marginTop: '1.5rem' }}>
-                <AlertCircle size={18} color="#dc2626" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <MotionDiv initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} role="alert" className="ui-notice ui-notice--error" style={{ marginTop: 'var(--space-6)' }}>
+                <AlertCircle size={18} />
                 <div>
-                  <p style={{ margin: '0 0 2px 0', color: '#991b1b', fontWeight: '600', fontSize: 'var(--fs-sm)' }}>Arama tamamlanamadı</p>
-                  <p style={{ margin: 0, color: '#b91c1c', fontWeight: '500', fontSize: 'var(--fs-sm)' }}>{error}</p>
+                  <strong style={{ display: 'block', marginBottom: '2px' }}>{t('search.failedTitle')}</strong>
+                  {error}
                 </div>
               </MotionDiv>
             )}
 
           </div>
         </main>
+
+        {/* Seçim çubuğu: yalnızca seçim varken. Önceki "0 kaynak seçildi"
+            çubuğu hiç seçim yokken de görünüyordu; yüzen "Yazar Modu" düğmesi
+            ise kartların yer imi/yıldız düğmelerini örtüyordu. */}
+        {/* Yazar modu: sağ kenarda, sayaçlı. "Makalene ekle" ile seçilen
+            makaleler buraya uçar; tıklayınca yazar paneli sağdan açılır.
+            Alt çubuk kaldırıldı: üret düğmesi orada zor bulunuyordu. */}
+        <AnimatePresence>
+          {(data || basket.papers.length > 0) && !showWriterPanel && (
+            <motion.button
+              key="writer-dock"
+              type="button"
+              className="ui-writer-dock"
+              data-basket-target="primary"
+              onClick={openWriter}
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 40 }}
+              title={t('writerDock.title')}
+              aria-label={t('writerDock.aria', { n: basket.papers.length })}
+            >
+              <PenLine size={18} />
+              <span className="ui-writer-dock__label">{t('writerDock.label')}</span>
+              <span className="ui-writer-dock__count">{basket.papers.length}<small>/{basket.limit}</small></span>
+            </motion.button>
+          )}
+        </AnimatePresence>
+        <Toasts toasts={toasts} onDismiss={dismissToast} />
       </AuthedOnly>
 
-      {/* Writer Panel Float Button */}
-      <AnimatePresence>
-        {data?.results?.length > 0 && (
-          <motion.button
-            key="writer-float"
-            initial={{ opacity: 0, y: 20, scale: 0.9 }}
-            animate={{
-              opacity: writerSize === 'full' && showWriterPanel ? 0 : 1,
-              y: 0, scale: 1,
-              right: showWriterPanel ? (writerSize === 'default' ? 440 : (writerSize === 'half' ? 'calc(50vw + 20px)' : 0)) : 32,
-            }}
-            exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            transition={{ type: 'spring', damping: 22, stiffness: 280 }}
-            className="writer-float-btn"
-            onClick={() => {
-              setShowWriterPanel(prev => !prev);
-            }}
-            title={showWriterPanel ? 'Yazar Modunu Kapat' : 'Atıflı akademik metin üret'}
-          >
-            <PenLine size={16} />
-            {showWriterPanel ? 'Kapat' : 'Yazar Modu'}
-            {!showWriterPanel && (
-              <span style={{
-                background: 'rgba(255,255,255,0.25)',
-                borderRadius: '999px',
-                padding: '1px 8px',
-                fontSize: '0.72rem',
-                fontWeight: 800,
-              }}>
-                {selectedPapers.length}
-              </span>
-            )}
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      {/* Writer Panel Sidebar */}
       <AnimatePresence>
         {showWriterPanel && (
           <WriterPanel
             key="writer-panel"
-            papers={selectedPapers}
+            papers={basket.papers}
             apiUrl={defaultApiUrl}
             getToken={getToken}
             onClose={() => setShowWriterPanel(false)}

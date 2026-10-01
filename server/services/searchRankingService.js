@@ -58,10 +58,16 @@ function mergeDuplicateResult(existing, incoming) {
   }
 
   // Eksik kalan tanımlayıcıları tamamla (varsa üzerine yazma).
-  for (const field of ['doi', 'url', 'publicationName', 'authors', 'pubType']) {
+  for (const field of ['doi', 'url', 'publicationName', 'authors', 'pubType', 'pmid', 'pmcid']) {
     if (!existing[field] && incoming[field]) {
       existing[field] = incoming[field];
     }
+  }
+
+  // Alana gore normalize atif yalnizca OpenAlex'te var; OpenAlex kopyasi
+  // listede ikinci gelse de deger kaybolmamali.
+  for (const field of ['citationPercentile', 'topCitedPercent', 'fwci']) {
+    if (existing[field] == null && incoming[field] != null) existing[field] = incoming[field];
   }
 
   // Dergi sıralaması yalnızca bazı kaynaklarda çözülebiliyor.
@@ -70,6 +76,18 @@ function mergeDuplicateResult(existing, incoming) {
   if (!existing.sourceType && incoming.sourceType) existing.sourceType = incoming.sourceType;
 
   if (!existing.openAccess && incoming.openAccess) existing.openAccess = incoming.openAccess;
+
+  // DOAJ: herhangi bir kaynak "listede" diyorsa listede. "Listede degil"
+  // yalnizca bilinmeyenin yerine gecer, "listede"nin ustune yazamaz.
+  if (incoming.isInDoaj === true) existing.isInDoaj = true;
+  else if (existing.isInDoaj == null && incoming.isInDoaj === false) existing.isInDoaj = false;
+  if (!existing.issnL && incoming.issnL) existing.issnL = incoming.issnL;
+
+  // Geri cekme: en agir durum kazanir. Bir kaynak "geri cekildi" diyorsa
+  // digerinin sessiz kalmasi bunu iptal etmez.
+  const severity = { retracted: 3, concern: 2, none: 1, unknown: 0 };
+  const rank = (r) => severity[r?.status] ?? -1;
+  if (rank(incoming.retraction) > rank(existing.retraction)) existing.retraction = incoming.retraction;
 
   return existing;
 }
@@ -146,6 +164,11 @@ export function normalizeSearchResult(result) {
       result.pubType || result.type || result.subtypeDescription || result.publicationTypes
     ) || SOURCE_DEFAULT_PUB_TYPE[result.source] || null,
     openAccess: resolveOpenAccess(result),
+    // DOAJ'dan gelen kayit tanimi geregi DOAJ dergisindedir. Diger kaynaklar
+    // bilmiyorsa null: "listede degil" ile "bilmiyoruz" ayri seyler.
+    isInDoaj: typeof result.isInDoaj === 'boolean'
+      ? result.isInDoaj
+      : (result.source === 'DOAJ' ? true : null),
     sourceList: [result.source || 'Unknown']
   };
   return enrichPaperRanking(normalized);
@@ -214,10 +237,62 @@ export function toTokenSet(text) {
   return new Set(
     String(text || '')
       .toLowerCase()
+      // NFKD 'ü'yu 'u' + birlesik isarete ayiriyor; isaret harf sayilmadigi
+      // icin onceki surum "nükleer"i "nu" + "kleer" diye BOLUYORDU. Isaretleri
+      // silmek kelimeyi butun tutar: "nükleer" -> "nukleer".
       .normalize('NFKD')
+      .replace(/\p{M}/gu, '')
       .split(/[^\p{L}\p{N}]+/u)
       .filter((token) => token.length > 2)
   );
+}
+
+/**
+ * Anlam tasimayan Ingilizce baglac/edatlar. Alan terimleri ("analysis",
+ * "model") BILEREK listede yok: bir konunun parcasi olabilirler.
+ */
+export const STOPWORDS = new Set([
+  'the', 'and', 'for', 'with', 'from', 'into', 'using', 'via', 'its', 'are', 'was', 'were',
+  'this', 'that', 'their', 'than', 'between', 'within', 'over', 'under', 'about', 'based', 'not',
+]);
+
+/** n sorgu kelimesinden en az kacinin makalede gecmesi gerekir. */
+export function requiredMatches(n) {
+  if (n <= 1) return n;
+  return Math.max(2, Math.ceil(n / 2));
+}
+
+/**
+ * Alaka esigi: sorgu kelimelerinin yeterince azi baslik+ozette gecmeyen
+ * makaleler elenir.
+ *
+ * NEDEN: "En cok atif alanlar" profilinde canlida konu disi bir makale 2.
+ * siraya cikti ("Global Linear Instability", 733 atif, akiskanlar dinamigi;
+ * sorgu "nuclear reactor safety"). Kullanici karari: konu disi sonuc istenmiyor,
+ * sayi yerine isabet. Eski filtre (sKey >= 0.15 || sSim >= 0.20) 5'ten az
+ * makale gecerse TUM filtreyi kaldiriyordu, yani tam da az sonuclu aramalarda
+ * konu disi sonuclari iceri aliyordu.
+ *
+ * Tam eslesen hic yoksa sayfa bos kalmasin diye en az bir kelimesi gecenler
+ * gosterilir ve `level: 'partial'` olarak isaretlenir; hic kelimesi gecmeyen
+ * hicbir zaman gosterilmez.
+ *
+ * @returns {{items: Array, level: 'full'|'partial'|'none', dropped: number}}
+ */
+export function relevanceGate(items) {
+  const list = items || [];
+  const measurable = list.filter((i) => typeof i.queryTokenCount === 'number');
+  if (measurable.length !== list.length || list.length === 0) {
+    return { items: list, level: 'none', dropped: 0 };
+  }
+  // Sorgunun AND yapisi biliniyorsa (search.js clausesSatisfied) o kullanilir;
+  // bilinmiyorsa toplam kelime sayisi kurali.
+  const full = list.filter((i) => (typeof i.clausesSatisfied === 'boolean'
+    ? i.clausesSatisfied
+    : i.queryMatched >= requiredMatches(i.queryTokenCount)));
+  if (full.length > 0) return { items: full, level: 'full', dropped: list.length - full.length };
+  const partial = list.filter((i) => i.queryMatched > 0);
+  return { items: partial, level: 'partial', dropped: list.length - partial.length };
 }
 
 export function calculateRelevanceScore(result, userQuery, expandedQueries = []) {

@@ -45,10 +45,20 @@ function logDateNormalization(sourceName, dateMetadata) {
   console.log(`[DATE] ${sourceName} → ${sourceField} → ${selectedYear ?? 'null'} (${dateMetadata.yearConfidence})`);
 }
 
-export async function searchOpenAlex(queryContext, params, booleanQuery) {
+export async function searchOpenAlex(queryContext, params, booleanQuery, options = {}) {
   const ctx = String(queryContext ?? '');
   const { mainTopic, authorName, keywords, count } = params;
-  const apiKey = process.env.OPENALEX_API_KEY;
+
+  // Ucretsiz OpenAlex anahtari (openalex.org hesabindan). Tanimliysa gonderilir.
+  //
+  // Onceki surum bu degiskeni okuyup HIC gondermiyordu. Olculen (30 Eyl 2026):
+  //  - Anahtarsiz istek normalde 200 donuyor, AMA arama kumesi yuk altindayken
+  //    anonim arama 429 ile kesiliyor ("Anonymous search is temporarily
+  //    rate-limited ... use a free API key for uninterrupted access").
+  //  - GECERSIZ bir api_key ise 401 donuyor ve kaynagi tamamen dusuruyor.
+  // Bu yuzden anahtar gonderiliyor ama dogrulanmadan eklenmemeli:
+  // `npm run verify-keys` gecersiz anahtari ANAHTAR GECERSIZ olarak gosterir.
+  const apiKey = process.env.OPENALEX_API_KEY?.trim();
 
   // Eğer strict booleanQuery (AND'li) gönderilmişse onu kullan, yoksa düz ctx
   const searchQuery = booleanQuery || ctx || (mainTopic ? mainTopic : '');
@@ -62,9 +72,13 @@ export async function searchOpenAlex(queryContext, params, booleanQuery) {
   if (searchQuery) {
     urlParams.set('search', searchQuery);
   }
+  // Ornek: 'language:tr' (Turkce kaynaklar icin ek arama)
+  if (options.filter) urlParams.set('filter', options.filter);
 
   const mailto = process.env.OPENALEX_MAIL || process.env.CONTACT_EMAIL || 'ahmet@literatureai.com';
   if (mailto) urlParams.set('mailto', mailto);
+  // Loglarda maskUrlSecret() bu parametreyi *** ile gizliyor.
+  if (apiKey) urlParams.set('api_key', apiKey);
 
   const url = `https://api.openalex.org/works?${urlParams.toString()}`;
 
@@ -120,11 +134,25 @@ export async function searchOpenAlex(queryContext, params, booleanQuery) {
         Object.assign(normalized, dateMetadata);
         normalized.year = dateMetadata.publicationYear ?? null;
         normalized.citedBy = item.cited_by_count || 0;
+        // Alana ve yila gore normalize atif (OpenAlex hesapliyor, ek istek yok).
+        // citation_normalized_percentile.value: ayni alan + yildaki eserlerin
+        // yuzde kacindan fazla atif aldigi (0-1). fwci: alan ortalamasina oran.
+        const pct = item.citation_normalized_percentile;
+        normalized.citationPercentile = typeof pct?.value === 'number' ? pct.value : null;
+        normalized.topCitedPercent = pct?.is_in_top_1_percent ? 1 : (pct?.is_in_top_10_percent ? 10 : null);
+        normalized.fwci = typeof item.fwci === 'number' ? item.fwci : null;
         normalized.url = openAlexLinkUrl(item);
         normalized.source = 'OpenAlex';
         // AHP kalite ve acik erisim kriterleri icin ham alanlar.
         normalized.type = item.type || null;
         normalized.openAccess = Boolean(item.open_access?.is_oa);
+
+        // Dergi DOAJ'da listeli mi. OpenAlex kaynak nesnesi bunu dogrudan
+        // tasiyor; DOAJ'a ayri istek gerekmiyor. Capraz dogrulandi (30 Eyl
+        // 2026): OpenAlex true -> DOAJ ISSN aramasi total=1; false -> total=0.
+        const venue = item.primary_location?.source;
+        normalized.issnL = venue?.issn_l || null;
+        normalized.isInDoaj = typeof venue?.is_in_doaj === 'boolean' ? venue.is_in_doaj : null;
 
         // Keyword count (AHP için)
         let keyCount = 0;

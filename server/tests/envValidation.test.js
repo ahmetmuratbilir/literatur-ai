@@ -107,6 +107,8 @@ test('tam gecerli ortam hata uretmez', () => {
     SCOPUS_API_KEY: 'gercek-scopus',
     CORE_API_KEY: 'gercek-core',
     SEMANTIC_SCHOLAR_API_KEY: 'gercek-s2',
+    OPENALEX_API_KEY: 'gercek-openalex',
+    UNPAYWALL_EMAIL: 'arastirma@universite.edu.tr',
     OPENALEX_MAIL: 'arastirma@universite.edu.tr',
   });
 

@@ -13,6 +13,30 @@
 import dns from 'node:dns/promises';
 import { getGroqModel, getGeminiModel, getDeepseekModel, getProviderOrder, DEEPSEEK_BASE_URL } from '../config/aiModels.js';
 import net from 'node:net';
+import { probeAcademicSources } from './sourceCanary.js';
+
+/**
+ * Tanimli ama etkisiz kalan ortam degiskenlerini bildirir.
+ *
+ * Gecmiste OPENALEX_API_KEY bu durumdaydi: kodda okunuyor, istege hic
+ * eklenmiyordu. Artik gonderiliyor ve gecerliligi canary yoklamasinda
+ * olculuyor (gecersiz anahtar -> 401 -> ANAHTAR GECERSIZ), bu yuzden burada
+ * degil orada denetlenir.
+ *
+ * KURAL: degeri okumaz, yalnizca varligini bildirir.
+ */
+export function findDeadEnvVars(env = process.env) {
+  const warnings = [];
+
+  if (env.SCOPUS_ENABLED === 'true' && !(env.SCOPUS_API_KEY || env.ELSEVIER_API_KEY)) {
+    warnings.push({
+      name: 'SCOPUS_ENABLED',
+      detail: 'true ama anahtar tanimli degil — her aramada kimlik hatasi uretir',
+    });
+  }
+
+  return warnings;
+}
 
 const DEFAULT_TIMEOUT_MS = 12000;
 
@@ -208,77 +232,65 @@ export async function probeAllServices(env = process.env) {
   // --- MongoDB ---
   rows.push(await probeMongo(env.MONGODB_URI));
 
-  // --- Scopus ---
-  const scopusKey = env.SCOPUS_API_KEY || env.ELSEVIER_API_KEY;
-  if (scopusKey) {
-    const headers = { Accept: 'application/json', 'X-ELS-APIKey': scopusKey };
-    const instToken = env.SCOPUS_INSTTOKEN || env.ELSEVIER_INSTTOKEN;
-    if (instToken) headers['X-ELS-Insttoken'] = instToken;
-    const result = await request(
-      'https://api.elsevier.com/content/search/scopus?query=TITLE(nuclear)&count=1',
-      { headers }
-    );
-    const { state, detail } = classify(result);
-    rows.push(row('Scopus', false, state, `${detail} — insttoken: ${instToken ? 'var' : 'yok'}`, result.ms));
+  // --- Akademik kaynaklar: URETIM fonksiyonlari uzerinden ---
+  //
+  // Burada bilerek elle URL yazilmiyor. Onceki surum her kaynak icin ayri bir
+  // URL kuruyordu ve OpenCitations'ta o URL uretimdekinden farkliydi: panel
+  // calisan bicimi (oneksiz), uretim ise 400 veren bicimi (doi: onekli)
+  // cagiriyordu. Panel bir ay boyunca yesil kaldi.
+  //
+  // Ayrica bu yol "HTTP 200 ama 0 sonuc" durumunu gorebiliyor (zero_results);
+  // eski classify() her 200'u saglikli sayiyordu ve DOAJ'in sessiz sifiri
+  // tam olarak oradan kacti.
+  const scopusEnabled = env.SCOPUS_ENABLED === 'true';
+  if (scopusEnabled) {
+    const scopusKey = env.SCOPUS_API_KEY || env.ELSEVIER_API_KEY;
+    if (scopusKey) {
+      const headers = { Accept: 'application/json', 'X-ELS-APIKey': scopusKey };
+      const instToken = env.SCOPUS_INSTTOKEN || env.ELSEVIER_INSTTOKEN;
+      if (instToken) headers['X-ELS-Insttoken'] = instToken;
+      const result = await request(
+        'https://api.elsevier.com/content/search/scopus?query=TITLE(nuclear)&count=1',
+        { headers }
+      );
+      const { state, detail } = classify(result);
+      rows.push(row('Scopus', false, state, `${detail} — insttoken: ${instToken ? 'var' : 'yok'}`, result.ms));
+    } else {
+      rows.push(row('Scopus', false, 'missing', 'SCOPUS_ENABLED=true ama SCOPUS_API_KEY yok'));
+    }
   } else {
-    rows.push(row('Scopus', false, 'missing', 'SCOPUS_API_KEY yok'));
+    rows.push(row('Scopus', false, 'skipped', 'SCOPUS_ENABLED=false — arama akisinda degil'));
   }
 
-  // --- CORE ---
-  if (env.CORE_API_KEY) {
-    const result = await request('https://api.core.ac.uk/v3/search/works/?q=nuclear&limit=1', {
-      headers: { Authorization: `Bearer ${env.CORE_API_KEY}` },
-    });
-    const { state, detail } = classify(result);
-    rows.push(row('CORE', false, state, detail, result.ms));
-  } else {
-    rows.push(row('CORE', false, 'missing', 'CORE_API_KEY yok'));
+  for (const probe of await probeAcademicSources()) {
+    let detail = probe.detail;
+    if (probe.service === 'Semantic Scholar') {
+      const mode = env.SEMANTIC_SCHOLAR_API_KEY ? 'anahtarli' : 'anahtarsiz (ortak havuz)';
+      detail = `${mode} — ${detail}`;
+    }
+    if (probe.service === 'OpenAlex') {
+      const mail = env.OPENALEX_MAIL || env.CONTACT_EMAIL;
+      detail = `${detail} — polite-pool: ${mail ? 'aktif' : 'pasif'}`;
+    }
+    rows.push(row(probe.service, false, probe.state, detail, probe.ms));
   }
 
-  // --- Semantic Scholar (anahtarsız da çalışır) ---
-  {
-    const headers = env.SEMANTIC_SCHOLAR_API_KEY
-      ? { 'x-api-key': env.SEMANTIC_SCHOLAR_API_KEY }
-      : {};
-    const result = await request(
-      'https://api.semanticscholar.org/graph/v1/paper/search?query=nuclear&limit=1&fields=title',
-      { headers }
-    );
-    const { state, detail } = classify(result);
-    const mode = env.SEMANTIC_SCHOLAR_API_KEY ? 'anahtarlı' : 'anahtarsız (ortak havuz)';
-    rows.push(row('Semantic Scholar', false, state, `${mode} — ${detail}`, result.ms));
+  // --- Olu ve eksik ortam degiskenleri ---
+  //
+  // OPENALEX_API_KEY tam tersi durumdaydi: kodda okunuyor, isteğe hic
+  // eklenmiyordu. Iki yon de kontrol edilir.
+  for (const warning of findDeadEnvVars(env)) {
+    rows.push(row(warning.name, false, 'unused', warning.detail));
   }
 
-  // --- OpenAlex ---
-  {
-    const mail = env.OPENALEX_MAIL || env.CONTACT_EMAIL;
-    const params = new URLSearchParams({ 'per-page': '1', search: 'nuclear' });
-    if (mail) params.set('mailto', mail);
-    const result = await request(`https://api.openalex.org/works?${params}`, {
-      headers: { 'User-Agent': `LiteratureAI/1.0 (mailto:${mail || 'n-a'})` },
-    });
-    const { state, detail } = classify(result);
-    rows.push(row('OpenAlex', false, state, `${detail} — polite-pool: ${mail ? 'aktif' : 'pasif'}`, result.ms));
-  }
-
-  // --- Anahtar gerektirmeyenler ---
-  const keyless = [
-    ['Crossref', 'https://api.crossref.org/works?query=nuclear&rows=1'],
-    ['arXiv', 'http://export.arxiv.org/api/query?search_query=all:nuclear&max_results=1'],
-    ['DOAJ', 'https://doaj.org/api/search/articles/nuclear?pageSize=1'],
-    ['OpenCitations', 'https://opencitations.net/index/coci/api/v1/citation-count/10.1038/nature12373'],
-  ];
-  for (const [service, url] of keyless) {
-    const result = await request(url, { headers: { 'User-Agent': 'LiteratureAI/1.0' } });
-    const { state, detail } = classify(result);
-    rows.push(row(service, false, state, detail, result.ms));
-  }
-
+  // 'skipped' bilerek kapatilmis demektir; ariza sayilmaz.
+  const isFailing = (r) => r.state !== 'ok' && r.state !== 'skipped' && r.state !== 'unused';
   const summary = {
     total: rows.length,
     ok: rows.filter((r) => r.state === 'ok').length,
-    failing: rows.filter((r) => r.state !== 'ok').length,
-    requiredFailing: rows.filter((r) => r.required && r.state !== 'ok').length,
+    failing: rows.filter(isFailing).length,
+    zeroResults: rows.filter((r) => r.state === 'zero_results').length,
+    requiredFailing: rows.filter((r) => r.required && isFailing(r)).length,
   };
 
   return { checkedAt: new Date().toISOString(), rows, summary };

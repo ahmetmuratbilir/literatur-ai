@@ -149,6 +149,12 @@ ${sourceText}`;
   }
 }
 
+/**
+ * Sonuc listesinin Turkce cevirisi. Kullanici karari (30 Eyl 2026): YALNIZCA
+ * BASLIKLAR cevrilir, ozetler Ingilizce kalir. Onceki surum ilk 10 makalenin
+ * ozetini de ceviriyordu; bu hem LLM ciktisini ~4 kat buyutuyor hem de listeyi
+ * yarisi Turkce yarisi Ingilizce birakiyordu.
+ */
 export async function batchTranslateAcademic(items) {
   if (!items || !items.length) return items;
 
@@ -159,8 +165,7 @@ export async function batchTranslateAcademic(items) {
   const apiKey = null;
 
   const attempts = [
-    { includeTeasers: true, taskLabel: 'batch translation' },
-    { includeTeasers: false, taskLabel: 'title-only translation fallback' },
+    { includeTeasers: false, taskLabel: 'title translation' },
   ];
 
   for (const attemptConfig of attempts) {

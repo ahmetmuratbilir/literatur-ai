@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { normalizePublicationDate } from '../utils/dateNormalization.js';
 
 /**
  * DOAJ (Directory of Open Access Journals) API Service
@@ -43,14 +44,22 @@ export const searchDOAJ = async (query, count = 10) => {
       const links = bib.link || [];
       const fullTextLink = links.find(l => l.type === 'fulltext')?.url || (links[0] ? links[0].url : '');
 
-      const yearNum = parseInt(bib.year, 10) || 2024;
+      // Yil yoksa UYDURMA: onceki surum `|| 2024` yaziyordu. Yayin tarihi
+      // bibjson.year/month'tan normalize ediliyor (diger adaptorlerle ayni yol).
+      const month = bib.month ? String(bib.month).padStart(2, '0') : null;
+      const dateMetadata = normalizePublicationDate({
+        publication_date: bib.year ? (month ? `${bib.year}-${month}` : String(bib.year)) : null,
+        created_date: item.created_date,
+        last_updated: item.last_updated,
+      }, 'DOAJ');
       return {
         id: `doaj-${item.id}`,
         title: bib.title || 'Untitled Paper',
         creator: authors,
         authors: authors,
         publicationName: bib.journal ? bib.journal.title : 'DOAJ Indexed Journal',
-        year: yearNum,
+        ...dateMetadata,
+        year: dateMetadata.publicationYear ?? null,
         doi: doi,
         url: fullTextLink || (doi ? `https://doi.org/${doi}` : ''),
         citedBy: 0,

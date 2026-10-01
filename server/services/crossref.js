@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { normalizePublicationDate } from '../utils/dateNormalization.js';
+import { parseRetraction } from './retraction.js';
 
 /**
  * Crossref API Service
@@ -28,7 +29,7 @@ export const searchCrossref = async (query, count = 10) => {
       params: {
         query: query,
         rows: count,
-        select: 'DOI,title,author,published,published-print,published-online,issued,created,deposited,indexed,container-title,abstract,type,is-referenced-by-count',
+        select: 'DOI,title,author,published,published-print,published-online,issued,created,deposited,indexed,container-title,abstract,type,is-referenced-by-count,updated-by',
         sort: 'relevance'
       },
       headers: {
@@ -70,6 +71,9 @@ export const searchCrossref = async (query, count = 10) => {
         source: 'Crossref',
         // AHP kalite kriteri icin ham yayin tipi (select'te zaten isteniyordu).
         type: item.type || null,
+        // Geri cekme bilgisi ayni yanitta geliyor; bu kayitlar icin
+        // retraction.js ikinci bir istek atmaz.
+        retraction: parseRetraction(item),
         keyCount: 0
       };
     });

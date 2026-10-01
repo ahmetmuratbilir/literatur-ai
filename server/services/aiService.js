@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import { WriterCache } from '../models/WriterCache.js';
 import { buildWriterSystemPrompt } from './writerPrompt.js';
 import { logAiUsage } from '../utils/aiUsage.js';
+import { formatReference, enrichPapersWithCsl } from './bibliography.js';
 
 const REFERENCE_HEADING_RE = /^#{1,3}\s*(kullan(?:ilan|[ıi]lan|\?lan) kaynaklar|kaynak(?:ca|[çc]a|\?a)|references|bibliography)\s*$/im;
 
@@ -84,10 +85,15 @@ function formatBibliographyEntry(paper, index, bibliographyFormat) {
 export function buildBibliographySection(safePapers, bibliographyFormat) {
   const papers = getBibliographyPapers(safePapers);
   if (papers.length === 0) return '';
+  // Citation.js + resmi CSL stili (services/bibliography.js); bicimlenemezse
+  // eski el yapimi satira dusulur.
   const entries = papers.map((paper, index) =>
-    formatBibliographyEntry(paper, index + 1, bibliographyFormat)
+    formatReference(paper, bibliographyFormat) || formatBibliographyEntry(paper, index + 1, bibliographyFormat)
   );
-  return `## Kaynakça\n\n${entries.join('\n')}`;
+  // IEEE metin ici numara sirasinda; APA, MLA ve Chicago yazar soyadina gore
+  // alfabetik.
+  if (bibliographyFormat !== 'IEEE') entries.sort((a, b) => a.localeCompare(b, 'tr'));
+  return `## Kaynakça\n\n${entries.join('\n\n')}`;
 }
 
 function getMissingBibliographyAppendix(text, safePapers, bibliographyFormat) {
@@ -131,6 +137,10 @@ export async function generateAcademicText(safePapers, prompt, outputType, tone,
   const buildRequestHash = (fingerprint) =>
     crypto.createHash('sha256').update(JSON.stringify(fingerprint)).digest('hex');
   const promptText = prompt.trim();
+
+  // Kaynakca icin DOI'li makalelerin tam kunyesi (doi.org, en fazla ~3,5 sn,
+  // bellekte onbellekli). Basarisiz olursa makale kendi alanlariyla bicimlenir.
+  await enrichPapersWithCsl(safePapers);
 
   // Response Cache Kontrolü
   const stablePaperIds = safePapers

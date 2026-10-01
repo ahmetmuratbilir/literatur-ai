@@ -35,19 +35,33 @@ export function isThrottled(error) {
   return status === 406 || status === 429 || status === 503;
 }
 
-export const searchArXiv = async (query, count = 10) => {
+/**
+ * @param {string} query
+ * @param {number} count
+ * @param {{fielded?: boolean}} [options]
+ *   `fielded: true` ise sorgu ZATEN alan onekli gelmistir (or. `all:"nuclear
+ *   reactor safety"`) ve oldugu gibi gonderilir. Aksi halde geriye uyum icin
+ *   `all:` onu eklenir.
+ *
+ *   Bu ayrim onemli: services/sourceQuery.js artik arXiv icin tirnakli,
+ *   yalnizca Ingilizce bir ifade uretiyor. Onu ikinci kez `all:` ile sarmak
+ *   sorguyu bozar. Olculen: `all:"nuclear reactor safety"` havuzu 9'a
+ *   indiriyor, kelime torbasi 150.856 veriyordu.
+ */
+export const searchArXiv = async (query, count = 10, options = {}) => {
   if (!query || !String(query).trim()) {
     return { results: [], totalFound: 0 };
   }
+  const searchQuery = options.fielded ? String(query) : `all:${query}`;
   try {
-    console.log(`[ArXiv] İstek: q="${String(query).slice(0, 80)}" max=${count}`);
+    console.log(`[ArXiv] İstek: q="${searchQuery.slice(0, 80)}" max=${count}`);
 
     let response;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         response = await axios.get('https://export.arxiv.org/api/query', {
           params: {
-            search_query: `all:${query}`,
+            search_query: searchQuery,
             start: 0,
             max_results: count,
             sortBy: 'relevance',

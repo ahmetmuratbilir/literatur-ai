@@ -14,9 +14,18 @@ import Collection from './models/Collection.js';
 import SharedSearch from './models/SharedSearch.js';
 import crypto from 'crypto';
 import Analysis from './models/Analysis.js';
+import Basket, { BASKET_LIMIT } from './models/Basket.js';
+import { planBasketAdd, collectLegacyPapers } from './services/basketService.js';
 import { getWriterFlags } from './config/writerFlags.js';
 import { validateEnvironment, formatEnvReport } from './config/envValidation.js';
 import { probeAllServices } from './services/keyHealthService.js';
+import { getZeroStreaks } from './services/sourceZeroTracker.js';
+import { resolveRankingWeights, parseWeightsParam, listProfiles } from './services/ahpProfiles.js';
+import { rankFromPool } from './services/rankingPipeline.js';
+import { getWeightingMethodology } from './services/ahp.js';
+import { ratingsToWeights, evaluateComparisons } from './services/ahpPairwise.js';
+import { findOpenAccessCopy, isUnpaywallConfigured } from './services/unpaywall.js';
+import { getLang, msg } from './services/serverI18n.js';
 import { runRevisionCoach } from './services/revisionCoachService.js';
 import { createRequestId, runWriterPipeline } from './services/writerPipeline.js';
 import { logger } from './utils/logger.js';
@@ -25,7 +34,8 @@ import {
   buildSearchCacheFingerprint,
   getSearchCacheConfig,
   getSharedSearchCache,
-  saveSharedSearchCache
+  saveSharedSearchCache,
+  updateSearchCacheTranslations
 } from './utils/searchCacheStore.js';
 
 // Üretimde test kimliği asla kabul edilmez: aksi halde ALLOW_E2E_TEST_AUTH'u
@@ -189,7 +199,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const MAX_SEARCH_COUNT = 100;
 const MAX_PAPERS_PER_COLLECTION = 50;
-const USER_TOTAL_RESEARCH_LIMIT = 50;
+// Kütüphane: favori + geçmiş toplamı. Dolunca en eski geçmiş silinir, favori silinmez.
+const USER_TOTAL_RESEARCH_LIMIT = 20;
 const FAVORITES_COLLECTION_NAME = 'Favoriler';
 
 // --- Security & Middleware ---
@@ -445,7 +456,10 @@ app.post('/api/admin/verify-keys', ADMIN_PROBE_RATE_LIMITER, requireAdmin, async
       failingCount: report.summary.failing,
     });
 
-    return res.json({ requestId, ...report });
+    // Canary tek bir anlik yoklama; zeroStreaks ise GERCEK kullanici
+    // aramalarinda ust uste bos donen kaynaklar. Ikisi farkli seyler olcer:
+    // canary yesilken bile belirli sorgu kaliplari sifir donebilir.
+    return res.json({ requestId, ...report, zeroStreaks: getZeroStreaks() });
   } catch (error) {
     logger.error({
       requestId,
@@ -567,6 +581,52 @@ const requireWriterSubscription = async (req, res, next) => {
 };
 
 
+/**
+ * Siralama profilleri: agirliklar dahil, seffaflik icin. Statik veri,
+ * kimlik dogrulama gerektirmez.
+ */
+/**
+ * Gelismis mod: kaydirici veya ikili yargilardan agirlik uretir. Saf hesap,
+ * dis istek yok. Donen `weights` istemci tarafindan /api/search'e `weights`
+ * parametresi olarak gonderilir; dogrulama orada tekrar yapilir.
+ */
+/**
+ * Unpaywall: DOI icin yasal ucretsiz kopya. Arama sirasinda degil, kullanici
+ * "Ucretsiz PDF" dugmesine bastiginda cagrilir (tek DOI = tek istek).
+ * PDF barindirilmaz; yalnizca link ve surum bilgisi doner.
+ */
+app.get('/api/oa', searchLimiter, async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
+
+  const r = await findOpenAccessCopy(req.query.doi);
+  const lang = getLang(req);
+  if (r.status === 'ok') return res.json({ found: r.result.isOa && Boolean(r.result.pdfUrl || r.result.landingUrl), ...r.result });
+  if (r.status === 'not_found') return res.json({ found: false });
+  if (r.status === 'not_configured') return res.status(503).json({ error: msg(lang, 'oa.notConfigured'), configured: false });
+  if (r.status === 'quota') return res.status(429).json({ error: msg(lang, 'oa.quota') });
+  const invalid = r.message === 'Geçerli bir DOI değil.';
+  return res.status(invalid ? 400 : 502).json({ error: invalid ? msg(lang, 'oa.invalidDoi') : msg(lang, 'oa.failed') });
+});
+
+app.post('/api/ranking/evaluate', (req, res) => {
+  const body = req.body || {};
+  const lang = getLang(req);
+  if (body.mode === 'ratings') {
+    return res.json({ ok: true, ...ratingsToWeights(body.ratings, lang) });
+  }
+  if (body.mode === 'pairwise') {
+    // Eksik yanit serbest (Harker, 1987); yanitlar kriterleri baglamali.
+    const result = evaluateComparisons(body.judgments, { allowedValues: body.allowedValues, lang });
+    return res.status(result.ok ? 200 : 400).json(result);
+  }
+  return res.status(400).json({ ok: false, error: msg(lang, 'pairwise.badMode') });
+});
+
+app.get('/api/ranking/profiles', (req, res) => {
+  res.json({ profiles: listProfiles(getLang(req)), methodology: getWeightingMethodology() });
+});
+
 app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
@@ -586,6 +646,24 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
 
     const requestedLimit = Number.isFinite(Number.parseInt(count, 10)) ? Number.parseInt(count, 10) : 25;
     const limit = Math.min(MAX_SEARCH_COUNT, Math.max(10, requestedLimit));
+    // Siralama agirliklari. Bilerek onbellek anahtarina GIRMIYOR: onbellek AHP
+    // oncesi havuzu tutuyor ve siralama her istekte bu agirliklarla uretiliyor.
+    const weightsParam = parseWeightsParam(req.query.weights);
+    const lang = getLang(req);
+    const ranking = resolveRankingWeights({ profileId: req.query.profileId, weights: weightsParam, lang });
+    if (req.query.weights && !weightsParam) {
+      ranking.warnings.push(msg(lang, 'warnings.badWeightsParam'));
+    }
+    // Turkce ceviri istege bagli (varsayilan Ingilizce). Onbellek anahtarina
+    // girmiyor: ceviri havuzun degil sunumun parcasi.
+    const translateEnabled = req.query.translate === 'tr';
+    const rankingInfo = {
+      profileId: ranking.profileId,
+      source: ranking.source,
+      weights: ranking.weights,
+      warnings: ranking.warnings,
+    };
+
     const cacheFingerprint = buildSearchCacheFingerprint({
       mainTopic,
       authorName,
@@ -608,7 +686,35 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
         const cachedResultCount = Array.isArray(cachedResult.results) ? cachedResult.results.length : 0;
         if (cachedResultCount > 0) {
           console.log(`[SearchCache] Mongo hit: ${cacheFingerprint.displayQuery || cacheFingerprint.cacheKey} (${cachedResultCount} sonuç)`);
-          return res.json(cachedResult);
+          const { _cache, ...cachedPublic } = cachedResult;
+          const pool = _cache?.pool;
+          if (Array.isArray(pool) && pool.length > 0) {
+            // Onbellekteki siralamayi DEGIL havuzu kullan: siralama bu
+            // kullanicinin agirliklariyla yeniden uretilir.
+            const reranked = await rankFromPool(pool, {
+              weights: ranking.weights,
+              displayCount: limit,
+              translations: _cache.translations || {},
+              translateEnabled,
+            });
+            if (reranked.translatedCount > 0) {
+              updateSearchCacheTranslations(cacheFingerprint, reranked.translations)
+                .catch((e) => console.warn('[SearchCache] Ceviri kaydedilemedi:', e.message));
+            }
+            return res.json({
+              ...cachedPublic,
+              results: reranked.results,
+              ranking: rankingInfo,
+              translation: { enabled: translateEnabled },
+              features: { unpaywall: isUnpaywallConfigured() },
+              methodology: getWeightingMethodology(ranking.weights),
+            });
+          }
+          // Havuzsuz eski kayit: yalnizca varsayilan agirlikla servis edilebilir.
+          if (ranking.source === 'default') {
+            return res.json({ ...cachedPublic, ranking: rankingInfo, features: { unpaywall: isUnpaywallConfigured() } });
+          }
+          console.log('[SearchCache] Eski kayitta havuz yok ve ozel agirlik istendi; canli aramaya geciliyor.');
         } else {
           console.log(`[SearchCache] Mongo hit AMA sonuç boş, cache bypass ediliyor...`);
         }
@@ -619,13 +725,20 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
     const booleanQueryParts = [];
     let queryContextWords = []; // AHP kelime sayacı için saf kelimeler
 
+    // Yapılandırılmış sorgu planı: her ifadenin özgün hali ve çevirisi ayrı
+    // tutulur. services/sourceQuery.js bundan kaynak başına sorgu üretiyor —
+    // tek dizeyi yedi farklı sorgu diline göndermek DOAJ'ın sessiz sıfırının
+    // ve arXiv'in gürültüsünün ortak sebebiydi.
+    const phrases = [];
+
     if (req.query.aiQuery) {
       // Convert single quotes to double quotes for Scopus/Academic engines
       let aiQuery = req.query.aiQuery.replace(/'/g, '"');
 
       // AI prompt İngilizce sorgu üretmesi için zorlanıyor ama her zaman doğrulayalım:
       // ASCII-Türkçe (yapay zeka, elektrikli arac vb.) veya tam Türkçe karakterler olabilir.
-      // Operatörler ("OR", "AND", parantezler, tırnaklar) Google Translate'i çoğunlukla bozmaz;
+      // Çeviri DeepSeek ile (utils/translation.js → translateToEnglish); prompt boolean
+      // operatörleri korumasını istiyor. Operatörler ("OR", "AND", parantezler, tırnaklar) çoğunlukla bozulmaz;
       // yine de çevirinin orijinalden anlamlı şekilde farklı olduğu durumda çeviriyi kullanırız.
       try {
         const translatedAi = await translateToEnglish(aiQuery);
@@ -644,12 +757,16 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
 
       queryParts.push(`TITLE-ABS-KEY(${aiQuery})`);
       booleanQueryParts.push(`(${aiQuery})`);
+      // aiQuery İngilizce bir BOOLEAN sorgu ("..." OR "...") AND ...; düz ifade
+      // gibi tırnaklanırsa kaynaklar 0 döndürür (M0 regresyonu, ölçüldü).
+      phrases.push({ original: aiQuery, translated: null, boolean: true });
     } else if (mainTopic) {
       // Clean and sanitize main topic
       const cleanTopic = mainTopic.trim().replace(/'/g, '"');
       queryContextWords.push(cleanTopic);
       let topicQuery = `title("${cleanTopic}") OR key("${cleanTopic}") OR abs("${cleanTopic}")`;
 
+      let topicTranslated = null;
       try {
         const translated = await translateToEnglish(cleanTopic);
         let topicBoolean = `"${cleanTopic}"`;
@@ -659,6 +776,7 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
           translated.text.toLowerCase() !== String(cleanTopic).toLowerCase()
         ) {
           const transText = translated.text.replace(/'/g, '"');
+          topicTranslated = transText;
           topicQuery += ` OR title("${transText}") OR key("${transText}") OR abs("${transText}")`;
           topicBoolean += ` OR "${transText}"`;
           queryContextWords.push(transText);
@@ -667,6 +785,7 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
       } catch (error) {
         console.error('Translate error:', error);
       }
+      phrases.push({ original: cleanTopic, translated: topicTranslated });
 
       queryParts.push(`(${topicQuery})`);
     }
@@ -683,6 +802,7 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
         // abs() ile abstract da aranıyor; key() ile resmi keyword alanı
         let keywordQuery = `key(${keyword}) OR abs(${keyword})`;
         let keywordBoolean = `"${keyword}"`;
+        let keywordTranslated = null;
 
         try {
           const translated = await translateToEnglish(keyword);
@@ -691,6 +811,7 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
             translated?.text &&
             translated.text.toLowerCase() !== String(keyword).toLowerCase()
           ) {
+            keywordTranslated = translated.text;
             keywordQuery += ` OR key(${translated.text}) OR abs(${translated.text})`;
             keywordBoolean += ` OR "${translated.text}"`;
             queryContextWords.push(translated.text);
@@ -701,6 +822,7 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
 
         keywordQueries.push(`(${keywordQuery})`);
         booleanQueryParts.push(`(${keywordBoolean})`);
+        phrases.push({ original: keyword, translated: keywordTranslated });
       }
 
       // AND: tüm keywordler eşleşmeli → hassas arama
@@ -719,13 +841,14 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
 
     const queryContext = queryContextWords.join(' ');
     const booleanQuery = booleanQueryParts.join(' AND ');
+    const queryPlan = { phrases, terms: queryContextWords, authorName: authorName || null };
 
     console.log(`Received search request. Final Scopus Query: ${finalQuery}, limit: ${limit}`);
     console.log(`Boolean Query for CORE/OpenAlex: ${booleanQuery}`);
 
     // Yeni yapıya parametreleri gönderiyoruz
     const params = { mainTopic, authorName, keywords: keywordList, count: limit };
-    const results = await searchAll(params, queryContext, finalQuery, booleanQuery);
+    const results = await searchAll(params, queryContext, finalQuery, booleanQuery, queryPlan, ranking.weights, { translate: translateEnabled });
     let cacheSave = { saved: false };
     try {
       // Sadece dolu sonuçları cache'e kaydet
@@ -742,8 +865,11 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
       console.warn('[SearchCache] Save skipped:', cacheError.message);
     }
 
+    const { _cache: _omitCache, ...publicResults } = results;
     return res.json({
-      ...results,
+      ...publicResults,
+      ranking: rankingInfo,
+      features: { unpaywall: isUnpaywallConfigured() },
       isCached: false,
       cache: {
         hit: false,
@@ -970,8 +1096,9 @@ app.get('/api/collections', async (req, res) => {
 
   try {
     if (!requireDb(res)) return;
-    let collections = await Collection.find({ userId }).sort({ createdAt: -1 });
-    
+    // Özel koleksiyonlar kaynak sepetine dönüştü; listede yalnızca Favoriler kalıyor.
+    let collections = await Collection.find({ userId, name: FAVORITES_COLLECTION_NAME });
+
     if (collections.length === 0) {
       try {
         const defaultColl = new Collection({ userId, name: FAVORITES_COLLECTION_NAME, papers: [] });
@@ -979,7 +1106,7 @@ app.get('/api/collections', async (req, res) => {
         collections = [defaultColl];
       } catch (error) {
         if (error.code !== 11000) throw error;
-        collections = await Collection.find({ userId }).sort({ createdAt: -1 });
+        collections = await Collection.find({ userId, name: FAVORITES_COLLECTION_NAME });
       }
     }
     return res.json(collections);
@@ -998,6 +1125,9 @@ app.post('/api/collections', async (req, res) => {
   try {
     const { name } = req.body || {};
     if (!name) return res.status(400).json({ error: 'Missing data' });
+    if (String(name).trim() !== FAVORITES_COLLECTION_NAME) {
+      return res.status(410).json({ error: 'Koleksiyonlar kaldırıldı; kaynak sepetini kullanın.', code: 'COLLECTIONS_REMOVED' });
+    }
 
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({ error: 'DB not connected' });
@@ -1204,6 +1334,117 @@ app.delete('/api/collections/:id', async (req, res) => {
   }
 });
 
+// --- Kaynak sepeti API ---
+// Kullanıcının aramalar arasında topladığı makaleler (en fazla BASKET_LIMIT).
+// Yazar modu ve kaynakça dışa aktarımı bu listeyle çalışır.
+
+const BASKET_ERRORS = {
+  invalid: [400, 'Makale verisi eksik'],
+  duplicate: [409, 'Bu makale zaten sepette'],
+  full: [400, `Sepet dolu (en fazla ${BASKET_LIMIT} makale). Önce bir makale çıkarın.`]
+};
+
+const sendBasket = (res, basket, status = 200) =>
+  res.status(status).json({ papers: basket?.papers || [], limit: BASKET_LIMIT });
+
+// Sepeti getirir; ilk çağrıda eski koleksiyonlardaki makaleleri bir kez aktarır.
+// Eski koleksiyon belgeleri silinmez.
+const loadBasket = async (userId) => {
+  let basket = await Basket.findOne({ userId });
+  if (basket?.migratedCollections) return basket;
+
+  const legacy = await Collection.find({ userId, name: { $ne: FAVORITES_COLLECTION_NAME } })
+    .select({ papers: 1 })
+    .lean();
+  const legacyPapers = collectLegacyPapers(legacy);
+
+  if (!basket) {
+    try {
+      basket = await Basket.create({ userId, papers: legacyPapers, migratedCollections: true });
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+      basket = await Basket.findOne({ userId });
+    }
+    return basket;
+  }
+
+  basket.migratedCollections = true;
+  await basket.save();
+  return basket;
+};
+
+app.get('/api/basket', async (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) return;
+  try {
+    if (!requireDb(res)) return;
+    return sendBasket(res, await loadBasket(userId));
+  } catch (error) {
+    console.error('Basket fetch error:', error);
+    return res.status(500).json({ error: 'Sepet yüklenemedi' });
+  }
+});
+
+app.post('/api/basket', async (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) return;
+  try {
+    if (!requireDb(res)) return;
+    const basket = await loadBasket(userId);
+    const plan = planBasketAdd(basket.papers, req.body?.paper);
+    if (!plan.ok) {
+      const [status, error] = BASKET_ERRORS[plan.reason];
+      return res.status(status).json({ error, code: plan.reason.toUpperCase() });
+    }
+    // Koşullu atomik ekleme: iki sekmeden aynı anda eklemek sınırı aşmasın.
+    const updated = await Basket.findOneAndUpdate(
+      { userId, [`papers.${BASKET_LIMIT - 1}`]: { $exists: false } },
+      { $push: { papers: plan.paper } },
+      { new: true }
+    );
+    if (!updated) {
+      const [status, error] = BASKET_ERRORS.full;
+      return res.status(status).json({ error, code: 'FULL' });
+    }
+    return sendBasket(res, updated, 201);
+  } catch (error) {
+    console.error('Basket add error:', error);
+    return res.status(500).json({ error: 'Makale sepete eklenemedi' });
+  }
+});
+
+app.delete('/api/basket/papers/:paperId', async (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) return;
+  try {
+    if (!requireDb(res)) return;
+    const { paperId } = req.params;
+    if (!isValidId(paperId)) return res.status(400).json({ error: 'Geçersiz id' });
+    const updated = await Basket.findOneAndUpdate(
+      { userId },
+      { $pull: { papers: { _id: paperId } } },
+      { new: true }
+    );
+    return sendBasket(res, updated);
+  } catch (error) {
+    console.error('Basket remove error:', error);
+    return res.status(500).json({ error: 'Makale sepetten çıkarılamadı' });
+  }
+});
+
+app.delete('/api/basket', async (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) return;
+  try {
+    if (!requireDb(res)) return;
+    const updated = await Basket.findOneAndUpdate({ userId }, { $set: { papers: [] } }, { new: true });
+    return sendBasket(res, updated);
+  } catch (error) {
+    console.error('Basket clear error:', error);
+    return res.status(500).json({ error: 'Sepet boşaltılamadı' });
+  }
+});
+
 // --- Analyses API ---
 
 app.get('/api/analyses', async (req, res) => {
@@ -1225,7 +1466,7 @@ app.get('/api/analyses', async (req, res) => {
   }
 });
 
-const MAX_ANALYSES_PER_USER = 100;
+const MAX_ANALYSES_PER_USER = 20;
 
 app.post('/api/analyses', async (req, res) => {
   const authUserId = getRequestUserId(req, res);
@@ -1322,8 +1563,8 @@ app.post('/api/writer/generate', WRITER_RATE_LIMITER, requireWriterSubscription,
   if (!Array.isArray(papers) || papers.length === 0) {
     return res.status(400).json({ error: 'En az bir makale seçilmelidir.' });
   }
-  if (papers.length > 20) {
-    return res.status(400).json({ error: 'En fazla 20 makale seçilebilir.' });
+  if (papers.length > BASKET_LIMIT) {
+    return res.status(400).json({ error: `En fazla ${BASKET_LIMIT} makale seçilebilir.` });
   }
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length < 10) {
     return res.status(400).json({ error: 'Yönlendirme metni en az 10 karakter olmalıdır.' });
@@ -1337,7 +1578,7 @@ app.post('/api/writer/generate', WRITER_RATE_LIMITER, requireWriterSubscription,
   res.setHeader('X-Request-Id', requestId);
   res.flushHeaders();
 
-  const safePapers = papers.slice(0, 20).map((p, i) => ({
+  const safePapers = papers.slice(0, BASKET_LIMIT).map((p, i) => ({
     ref: i + 1,
     id: String(p.id || p.doi || p.url || p.title || p.titleTR || `paper-${i + 1}`).slice(0, 300),
     title: String(p.title || p.titleTR || 'Başlıksız').slice(0, 200),

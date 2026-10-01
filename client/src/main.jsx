@@ -6,6 +6,7 @@ import DevModeBanner from './components/DevModeBanner.jsx'
 import { CLERK_ENABLED } from './auth/clerkBridge.js'
 
 import { ClerkProvider } from '@clerk/clerk-react';
+import I18nProvider from './i18n/I18nProvider.jsx';
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -50,16 +51,20 @@ if (!CLERK_ENABLED) {
   );
   root.render(
     <StrictMode>
-      <DevModeBanner />
-      <App />
+      <I18nProvider>
+        <DevModeBanner />
+        <App />
+      </I18nProvider>
     </StrictMode>,
   );
 } else {
   root.render(
     <StrictMode>
-      <ClerkProvider publishableKey={PUBLISHABLE_KEY} appearance={clerkAppearance}>
-        <App />
-      </ClerkProvider>
+      <I18nProvider>
+        <ClerkProvider publishableKey={PUBLISHABLE_KEY} appearance={clerkAppearance}>
+          <App />
+        </ClerkProvider>
+      </I18nProvider>
     </StrictMode>,
   );
 }

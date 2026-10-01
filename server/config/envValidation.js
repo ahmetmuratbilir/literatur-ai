@@ -77,6 +77,17 @@ const VARIABLES = [
     purpose: 'Semantic Scholar kota artırımı',
   },
   {
+    name: 'OPENALEX_API_KEY',
+    required: false,
+    purpose: 'OpenAlex ucretsiz anahtari — yuk altinda anonim arama 429 ile kesiliyor',
+  },
+  {
+    name: 'UNPAYWALL_EMAIL',
+    alternatives: ['CONTACT_EMAIL'],
+    required: false,
+    purpose: 'Unpaywall ücretsiz PDF linki (gerçek e-posta şart)',
+  },
+  {
     name: 'OPENALEX_MAIL',
     alternatives: ['CONTACT_EMAIL'],
     required: false,

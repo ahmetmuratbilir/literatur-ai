@@ -27,8 +27,14 @@ export const searchSemanticScholar = async (query, count = 10) => {
     const apiKey = process.env.SEMANTIC_SCHOLAR_API_KEY;
     console.log(`[S2] İstek: q="${String(query).slice(0, 80)}" limit=${count} apiKey=${apiKey ? 'var' : 'yok'}`);
 
-    const headers = {};
-    if (apiKey) headers['x-api-key'] = apiKey;
+    // Anahtar reddedilirse onu BIRAKIP anahtarsiz devam ediyoruz.
+    //
+    // Olculen (30 Eyl 2026): yapilandirilmis anahtarla her uc 403 donuyor;
+    // ayni uc ANAHTARSIZ 200 donuyor; kasitli bozuk bir anahtar da birebir
+    // ayni 403'u veriyor. Yani reddedilen bir anahtar tasimak, hic anahtar
+    // tasimamaktan kotudur: kaynak tamamen dusuyordu. Ortak havuz 429'a
+    // acik ama en azindan bazen sonuc donduruyor.
+    let useKey = Boolean(apiKey);
 
     const MAX_RETRIES = 3;
     const BASE_DELAY_MS = 1000;
@@ -42,21 +48,30 @@ export const searchSemanticScholar = async (query, count = 10) => {
             limit: Math.min(count, 100),
             fields: 'title,authors,year,publicationDate,url,abstract,citationCount,venue,externalIds,publicationTypes,isOpenAccess'
           },
-          headers,
+          headers: useKey ? { 'x-api-key': apiKey } : {},
           timeout: 10000
         });
         break; // Başarılıysa döngüden çık
       } catch (err) {
-        const is429 = err.response?.status === 429;
+        const status = err.response?.status;
         const isLast = attempt === MAX_RETRIES;
 
-        if (is429 && !isLast) {
+        // 401/403 = anahtar reddedildi. Yeniden denemek anlamsiz; anahtari
+        // birakip ayni istegi tekrarlamak anlamli.
+        if ((status === 401 || status === 403) && useKey) {
+          console.warn(`[S2] Anahtar reddedildi (HTTP ${status}). Anahtarsiz tekrar deneniyor.`);
+          useKey = false;
+          continue;
+        }
+
+        if (status === 429 && !isLast) {
           const waitMs = BASE_DELAY_MS * Math.pow(2, attempt - 1); // 1s, 2s, 4s
           console.warn(`[S2] 429 Rate limit (${attempt}/${MAX_RETRIES}). ${waitMs}ms bekleniyor...`);
           await sleep(waitMs);
-        } else {
-          throw err; // 429 değilse veya son denemeyse fırlat
+          continue;
         }
+
+        throw err;
       }
     }
 

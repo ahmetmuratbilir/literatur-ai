@@ -1,4 +1,4 @@
-﻿/* ===========================================
+/* ===========================================
    LiteratureAI — Main CSS Entry Point
    Tum stiller modullere bolunmustur.
    =========================================== */
@@ -10,3 +10,4 @@
 @import './styles/landing.css';
 @import './styles/sidebar.css';
 @import './styles/writer.css';
+@import './styles/ui.css';

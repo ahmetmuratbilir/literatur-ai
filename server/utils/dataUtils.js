@@ -221,6 +221,10 @@ const PUB_TYPE_ALIASES = {
   // Makale
   'fla': 'fla', 'article': 'fla', 'journal-article': 'fla', 'journalarticle': 'fla',
   'research-article': 'fla', 'article in press': 'fla',
+  // PubMed / Europe PMC standart turleri. Eksikken her dergi makalesi kalite
+  // kriterinde 0 aliyordu (eksik bilgi ilkesi).
+  'journal article': 'fla', 'clinical trial': 'fla', 'randomized controlled trial': 'fla',
+  'systematic review': 'rev', 'meta-analysis': 'rev', 'case reports': 'sco',
   // Derleme
   'rev': 'rev', 'review': 'rev', 'reviewarticle': 'rev', 'review-article': 'rev',
   // Kitap bölümü

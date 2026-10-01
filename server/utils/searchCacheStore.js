@@ -7,7 +7,12 @@ const DEFAULT_TTL_DAYS = 30;
 const DEFAULT_MAX_BYTES = 512 * 1024 * 1024;
 const DEFAULT_MAX_RESULTS = 100;
 const DEFAULT_MAX_DOC_BYTES = 12 * 1024 * 1024;
-const SEARCH_CACHE_VERSION = 'v5-scopus-fallback';
+// v6: onbellek artik AHP ONCESI havuzu (`_cache.pool`) tutuyor; siralama her
+// istekte kullanicinin agirliklariyla uretiliyor. Surum ayrica M0/M1
+// duzeltmelerinden once uretilmis kayitlari (DOAJ sessiz sifir, OpenCitations
+// hep 400, geri cekme kontrolu yok) gecersiz kiliyor; aksi halde 30 gunluk TTL
+// boyunca bu duzeltmeler onbellekten gelen aramalarda gorunmezdi.
+const SEARCH_CACHE_VERSION = 'v6-pool-rerank';
 
 const toPositiveInt = (value, fallback) => {
   const parsed = Number.parseInt(value, 10);
@@ -173,6 +178,23 @@ export const pruneSearchCache = async () => {
   if (deleteIds.length) {
     await SearchCache.deleteMany({ _id: { $in: deleteIds } });
   }
+};
+
+/**
+ * Onbellek isabetinde sonradan uretilen cevirileri kayda ekler.
+ *
+ * Ceviri artik istege bagli: aramayi kim ilk yaptiysa muhtemelen cevirisiz
+ * kaydedildi. Sonra "Turkceye cevir" diyen her kullanici icin ayni LLM
+ * cagrisini tekrarlamamak icin ceviriler kayda yazilir. Yalnizca ceviri
+ * haritasi guncellenir; havuz ve siralama dokunulmaz.
+ */
+export const updateSearchCacheTranslations = async ({ cacheKey }, translations) => {
+  if (!isDbReady() || !translations || Object.keys(translations).length === 0) return { saved: false };
+  await SearchCache.updateOne(
+    { $or: [{ cacheKey }, { query: cacheKey }] },
+    { $set: { 'data._cache.translations': translations } }
+  );
+  return { saved: true };
 };
 
 export const saveSharedSearchCache = async (fingerprint, data) => {

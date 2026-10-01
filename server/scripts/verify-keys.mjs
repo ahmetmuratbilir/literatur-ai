@@ -48,7 +48,15 @@ const LABELS = {
   missing: 'TANIMSIZ',
   model_missing: 'MODEL YOK',
   error: 'HATA',
+  // Anahtar geçerli, istek başarılı, sonuç boş. Bu üçü birbirine karıştığı
+  // için DOAJ bir ay boyunca sessizce 0 döndürdü ve panel yeşil kaldı.
+  zero_results: 'SONUÇ YOK',
+  skipped: 'KAPALI',
+  unused: 'KULLANILMIYOR',
 };
+
+// 'skipped' bilerek kapatılmış, 'unused' bir uyarı — ikisi de arıza değil.
+const NOT_A_FAILURE = new Set(['ok', 'skipped', 'unused']);
 
 const env = loadEnvFile(ENV_PATH);
 
@@ -66,11 +74,19 @@ console.log('='.repeat(104));
 console.log(pad('SERVİS', 20) + pad('SONUÇ', 20) + 'DETAY');
 console.log('='.repeat(104));
 for (const r of rows) {
-  const marker = r.required && r.state !== 'ok' ? '! ' : '  ';
+  const failing = !NOT_A_FAILURE.has(r.state);
+  const marker = r.required && failing ? '! ' : failing ? '· ' : '  ';
   console.log(marker + pad(r.service, 18) + pad(LABELS[r.state] || r.state, 20) + r.detail);
 }
 console.log('='.repeat(104));
 console.log(`\n${summary.total} kontrol · ${summary.ok} sağlıklı · ${summary.failing} sorunlu`);
+
+if (summary.zeroResults > 0) {
+  console.log(
+    `\n! ${summary.zeroResults} kaynak istek başarılı olduğu hâlde beklenen sonucu döndürmedi.` +
+    `\n  Bu bir anahtar hatası DEĞİL: sorgu sözdizimi veya endpoint sözleşmesi bozulmuş olabilir.`
+  );
+}
 
 if (summary.requiredFailing > 0) {
   console.log(`\n! ${summary.requiredFailing} ZORUNLU servis çalışmıyor. Uygulama bu haliyle eksik çalışır.`);
