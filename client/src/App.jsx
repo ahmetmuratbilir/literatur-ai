@@ -17,7 +17,11 @@ import {
   CheckCircle2,
   Share2,
   PenLine,
-  BarChart2
+  BarChart2,
+  ChevronDown,
+  GraduationCap,
+  ExternalLink,
+  ListChecks
 } from 'lucide-react';
 import { AuthedOnly, AnonOnly, useAppAuth } from './auth/clerkBridge.js';
 import { useAdmin } from './hooks/useAdmin';
@@ -41,6 +45,8 @@ import { useCollections } from './hooks/useCollections';
 import { useBasket } from './hooks/useBasket';
 import { flyToBasket } from './utils/flyToBasket';
 import Toasts from './components/Toasts';
+import WriterDock from './components/WriterDock';
+import CitationChecker from './components/CitationChecker';
 import { useShare } from './hooks/useShare';
 import { useExport } from './hooks/useExport';
 
@@ -70,23 +76,22 @@ const FeatureHighlights = () => {
   );
 };
 
-// Arama kaynakları (sunucunun failedSources adları -> gösterilen ad)
-const SEARCH_SOURCE_NAMES = {
-  OpenAlex: 'OpenAlex',
-  Crossref: 'Crossref',
-  SemanticScholar: 'Semantic Scholar',
-  EuropePMC: 'Europe PMC',
-  DOAJ: 'DOAJ',
-  ArXiv: 'arXiv',
-  CORE: 'CORE',
-};
+const PAGE_SIZE = 25;
+const RESULT_LIMIT = 100;
 
 function App() {
   const { t } = useI18n();
   const [mainTopic, setMainTopic] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [keywords, setKeywords] = useState([]);
-  const [count, setCount] = useState(25);
+  // Sunucu siraladigi tum adaylari (en fazla 100) dondurur; kaynaklardan
+  // cekilen miktar bundan bagimsiz (server SOURCE_FETCH_COUNT). Ekranda 25'er
+  // acilir; "Daha fazla goster" yeni arama yapmaz.
+  const count = RESULT_LIMIT;
+  const [visible, setVisible] = useState({ data: null, n: PAGE_SIZE });
+  const [moreLoading, setMoreLoading] = useState(false);
+  // Ana ekran: literatür arama ya da kaynakça doğrulama
+  const [mode, setMode] = useState('search');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -230,19 +235,6 @@ function App() {
     return () => clearTimeout(timer);
   }, [aiAnalysis]);
 
-  // Arama bitince kaynak durumu: yeşil "listelendi", yanıt vermeyen varsa sarı.
-  const announceSources = useCallback((result) => {
-    const failed = [...new Set((result?.failedSources || [])
-      .map((f) => SEARCH_SOURCE_NAMES[typeof f === 'string' ? f : (f?.name || f?.source)])
-      .filter(Boolean))];
-    const total = Object.keys(SEARCH_SOURCE_NAMES).length;
-    const ok = total - failed.length;
-    const n = Array.isArray(result?.results) ? result.results.length : 0;
-    pushToast({ tone: 'success', title: t('sources.listed', { n }), text: t('sources.answered', { ok, total }) });
-    if (failed.length > 0) {
-      pushToast({ tone: 'warn', title: t('sources.unavailable', { names: failed.join(', ') }), duration: 8000 });
-    }
-  }, [pushToast, t]);
 
   const handleAiSuggest = async () => {
     if (!mainTopic.trim()) {
@@ -369,7 +361,6 @@ function App() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setData(response.data);
-      announceSources(response.data);
       setLastSearchParams({
         mainTopic: trimmedTopic,
         authorName: trimmedAuthor,
@@ -406,6 +397,45 @@ function App() {
   };
 
   const openWriter = () => setShowWriterPanel(true);
+
+  // Gosterilen sonuc sayisi bu `data` icin; yeni arama ya da yeniden siralama 25'e doner.
+  const shownCount = visible.data === data ? visible.n : PAGE_SIZE;
+
+  const showMore = async () => {
+    if (!data?.results) return;
+    const next = Math.min(shownCount + PAGE_SIZE, data.results.length);
+    const page = data.results.slice(shownCount, next);
+    setVisible({ data, n: next });
+    // Arama yalnizca ilk 25'i kontrol ediyor; acilan sayfayi simdi kontrol et.
+    const dois = page.filter((r) => r.doi && !r.retraction).map((r) => r.doi);
+    if (dois.length === 0) return;
+    setMoreLoading(true);
+    try {
+      const token = await getToken();
+      const res = await axios.post(`${defaultApiUrl}/api/retractions`, { dois }, { headers: { Authorization: `Bearer ${token}` } });
+      const found = res.data?.results || {};
+      const norm = (d) => String(d || '').trim().toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, '');
+      const updated = { ...data, results: data.results.map((r) => (found[norm(r.doi)] && !r.retraction ? { ...r, retraction: found[norm(r.doi)] } : r)) };
+      setData(updated);
+      setVisible({ data: updated, n: next });
+    } catch (err) {
+      console.warn('Retraction check failed', err);
+    } finally {
+      setMoreLoading(false);
+    }
+  };
+
+  // YOK Tez programla sorgu kabul etmiyor (formu kendi betigiyle tamamliyor);
+  // sorguyu panoya kopyalayip arama sayfasini yeni sekmede aciyoruz.
+  const openYokTez = async () => {
+    const query = (lastSearchParams?.mainTopic || mainTopic || '').trim();
+    let copied = false;
+    if (query) {
+      try { await navigator.clipboard.writeText(query); copied = true; } catch { /* izin yok */ }
+    }
+    window.open('https://tez.yok.gov.tr/UlusalTezMerkezi/tarama.jsp', '_blank', 'noopener');
+    pushToast({ tone: 'success', title: t('yok.opened'), text: copied ? t('yok.copied', { q: query }) : t('yok.typeIt') });
+  };
   const rankingWarnings = [...(data?.ranking?.warnings || []), ...(inconsistentRanking ? [t('results.inconsistentNote')] : [])];
 
   // Yalnızca geliştirmede: Clerk kapalıyken tanıtım sayfası hiç görünmediği
@@ -519,6 +549,25 @@ function App() {
               </header>
             )}
 
+            {!isShared && (
+              <div className="ui-modes" role="tablist" aria-label={t('modes.label')}>
+                <button type="button" role="tab" aria-selected={mode === 'search'} className="ui-modes__tab" onClick={() => setMode('search')}>
+                  <Search size={15} /> {t('modes.search')}
+                </button>
+                <button type="button" role="tab" aria-selected={mode === 'verify'} className="ui-modes__tab" onClick={() => setMode('verify')}>
+                  <ListChecks size={15} /> {t('modes.verify')}
+                </button>
+              </div>
+            )}
+
+            {mode === 'verify' && !isShared ? (
+              <CitationChecker
+                apiUrl={defaultApiUrl}
+                getToken={getToken}
+                basket={basket}
+                onAdd={handleToggleBasket}
+              />
+            ) : (<>
             <section className="ui-panel query-panel" style={{ marginBottom: 'var(--space-6)' }}>
               {isShared ? (
                 <div style={{ textAlign: 'center', padding: '0.5rem' }}>
@@ -611,22 +660,6 @@ function App() {
                                 value={authorName}
                                 onChange={(e) => setAuthorName(e.target.value)}
                               />
-                            </div>
-                          </div>
-                          <div>
-                            <label htmlFor="count-input" className="ui-field-label">{t('search.maxResults')}</label>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '44px' }}>
-                              <input
-                                id="count-input"
-                                type="range"
-                                min="10"
-                                max="100"
-                                step="5"
-                                value={count}
-                                onChange={(e) => setCount(parseInt(e.target.value))}
-                                style={{ flex: 1, accentColor: 'var(--brand-primary)' }}
-                              />
-                              <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--brand-primary)', minWidth: '32px', fontVariantNumeric: 'tabular-nums' }}>{count}</span>
                             </div>
                           </div>
                         </div>
@@ -770,7 +803,7 @@ function App() {
                   <div className="ui-toolbar__meta" aria-live="polite">
                     {rerankLoading ? t('results.updating') : (
                       <>
-                        <strong>{t('results.count', { n: data.results.length })}</strong>
+                        <strong>{t('results.shown', { n: Math.min(shownCount, data.results.length), total: data.results.length })}</strong>
                         {data.relevance?.dropped > 0 && <> · {t('results.dropped', { n: data.relevance.dropped })}</>}
                       </>
                     )}
@@ -808,7 +841,7 @@ function App() {
                 )}
 
                 <div id="results-container" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--space-3)' }}>
-                  {data.results.map((item, idx) => {
+                  {data.results.slice(0, shownCount).map((item, idx) => {
                     const isFavorited = isPaperFavorited(item);
                     const inBasket = basket.has(item);
                     return (
@@ -827,6 +860,28 @@ function App() {
                     );
                   })}
                 </div>
+
+                {shownCount < data.results.length && (
+                  <div style={{ display: 'flex', justifyContent: 'center', marginTop: 'var(--space-5)' }}>
+                    <button type="button" className="ui-btn ui-btn--outline" onClick={showMore} disabled={moreLoading}>
+                      {moreLoading ? <Loader2 size={14} className="animate-spin" /> : <ChevronDown size={14} />}
+                      {t('results.showMore', { n: Math.min(PAGE_SIZE, data.results.length - shownCount), left: data.results.length - shownCount })}
+                    </button>
+                  </div>
+                )}
+
+                {!isShared && (
+                  <div className="ui-yok">
+                    <GraduationCap size={18} aria-hidden="true" />
+                    <div>
+                      <strong>{t('yok.title')}</strong>
+                      <span>{t('yok.text')}</span>
+                    </div>
+                    <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={openYokTez}>
+                      {t('yok.button')} <ExternalLink size={13} />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -839,6 +894,7 @@ function App() {
                 </div>
               </MotionDiv>
             )}
+            </>)}
 
           </div>
         </main>
@@ -851,22 +907,16 @@ function App() {
             Alt çubuk kaldırıldı: üret düğmesi orada zor bulunuyordu. */}
         <AnimatePresence>
           {(data || basket.papers.length > 0) && !showWriterPanel && (
-            <motion.button
+            <WriterDock
               key="writer-dock"
-              type="button"
-              className="ui-writer-dock"
-              data-basket-target="primary"
-              onClick={openWriter}
-              initial={{ opacity: 0, x: 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 40 }}
-              title={t('writerDock.title')}
-              aria-label={t('writerDock.aria', { n: basket.papers.length })}
-            >
-              <PenLine size={18} />
-              <span className="ui-writer-dock__label">{t('writerDock.label')}</span>
-              <span className="ui-writer-dock__count">{basket.papers.length}<small>/{basket.limit}</small></span>
-            </motion.button>
+              count={basket.papers.length}
+              limit={basket.limit}
+              onOpen={openWriter}
+              onClear={() => {
+                basket.clear();
+                pushToast({ tone: 'success', title: t('writerDock.cleared') });
+              }}
+            />
           )}
         </AnimatePresence>
         <Toasts toasts={toasts} onDismiss={dismissToast} />

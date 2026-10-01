@@ -17,6 +17,7 @@
  */
 import { calculateAHP } from './ahp.js';
 import { batchTranslateAcademic } from '../utils/translation.js';
+import { annotateRetractions, normalizeDoi } from './retraction.js';
 
 /** Makale icin kararli anahtar: DOI > kaynak kimligi > baslik. */
 export function itemKey(item) {
@@ -94,4 +95,40 @@ export async function rankFromPool(pool, options = {}) {
 
   const merged = extractTranslations(ranked, { ...translations });
   return { results: ranked, translations: merged, translatedCount };
+}
+
+/** Istemcinin ilk gosterdigi sayfa; "Daha fazla goster" 25'er acar. */
+export const FIRST_PAGE_SIZE = 25;
+
+/**
+ * Siralar, sonra YALNIZCA ilk sayfanin geri cekilme durumunu kontrol eder.
+ *
+ * NEDEN: Crossref kontrolu 20 DOI'lik paketlerle sirayla calisiyor. Olculdu
+ * (1 Eki 2026): 25 DOI 3,6 sn, 100 DOI 11 sn. Tum adaylari aramada kontrol
+ * etmek aramayi ~7 sn uzatirdi; sonraki sayfalar /api/retractions ile acildikca
+ * kontrol edilir.
+ *
+ * Ilk sayfada geri cekilmis ya da endise bildirimli makale cikarsa havuz
+ * yeniden siralanir: AHP bu makalenin puanini dusurur ve ust siradan iner.
+ * Durum havuz nesnelerine yazilir, boylece onbellege de gecer.
+ */
+export async function rankWithFirstPageRetractions(pool, options = {}, { annotate = annotateRetractions, pageSize = FIRST_PAGE_SIZE } = {}) {
+  let ranked = await rankFromPool(pool, options);
+  const firstPage = ranked.results.slice(0, pageSize).filter((r) => r?.doi && !r.retraction);
+  const summary = { retracted: 0, concern: 0, checked: 0, errors: [] };
+  if (firstPage.length === 0) return { ...ranked, retractionSummary: summary };
+
+  const result = await annotate(firstPage);
+  Object.assign(summary, result);
+
+  // Siralanan kopyalardaki durumu havuz nesnelerine tasi (DOI ile)
+  const byDoi = new Map(firstPage.map((r) => [normalizeDoi(r.doi), r.retraction]));
+  for (const item of pool || []) {
+    const status = item?.doi && byDoi.get(normalizeDoi(item.doi));
+    if (status && !item.retraction) item.retraction = status;
+  }
+
+  const flagged = firstPage.some((r) => r.retraction?.status === 'retracted' || r.retraction?.status === 'concern');
+  if (flagged) ranked = await rankFromPool(pool, options);
+  return { ...ranked, retractionSummary: summary };
 }

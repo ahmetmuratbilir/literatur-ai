@@ -92,19 +92,47 @@ export function parseRetraction(item) {
  * @param {{timeoutMs?: number, fetchImpl?: Function, mailto?: string}} [options]
  * @returns {Promise<{byDoi: Map<string, ReturnType<typeof parseRetraction>>, checked: number, errors: string[]}>}
  */
+// Paketler eszamanli (Crossref polite havuzu en fazla 3) ve DOI basina 24
+// saatlik bellek onbellegi. Olculen (1 Eki 2026): 25 DOI 3,6 sn, 100 DOI 11 sn
+// idi; paketler sirayla gidiyordu.
+const BATCH_CONCURRENCY = 3;
+const STATUS_TTL_MS = 24 * 3600 * 1000;
+const STATUS_CACHE_MAX = 10000;
+const statusCache = new Map(); // doi -> { value, expiresAt }
+
+/** Testler icin. */
+export function resetRetractionCache() { statusCache.clear(); }
+
 export async function checkRetractions(dois, options = {}) {
   const {
     timeoutMs = DEFAULT_TIMEOUT_MS,
     fetchImpl = fetchWithTimeout,
     mailto = process.env.CONTACT_EMAIL || process.env.OPENALEX_MAIL || '',
+    useCache = true,
   } = options;
 
   const unique = [...new Set((dois || []).map(normalizeDoi).filter((d) => d.length > 5))];
   const byDoi = new Map();
   const errors = [];
 
-  for (let i = 0; i < unique.length; i += BATCH_SIZE) {
-    const batch = unique.slice(i, i + BATCH_SIZE);
+  const toFetch = [];
+  for (const doi of unique) {
+    const hit = useCache ? statusCache.get(doi) : null;
+    if (hit && hit.expiresAt > Date.now()) byDoi.set(doi, hit.value);
+    else toFetch.push(doi);
+  }
+
+  const batches = [];
+  for (let i = 0; i < toFetch.length; i += BATCH_SIZE) batches.push(toFetch.slice(i, i + BATCH_SIZE));
+  let nextBatch = 0;
+  const worker = async () => {
+    while (nextBatch < batches.length) {
+      const batch = batches[nextBatch++];
+      await fetchBatch(batch);
+    }
+  };
+
+  async function fetchBatch(batch) {
     const params = new URLSearchParams({
       filter: batch.map((d) => `doi:${d}`).join(','),
       rows: String(batch.length),
@@ -120,17 +148,24 @@ export async function checkRetractions(dois, options = {}) {
       );
       if (!response.ok) {
         errors.push(`HTTP ${response.status}`);
-        continue;
+        return;
       }
       const data = await response.json();
       for (const item of data?.message?.items || []) {
-        byDoi.set(normalizeDoi(item.DOI), parseRetraction(item));
+        const doi = normalizeDoi(item.DOI);
+        const value = parseRetraction(item);
+        byDoi.set(doi, value);
+        if (useCache) {
+          if (statusCache.size >= STATUS_CACHE_MAX) statusCache.delete(statusCache.keys().next().value);
+          statusCache.set(doi, { value, expiresAt: Date.now() + STATUS_TTL_MS });
+        }
       }
     } catch (error) {
       errors.push(error?.name === 'AbortError' ? `zaman asimi >${timeoutMs}ms` : String(error?.message || error));
     }
   }
 
+  await Promise.all(Array.from({ length: Math.min(BATCH_CONCURRENCY, batches.length) }, worker));
   return { byDoi, checked: unique.length, errors };
 }
 

@@ -4,7 +4,8 @@ import SearchCache from '../models/SearchCache.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_TTL_DAYS = 30;
-const DEFAULT_MAX_BYTES = 512 * 1024 * 1024;
+// Atlas M0 toplam 512 MB; kullanıcı verisine (geçmiş, sepet, koleksiyon) yer kalsın.
+const DEFAULT_MAX_BYTES = 100 * 1024 * 1024;
 const DEFAULT_MAX_RESULTS = 100;
 const DEFAULT_MAX_DOC_BYTES = 12 * 1024 * 1024;
 // v6: onbellek artik AHP ONCESI havuzu (`_cache.pool`) tutuyor; siralama her

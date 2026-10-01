@@ -670,3 +670,96 @@ npm run verify-keys # kaynak durumları
 - Alt çubuk kaldırıldı → sağ kenarda sayaçlı "Yazar modu" düğmesi (mobilde sağ alt);
   makaleler oraya uçuyor (data-basket-target="primary"), tıklayınca yazar paneli
 - Tarayıcıda uçtan uca doğrulandı; lint, build, i18n temiz
+
+## M10 — 25'er sayfalama, YÖK Tez, yazar modu çöp kutusu (1 Eki 2026) — BİTTİ
+- Kaynaklardan çekilen miktar sabit SOURCE_FETCH_COUNT=25 (search.js); gösterilen
+  sayıdan bağımsız. İstemci count=100 ister, 25'er açar ("Daha fazla göster").
+  Kaynak API'lerine ek istek YOK. Sonuç sayısı kaydırıcısı kaldırıldı.
+- Geri çekilme kontrolü: ölçüm 25 DOI 3,6 sn / 100 DOI 11 sn → aramada yalnız ilk
+  25 (rankWithFirstPageRetractions; bayrak çıkarsa yeniden sıralar); sonraki
+  sayfalar POST /api/retractions (≤25 DOI). Açılan sayfada geri çekilmiş makale
+  banner alır ama sırası değişmez.
+- Sağ üst kaynak bildirimleri kaldırıldı (toast sistemi sepet uyarıları için kaldı)
+- YÖK Tez: POST formu dışarıdan kabul etmiyor ("Hata Oluştu", çerezle de) →
+  sorgu panoya + tarama.jsp yeni sekme. Sonuçların altında kutu.
+- Yazar modu düğmesi: üzerine gelince çöp kutusu, iki adımlı temizleme
+- 250/250 test, lint, build, tarayıcıda doğrulandı
+- AÇIK: önbellek üst sınırı varsayılanı 512 MB (searchCacheStore) → ~100 MB
+
+## M11 — Makale Çözümleyici (Paper Resolver) — BİTTİ (1 Eki 2026)
+Kapsam (kullanıcı onaylı ilk sürüm): Katman 0 (kimlik/URL) + Katman 1 (akademik
+indeksler) + doğrulama/fark raporu + önbellek + uç noktalar + "Kaynakçanı doğrula" UI.
+KAPSAM DIŞI: Zotero translation-server, GitHub/HF, ücretli web araması, GDELT.
+
+Varsayımlar:
+- Node/Express içinde: server/services/resolver/*. Python/FastAPI yok.
+- Kanonik kayıt = CSL-JSON (Crossref/doi.org biçimi) → APA bibliography.formatReference.
+- Önbellek: Mongo ResolverCache (TTL: metadata 30g, not_found 24s) + bellek LRU;
+  DB yoksa yalnız bellek. (SQLite değil: Render diski geçici.)
+- Benzerlik: rapidfuzz token_set_ratio'nun JS karşılığı (Indel/LCS) — paket yok.
+- LLM ayrıştırma ilk sürümde YOK: Crossref query.bibliographic ham satırı çözüyor;
+  kural tabanlı ayrıştırma yalnız doğrulama alanları (yazar, yıl, başlık) için.
+- Şelale: Crossref (bedava) → OpenAlex arama (kredili) yalnız Crossref ≥0.85 yoksa
+  → Semantic Scholar match → Europe PMC (biyomedikal görünüyorsa).
+- Hız sınırı: kaynak başına minimum aralık + eşzamanlılık (basit kuyruk).
+
+Adımlar:
+- [x] 1 parse.js (kimlik tanıma + kaynakça satırı ayrıştırma) + test
+- [x] 2 validate.js (benzerlik, skor, karar, fark raporu) + test
+- [x] 3 sources.js (Crossref, OpenAlex, S2, Europe PMC, arXiv, doi.org, sayfa meta, Wayback)
+- [x] 4 cache.js + ResolverCache modeli
+- [x] 5 pipeline.js (şelale + zenginleştirme + trace) + mock test
+- [x] 6 uç noktalar /api/resolve, /api/resolve/batch (export istemcide, citationExport.js)
+- [x] 7 canlı kabul testleri: 11/11 (scripts/resolver-live.mjs). Bulgular:
+      Crossref "Sebastiano Di"+"Luozzo" → soyad eki taşınıyor (fixParticle);
+      Crossref hakem raporu kayıtları elendi; kapsam düzeltmesi (uydurma başlık);
+      "article/makalesi" dolgu sözcükleri sorgudan çıkarıldı; Türkçe girdi bulunamazsa
+      DeepSeek çevirisiyle ikinci arama (en fazla candidates); S2 429 → 1 deneme;
+      Unpaywall API asılı kalabiliyor → 3 sn sınır. Gecikme: DOI 0,5-1,3 sn,
+      kaynakça satırı 1,3-3,5 sn, Türkçe+çeviri ~8 sn; maliyet 0-0,002 $/çözümleme.
+- [x] 8 arayüz: "Kaynakçanı doğrula" sekmesi (CitationChecker.jsx); aday seçilince DOI yeniden
+      çözülüp Crossref künyesi kullanılıyor. Belge: docs/makale-cozumleyici.md
+
+## M12 — İkinci MongoDB: gece yedeği (1 Eki 2026) — KOD HAZIR, CANLI DENEME BEKLİYOR
+Karar (kullanıcı): "Hepsi bir arada" — 2. DB = kullanıcı verilerinin gece yedeği + DergiPark dizini.
+- services/db/secondary.js: MONGODB_URI_2 (ya da MONGODB_BACKUP_URI) ayrı createConnection;
+  ana adresle aynı küme/DB ise reddeder; hata mesajında URI maskelenir
+- services/db/backup.js: searchhistories, collections, baskets, analyses, sharedsearches →
+  backup_<ad>; önce __new'e yaz, hepsi bitince rename(dropTarget) (ya hepsi ya hiç);
+  yalnız son yedek; backup_meta (son 30 çalışma); sınır 150 MB (DergiPark'a yer kalsın)
+- Zamanlama: açılıştan 2 dk sonra + 6 saatte bir "son başarılı yedek ≥20 saat mi?"
+  (Render ücretsiz sunucu uyuduğu için cron yerine)
+- GET/POST /api/admin/backup (requireAdmin); scripts/run-backup.mjs (elle deneme);
+  scripts/restore-backup.mjs (--yes olmadan yalnız gösterir; eski hâli <ad>__pre_restore)
+- 280/280 test (backup.test.js sahte DB ile 6 test)
+- ENGEL: yerel server/.env'de MONGODB_URI hâlâ şablon (cluster.mongodb.net), MONGODB_URI_2 yok.
+  Render'da var. Kullanıcı yerel .env'e ikisini yapıştıracak → node scripts/run-backup.mjs
+
+## M13 — Optimizasyon + hata senaryoları + yeni ücretsiz kaynaklar (1 Eki 2026) — BİTTİ
+Yapıldı (295/295 test, lint, build temiz; verify-keys 19 kontrol, 14 sağlıklı):
+- Yeni anahtarsız kaynaklar: services/openaire.js (OpenAIRE Graph API), services/datacite.js
+  (yalnız başlıkta arama). search.js'e, sourceCanary'ye, landing ve i18n'e eklendi ("dokuz kaynak").
+  Canlı: OpenAIRE 100 sonucun 15-22'si, DataCite 4-8'i.
+- TR Dizin BAĞLANMADI: resmi API yok, şartlarda izin yok → trdizin@tubitak.gov.tr'den izin istenmeli.
+  DBLP/HAL alınmadı (düşük ek değer).
+- services/sourceBreaker.js devre kesici: QUOTA 10 dk, CREDENTIAL 60 dk, 3×TIMEOUT 2 dk; yarı açık
+  deneme. search.js guarded(): kesici + kaynak başı 6,5 sn tavan (SOURCE_DEADLINE_MS).
+- OpenCitations: 10 eşzamanlı, 2,5 sn bütçe, 24 sa önbellek → 4,16 sn'den 0,6-1,1 sn'ye.
+- Geri çekilme: Crossref paketleri 3 eşzamanlı + DOI başı 24 sa önbellek.
+- Ölçüm: ilk arama 4-8 sn (dış kaynak süreleri), tekrar sorgu 7,4-10,6 sn → 3,4 sn.
+- Hata senaryosu turu (çalışan sunucu, test-token): tüm hatalı girdiler 400; DÜZELTİLDİ:
+  bozuk JSON 500→400, geçersiz basket id 503→400.
+- Anahtar durumu (yerel .env): MONGODB_URI şablon, CLERK yok, CORE geçersiz (401),
+  S2 anahtarı yok (429), OPENALEX_MAIL şablon (example.com gidiyor). Render'da farklı olabilir.
+
+SON TUR (1 Eki 2026): arayüz gerileme denemesi geçti (25+15 sayfalama, kaynakça doğrulama 5 satır
+~11 sn, sayfa hatası yok); arama önbelleği varsayılan sınırı 512 → 100 MB; 295/295 test,
+lint, build temiz; commit + push yapıldı.
+
+KALAN (eski liste):
+1. Arayüz gerileme denemesi: scratchpad/drive/paging.mjs ve verify.mjs (PowerShell'den).
+2. Kullanıcıya rapor: yeni kaynaklar, kesici, hızlanma, düzeltilen 2 hata, anahtar listesi
+   (alınacaklar: CORE, Semantic Scholar, OPENALEX_MAIL için e-posta; Clerk/Mongo Render'dan),
+   TR Dizin izin önerisi, tez türünün kalite puanı 0 (PUB_TYPE_SCORES'ta yok).
+3. Bekleyen: MONGODB_URI + MONGODB_URI_2 yerel .env → node scripts/run-backup.mjs;
+   arama önbelleği sınırı 512→~100 MB; commit/push (bu oturumdaki hiçbir şey commit edilmedi).

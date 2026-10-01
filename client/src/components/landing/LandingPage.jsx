@@ -27,7 +27,7 @@ import LanguageSwitcher from '../LanguageSwitcher';
  * kartta "örnek" etiketi var.
  */
 
-const SEARCH_SOURCES = ['openalex', 'crossref', 's2', 'europepmc', 'doaj', 'arxiv', 'core'];
+const SEARCH_SOURCES = ['openalex', 'crossref', 's2', 'europepmc', 'openaire', 'datacite', 'doaj', 'arxiv', 'core'];
 const ENRICHMENT_SOURCES = ['opencitations', 'unpaywall'];
 const SOURCE_NAMES = {
   openalex: 'OpenAlex',
@@ -37,6 +37,8 @@ const SOURCE_NAMES = {
   doaj: 'DOAJ',
   arxiv: 'arXiv',
   core: 'CORE',
+  openaire: 'OpenAIRE',
+  datacite: 'DataCite',
   opencitations: 'OpenCitations',
   unpaywall: 'Unpaywall',
 };

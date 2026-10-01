@@ -21,7 +21,11 @@ import { validateEnvironment, formatEnvReport } from './config/envValidation.js'
 import { probeAllServices } from './services/keyHealthService.js';
 import { getZeroStreaks } from './services/sourceZeroTracker.js';
 import { resolveRankingWeights, parseWeightsParam, listProfiles } from './services/ahpProfiles.js';
-import { rankFromPool } from './services/rankingPipeline.js';
+import { rankWithFirstPageRetractions } from './services/rankingPipeline.js';
+import { createResolver } from './services/resolver/pipeline.js';
+import { getSecondary, isSecondaryReady, secondaryStatus } from './services/db/secondary.js';
+import { startBackupScheduler, runBackup, lastBackup } from './services/db/backup.js';
+import { checkRetractions, normalizeDoi as normalizeRetractionDoi } from './services/retraction.js';
 import { getWeightingMethodology } from './services/ahp.js';
 import { ratingsToWeights, evaluateComparisons } from './services/ahpPairwise.js';
 import { findOpenAccessCopy, isUnpaywallConfigured } from './services/unpaywall.js';
@@ -193,6 +197,17 @@ if (MONGODB_URI && !IS_TEST_MODE) {
   mongoose.connection.on('disconnected', scheduleMongoReconnect);
 } else if (!MONGODB_URI && !IS_TEST_MODE) {
   console.warn('MONGODB_URI is not defined in .env. Search history will not be saved.');
+}
+
+// Ikinci MongoDB (MONGODB_URI_2): gece yedegi + DergiPark dizini.
+// Tanimli degilse hicbir sey yapilmaz.
+const getPrimaryDb = () => (mongoose.connection.readyState === 1 ? mongoose.connection.db : null);
+const getSecondaryDb = () => {
+  const conn = getSecondary();
+  return conn && isSecondaryReady() ? conn.db : null;
+};
+if (!IS_TEST_MODE && getSecondary()) {
+  startBackupScheduler({ getPrimaryDb, getSecondaryDb });
 }
 
 const app = express();
@@ -627,6 +642,133 @@ app.get('/api/ranking/profiles', (req, res) => {
   res.json({ profiles: listProfiles(getLang(req)), methodology: getWeightingMethodology() });
 });
 
+// --- Yedek (yonetici) ---
+app.get('/api/admin/backup', requireAdmin, async (req, res) => {
+  try {
+    const db2 = getSecondaryDb();
+    return res.json({ secondary: secondaryStatus(), last: db2 ? await lastBackup(db2) : null, lastOk: db2 ? await lastBackup(db2, { onlyOk: true }) : null });
+  } catch (error) {
+    return res.status(500).json({ error: 'Yedek durumu okunamadi' });
+  }
+});
+
+let manualBackupRunning = false;
+app.post('/api/admin/backup', requireAdmin, async (req, res) => {
+  const primaryDb = getPrimaryDb();
+  const db2 = getSecondaryDb();
+  if (!primaryDb || !db2) return res.status(503).json({ error: 'Veritabanlarindan biri bagli degil', secondary: secondaryStatus() });
+  if (manualBackupRunning) return res.status(409).json({ error: 'Yedek zaten calisiyor' });
+  manualBackupRunning = true;
+  try {
+    return res.json(await runBackup({ primaryDb, secondaryDb: db2, trigger: 'manual' }));
+  } catch (error) {
+    return res.status(500).json({ error: String(error?.message || error).slice(0, 200) });
+  } finally {
+    manualBackupRunning = false;
+  }
+});
+
+// --- Makale cozumleyici (kaynakca dogrulama) ---
+// services/resolver: DOI/URL/kaynakca satiri -> dogrulanmis kanonik kayit.
+// Sonuc onbellekli (Mongo + bellek); ayni satir ikinci kez dis API cagirmaz.
+const resolver = createResolver();
+const MAX_RESOLVE_INPUT = 1000;
+const MAX_RESOLVE_BATCH = 50;
+const RESOLVE_BATCH_CONCURRENCY = 3;
+
+// Toplu dogrulama tek istekte 50 satir isleyebildigi icin ayri sinir.
+const resolveLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  keyGenerator: (req) => getAuth(req)?.userId || ipKeyGenerator(req.ip),
+  message: { error: 'Çok fazla doğrulama isteği. Lütfen 1 dakika bekleyin.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Istemciye iz (trace) yalnizca ozet olarak gider; ham URL'lerde anahtar olabilir.
+const publicTrace = (trace = []) => trace.map(({ layer, source, status, ms, cost_usd }) => ({ layer, source, status, ms, cost_usd }));
+const publicResult = (r) => ({ ...r, trace: publicTrace(r.trace) });
+
+app.post('/api/resolve', resolveLimiter, async (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) return;
+  const input = typeof req.body?.input === 'string' ? req.body.input.trim() : '';
+  if (!input) return res.status(400).json({ error: 'Girdi eksik' });
+  if (input.length > MAX_RESOLVE_INPUT) return res.status(400).json({ error: `Girdi en fazla ${MAX_RESOLVE_INPUT} karakter olabilir` });
+  try {
+    return res.json(publicResult(await resolver.resolve(input)));
+  } catch (error) {
+    console.error('Resolve error:', error);
+    return res.status(500).json({ error: 'Makale çözümlenemedi' });
+  }
+});
+
+app.post('/api/resolve/batch', resolveLimiter, async (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) return;
+  const lines = Array.isArray(req.body?.lines)
+    ? req.body.lines.filter((l) => typeof l === 'string').map((l) => l.trim()).filter(Boolean)
+    : [];
+  if (lines.length === 0) return res.status(400).json({ error: 'Satır listesi eksik' });
+  if (lines.length > MAX_RESOLVE_BATCH) return res.status(400).json({ error: `En fazla ${MAX_RESOLVE_BATCH} satır gönderilebilir` });
+  if (lines.some((l) => l.length > MAX_RESOLVE_INPUT)) return res.status(400).json({ error: `Bir satır en fazla ${MAX_RESOLVE_INPUT} karakter olabilir` });
+
+  try {
+    const results = new Array(lines.length);
+    let next = 0;
+    // Kaynak basina hiz siniri cozumleyicide; burada yalnizca es zamanlilik.
+    const worker = async () => {
+      while (next < lines.length) {
+        const i = next++;
+        try {
+          results[i] = { input: lines[i], ...publicResult(await resolver.resolve(lines[i])) };
+        } catch (error) {
+          results[i] = { input: lines[i], status: 'error', error: String(error?.message || error).slice(0, 200) };
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(RESOLVE_BATCH_CONCURRENCY, lines.length) }, worker));
+    const summary = { found: 0, candidates: 0, not_found: 0, error: 0, withDiscrepancies: 0 };
+    for (const r of results) {
+      summary[r.status] = (summary[r.status] || 0) + 1;
+      if (r.discrepancies?.length) summary.withDiscrepancies++;
+    }
+    const costUsd = Math.round(results.reduce((s, r) => s + (r.cost_usd || 0), 0) * 10000) / 10000;
+    return res.json({ results, summary, cost_usd: costUsd });
+  } catch (error) {
+    console.error('Resolve batch error:', error);
+    return res.status(500).json({ error: 'Kaynakça doğrulanamadı' });
+  }
+});
+
+// --- Geri cekilme kontrolu (sonraki sayfalar) ---
+// Arama yalnizca ilk 25 sonucu kontrol ediyor (rankingPipeline.FIRST_PAGE_SIZE);
+// istemci "Daha fazla goster" ile acilan sayfanin DOI'lerini buraya gonderir.
+const MAX_RETRACTION_DOIS = 25;
+
+app.post('/api/retractions', searchLimiter, async (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) return;
+  const dois = Array.isArray(req.body?.dois)
+    ? [...new Set(req.body.dois.filter((d) => typeof d === 'string' && d.length <= 200).map(normalizeRetractionDoi))].filter((d) => d.length > 5)
+    : [];
+  if (dois.length === 0) return res.status(400).json({ error: 'DOI listesi eksik' });
+  if (dois.length > MAX_RETRACTION_DOIS) {
+    return res.status(400).json({ error: `En fazla ${MAX_RETRACTION_DOIS} DOI gonderilebilir` });
+  }
+  try {
+    const { byDoi, errors } = await checkRetractions(dois);
+    const results = {};
+    // Yanit gelmeyen DOI 'unknown': "geri cekilmemis" demek icin kanit yok.
+    for (const doi of dois) results[doi] = byDoi.get(doi) || { status: 'unknown', notices: [] };
+    return res.json({ results, failed: errors.length > 0 });
+  } catch (error) {
+    console.error('Retraction check error:', error);
+    return res.status(502).json({ error: 'Geri cekilme kontrolu yapilamadi' });
+  }
+});
+
 app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
@@ -691,7 +833,7 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
           if (Array.isArray(pool) && pool.length > 0) {
             // Onbellekteki siralamayi DEGIL havuzu kullan: siralama bu
             // kullanicinin agirliklariyla yeniden uretilir.
-            const reranked = await rankFromPool(pool, {
+            const reranked = await rankWithFirstPageRetractions(pool, {
               weights: ranking.weights,
               displayCount: limit,
               translations: _cache.translations || {},
@@ -1417,9 +1559,9 @@ app.delete('/api/basket/papers/:paperId', async (req, res) => {
   const userId = getRequestUserId(req, res);
   if (!userId) return;
   try {
-    if (!requireDb(res)) return;
     const { paperId } = req.params;
     if (!isValidId(paperId)) return res.status(400).json({ error: 'Geçersiz id' });
+    if (!requireDb(res)) return;
     const updated = await Basket.findOneAndUpdate(
       { userId },
       { $pull: { papers: { _id: paperId } } },
@@ -1660,6 +1802,15 @@ app.post('/api/writer/revision-roadmap', WRITER_RATE_LIMITER, requireWriterSubsc
 // ve node_modules ic yapisini aciga cikariyordu.
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
+
+  // Bozuk JSON gövdesi ya da sınırı aşan gövde istemci hatasıdır, 500 değil
+  // (body-parser bu hataları err.type ile işaretliyor).
+  if (err?.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Geçersiz JSON gövdesi' });
+  }
+  if (err?.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'İstek gövdesi çok büyük' });
+  }
 
   logger.error({
     stage: 'unhandled',

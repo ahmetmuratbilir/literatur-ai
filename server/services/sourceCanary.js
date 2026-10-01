@@ -25,7 +25,10 @@ import { searchArXiv } from './arxiv.js';
 import { searchSemanticScholar } from './semanticscholar.js';
 import { searchCore } from './core.js';
 import { searchEuropePMC } from './europepmc.js';
-import { enrichWithCitations } from './opencitations.js';
+import { enrichWithCitations, resetOpenCitationsCache } from './opencitations.js';
+import { searchOpenAIRE } from './openaire.js';
+import { searchDataCite } from './datacite.js';
+import { findOpenAccessCopy, isUnpaywallConfigured } from './unpaywall.js';
 
 /**
  * Sonucu bilinen sorgu. Ingilizce ve genis bir konu secildi: hicbir kaynakta
@@ -69,6 +72,9 @@ export const MIN_EXPECTED = {
   CORE: 1,
   OpenCitations: 1,
   'Europe PMC': 3,
+  OpenAIRE: 3,
+  DataCite: 1,
+  Unpaywall: 1,
   'OpenAlex (AI sorgusu)': 5,
   'DOAJ (AI sorgusu)': 3,
 };
@@ -159,6 +165,8 @@ export async function probeAcademicSources() {
   rows.push(await probeSource('Semantic Scholar', () => searchSemanticScholar(sq.semanticScholar, COUNT)));
   rows.push(await probeSource('CORE', () => searchCore(CANARY_TOPIC, params, sq.openAlex)));
   rows.push(await probeSource('Europe PMC', () => searchEuropePMC(sq.openAlex, COUNT)));
+  rows.push(await probeSource('OpenAIRE', () => searchOpenAIRE(sq.crossref, COUNT)));
+  rows.push(await probeSource('DataCite', () => searchDataCite(sq.crossref, COUNT)));
 
   const aiSq = buildSourceQueries(CANARY_AI_PLAN);
   rows.push(await probeSource('OpenAlex (AI sorgusu)', () => searchOpenAlex('', params, aiSq.openAlex)));
@@ -168,12 +176,26 @@ export async function probeAcademicSources() {
   // cagri sekli budur; `citedBy: 0` sarti modulun kendi filtresinden geliyor.
   rows.push(
     await probeSource('OpenCitations', async () => {
+      // Onbellek yoklamayi agdan gecmeden 'saglikli' gosterirdi.
+      resetOpenCitationsCache();
       const sample = [{ doi: CANARY_DOI, citedBy: 0, title: 'canary' }];
       const enriched = await enrichWithCitations(sample);
       const verified = enriched.filter((r) => r.openCitationVerified);
       return { results: verified, totalFound: verified[0]?.citationCount ?? 0 };
     })
   );
+
+  // Unpaywall: arama kaynagi degil; bir DOI'nin acik erisim kopyasi soruluyor.
+  // 1 Eki 2026'da API baglantiyi kabul edip 20 sn yanit vermedi; yoklama bunu gormeli.
+  if (isUnpaywallConfigured()) {
+    rows.push(
+      await probeSource('Unpaywall', async () => {
+        const r = await findOpenAccessCopy(CANARY_DOI);
+        if (r.status === 'error' || r.status === 'quota') throw new Error(r.message || r.status);
+        return { results: r.status === 'ok' ? [r.result] : [], totalFound: r.status === 'ok' ? 1 : 0 };
+      })
+    );
+  }
 
   return rows;
 }

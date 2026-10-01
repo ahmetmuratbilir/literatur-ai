@@ -6,11 +6,14 @@ import { searchSemanticScholar } from './semanticscholar.js';
 import { searchArXiv } from './arxiv.js';
 import { searchDOAJ } from './doaj.js';
 import { searchEuropePMC } from './europepmc.js';
+import { searchOpenAIRE } from './openaire.js';
+import { searchDataCite } from './datacite.js';
+import { sourceBreaker } from './sourceBreaker.js';
 import { enrichWithCitations } from './opencitations.js';
-import { annotateRetractions } from './retraction.js';
+
 import { recordSearch } from './sourceZeroTracker.js';
 import { calculateAHP, getWeightingMethodology } from './ahp.js';
-import { rankFromPool } from './rankingPipeline.js';
+import { rankWithFirstPageRetractions } from './rankingPipeline.js';
 import { normalizeAndClean } from '../utils/dataUtils.js';
 import { enrichPaperRanking } from './journalRankingService.js';
 import { batchTranslateAcademic } from '../utils/translation.js';
@@ -114,6 +117,36 @@ const isScopusEnabled = () => process.env.SCOPUS_ENABLED === 'true';
 const SKIPPED = { results: [], totalFound: 0, skipped: true };
 
 /**
+ * Kaynagi devre kesiciden gecirerek cagirir (services/sourceBreaker.js).
+ * Kesici aciksa kaynak CAGRILMAZ; reddetme mesaji ayni hata turunu tasir ki
+ * classifySourceError ve arayuz durumu ayni kalsin. Sonuc kesiciye kaydedilir.
+ */
+export function guarded(name, fn, breaker = sourceBreaker) {
+  const gate = breaker.check(name);
+  if (gate.skip) {
+    const err = new Error(`${name} gecici olarak atlandi (${gate.reason === 'QUOTA' ? 'quota' : gate.reason === 'TIMEOUT' ? 'timeout' : 'credential'})`);
+    err.cooldown = true;
+    return Promise.reject(err);
+  }
+  let timer;
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${name} timeout >${SOURCE_DEADLINE_MS}ms`)), SOURCE_DEADLINE_MS);
+  });
+  return Promise.race([Promise.resolve().then(fn), deadline])
+    .then((value) => { breaker.record(name, null); return value; })
+    .catch((error) => { breaker.record(name, classifySourceError(error)); throw error; })
+    .finally(() => clearTimeout(timer));
+}
+
+// Tek bir yavas kaynak tum aramayi bekletmesin: kaynaklarin kendi zaman
+// asimlari 6-10 sn ve S2 yeniden denemeleriyle daha da uzayabiliyordu.
+// Yetismeyen kaynak TIMEOUT sayilir (art arda 3 kez -> kesici 2 dk).
+export const SOURCE_DEADLINE_MS = 6500;
+
+/** Her kaynaktan istenen makale sayisi (gosterilen sayidan bagimsiz). */
+export const SOURCE_FETCH_COUNT = 25;
+
+/**
  * @param {object|null} rankingWeights  Kullanicinin profil/ozel agirliklari
  *   (ahpProfiles.resolveRankingWeights ciktisi). null = varsayilan.
  */
@@ -123,7 +156,11 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
   const startTime = performance.now();
 
   const { count } = params;
+  // Gosterilen (siralanip donen) makale sayisi. Kaynaklardan cekilen miktar
+  // bundan BAGIMSIZ: SOURCE_FETCH_COUNT. Eskiden ikisi ayniydi; 100 sonuc
+  // gostermek her kaynaktan 100 istemek demekti.
   const displayCount = count || 25;
+  const sourceParams = { ...params, count: SOURCE_FETCH_COUNT };
 
   // Kaynak basina sorgu. Plan yoksa (eski cagrilar, testler) onceki davranisa
   // duseriz; boylece bu degisiklik mevcut cagiranlari bozmuyor.
@@ -139,7 +176,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
   // Sorgu Turkce yazildiysa: Turkce eserler ozgun metinle ayrica aranir
   // (OpenAlex language:tr). Ingilizce sorguda null -> ek istek yok.
   const turkishQuery = plan ? forTurkishSources(plan) : null;
-  const turkishCount = Math.min(displayCount, 25);
+  const turkishCount = SOURCE_FETCH_COUNT;
   // arXiv'e Turkce gondermek olculmus bicimde anlamsiz (salt Turkce sorgu 0
   // sonuc, karisik sorguda Turkce terimler havuzu hic degistirmiyor). Ingilizce
   // ifade yoksa kaynak atlanir; hata olarak raporlanmaz.
@@ -151,21 +188,25 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
     console.log('[SourceQuery] S2   :', s2Query || '(bos)');
   }
 
-  const [scopusResult, openAlexResult, coreResult, crossrefResult, s2Result, arxivResult, doajResult, europePmcResult, turkishResult] = await Promise.allSettled([
+  const [scopusResult, openAlexResult, coreResult, crossrefResult, s2Result, arxivResult, doajResult, europePmcResult, turkishResult, openAireResult, dataCiteResult] = await Promise.allSettled([
     isScopusEnabled()
-      ? searchLiterature(scopusQuery, displayCount, null, queryContext)
+      ? guarded('Scopus', () => searchLiterature(scopusQuery, SOURCE_FETCH_COUNT, null, queryContext))
       : Promise.resolve(SKIPPED),
-    searchOpenAlex(queryContext, params, openAlexQuery),
-    searchCore(queryContext, params, openAlexQuery),
-    searchCrossref(crossrefQuery, displayCount),
-    searchSemanticScholar(s2Query, displayCount),
-    arxivQuery ? searchArXiv(arxivQuery, displayCount, { fielded: true }) : Promise.resolve(SKIPPED),
-    searchDOAJ(doajQuery, displayCount),
+    guarded('OpenAlex', () => searchOpenAlex(queryContext, sourceParams, openAlexQuery)),
+    guarded('CORE', () => searchCore(queryContext, sourceParams, openAlexQuery)),
+    guarded('Crossref', () => searchCrossref(crossrefQuery, SOURCE_FETCH_COUNT)),
+    guarded('SemanticScholar', () => searchSemanticScholar(s2Query, SOURCE_FETCH_COUNT)),
+    arxivQuery ? guarded('ArXiv', () => searchArXiv(arxivQuery, SOURCE_FETCH_COUNT, { fielded: true })) : Promise.resolve(SKIPPED),
+    guarded('DOAJ', () => searchDOAJ(doajQuery, SOURCE_FETCH_COUNT)),
     // Europe PMC OpenAlex ile ayni boolean sorgu dilini anliyor.
-    searchEuropePMC(openAlexQuery, displayCount),
+    guarded('EuropePMC', () => searchEuropePMC(openAlexQuery, SOURCE_FETCH_COUNT)),
     turkishQuery
-      ? searchOpenAlex(turkishQuery, { count: turkishCount }, turkishQuery, { filter: 'language:tr' })
-      : Promise.resolve(SKIPPED)
+      ? guarded('OpenAlex', () => searchOpenAlex(turkishQuery, { count: turkishCount }, turkishQuery, { filter: 'language:tr' }))
+      : Promise.resolve(SKIPPED),
+    // Anahtarsiz, resmi API'ler (1 Eki 2026 eklendi): OpenAIRE kurumsal
+    // arsivler ve tezler; DataCite tezler, Zenodo, arsiv kayitlari (yalniz baslikta).
+    guarded('OpenAIRE', () => searchOpenAIRE(crossrefQuery, SOURCE_FETCH_COUNT)),
+    guarded('DataCite', () => searchDataCite(crossrefQuery, SOURCE_FETCH_COUNT))
   ]);
 
   const categorizeError = classifySourceError;
@@ -177,8 +218,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
   let coreQuota = null;
   const failedSources = [];
 
-  const sourceBreakdown = { scopus: 0, openalex: 0, core: 0, crossref: 0, s2: 0, arxiv: 0, doaj: 0, europepmc: 0 };
-  const totalFromAPIs   = { scopus: 0, openalex: 0, core: 0, crossref: 0, s2: 0, arxiv: 0, doaj: 0, europepmc: 0 };
+  const sourceBreakdown = { scopus: 0, openalex: 0, core: 0, crossref: 0, s2: 0, arxiv: 0, doaj: 0, europepmc: 0, openaire: 0, datacite: 0 };
+  const totalFromAPIs   = { scopus: 0, openalex: 0, core: 0, crossref: 0, s2: 0, arxiv: 0, doaj: 0, europepmc: 0, openaire: 0, datacite: 0 };
 
   // --- Scopus ---
   if (scopusResult.status === 'fulfilled' && scopusResult.value) {
@@ -309,6 +350,21 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
     failedSources.push({ name: 'EuropePMC', type: categorizeError(europePmcResult.reason), message: europePmcResult.reason?.message });
   }
 
+  // --- OpenAIRE + DataCite ---
+  for (const [key, name, result] of [['openaire', 'OpenAIRE', openAireResult], ['datacite', 'DataCite', dataCiteResult]]) {
+    if (result.status === 'fulfilled' && result.value) {
+      const val = result.value;
+      if (val.results?.length) {
+        allResults = [...allResults, ...val.results];
+        sourceBreakdown[key] = val.results.length;
+      }
+      totalFromAPIs[key] = val.totalFound || 0;
+    } else {
+      console.error(`${name} isteği başarısız oldu:`, result.reason?.message);
+      failedSources.push({ name, type: categorizeError(result.reason), message: result.reason?.message });
+    }
+  }
+
   // --- Sessiz sifir tespiti ---
   //
   // Bir kaynak hata FIRLATMADAN 0 sonuc dondurdugunde failedSources'a girmiyor
@@ -322,6 +378,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
   const sentQueries = {
     openalex: openAlexQuery, core: openAlexQuery, crossref: crossrefQuery,
     s2: s2Query, arxiv: arxivQuery, doaj: doajQuery, scopus: scopusQuery, europepmc: openAlexQuery,
+    openaire: crossrefQuery, datacite: crossrefQuery,
   };
   const zeroResultSources = [];
   for (const [key, fetched] of Object.entries(sourceBreakdown)) {
@@ -491,13 +548,9 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
 
   console.log('OpenCitations ile benzersiz kayıtlar doğrulanıyor...');
   const enrichStart = performance.now();
-  // Geri cekme kontrolu OpenCitations ile PARALEL: ikisi de ayni nesneleri
-  // yerinde, farkli alanlarda zenginlestiriyor; sirali calistirmak aramaya
-  // bosuna ~1 sn ekler.
-  const [enrichedResults, retractionSummary] = await Promise.all([
-    enrichWithCitations(rankedFinalResults),
-    annotateRetractions(rankedFinalResults),
-  ]);
+  // Geri cekme kontrolu artik siralamadan SONRA ve yalnizca ilk sayfa icin
+  // (rankWithFirstPageRetractions); sonraki sayfalar acildikca kontrol edilir.
+  const enrichedResults = await enrichWithCitations(rankedFinalResults);
   const enrichEnd = performance.now();
   console.log(`OpenCitations Doğrulama Süresi: ${((enrichEnd - enrichStart) / 1000).toFixed(2)} sn`);
   const openCitationVerifiedCount = enrichedResults.filter(r => r.openCitationVerified).length;
@@ -506,7 +559,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
   // de calisiyor, boylece canli arama ile onbellekten gelen sonuc ayni
   // agirliklarla ayni siralamayi uretir.
   console.log(`${rankedFinalResults.length} öğe için AHP skorları hesaplanıyor...`);
-  const { results: rankedResults, translations } = await rankFromPool(enrichedResults, {
+  const { results: rankedResults, translations, retractionSummary } = await rankWithFirstPageRetractions(enrichedResults, {
     weights: rankingWeights,
     displayCount,
     translateEnabled,
