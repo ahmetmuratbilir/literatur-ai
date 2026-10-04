@@ -164,9 +164,18 @@ https://literatur-ai.com`;
       <div style="max-width:540px; margin:0 auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:32px 28px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
         
         <!-- Logo Header -->
-        <div style="margin-bottom:24px;">
-          <a href="${appUrl}" style="text-decoration:none; font-size:20px; font-weight:800; color:#0f172a; display:inline-block;" target="_blank" rel="noopener noreferrer">
-            <span style="color:#4f46e5;">Literatur</span>AI
+        <div style="margin-bottom:28px;">
+          <a href="${appUrl}" style="text-decoration:none; display:inline-block;" target="_blank" rel="noopener noreferrer">
+            <table cellpadding="0" cellspacing="0" border="0" style="display:inline-table; vertical-align:middle;">
+              <tr>
+                <td style="width:40px; height:40px; background:linear-gradient(135deg, #7c3aed 0%, #6366f1 100%); border-radius:10px; text-align:center; vertical-align:middle; line-height:40px; box-shadow:0 4px 10px rgba(124,58,237,0.25);">
+                  <span style="color:#ffffff; font-size:20px; line-height:1; display:inline-block;">⚡</span>
+                </td>
+                <td style="padding-left:12px; vertical-align:middle;">
+                  <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:22px; font-weight:900; color:#0f172a; letter-spacing:-0.03em;">Literatur <span style="color:#6366f1;">AI</span></span>
+                </td>
+              </tr>
+            </table>
           </a>
         </div>
 
