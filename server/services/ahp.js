@@ -54,12 +54,12 @@ function calculateCitationPerYearScore(citedBy, year) {
 /**
  * 4. Publication Quality Score
  */
-function calculateQualityScore(pubType, sourceType, hasDoi) {
+function calculateQualityScore(pubType, sourceType, hasDoi, hasAltId = false, citationCount = 0) {
   const pScore = PUB_TYPE_SCORES[pubType] || 0.4;
   const sScore = SOURCE_TYPE_SCORES[sourceType] || 0.5;
   let score = (pScore * 0.6) + (sScore * 0.4);
   
-  if (hasDoi) score += 0.05; // Bonus for DOI
+  if (hasDoi || hasAltId || citationCount >= 20) score += 0.05; // Bonus for DOI, verified AltId or high citations
   return Math.max(0, Math.min(1, score));
 }
 
@@ -68,10 +68,19 @@ function calculateQualityScore(pubType, sourceType, hasDoi) {
  */
 function calculateReliabilityScore(item) {
   let score = 0.5; // Neutral start
-  
-  if (item.doi) score += 0.2;
-  if (item.openCitationVerified) score += 0.2;
-  if (['Scopus', 'OpenAlex', 'Semantic Scholar'].includes(item.source)) score += 0.1;
+  const citations = parseInt(item.citedbyCount || item.citedBy || item.citationCount, 10) || 0;
+  const hasAltId = Boolean(item.arxivId || item.pmid || item.pubmedId || item.corpusId || (item.id && String(item.id).startsWith('W')));
+
+  if (item.doi) {
+    score += 0.2;
+  } else if (hasAltId || citations >= 15 || item.openCitationVerified) {
+    score += 0.15; // Fair credit for non-DOI but verified alternative IDs & high impact
+  }
+
+  if (item.openCitationVerified) score += 0.1;
+  if (['Scopus', 'OpenAlex', 'Semantic Scholar', 'PubMed', 'Europe PMC', 'CORE', 'arXiv', 'DOAJ'].includes(item.source)) {
+    score += 0.1;
+  }
   
   return Math.max(0, Math.min(1, score));
 }
@@ -178,7 +187,9 @@ export async function calculateAHP(dataset, customWeights = null) {
     const sKey = calculateKeywordScore(item.keyCount);
     const sSim = item.expandedSimilarity || 0;
     const sCit = calculateCitationPerYearScore(item.citedbyCount || item.citedBy || 0, trustedPublicationYear);
-    const sQuality = calculateQualityScore(item.pubType, item.sourceType, !!item.doi);
+    const citations = parseInt(item.citedbyCount || item.citedBy || item.citationCount, 10) || 0;
+    const hasAltId = Boolean(item.arxivId || item.pmid || item.pubmedId || item.corpusId || (item.id && String(item.id).startsWith('W')));
+    const sQuality = calculateQualityScore(item.pubType, item.sourceType, !!item.doi, hasAltId, citations);
     const sRecency = calculateRecencyScore(trustedPublicationYear);
     const sRel = calculateReliabilityScore(item);
     const sOA = item.openAccess ? 1.0 : 0.0;
