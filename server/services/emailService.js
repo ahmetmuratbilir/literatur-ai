@@ -5,6 +5,12 @@ const resendApiKey = process.env.RESEND_API_KEY;
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 const fromEmail = process.env.RESEND_FROM_EMAIL || 'LiteraturAI <onboarding@resend.dev>';
 
+// Kullanıcıdan gelen metin e-postaya ham girerse alıcıya link veya sahte içerik gömülebilir.
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]);
+// Konu satırı ve selamlama için: satır sonlarını kaldır, uzunluğu sınırla.
+const plainLine = (value, max = 80) => String(value ?? '').replace(/[\r\n]+/g, ' ').trim().slice(0, max);
+
 /**
  * Magic Link E-postası Gönderimi
  */
@@ -74,10 +80,10 @@ export async function sendWelcomeDemoEmail({ email, name = 'Araştırmacı', que
         </div>
 
         <p style="color:#cbd5e1; font-size:14px; line-height:1.6;">
-          Merhaba <strong>${name}</strong>,
+          Merhaba <strong>${escapeHtml(plainLine(name))}</strong>,
         </p>
         <p style="color:#9ca3af; font-size:14px; line-height:1.6;">
-          Canlı demomuzda platformumuzu denediğiniz için teşekkür ederiz! ${query ? `Aradığınız <strong>"${query}"</strong> konusundaki akademik literatür tarama motorumuz başarıyla çalıştı.` : ''}
+          Canlı demomuzda platformumuzu denediğiniz için teşekkür ederiz! ${query ? `Aradığınız <strong>"${escapeHtml(plainLine(query, 160))}"</strong> konusundaki akademik literatür tarama motorumuz başarıyla çalıştı.` : ''}
         </p>
 
         <div style="background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.25); border-radius:12px; padding:16px; margin:20px 0;">
@@ -152,7 +158,7 @@ export async function sendWelcomeOnboardingEmail({ email, name = 'Araştırmacı
 
         <!-- Body -->
         <p style="color:#e2e8f0; font-size:15px; line-height:1.6; margin:0 0 16px 0;">
-          Merhaba <strong>${name}</strong>,
+          Merhaba <strong>${escapeHtml(plainLine(name))}</strong>,
         </p>
         <p style="color:#94a3b8; font-size:14px; line-height:1.6; margin:0 0 24px 0;">
           LiteraturAI hesabınız başarıyla bağlandı. Artık dünyanın en büyük akademik veri havuzlarında yapay zekâ ve AHP analiz gücüyle tarama yapabilirsiniz.
@@ -165,7 +171,7 @@ export async function sendWelcomeOnboardingEmail({ email, name = 'Araştırmacı
           <div style="margin-bottom:12px; display:flex; align-items:flex-start;">
             <span style="font-size:16px; margin-right:10px; line-height:1.3;">🔍</span>
             <div style="color:#cbd5e1; font-size:13px; line-height:1.5;">
-              <strong style="color:#ffffff;">810M+ Makale Taraması:</strong> Scopus, OpenAlex, Crossref, CORE, DOAJ ve arXiv kaynaklarında eş zamanlı tarama.
+              <strong style="color:#ffffff;">300M+ Makale Taraması:</strong> Scopus, OpenAlex, Crossref, CORE, DOAJ ve arXiv kaynaklarında eş zamanlı tarama.
             </div>
           </div>
 
@@ -214,7 +220,7 @@ export async function sendWelcomeOnboardingEmail({ email, name = 'Araştırmacı
   const { data, error } = await resend.emails.send({
     from: fromEmail,
     to: [email],
-    subject: `🎓 LiteraturAI'ye Hoş Geldiniz, ${name}!`,
+    subject: `🎓 LiteraturAI'ye Hoş Geldiniz, ${plainLine(name, 60)}!`,
     html,
   });
 

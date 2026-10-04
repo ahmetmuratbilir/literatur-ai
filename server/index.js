@@ -1416,7 +1416,20 @@ app.post('/api/writer/revision-roadmap', WRITER_RATE_LIMITER, requireWriterSubsc
   });
 });
 
-app.post('/api/demo/welcome', async (req, res) => {
+// Giriş gerektirmeden e-posta gönderen tek uç nokta; IP başına sıkı sınır olmadan
+// herkes uygulamanın adresinden istediği kişiye sınırsız e-posta attırabilir.
+const DEMO_EMAIL_LIMITER = IS_TEST_MODE
+  ? (req, res, next) => next()
+  : rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    keyGenerator: (req) => ipKeyGenerator(req.ip),
+    message: { error: 'Çok fazla e-posta isteği gönderildi. Lütfen 15 dakika sonra tekrar deneyin.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+app.post('/api/demo/welcome', DEMO_EMAIL_LIMITER, async (req, res) => {
   try {
     const { email, name = 'Araştırmacı', query = '' } = req.body || {};
     if (!email || typeof email !== 'string' || !email.includes('@')) {
@@ -1445,20 +1458,20 @@ app.post('/api/auth/sync-user', async (req, res) => {
   }
 
   try {
-    let { email, name = 'Araştırmacı' } = req.body || {};
+    // Alıcı adresi yalnızca Clerk'ten alınır. İstek gövdesindeki adrese güvenmek, herhangi bir
+    // hesabın uygulama adına istediği adrese e-posta attırmasına izin veriyordu.
+    let email = '';
+    let name = typeof req.body?.name === 'string' && req.body.name.trim() ? req.body.name.trim().slice(0, 100) : 'Araştırmacı';
 
-    // E-posta istemciden gelmediyse ve Clerk yapılandırılmışsa Clerk API'den çek
-    if (CLERK_CONFIGURED && (!email || typeof email !== 'string' || !email.includes('@'))) {
+    if (CLERK_CONFIGURED) {
       try {
         const clerkUser = await clerkClient.users.getUser(userId);
         if (clerkUser?.emailAddresses?.length > 0) {
           const primary = clerkUser.emailAddresses.find((e) => e.id === clerkUser.primaryEmailAddressId);
           email = primary ? primary.emailAddress : clerkUser.emailAddresses[0].emailAddress;
         }
-        if (!name || name === 'Araştırmacı') {
-          const fullName = [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(' ');
-          if (fullName) name = fullName;
-        }
+        const fullName = [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(' ');
+        if (fullName) name = fullName;
       } catch (clerkErr) {
         logger.warn({ error: clerkErr.message, userId }, '[AuthSync] Clerk kullanıcı bilgisi alınamadı');
       }
