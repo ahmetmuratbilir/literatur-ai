@@ -21,7 +21,7 @@ export const searchCrossref = async (query, count = 10) => {
     return { results: [], totalFound: 0 };
   }
   try {
-    const mailto = process.env.CONTACT_EMAIL || 'support@literature-ai.com';
+    const mailto = process.env.CONTACT_EMAIL || 'support@literatur-ai.com';
     console.log(`[Crossref] İstek: q="${String(query).slice(0, 80)}" rows=${count}`);
 
     const response = await axios.get('https://api.crossref.org/works', {

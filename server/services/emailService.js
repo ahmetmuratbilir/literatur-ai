@@ -25,7 +25,7 @@ export async function sendMagicLinkEmail({ email, magicLink, appName = 'Literatu
         <p style="color:#9ca3af; font-size:14px; line-height:1.6; margin:0 0 28px 0;">
           Şifreye gerek olmadan hesabınıza tek tıkla erişmek veya kaydınızı tamamlamak için aşağıdaki butona tıklayın:
         </p>
-        <a href="${magicLink}" style="display:inline-block; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#ffffff !important; text-decoration:none; padding:13px 32px; border-radius:8px; font-weight:600; font-size:15px; box-shadow:0 4px 14px rgba(99,102,241,0.35);" target="_blank">
+        <a href="${magicLink}" style="display:inline-block; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#ffffff !important; text-decoration:none; padding:13px 32px; border-radius:8px; font-weight:600; font-size:15px; box-shadow:0 4px 14px rgba(99,102,241,0.35);" target="_blank" rel="noopener noreferrer">
           ${appName}'ye Giriş Yap →
         </a>
         <p style="color:#6b7280; font-size:12px; margin:28px 0 0 0; line-height:1.5;">
@@ -90,7 +90,7 @@ export async function sendWelcomeDemoEmail({ email, name = 'Araştırmacı', que
         </div>
 
         <div style="text-align:center; margin:28px 0 10px;">
-          <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}" style="display:inline-block; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#ffffff !important; text-decoration:none; padding:12px 28px; border-radius:8px; font-weight:600; font-size:14px;" target="_blank">
+          <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}" style="display:inline-block; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#ffffff !important; text-decoration:none; padding:12px 28px; border-radius:8px; font-weight:600; font-size:14px;" target="_blank" rel="noopener noreferrer">
             LiteraturAI'yi Keşfetmeye Devam Edin →
           </a>
         </div>
@@ -193,7 +193,7 @@ export async function sendWelcomeOnboardingEmail({ email, name = 'Araştırmacı
 
         <!-- CTA Button -->
         <div style="text-align:center; margin:30px 0 16px 0;">
-          <a href="${appUrl}" style="display:inline-block; background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%); color:#ffffff !important; text-decoration:none; padding:14px 34px; border-radius:10px; font-weight:700; font-size:15px; box-shadow:0 8px 20px rgba(99,102,241,0.35);" target="_blank">
+          <a href="${appUrl}" style="display:inline-block; background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%); color:#ffffff !important; text-decoration:none; padding:14px 34px; border-radius:10px; font-weight:700; font-size:15px; box-shadow:0 8px 20px rgba(99,102,241,0.35);" target="_blank" rel="noopener noreferrer">
             LiteraturAI ile Aramaya Başla →
           </a>
         </div>

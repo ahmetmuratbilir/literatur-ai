@@ -139,7 +139,7 @@ export async function sendMagicLinkEmail({ email, magicLink, appName = 'Uygulama
         <p style="color:#9ca3af; font-size:14px; line-height:1.6; margin:0 0 24px 0;">
           Hesabınıza tek tıkla şifresiz giriş yapmak veya kaydınızı tamamlamak için aşağıdaki butona tıklayın:
         </p>
-        <a href="${magicLink}" style="display:inline-block; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#ffffff; text-decoration:none; padding:12px 28px; border-radius:8px; font-weight:600; font-size:15px;" target="_blank">
+        <a href="${magicLink}" style="display:inline-block; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#ffffff; text-decoration:none; padding:12px 28px; border-radius:8px; font-weight:600; font-size:15px;" target="_blank" rel="noopener noreferrer">
           Giriş Yap / Devam Et →
         </a>
         <p style="color:#6b7280; font-size:12px; margin:28px 0 0 0; line-height:1.5;">
