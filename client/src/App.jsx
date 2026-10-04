@@ -787,31 +787,6 @@ function App() {
                       );
                     })}
                   </div>
-
-                  {/* 7 Akademik Veri Tabanı Rozetleri */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-                    <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginRight: '4px' }}>Taranan Kaynaklar:</span>
-                    {['OpenAlex', 'Scopus', 'CORE', 'arXiv', 'Crossref', 'DOAJ', 'OpenCitations'].map((src) => (
-                      <span
-                        key={src}
-                        style={{
-                          fontSize: '10px',
-                          fontWeight: '600',
-                          padding: '2px 8px',
-                          borderRadius: '6px',
-                          background: 'rgba(99, 102, 241, 0.06)',
-                          color: 'var(--brand-primary)',
-                          border: '1px solid rgba(99, 102, 241, 0.15)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#10b981' }} />
-                        {src}
-                      </span>
-                    ))}
-                  </div>
                 </MotionDiv>
               )}
             </AnimatePresence>
