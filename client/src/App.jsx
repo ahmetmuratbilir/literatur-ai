@@ -183,13 +183,11 @@ function App() {
     const syncStorageKey = `welcome_synced_${user.id}`;
     if (sessionStorage.getItem(syncStorageKey)) return;
 
-    const email = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || '';
     const name = user.fullName || user.firstName || 'Araştırmacı';
 
     getToken().then((token) => {
       if (!token) return;
       axios.post(`${defaultApiUrl}/api/auth/sync-user`, {
-        email,
         name,
       }, {
         headers: { Authorization: `Bearer ${token}` }
