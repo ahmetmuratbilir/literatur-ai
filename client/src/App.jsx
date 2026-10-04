@@ -29,12 +29,11 @@ import AdminPanel from './components/AdminPanel.jsx';
 const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const LOADING_MESSAGES = [
-  'Dünyanın en büyük 7 akademik kaynağına güvenli bağlantı kuruluyor...',
-  'Scopus, OpenAlex, CORE ve Crossref veri havuzları taranıyor...',
-  'OpenCitations ile atıf verileri çapraz kontrolden geçiriliyor...',
-  '810 Milyondan fazla kayıt arasında konu eşleşmesi yapılıyor...',
-  'AHP algoritması ile en yüksek kaliteli yayınlar önceliklendiriliyor...',
-  'Sizin için en güncel ve alakalı literatür listesi hazırlanıyor...',
+  'PubMed, Europe PMC, Scopus ve OpenAlex açık veri havuzları eş zamanlı taranıyor...',
+  'Unpaywall ile açık erişim tam metin PDF bağlantıları çözümleniyor...',
+  'OpenCitations ve Crossref ile atıf verileri çapraz doğrulamadan geçiriliyor...',
+  'AHP algoritması ile SCImago Q1/Q2 dergi prestiji ve güncellik hesaplanıyor...',
+  'Sizin için en güncel ve doğrulanmış akademik literatür listesi derleniyor...',
 ];
 
 import ResultCard from './components/ResultCard';
@@ -284,14 +283,14 @@ function App() {
     if (isMobile) setSidebarOpen(false);
   }, [isMobile]);
 
-  // Loading messages interval
+  // Loading messages interval (akıcı ve dengeli geçiş)
   useEffect(() => {
     let interval;
     if (loading) {
       setLoadingStep(0);
       interval = setInterval(() => {
         setLoadingStep((prev) => (prev + 1) % LOADING_MESSAGES.length);
-      }, 2000);
+      }, 1400);
     }
     return () => clearInterval(interval);
   }, [loading]);
@@ -528,7 +527,7 @@ function App() {
                   animate={{ opacity: 1, y: 0 }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', background: 'var(--brand-primary-soft)', color: 'var(--brand-primary)', fontSize: 'var(--fs-xs)', fontWeight: '600', letterSpacing: '0.02em' }}
                 >
-                  <Sparkles size={12} /> 7 akademik veri kaynağı, 300M+ makale
+                  <Sparkles size={12} /> 12+ küresel akademik veri kaynağı &amp; açık arşivler
                 </MotionDiv>
               </div>
               <MotionH1
@@ -762,10 +761,10 @@ function App() {
                     textAlign: 'left'
                   }}>
                     {[
-                      { step: 1, title: 'Çeviri & MeSH', desc: 'Boolean Genişletme' },
-                      { step: 2, title: '7 Veritabanı', desc: 'Federated Paralel Arama' },
+                      { step: 1, title: 'AI & MeSH Çeviri', desc: 'Boolean Genişletme' },
+                      { step: 2, title: '12+ Global Kaynak', desc: 'PubMed, OpenAlex, Scopus' },
                       { step: 3, title: 'AHP Matrisi', desc: 'SJR Q1-Q4 & Atıf Skoru' },
-                      { step: 4, title: 'Doğrulama', desc: 'Literatür Derlemesi' },
+                      { step: 4, title: 'Unpaywall & PDF', desc: 'Açık Erişim Doğrulama' },
                     ].map((st, i) => {
                       const isActive = loadingStep >= i;
                       return (

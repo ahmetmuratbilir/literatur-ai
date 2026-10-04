@@ -16,7 +16,8 @@ import {
   Copy,
   Info,
   Search,
-  BookOpen
+  BookOpen,
+  Download
 } from 'lucide-react';
 import { getYearDisplay } from '../utils/yearDisplay.js';
 
@@ -493,6 +494,31 @@ const ResultCard = ({
             {item.url && (
               <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-muted)', fontWeight: '500', fontSize: 'var(--fs-sm)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <ExternalLink size={14} /> Makaleye git
+              </a>
+            )}
+
+            {(item.pdfUrl || item.openAccessPdf) && (
+              <a
+                href={item.pdfUrl || item.openAccessPdf}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Yasal açık erişim tam metin PDF dosyasını aç"
+                style={{
+                  color: '#059669',
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  borderRadius: '6px',
+                  padding: '4px 9px',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Download size={12} /> PDF İndir
               </a>
             )}
 

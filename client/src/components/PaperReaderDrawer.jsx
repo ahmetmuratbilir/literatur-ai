@@ -13,7 +13,8 @@ import {
   User, 
   FileText, 
   Sparkles,
-  Award
+  Award,
+  Download
 } from 'lucide-react';
 import { getYearDisplay } from '../utils/yearDisplay.js';
 
@@ -336,6 +337,30 @@ export default function PaperReaderDrawer({
             {copied ? <Check size={14} /> : <Copy size={14} />}
             {copied ? 'Kopyalandı' : 'BibTeX'}
           </button>
+
+          {(paper.pdfUrl || paper.openAccessPdf) && (
+            <a
+              href={paper.pdfUrl || paper.openAccessPdf}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Açık erişim tam metin PDF dosyasını aç"
+              style={{
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: '600',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                background: '#ecfdf5',
+                color: '#059669',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <Download size={14} /> PDF İndir
+            </a>
+          )}
 
           {paper.url && (
             <a

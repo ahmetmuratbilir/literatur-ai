@@ -5,6 +5,9 @@ import { searchCrossref } from './crossref.js';
 import { searchSemanticScholar } from './semanticscholar.js';
 import { searchArXiv } from './arxiv.js';
 import { searchDOAJ } from './doaj.js';
+import { searchPubMed } from './pubmed.js';
+import { searchEuropePmc } from './europePmc.js';
+import { getOpenAccessPdf } from './unpaywall.js';
 import { enrichWithCitations } from './opencitations.js';
 import { calculateAHP, getWeightingMethodology } from './ahp.js';
 import { normalizeAndClean } from '../utils/dataUtils.js';
@@ -81,14 +84,16 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   const { count } = params;
   const displayCount = count || 25;
 
-  const [scopusResult, openAlexResult, coreResult, crossrefResult, s2Result, arxivResult, doajResult] = await Promise.allSettled([
+  const [scopusResult, openAlexResult, coreResult, crossrefResult, s2Result, arxivResult, doajResult, pubmedResult, europePmcResult] = await Promise.allSettled([
     searchLiterature(scopusQuery, displayCount, null, queryContext),
     searchOpenAlex(queryContext, params, booleanQuery),
     searchCore(queryContext, params, booleanQuery),
     searchCrossref(queryContext, displayCount),
     searchSemanticScholar(queryContext, displayCount),
     searchArXiv(queryContext, displayCount),
-    searchDOAJ(queryContext, displayCount)
+    searchDOAJ(queryContext, displayCount),
+    searchPubMed(queryContext, displayCount),
+    searchEuropePmc(queryContext, displayCount)
   ]);
 
   const categorizeError = classifySourceError;
@@ -100,8 +105,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   let coreQuota = null;
   const failedSources = [];
 
-  const sourceBreakdown = { scopus: 0, openalex: 0, core: 0, crossref: 0, s2: 0, arxiv: 0, doaj: 0 };
-  const totalFromAPIs   = { scopus: 0, openalex: 0, core: 0, crossref: 0, s2: 0, arxiv: 0, doaj: 0 };
+  const sourceBreakdown = { scopus: 0, openalex: 0, core: 0, crossref: 0, s2: 0, arxiv: 0, doaj: 0, pubmed: 0, europepmc: 0 };
+  const totalFromAPIs   = { scopus: 0, openalex: 0, core: 0, crossref: 0, s2: 0, arxiv: 0, doaj: 0, pubmed: 0, europepmc: 0 };
 
   // --- Scopus ---
   if (scopusResult.status === 'fulfilled' && scopusResult.value) {
@@ -202,6 +207,28 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   } else {
     console.error('DOAJ isteği başarısız oldu:', doajResult.reason?.message);
     failedSources.push({ name: 'DOAJ', type: categorizeError(doajResult.reason), message: doajResult.reason?.message });
+  }
+
+  // --- PubMed ---
+  if (pubmedResult.status === 'fulfilled' && pubmedResult.value) {
+    const val = pubmedResult.value;
+    if (val.results?.length) {
+      const resultsWithSource = val.results.map(r => ({ ...r, source: 'PubMed' }));
+      allResults = [...allResults, ...resultsWithSource];
+      sourceBreakdown.pubmed = val.results.length;
+    }
+    totalFromAPIs.pubmed = val.totalFound || 0;
+  }
+
+  // --- Europe PMC ---
+  if (europePmcResult.status === 'fulfilled' && europePmcResult.value) {
+    const val = europePmcResult.value;
+    if (val.results?.length) {
+      const resultsWithSource = val.results.map(r => ({ ...r, source: 'Europe PMC' }));
+      allResults = [...allResults, ...resultsWithSource];
+      sourceBreakdown.europepmc = val.results.length;
+    }
+    totalFromAPIs.europepmc = val.totalFound || 0;
   }
 
   const apiFetchTime = performance.now();
@@ -355,6 +382,21 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery)
   if ((!finalResults || finalResults.length === 0) && enrichedResults?.length > 0) {
     console.log('[SearchResponseFallback] AHP results also empty, using raw enriched results');
     finalResults = enrichedResults.slice(0, displayCount);
+  }
+
+  // --- Unpaywall Açık Erişim PDF Zenginleştirmesi (İlk 8 Sonuç İçin) ---
+  if (Array.isArray(finalResults) && finalResults.length > 0) {
+    const unpaywallChecks = finalResults.slice(0, 8).map(async (p) => {
+      if (p.doi && !p.pdfUrl && !p.openAccessPdf) {
+        const oa = await getOpenAccessPdf(p.doi);
+        if (oa?.pdfUrl) {
+          p.pdfUrl = oa.pdfUrl;
+          p.isOpenAccess = true;
+          p.openAccessPdf = oa.pdfUrl;
+        }
+      }
+    });
+    await Promise.allSettled(unpaywallChecks);
   }
 
   console.log(`[ResponseDebug] FINAL results.length going to frontend = ${finalResults?.length}`);
