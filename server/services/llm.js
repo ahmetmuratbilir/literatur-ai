@@ -2,7 +2,7 @@ import { fetch } from 'undici';
 import { resolveChatProvider } from '../config/aiModels.js';
 
 export async function analyzeAndExpandQuery(topic) {
-  const provider = resolveChatProvider({ profile: 'fast' });
+  const provider = resolveChatProvider({ profile: 'fast', preferProvider: 'groq' });
   if (!provider) {
     throw new Error('Yapilandirilmis bir sohbet saglayicisi yok (AI_PROVIDERS).');
   }

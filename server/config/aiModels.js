@@ -92,21 +92,13 @@ export function getActiveProviders(env = process.env) {
  *
  * @returns {{name, url, key, model} | null}
  */
-export function resolveChatProvider({ profile = 'fast' } = {}) {
-  for (const provider of getActiveProviders()) {
-    if (provider === 'deepseek') {
-      return {
-        name: 'deepseek',
-        url: `${DEEPSEEK_BASE_URL}/chat/completions`,
-        key: process.env.DEEPSEEK_API_KEY,
-        model: getDeepseekModel(profile),
-        // V4 modelleri varsayilan olarak dusunur. Akil yurutme max_tokens
-        // butcesinden harcandigi icin uzun promptlarda content BOS kaliyor
-        // ve JSON ayristirmasi patliyor. Bu cagri yerleri kisa ve kesin
-        // cevap istedigi icin dusunme kapatiliyor.
-        body: { thinking: { type: 'disabled' } },
-      };
-    }
+export function resolveChatProvider({ profile = 'fast', preferProvider = null } = {}) {
+  const active = getActiveProviders();
+  const orderedProviders = preferProvider && active.includes(preferProvider)
+    ? [preferProvider, ...active.filter(p => p !== preferProvider)]
+    : active;
+
+  for (const provider of orderedProviders) {
     if (provider === 'groq') {
       return {
         name: 'groq',
@@ -114,6 +106,15 @@ export function resolveChatProvider({ profile = 'fast' } = {}) {
         key: process.env.GROQ_API_KEY,
         model: getGroqModel(),
         body: {},
+      };
+    }
+    if (provider === 'deepseek') {
+      return {
+        name: 'deepseek',
+        url: `${DEEPSEEK_BASE_URL}/chat/completions`,
+        key: process.env.DEEPSEEK_API_KEY,
+        model: getDeepseekModel(profile),
+        body: { thinking: { type: 'disabled' } },
       };
     }
   }
