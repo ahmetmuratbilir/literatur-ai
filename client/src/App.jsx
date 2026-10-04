@@ -25,7 +25,7 @@ import {
   Mail,
   Send
 } from 'lucide-react';
-import { AuthedOnly, AnonOnly, useAppAuth } from './auth/clerkBridge.js';
+import { AuthedOnly, AnonOnly, useAppAuth, useAppUser } from './auth/clerkBridge.js';
 import { useAdmin } from './hooks/useAdmin';
 import AdminPanel from './components/AdminPanel.jsx';
 
@@ -166,6 +166,7 @@ function App() {
   const [selectedPapers, setSelectedPapers] = useState([]);
 
   const { userId, isLoaded, getToken } = useAppAuth();
+  const { user, isSignedIn } = useAppUser();
   const { isAdmin } = useAdmin({ getToken, userId });
   const [showAdmin, setShowAdmin] = useState(false);
   const { isMobile, isTablet, isCompact } = useWindowSize();
@@ -175,6 +176,34 @@ function App() {
   const [resultFilter, setResultFilter] = useState('all');
   const [selectedYear, setSelectedYear] = useState(null);
   const [activeReaderPaper, setActiveReaderPaper] = useState(null);
+
+  // Clerk ile oturum açıldığında kullanıcıyı senkronize et ve gerekirse hoş geldin e-postası tetikle
+  useEffect(() => {
+    if (!isSignedIn || !user?.id) return;
+    const syncStorageKey = `welcome_synced_${user.id}`;
+    if (sessionStorage.getItem(syncStorageKey)) return;
+
+    const email = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || '';
+    const name = user.fullName || user.firstName || 'Araştırmacı';
+
+    getToken().then((token) => {
+      if (!token) return;
+      axios.post(`${defaultApiUrl}/api/auth/sync-user`, {
+        email,
+        name,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then((res) => {
+        sessionStorage.setItem(syncStorageKey, 'true');
+        if (res.data?.welcomeEmailSent) {
+          console.log('[AuthSync] Hoş geldin e-postası tetiklendi:', res.data.email);
+        }
+      }).catch((err) => {
+        console.warn('[AuthSync] Senkronizasyon uyarısı:', err?.response?.data || err.message);
+      });
+    }).catch(() => {});
+  }, [isSignedIn, user, getToken]);
+
 
   useEffect(() => {
     const handleKeyDown = (e) => {

@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LiteraturAI — Ücretsiz Akademik API'ler, UI/UX İnovasyonları & Onboarding Rehberi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --surface: #111827;
+      --surface-card: rgba(17, 24, 39, 0.75);
+      --surface-border: rgba(255, 255, 255, 0.08);
+      --surface-border-hover: rgba(99, 102, 241, 0.4);
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      --primary: #6366f1;
+      --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.1) 0%, transparent 45%);
+      background-attachment: fixed;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #374151; }
+
+    /* Top Navigation */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(16px);
+      background: rgba(11, 15, 25, 0.85);
+      border-bottom: 1px solid var(--surface-border);
+      padding: 0.85rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-badge {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      background: rgba(99, 102, 241, 0.2);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      font-weight: 600;
+    }
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+    .nav-links a:hover { color: #fff; }
+
+    /* Layout */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 6rem;
+    }
+
+    /* Hero */
+    .hero {
+      text-align: center;
+      margin-bottom: 3.5rem;
+      padding: 3rem 1.5rem;
+      background: linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.1) 100%);
+      border: 1px solid var(--surface-border);
+      border-radius: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.12);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      padding: 0.35rem 0.9rem;
+      border-radius: 9999px;
+      margin-bottom: 1.25rem;
+    }
+    .hero-title {
+      font-size: 2.75rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #fff 30%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-subtitle {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 780px;
+      margin: 0 auto;
+    }
+
+    /* Section Styles */
+    .section-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .section-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+    }
+
+    /* Grid Layouts */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 18px;
+      padding: 1.75rem;
+      backdrop-filter: blur(12px);
+      transition: all 0.25s ease;
+      position: relative;
+    }
+    .card:hover {
+      border-color: var(--surface-border-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+    .card-badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+      margin-bottom: 0.85rem;
+    }
+    .badge-free { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-api { background: rgba(6, 182, 212, 0.15); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.3); }
+    .badge-ui { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .badge-auth { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+    .card h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: #fff;
+    }
+    .card p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 1rem;
+    }
+
+    /* Code blocks */
+    .code-box {
+      background: #070a13;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: #38bdf8;
+      overflow-x: auto;
+      margin-top: 0.75rem;
+    }
+
+    /* Comparison Table */
+    .table-container {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 18px;
+      overflow: hidden;
+      margin-bottom: 3rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+    th {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 1rem 1.25rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      border-bottom: 1px solid var(--surface-border);
+    }
+    td {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+    }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+    .td-highlight { color: #fff; font-weight: 600; }
+
+    /* Comparison highlight callout */
+    .callout {
+      border-left: 4px solid var(--primary);
+      background: rgba(99, 102, 241, 0.08);
+      border-radius: 0 14px 14px 0;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0;
+    }
+    .callout-title {
+      font-weight: 700;
+      color: #c7d2fe;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Email Mockup */
+    .email-preview {
+      background: #0e1422;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 580px;
+      margin: 1.5rem auto;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    }
+
+    footer {
+      border-top: 1px solid var(--surface-border);
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navbar -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <span>📚</span>
+      <span>Literatur<span style="color:#818cf8;">AI</span></span>
+      <span class="brand-badge">Innovation Playbook 2026</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#free-apis">Ücretsiz API'ler</a></li>
+      <li><a href="#ui-ux-innovations">UI/UX İnovasyonları</a></li>
+      <li><a href="#clerk-email">Clerk & Hoş Geldin Maili</a></li>
+      <li><a href="#action-matrix">Yol Haritası</a></li>
+    </ul>
+  </header>
+
+  <div class="container">
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-tag">⚡ ÜCRETSİZ VERİ & UX STRATEJİSİ</div>
+      <h1 class="hero-title">LiteraturAI: Ücretsiz Akademik Kaynaklar, UI/UX Fikirleri & Otomatik Karşılama Sistemi</h1>
+      <p class="hero-subtitle">
+        Sıfır ek API maliyetiyle Consensus, Elicit ve Connected Papers seviyesine ulaşma planı ve Clerk kullanıcıları için otomatik onboarding e-posta mimarisi.
+      </p>
+    </div>
+
+    <!-- Section 1: Free APIs -->
+    <section id="free-apis">
+      <h2 class="section-title">📡 1. Sıfır Maliyetli (0 TL) Yeni Akademik Veri Kaynakları</h2>
+      <p class="section-desc">Kredi kartı veya ücretli abonelik gerektirmeyen, kamu ve üniversite destekli açık API'ler.</p>
+
+      <div class="grid-2">
+        <!-- Unpaywall -->
+        <div class="card">
+          <span class="card-badge badge-free">🎯 1 NUMARALI ÖNCELİK • %100 ÜCRETSİZ</span>
+          <h3>1. Unpaywall API (ourresearch.org)</h3>
+          <p>
+            Herhangi bir makalenin DOI numarasını alıp, dünyanın tüm açık arşivlerini tarayarak <strong>doğrudan yasal PDF linkini</strong> döndürür. Paralı/kilitli makalelerde bile üniversite arşivlerindeki "Green OA" kopyalarını bularak kullanıcıya tek tıkla açık erişim sağlar.
+          </p>
+          <ul style="color:var(--text-muted); font-size:0.88rem; padding-left:1.2rem; margin-bottom:0.8rem;">
+            <li><strong>Maliyet:</strong> $0 / Limitsiz (Sadece e-posta parametresi zorunludur).</li>
+            <li><strong>Kart Üzerindeki Etkisi:</strong> Sonuç kartlarına ve Reader Drawer'a yeşil bir <strong>"🔓 Tam Metin PDF İndir"</strong> butonu kazandırır.</li>
+          </ul>
+          <div class="code-box">GET https://api.unpaywall.org/v2/10.1038/nature12373?email=senin-mailin@ornek.com</div>
+        </div>
+
+        <!-- PubMed -->
+        <div class="card">
+          <span class="card-badge badge-free">🏥 SAĞLIK & TIP DEVİ • 36M+ MAKALE</span>
+          <h3>2. PubMed / NCBI Entrez E-utilities</h3>
+          <p>
+            ABD Ulusal Tıp Kütüphanesi (NIH). Tıp, genetik, biyoloji, eczacılık ve klinik araştırmalar için mutlak altın standarttır. MeSH (Medical Subject Headings) ile terim eşleştirmesi yapar.
+          </p>
+          <ul style="color:var(--text-muted); font-size:0.88rem; padding-left:1.2rem; margin-bottom:0.8rem;">
+            <li><strong>Maliyet:</strong> Ücretsiz (Keysiz saniyede 3 istek, ücretsiz API Key ile saniyede 10 istek).</li>
+            <li><strong>Katkısı:</strong> LiteraturAI'ı tıp ve sağlık fakülteleri için vazgeçilmez kılar.</li>
+          </ul>
+          <div class="code-box">GET https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=crispr&retmode=json</div>
+        </div>
+
+        <!-- Europe PMC -->
+        <div class="card">
+          <span class="card-badge badge-free">🔬 AVRUPA AÇIK ARŞİVİ • 44M+ MAKALE</span>
+          <h3>3. Europe PMC REST API</h3>
+          <p>
+            Avrupa Biyoinformatik Enstitüsü (EMBL-EBI). PubMed'in Avrupa eşleniğidir. En büyük artısı: <strong>Tam metin açık erişim XML/paragraf araması</strong> ve araştırmayı fonlayan hibe/proje (AB Horizon, TÜBİTAK vb.) bilgilerini vermesidir.
+          </p>
+          <ul style="color:var(--text-muted); font-size:0.88rem; padding-left:1.2rem; margin-bottom:0.8rem;">
+            <li><strong>Maliyet:</strong> %100 Ücretsiz, anahtar gerektirmez.</li>
+            <li><strong>Katkısı:</strong> Tam metin içinde arama ve fon şeffaflığı.</li>
+          </ul>
+          <div class="code-box">GET https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=deep+learning&format=json</div>
+        </div>
+
+        <!-- DBLP -->
+        <div class="card">
+          <span class="card-badge badge-free">💻 BİLGİSAYAR & AI OTORİTESİ</span>
+          <h3>4. DBLP Computer Science Bibliography</h3>
+          <p>
+            Trier Üniversitesi tarafından yönetilen, bilgisayar bilimleri ve yapay zekâ alanındaki en temiz, en hatasız bibliyografik veritabanı. NeurIPS, ICML, CVPR, IEEE konferanslarını dergilerden kusursuz ayırır.
+          </p>
+          <ul style="color:var(--text-muted); font-size:0.88rem; padding-left:1.2rem; margin-bottom:0.8rem;">
+            <li><strong>Maliyet:</strong> %100 Ücretsiz, API Key istemez.</li>
+            <li><strong>Katkısı:</strong> Yazılım ve AI araştırmacıları için sıfır gürültülü sonuçlar.</li>
+          </ul>
+          <div class="code-box">GET https://dblp.org/search/publ/api?q=transformer+models&format=json</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: UI/UX Innovations -->
+    <section id="ui-ux-innovations">
+      <h2 class="section-title">🎨 2. UI / UX İnovasyonları (Rakiplerden İlham Alan 0 TL Özellikler)</h2>
+      <p class="section-desc">Tamamı açık kaynak React bileşenleri ile ekstra bütçe harcamadan entegre edilebilecek arayüz fikirleri.</p>
+
+      <div class="grid-3">
+        <!-- Elicit Matrix -->
+        <div class="card">
+          <span class="card-badge badge-ui">💡 ELICIT.COM İLHAMI</span>
+          <h3>📊 Sentez Matrisi (Table View)</h3>
+          <p>
+            Sonuç kartlarının hemen üstüne "Kart Görünümü / Matris Görünümü" toggle'ı eklemek. 30 makaleyi Excel tablosu gibi yan yana dizer: Yazar, Yıl, Atıf, AHP Skoru, Açık Erişim Linki, Özet.
+          </p>
+          <div class="callout" style="margin:0.5rem 0; padding:0.75rem 1rem;">
+            <div class="callout-title" style="font-size:0.82rem;">🚀 Araştırmacı Avantajı</div>
+            <div style="font-size:0.78rem; color:var(--text-muted);">Tek tıkla CSV veya Excel olarak indirme imkanı.</div>
+          </div>
+        </div>
+
+        <!-- Connected Papers Graph -->
+        <div class="card">
+          <span class="card-badge badge-ui">💡 CONNECTED PAPERS İLHAMI</span>
+          <h3>🕸️ İnteraktif Atıf Ağı (Graph View)</h3>
+          <p>
+            Açık kaynak <code>react-force-graph</code> veya <code>d3.js</code> ile 2D/3D interaktif ağ haritası. Birbirine atıf yapan veya ortak anahtar kelimeleri olan makaleler çizgilerle birbirine bağlanır.
+          </p>
+          <div class="callout" style="margin:0.5rem 0; padding:0.75rem 1rem;">
+            <div class="callout-title" style="font-size:0.82rem;">🌟 WOW Etkisi</div>
+            <div style="font-size:0.78rem; color:var(--text-muted);">Yatırımcı ve akademik sunumlarda anında dikkat çeker.</div>
+          </div>
+        </div>
+
+        <!-- SciSpace Drawer Copilot -->
+        <div class="card">
+          <span class="card-badge badge-ui">💡 SCISPACE İLHAMI</span>
+          <h3>⚡ Drawer İçi Mini Copilot</h3>
+          <p>
+            Mevcut <code>PaperReaderDrawer</code> çekmecemizin içine 3 hızlı analiz butonu:
+          </p>
+          <ul style="color:var(--text-muted); font-size:0.82rem; padding-left:1.2rem; line-height:1.5;">
+            <li>🔬 "Metodolojiyi ve Katılımcı Sayısını Çıkar"</li>
+            <li>📌 "3 Maddede Temel Bulgular"</li>
+            <li>⚠️ "Çalışmanın Sınırlılıkları (Research Gaps)"</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Clerk & Welcome Email -->
+    <section id="clerk-email">
+      <h2 class="section-title">📧 3. Clerk Girişi & Otomatik Hoş Geldin E-Postası Mimarisi</h2>
+      <p class="section-desc">"Clerk'in böyle bir servisi var mı? Otomatik nasıl mail atarız?" sorusunun teknik cevabı ve çözümü.</p>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Özellik & Yaklaşım</th>
+              <th>Clerk'in Kendi E-posta Servisi</th>
+              <th>LiteraturAI Hibrit Mimarisi (Clerk + Resend)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-highlight">Özel Tasarım HTML / Branding</td>
+              <td>❌ Ücretsiz planda şablon özelleştirilemez (Pro $25+/ay gerekir).</td>
+              <td><span style="color:#34d399; font-weight:700;">✅ %100 Özelleştirilebilir:</span> Kendi logomuz, mor-indigo tema, CTA butonları.</td>
+            </tr>
+            <tr>
+              <td class="td-highlight">E-posta İçeriği & Özellik Tanıtımı</td>
+              <td>❌ Yalnızca "OTP Kodu" veya "Giriş Linki" atabilir.</td>
+              <td><span style="color:#34d399; font-weight:700;">✅ Zengin İçerik:</span> 810M makale, AHP dergi prestiji, Zotero ihracı tanıtımı.</td>
+            </tr>
+            <tr>
+              <td class="td-highlight">Maliyet</td>
+              <td>Clerk Pro aboneliği gerektirir.</td>
+              <td><span style="color:#34d399; font-weight:700;">✅ 0 TL:</span> Resend ile ayda 3.000 e-posta tamamen ücretsizdir.</td>
+            </tr>
+            <tr>
+              <td class="td-highlight">Tetikleme Mekanizması</td>
+              <td>Sadece Clerk Dashboard'dan.</td>
+              <td><span style="color:#34d399; font-weight:700;">✅ Otomatik & Akıllı:</span> Kullanıcı giriş yaptığı an <code>/api/auth/sync-user</code> tetiklenir.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Flow Architecture -->
+      <div class="card" style="margin-bottom:2rem;">
+        <span class="card-badge badge-auth">⚙️ UYGULANAN SİSTEM AKIŞI</span>
+        <h3>Otomatik Karşılama Akışı (Nasıl Çalışıyor?)</h3>
+        <ol style="color:var(--text-muted); font-size:0.92rem; padding-left:1.4rem; line-height:1.7; margin-top:0.75rem;">
+          <li><strong>Giriş Anı:</strong> Kullanıcı Google veya Clerk ile oturum açtığında, React tarafında <code>useAppUser()</code> kullanıcının e-posta ve isim bilgisini yakalar.</li>
+          <li><strong>Senkronizasyon:</strong> <code>/api/auth/sync-user</code> uç noktasına güvenli JWT başlığı ile istek gönderilir.</li>
+          <li><strong>Mükerrerlik Koruması:</strong> MongoDB'deki <code>UserProfile</code> koleksiyonunda (veya sunucu belleğinde) kullanıcının daha önce hoş geldin e-postası alıp almadığı (<code>welcomeEmailSent</code>) denetlenir.</li>
+          <li><strong>E-posta Gönderimi:</strong> Kullanıcı ilk kez geliyorsa Resend API üzerinden <code>sendWelcomeOnboardingEmail</code> çağrılır ve premium hoş geldin mektubu iletilir!</li>
+        </ol>
+      </div>
+
+      <!-- Preview Email Box -->
+      <div class="email-preview">
+        <div style="text-align:center; margin-bottom:1.5rem;">
+          <div style="font-size:28px;">📚</div>
+          <h3 style="color:#fff; font-size:1.3rem; margin:0.3rem 0;">Aramıza Hoş Geldiniz!</h3>
+          <p style="color:#818cf8; font-size:0.85rem; font-weight:600;">LiteraturAI Akademik Literatür Platformu</p>
+        </div>
+        <p style="color:#e2e8f0; font-size:0.9rem; line-height:1.6; margin-bottom:1rem;">
+          Merhaba <strong>Sayın Araştırmacı</strong>,<br>
+          LiteraturAI hesabınız bağlandı. 810M+ makaleyi AHP dergi prestij filtresiyle taramaya başlayabilirsiniz.
+        </p>
+        <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:1rem; font-size:0.82rem; color:#cbd5e1; line-height:1.6; margin-bottom:1.5rem;">
+          <div>🔍 <strong>810M+ Makale Taraması:</strong> 7 küresel veri havuzunda anlık arama.</div>
+          <div>⚖️ <strong>AHP Sıralaması:</strong> SCImago Q1/Q2 etki değerine göre bilimsel önceliklendirme.</div>
+          <div>📑 <strong>BibTeX & RIS:</strong> Zotero ve Mendeley'e tek tıkla referans indirme.</div>
+        </div>
+        <div style="text-align:center;">
+          <span style="display:inline-block; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; padding:0.6rem 1.6rem; border-radius:8px; font-weight:700; font-size:0.88rem;">
+            LiteraturAI ile Aramaya Başla →
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: Roadmap -->
+    <section id="action-matrix">
+      <h2 class="section-title">🗺️ 4. Uygulama & Efor Matrisi</h2>
+      <p class="section-desc">Geliştirme süresi ve kullanıcıya sunduğu katma değere göre önceliklendirilmiş yol haritası.</p>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Özellik / Modül</th>
+              <th>Kategori</th>
+              <th>Tahmini Efor</th>
+              <th>Kullanıcı / Yatırımcı Etkisi</th>
+              <th>Maliyet</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-highlight">1. Otomatik Hoş Geldin E-Postası (Clerk Sync)</td>
+              <td>Onboarding & Retansiyon</td>
+              <td>Tamamlandı (Aktif)</td>
+              <td>⭐⭐⭐⭐ (Yüksek Güvenilirlik)</td>
+              <td>0 TL (Resend)</td>
+            </tr>
+            <tr>
+              <td class="td-highlight">2. Unpaywall 1-Tık Açık Erişim PDF</td>
+              <td>Veri Entegrasyonu</td>
+              <td>~1-2 Saat</td>
+              <td>⭐⭐⭐⭐⭐ (Kritik Katma Değer)</td>
+              <td>0 TL</td>
+            </tr>
+            <tr>
+              <td class="td-highlight">3. Elicit Stili Sentez Matrisi (Table View)</td>
+              <td>UI / UX Görünümü</td>
+              <td>~2-3 Saat</td>
+              <td>⭐⭐⭐⭐⭐ (Akademisyen Favorisi)</td>
+              <td>0 TL</td>
+            </tr>
+            <tr>
+              <td class="td-highlight">4. PubMed / NCBI Tıp Araması</td>
+              <td>Veri Entegrasyonu</td>
+              <td>~3 Saat</td>
+              <td>⭐⭐⭐⭐ (Tıp & Biyoloji Pazarı)</td>
+              <td>0 TL</td>
+            </tr>
+            <tr>
+              <td class="td-highlight">5. Connected Papers Atıf Ağı Haritası</td>
+              <td>Görsel Veri Analizi</td>
+              <td>~1 Gün</td>
+              <td>⭐⭐⭐⭐⭐ (Yatırımcı WOW Etkisi)</td>
+              <td>0 TL (D3.js)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    LiteraturAI Research & Product Playbook • 2026 • Bilimsel Araştırmayı Hızlandırıyoruz.
+  </footer>
+
+</body>
+</html>

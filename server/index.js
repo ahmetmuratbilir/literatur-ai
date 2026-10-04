@@ -21,7 +21,8 @@ import { runRevisionCoach } from './services/revisionCoachService.js';
 import { createRequestId, runWriterPipeline } from './services/writerPipeline.js';
 import { logger } from './utils/logger.js';
 import { clerkMiddleware, getAuth as clerkGetAuth, clerkClient } from '@clerk/express';
-import { sendWelcomeDemoEmail } from './services/emailService.js';
+import { sendWelcomeDemoEmail, sendWelcomeOnboardingEmail } from './services/emailService.js';
+import UserProfile from './models/UserProfile.js';
 import {
   buildSearchCacheFingerprint,
   getSearchCacheConfig,
@@ -1428,6 +1429,106 @@ app.post('/api/demo/welcome', async (req, res) => {
     return res.status(500).json({ error: 'E-posta gönderilirken bir hata oluştu.' });
   }
 });
+
+// Veritabanı bağlı değilken veya dev ortamında mükerrer e-posta gönderimini önleyen bellek içi küme
+const inMemoryWelcomeSent = new Set();
+
+/**
+ * Kullanıcı Giriş / Kayıt Senkronizasyonu ve Otomatik Hoş Geldin E-postası
+ * Clerk ile giriş yapıldığında tetiklenir, kullanıcı ilk kez giriş yapıyorsa
+ * doğrudan hoş geldin e-postasını gönderir.
+ */
+app.post('/api/auth/sync-user', async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) {
+    return res.status(401).json({ error: 'Lütfen giriş yapın.' });
+  }
+
+  try {
+    let { email, name = 'Araştırmacı' } = req.body || {};
+
+    // E-posta istemciden gelmediyse ve Clerk yapılandırılmışsa Clerk API'den çek
+    if (CLERK_CONFIGURED && (!email || typeof email !== 'string' || !email.includes('@'))) {
+      try {
+        const clerkUser = await clerkClient.users.getUser(userId);
+        if (clerkUser?.emailAddresses?.length > 0) {
+          const primary = clerkUser.emailAddresses.find((e) => e.id === clerkUser.primaryEmailAddressId);
+          email = primary ? primary.emailAddress : clerkUser.emailAddresses[0].emailAddress;
+        }
+        if (!name || name === 'Araştırmacı') {
+          const fullName = [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(' ');
+          if (fullName) name = fullName;
+        }
+      } catch (clerkErr) {
+        logger.warn({ error: clerkErr.message, userId }, '[AuthSync] Clerk kullanıcı bilgisi alınamadı');
+      }
+    }
+
+    const hasValidEmail = typeof email === 'string' && email.includes('@');
+    let shouldSendWelcome = false;
+
+    if (mongoose.connection.readyState === 1) {
+      let profile = await UserProfile.findOne({ userId });
+      if (!profile) {
+        profile = new UserProfile({
+          userId,
+          email: hasValidEmail ? email.trim().toLowerCase() : '',
+          name: typeof name === 'string' ? name.trim() : 'Araştırmacı',
+          welcomeEmailSent: false,
+          lastLoginAt: new Date(),
+        });
+        shouldSendWelcome = hasValidEmail;
+      } else {
+        profile.lastLoginAt = new Date();
+        if (hasValidEmail && !profile.email) {
+          profile.email = email.trim().toLowerCase();
+        }
+        if (name && name !== 'Araştırmacı' && (!profile.name || profile.name === 'Araştırmacı')) {
+          profile.name = typeof name === 'string' ? name.trim() : 'Araştırmacı';
+        }
+        shouldSendWelcome = !profile.welcomeEmailSent && hasValidEmail;
+      }
+
+      if (shouldSendWelcome) {
+        try {
+          await sendWelcomeOnboardingEmail({
+            email: profile.email || email,
+            name: profile.name || name,
+          });
+          profile.welcomeEmailSent = true;
+          profile.welcomeEmailSentAt = new Date();
+        } catch (mailErr) {
+          logger.error({ error: mailErr.message, userId, email }, '[AuthSync] Hoş geldin e-postası gönderim hatası');
+        }
+      }
+
+      await profile.save();
+    } else {
+      // MongoDB bağlı değilse bellek içi takip ile hoş geldin gönder
+      if (hasValidEmail && !inMemoryWelcomeSent.has(userId)) {
+        shouldSendWelcome = true;
+        try {
+          await sendWelcomeOnboardingEmail({ email, name });
+          inMemoryWelcomeSent.add(userId);
+        } catch (mailErr) {
+          logger.error({ error: mailErr.message, userId, email }, '[AuthSync] Hoş geldin e-postası gönderim hatası');
+        }
+      }
+    }
+
+    return res.json({
+      success: true,
+      userId,
+      email: hasValidEmail ? email : null,
+      name,
+      welcomeEmailSent: shouldSendWelcome,
+    });
+  } catch (error) {
+    logger.error({ error: error.message, userId }, '[API] /api/auth/sync-user hatası');
+    return res.status(500).json({ error: 'Kullanıcı senkronizasyonunda bir hata oluştu.' });
+  }
+});
+
 
 app.post('/api/consensus', async (req, res) => {
   try {
