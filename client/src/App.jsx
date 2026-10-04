@@ -38,7 +38,6 @@ const LOADING_MESSAGES = [
 ];
 
 import ResultCard from './components/ResultCard';
-import GlobalStats from './components/GlobalStats';
 import InfiniteTicker from './components/InfiniteTicker';
 import HistorySidebar from './components/HistorySidebar';
 import WriterPanel from './components/WriterPanel';
@@ -899,15 +898,6 @@ function App() {
                     </div>
                   </div>
                 )}
-
-                <GlobalStats
-                  totalFound={data.totalFound}
-                  analyzed={data.analyzedCount}
-                  quota={quota}
-                  sourceBreakdown={data.sourceBreakdown}
-                  totalFromAPIs={data.totalFromAPIs}
-                  failedSources={data.failedSources}
-                />
 
                 <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', marginBottom: '1rem' }}>
                   <div style={{ fontWeight: '600', color: 'var(--slate-600)', fontSize: 'var(--fs-sm)' }}>
