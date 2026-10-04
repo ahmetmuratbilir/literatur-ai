@@ -20,10 +20,7 @@ import {
   Share2,
   PenLine,
   BarChart2,
-  QrCode,
-  X,
-  Mail,
-  Send
+  X
 } from 'lucide-react';
 import { AuthedOnly, AnonOnly, useAppAuth, useAppUser } from './auth/clerkBridge.js';
 import { useAdmin } from './hooks/useAdmin';
@@ -227,7 +224,6 @@ function App() {
       // Esc -> Modalları / Çekmeceleri kapat
       if (e.key === 'Escape') {
         setActiveReaderPaper(null);
-        setShowInvestorModal(false);
         setShowShareModal(false);
       }
     };
@@ -236,34 +232,7 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setShowShareModal]);
 
-  const [showInvestorModal, setShowInvestorModal] = useState(false);
-  const [demoEmail, setDemoEmail] = useState('');
-  const [demoName, setDemoName] = useState('');
-  const [demoSending, setDemoSending] = useState(false);
-  const [demoSent, setDemoSent] = useState(false);
-  const [demoError, setDemoError] = useState('');
 
-  const handleSendDemoWelcome = async (e) => {
-    e.preventDefault();
-    if (!demoEmail || !demoEmail.includes('@')) {
-      setDemoError('Lütfen geçerli bir e-posta adresi girin.');
-      return;
-    }
-    setDemoSending(true);
-    setDemoError('');
-    try {
-      await axios.post(`${defaultApiUrl}/api/demo/welcome`, {
-        email: demoEmail,
-        name: demoName || 'Araştırmacı',
-        query: mainTopic || selectedAiQuery || 'Akademik Literatür'
-      });
-      setDemoSent(true);
-    } catch (err) {
-      setDemoError(err?.response?.data?.error || 'E-posta gönderilemedi.');
-    } finally {
-      setDemoSending(false);
-    }
-  };
 
   const canSubmitSearch = Boolean(
     mainTopic.trim() ||
@@ -554,35 +523,14 @@ function App() {
           <div className="query-workspace" style={{ maxWidth: '1000px', margin: '0 auto' }}>
 
             <header className="query-hero" style={{ textAlign: 'center', marginBottom: isMobile ? '2rem' : '3rem' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center', marginBottom: '1.25rem' }}>
                 <MotionDiv
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', background: 'var(--brand-primary-soft)', color: 'var(--brand-primary)', fontSize: 'var(--fs-xs)', fontWeight: '600', letterSpacing: '0.02em' }}
                 >
-                  <Sparkles size={12} /> 7 akademik veri kaynağı, 810M+ makale
+                  <Sparkles size={12} /> 7 akademik veri kaynağı, 300M+ makale
                 </MotionDiv>
-                <button
-                  type="button"
-                  onClick={() => setShowInvestorModal(true)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 14px',
-                    borderRadius: '999px',
-                    background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(168,85,247,0.12))',
-                    color: 'var(--brand-primary)',
-                    border: '1px solid rgba(99,102,241,0.3)',
-                    fontSize: 'var(--fs-xs)',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    letterSpacing: '0.02em',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <QrCode size={13} /> Canlı Demo (QR & Hoş Geldin)
-                </button>
               </div>
               <MotionH1
                 initial={{ opacity: 0, y: 8 }}
@@ -1183,205 +1131,6 @@ function App() {
             size={writerSize}
             setSize={setWriterSize}
           />
-        )}
-      </AnimatePresence>
-
-      {/* Yatırımcı & Canlı Demo QR Modalı */}
-      <AnimatePresence>
-        {showInvestorModal && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 9999,
-              background: 'rgba(9, 13, 22, 0.75)',
-              backdropFilter: 'blur(8px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '1rem'
-            }}
-            onClick={() => setShowInvestorModal(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                width: '100%',
-                maxWidth: '520px',
-                background: '#ffffff',
-                borderRadius: '20px',
-                padding: '2rem',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                position: 'relative'
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setShowInvestorModal(false)}
-                style={{
-                  position: 'absolute',
-                  top: '1.25rem',
-                  right: '1.25rem',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--slate-400)',
-                  padding: '4px'
-                }}
-              >
-                <X size={20} />
-              </button>
-
-              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <div style={{ display: 'inline-flex', padding: '10px', background: 'rgba(99,102,241,0.08)', borderRadius: '12px', color: 'var(--brand-primary)', marginBottom: '0.75rem' }}>
-                  <QrCode size={28} />
-                </div>
-                <h3 style={{ fontSize: '1.35rem', fontWeight: '800', color: 'var(--text-main)', margin: '0 0 0.4rem 0' }}>
-                  Canlı Demo & Hızlı Erişim
-                </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0 }}>
-                  Telefonunuzun kamerasıyla QR kodu tarayarak sahnede platformu anında deneyin.
-                </p>
-              </div>
-
-              {/* QR Kod Görseli */}
-              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <div style={{
-                  display: 'inline-block',
-                  padding: '12px',
-                  background: '#f8fafc',
-                  border: '2px dashed #cbd5e1',
-                  borderRadius: '16px'
-                }}>
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : 'https://literatur-ai.com')}`}
-                    alt="Canlı Demo QR Kodu"
-                    style={{ width: '160px', height: '160px', display: 'block', borderRadius: '8px' }}
-                  />
-                </div>
-              </div>
-
-              {/* Hızlı Demo Konuları */}
-              <div style={{ marginBottom: '1.5rem' }}>
-                <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-                  ⚡ Tek Tıkla Canlı Arama Senaryoları:
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {[
-                    'CRISPR-Cas9 ile Gen Tedavisi ve Etik Sorunlar',
-                    'Yapay Zekanın Tıbbi Radyolojideki Doğruluğu',
-                    'Kuantum Bilgisayarlar ve Kriptografi'
-                  ].map((topic) => (
-                    <button
-                      key={topic}
-                      type="button"
-                      onClick={() => {
-                        setMainTopic(topic);
-                        setShowInvestorModal(false);
-                        handleSearch(null, topic);
-                      }}
-                      style={{
-                        padding: '8px 12px',
-                        background: '#f1f5f9',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        color: 'var(--text-main)',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        transition: 'background 0.15s ease'
-                      }}
-                    >
-                      <span>{topic}</span>
-                      <span style={{ color: 'var(--brand-primary)', fontSize: '11px' }}>Ara →</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Resend Hoş Geldin E-postası Formu */}
-              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.25rem' }}>
-                <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '0.25rem' }}>
-                  📬 E-postanıza Demo Raporu & Pro Hesap Gönderin:
-                </div>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>
-                  Giriş yapan katılımcılara Resend üzerinden anında 1 aylık deneme hesabı iletilir.
-                </p>
-
-                {demoSent ? (
-                  <div style={{ padding: '10px 14px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', borderRadius: '8px', fontSize: '12px', fontWeight: '600', textAlign: 'center' }}>
-                    ✓ E-posta başarıyla iletildi! Gelen kutunuzu kontrol edin.
-                  </div>
-                ) : (
-                  <form onSubmit={handleSendDemoWelcome} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input
-                        type="text"
-                        placeholder="Adınız (İsteğe bağlı)"
-                        value={demoName}
-                        onChange={(e) => setDemoName(e.target.value)}
-                        style={{
-                          width: '140px',
-                          padding: '8px 12px',
-                          borderRadius: '8px',
-                          border: '1px solid #cbd5e1',
-                          fontSize: '12px',
-                          outline: 'none'
-                        }}
-                      />
-                      <input
-                        type="email"
-                        placeholder="adiniz@sirket.com"
-                        value={demoEmail}
-                        onChange={(e) => setDemoEmail(e.target.value)}
-                        required
-                        style={{
-                          flex: 1,
-                          padding: '8px 12px',
-                          borderRadius: '8px',
-                          border: '1px solid #cbd5e1',
-                          fontSize: '12px',
-                          outline: 'none'
-                        }}
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={demoSending}
-                      style={{
-                        padding: '9px 16px',
-                        background: 'var(--brand-primary)',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        cursor: demoSending ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px'
-                      }}
-                    >
-                      {demoSending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                      Demo Raporunu & Pro Denemeyi Gönder
-                    </button>
-                  </form>
-                )}
-                {demoError && (
-                  <p style={{ color: '#dc2626', fontSize: '11px', marginTop: '4px', margin: '4px 0 0' }}>{demoError}</p>
-                )}
-              </div>
-
-            </motion.div>
-          </div>
         )}
       </AnimatePresence>
 

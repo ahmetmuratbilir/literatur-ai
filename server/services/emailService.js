@@ -125,7 +125,7 @@ export async function sendWelcomeDemoEmail({ email, name = 'Araştırmacı', que
 }
 
 /**
- * Kullanıcı Giriş / Kayıt Hoş Geldin E-postası
+ * Kullanıcı Giriş / Kayıt Hoş Geldin E-postası (Primary Inbox Odaklı)
  */
 export async function sendWelcomeOnboardingEmail({ email, name = 'Araştırmacı' }) {
   if (!resend) {
@@ -133,7 +133,24 @@ export async function sendWelcomeOnboardingEmail({ email, name = 'Araştırmacı
     return { simulated: true, email, name };
   }
 
-  const appUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const appUrl = process.env.CLIENT_URL || 'https://literatur-ai.com';
+  const cleanName = escapeHtml(plainLine(name));
+  const subjectLine = `LiteraturAI hesabınız hazır, ${plainLine(name, 40)}`;
+
+  const textVersion = `Merhaba ${plainLine(name)},
+
+LiteraturAI'ye hoş geldiniz!
+
+Akademik araştırmalarınızı hızlandırmak için hesabınız başarıyla oluşturuldu. Artık Scopus, OpenAlex, Crossref, CORE ve arXiv üzerindeki 300 milyondan fazla akademik makaleyi AHP ve yapay zekâ analiz gücüyle tarayabilirsiniz.
+
+Platforma hemen erişmek için:
+${appUrl}
+
+Herhangi bir sorunuz veya öneriniz olursa doğrudan bu e-postayı yanıtlayabilirsiniz.
+
+Başarılar dileriz,
+LiteraturAI Ekibi
+https://literatur-ai.com`;
 
   const html = `
     <!DOCTYPE html>
@@ -141,76 +158,42 @@ export async function sendWelcomeOnboardingEmail({ email, name = 'Araştırmacı
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>LiteraturAI'ye Hoş Geldiniz</title>
+      <title>${subjectLine}</title>
     </head>
-    <body style="background-color:#0b0f19; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#f3f4f6; padding:40px 15px; margin:0;">
-      <div style="max-width:520px; margin:0 auto; background:#111827; border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:36px 30px; box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+    <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; background-color:#f8fafc; color:#1e293b; margin:0; padding:32px 16px; line-height:1.6;">
+      <div style="max-width:540px; margin:0 auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:32px 28px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
         
-        <!-- Header -->
-        <div style="text-align:center; margin-bottom:28px;">
-          <div style="display:inline-block; padding:10px 16px; background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3); border-radius:12px; margin-bottom:12px;">
-            <span style="font-size:24px;">📚</span>
-            <span style="font-weight:800; font-size:18px; color:#ffffff; vertical-align:middle; margin-left:6px;">Literatur<span style="color:#818cf8;">AI</span></span>
-          </div>
-          <h2 style="color:#ffffff; margin:8px 0 6px 0; font-size:24px; font-weight:800; letter-spacing:-0.02em;">Aramıza Hoş Geldiniz!</h2>
-          <p style="color:#94a3b8; font-size:14px; margin:0; line-height:1.5;">Akademik araştırmalarınızı saatler yerine dakikalara indirgeyen akıllı asistanınız hazır.</p>
-        </div>
-
-        <!-- Body -->
-        <p style="color:#e2e8f0; font-size:15px; line-height:1.6; margin:0 0 16px 0;">
-          Merhaba <strong>${escapeHtml(plainLine(name))}</strong>,
-        </p>
-        <p style="color:#94a3b8; font-size:14px; line-height:1.6; margin:0 0 24px 0;">
-          LiteraturAI hesabınız başarıyla bağlandı. Artık dünyanın en büyük akademik veri havuzlarında yapay zekâ ve AHP analiz gücüyle tarama yapabilirsiniz.
-        </p>
-
-        <!-- Feature Grid -->
-        <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:20px; margin-bottom:28px;">
-          <h4 style="color:#c7d2fe; margin:0 0 14px 0; font-size:13px; text-transform:uppercase; letter-spacing:0.05em; font-weight:700;">Hemen Deneyebileceğiniz Özellikler:</h4>
-          
-          <div style="margin-bottom:12px; display:flex; align-items:flex-start;">
-            <span style="font-size:16px; margin-right:10px; line-height:1.3;">🔍</span>
-            <div style="color:#cbd5e1; font-size:13px; line-height:1.5;">
-              <strong style="color:#ffffff;">300M+ Makale Taraması:</strong> Scopus, OpenAlex, Crossref, CORE, DOAJ ve arXiv kaynaklarında eş zamanlı tarama.
-            </div>
-          </div>
-
-          <div style="margin-bottom:12px; display:flex; align-items:flex-start;">
-            <span style="font-size:16px; margin-right:10px; line-height:1.3;">⚖️</span>
-            <div style="color:#cbd5e1; font-size:13px; line-height:1.5;">
-              <strong style="color:#ffffff;">AHP Dergi & Prestij Sıralaması:</strong> SCImago Q1/Q2 etki değeri, atıf sayısı ve güncelliğe göre bilimsel önceliklendirme.
-            </div>
-          </div>
-
-          <div style="margin-bottom:12px; display:flex; align-items:flex-start;">
-            <span style="font-size:16px; margin-right:10px; line-height:1.3;">🤖</span>
-            <div style="color:#cbd5e1; font-size:13px; line-height:1.5;">
-              <strong style="color:#ffffff;">AI Konsensüs Özeti & Drawer:</strong> Taranan literatürün bilimsel ortak uzlaşısını ve makale detaylarını tek ekranda okuyun.
-            </div>
-          </div>
-
-          <div style="display:flex; align-items:flex-start;">
-            <span style="font-size:16px; margin-right:10px; line-height:1.3;">📑</span>
-            <div style="color:#cbd5e1; font-size:13px; line-height:1.5;">
-              <strong style="color:#ffffff;">BibTeX & RIS Dışa Aktarımı:</strong> Zotero ve Mendeley kütüphanenize tek tıkla referans indirin.
-            </div>
-          </div>
-        </div>
-
-        <!-- CTA Button -->
-        <div style="text-align:center; margin:30px 0 16px 0;">
-          <a href="${appUrl}" style="display:inline-block; background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%); color:#ffffff !important; text-decoration:none; padding:14px 34px; border-radius:10px; font-weight:700; font-size:15px; box-shadow:0 8px 20px rgba(99,102,241,0.35);" target="_blank" rel="noopener noreferrer">
-            LiteraturAI ile Aramaya Başla →
+        <!-- Logo Header -->
+        <div style="margin-bottom:24px;">
+          <a href="${appUrl}" style="text-decoration:none; font-size:20px; font-weight:800; color:#0f172a; display:inline-block;" target="_blank" rel="noopener noreferrer">
+            <span style="color:#4f46e5;">Literatur</span>AI
           </a>
         </div>
 
-        <!-- Footer -->
-        <div style="text-align:center; border-top:1px solid rgba(255,255,255,0.06); padding-top:20px; margin-top:28px;">
-          <p style="color:#64748b; font-size:12px; margin:0; line-height:1.5;">
-            Bu e-posta, LiteraturAI platformuna kaydolduğunuz veya giriş yaptığınız için gönderilmiştir.<br>
-            Sorularınız veya geri bildirimleriniz için doğrudan bu e-postayı yanıtlayabilirsiniz.
-          </p>
+        <p style="font-size:15px; color:#1e293b; margin:0 0 16px 0;">
+          Merhaba <strong>${cleanName}</strong>,
+        </p>
+
+        <p style="font-size:14px; color:#334155; margin:0 0 16px 0;">
+          LiteraturAI'ye hoş geldiniz! Hesabınız başarıyla oluşturuldu. Artık dünyanın en kapsamlı akademik veri kaynaklarında yapay zekâ ve AHP karar matrisi ile tarama yapabilirsiniz.
+        </p>
+
+        <p style="font-size:14px; color:#334155; margin:0 0 24px 0;">
+          Scopus, OpenAlex, Crossref ve arXiv gibi 7 global veri tabanındaki 300 milyondan fazla akademik yayına anında erişebilir, Q1/Q2 dergi prestij sıralamaları ve konsensüs analizleriyle literatür taramalarınızı dakikalar içinde tamamlayabilirsiniz.
+        </p>
+
+        <!-- CTA Button -->
+        <div style="margin:28px 0;">
+          <a href="${appUrl}" style="display:inline-block; background:#4f46e5; color:#ffffff !important; text-decoration:none; padding:12px 28px; border-radius:8px; font-weight:600; font-size:14px;" target="_blank" rel="noopener noreferrer">
+            LiteraturAI'ye Giriş Yap →
+          </a>
         </div>
+
+        <p style="font-size:13px; color:#64748b; margin:28px 0 0 0; padding-top:20px; border-top:1px solid #f1f5f9;">
+          Bir sorunuz veya geri bildiriminiz olursa doğrudan bu e-postayı yanıtlayarak bize ulaşabilirsiniz.<br><br>
+          İyi çalışmalar dileriz,<br>
+          <strong>LiteraturAI Ekibi</strong>
+        </p>
 
       </div>
     </body>
@@ -220,8 +203,13 @@ export async function sendWelcomeOnboardingEmail({ email, name = 'Araştırmacı
   const { data, error } = await resend.emails.send({
     from: fromEmail,
     to: [email],
-    subject: `🎓 LiteraturAI'ye Hoş Geldiniz, ${plainLine(name, 60)}!`,
+    replyTo: 'info@literatur-ai.com',
+    subject: subjectLine,
     html,
+    text: textVersion,
+    headers: {
+      'X-Entity-Ref-ID': `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+    },
   });
 
   if (error) {
