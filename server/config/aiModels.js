@@ -11,7 +11,9 @@
 // Groq katalogdan Llama'yi kaldirdi; gpt-oss-120b ucretsiz katmandaki
 // en yetenekli genel amacli model.
 const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b';
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+// gemini-2.5-flash 5 Eki 2026'da yeni anahtarlara kapandı (HTTP 404 "no longer
+// available to new users"). 3.8-flash ölçülen en hızlı açık model (~3 sn).
+const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
 
 // DeepSeek 24 Temmuz 2026'da deepseek-chat ve deepseek-reasoner adlarini
 // emekliye ayirdi. Guncel adlar bunlar.
@@ -126,6 +128,34 @@ export function resolveChatProvider({ profile = 'fast', preferProvider = null } 
     }
   }
   return null;
+}
+
+/**
+ * Tek bir sağlayıcının OpenAI sohbet formatındaki yapılandırması.
+ * Gemini'nin de OpenAI uyumlu bir ucu var; kısa JSON çağrıları için yeterli.
+ */
+export function chatProviderConfig(name, { profile = 'fast' } = {}) {
+  if (!isProviderConfigured(name)) return null;
+  if (name === 'groq') {
+    // gpt-oss akıl yürüten bir model; varsayılan düzeyde kısa bir JSON için
+    // ~2000 token düşünüp 13 sn sürüyordu.
+    return { name, url: 'https://api.groq.com/openai/v1/chat/completions', key: process.env.GROQ_API_KEY, model: getGroqModel(), body: { reasoning_effort: 'low' } };
+  }
+  if (name === 'deepseek') {
+    return { name, url: `${DEEPSEEK_BASE_URL}/chat/completions`, key: process.env.DEEPSEEK_API_KEY, model: getDeepseekModel(profile), body: { thinking: { type: 'disabled' } } };
+  }
+  if (name === 'gemini') {
+    return { name, url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', key: process.env.GEMINI_API_KEY, model: getGeminiModel(), body: { reasoning_effort: 'none' } };
+  }
+  return null;
+}
+
+/**
+ * Sırayla denenecek sağlayıcılar (anahtarı olanlar). Biri kotaya takılır,
+ * zaman aşımına uğrar ya da geçersiz yanıt verirse çağıran sıradakine geçer.
+ */
+export function chatProvidersInOrder(order, options = {}) {
+  return order.map((name) => chatProviderConfig(name, options)).filter(Boolean);
 }
 
 export {

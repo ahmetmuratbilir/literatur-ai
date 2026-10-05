@@ -71,7 +71,13 @@ export default {
   ai: {
     title: 'AI araştırma analizi',
     goal: 'Hedef:',
-    suggested: 'Önerilen akademik sorgular',
+    keywords: 'Anahtar kavramlar',
+    searchedAs: 'Aramada kullanılan terim',
+    suggested: 'Arama yaklaşımları',
+    pickHint: 'Birini seçin; arama bu kavramlar ve eş anlamlılarıyla arka planda yapılır.',
+    match: '%{n} uyum',
+    matchTitle: 'Bu yaklaşımın konunuza ne kadar yakın olduğu (yapay zekâ tahmini)',
+    searchThis: 'Bu yaklaşımla ara',
   },
   results: {
     filter: {

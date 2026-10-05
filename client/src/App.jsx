@@ -50,6 +50,7 @@ import { flyToBasket } from './utils/flyToBasket';
 import Toasts from './components/Toasts';
 import WriterDock from './components/WriterDock';
 import CitationChecker from './components/CitationChecker';
+import AiAnalysisPanel from './components/AiAnalysisPanel';
 import { useShare } from './hooks/useShare';
 import { useExport } from './hooks/useExport';
 
@@ -105,7 +106,7 @@ const PAGE_SIZE = 25;
 const RESULT_LIMIT = 100;
 
 function App() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [mainTopic, setMainTopic] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [keywords, setKeywords] = useState([]);
@@ -123,7 +124,6 @@ function App() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(null);
   const [aiAnalysis, setAiAnalysis] = useState(null);
-  const [selectedAiQuery, setSelectedAiQuery] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [deviceId, setDeviceId] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -239,7 +239,6 @@ function App() {
   const canSubmitSearch = Boolean(
     mainTopic.trim() ||
     authorName.trim() ||
-    selectedAiQuery.trim() ||
     keywords.length > 0
   );
 
@@ -334,7 +333,8 @@ function App() {
     setAiError(null);
     try {
       const token = await getToken();
-      const response = await axios.post(`${defaultApiUrl}/api/analyze-query`, { topic: mainTopic.trim() }, {
+      // lang: niyet ve kavramlar arayüz dilinde gelir; arama sorguları her zaman İngilizce.
+      const response = await axios.post(`${defaultApiUrl}/api/analyze-query`, { topic: mainTopic.trim(), lang }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data?.intent) {
@@ -414,13 +414,19 @@ function App() {
     await rerank({ weights: JSON.stringify(weights), profileId: undefined });
   };
 
-  const handleSearch = async (e, directQuery = null) => {
+  /**
+   * @param directQuery   Konuyu değiştirerek ara ("Benzerini bul").
+   * @param aiQueryOverride Yalnızca bu aramada kullanılacak AI Boolean sorgusu.
+   *   Konu kutusuna yazılmaz ve state'te tutulmaz: önceki sürüm seçilen sorguyu
+   *   kutuya yazıyor ve saklıyordu, sonraki elle aramalar da onu gönderiyordu.
+   */
+  const handleSearch = async (e, directQuery = null, aiQueryOverride = null) => {
     if (e) e.preventDefault();
     const activeTopic = directQuery ? directQuery.trim() : mainTopic.trim();
     if (directQuery) {
       setMainTopic(directQuery);
     }
-    const query = directQuery ? '' : selectedAiQuery;
+    const query = aiQueryOverride ?? '';
     const trimmedTopic = activeTopic;
     const trimmedAuthor = authorName.trim();
     const normalizedQuery = typeof query === 'string' ? query.trim() : '';
@@ -862,50 +868,12 @@ function App() {
 
             <AnimatePresence>
               {aiAnalysis && !loading && (
-                <MotionDiv
+                <AiAnalysisPanel
                   ref={aiPanelRef}
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="ui-panel"
-                  style={{ marginBottom: 'var(--space-6)', borderLeft: '4px solid var(--brand-primary)', scrollMarginTop: '16px' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-4)' }}>
-                    <Sparkles size={18} color="var(--brand-primary)" />
-                    <h3 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, margin: 0 }}>{t('ai.title')}</h3>
-                  </div>
-
-                  <div style={{ background: 'var(--slate-50)', padding: 'var(--space-4)', borderRadius: 'var(--radius-sm)', marginBottom: 'var(--space-5)' }}>
-                    <p style={{ margin: 0, fontSize: 'var(--fs-sm)', lineHeight: 1.6, fontWeight: 500 }}>
-                      <span style={{ color: 'var(--brand-primary)', fontWeight: 700 }}>{t('ai.goal')}</span> {aiAnalysis.intent}
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4 className="ui-section-label" style={{ margin: '0 0 var(--space-3)' }}>{t('ai.suggested')}</h4>
-                    <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
-                      {aiAnalysis.queries.map((q, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => {
-                            setSelectedAiQuery(q.text);
-                            handleSearch(null, q.text);
-                          }}
-                          className="ai-query-card"
-                          style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-4)',
-                            textAlign: 'left', padding: '12px 16px', background: 'var(--bg-card)',
-                            border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)',
-                            cursor: 'pointer', width: '100%', fontFamily: 'inherit'
-                          }}
-                        >
-                          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-main)', wordBreak: 'break-word' }}>{q.text}</span>
-                          <span className="badge badge-info" style={{ flexShrink: 0 }}>%{q.relevanceScore}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </MotionDiv>
+                  analysis={aiAnalysis}
+                  // Konu kutusu değişmez; seçilen yaklaşımın Boolean sorgusu yalnızca bu aramaya gider.
+                  onPick={(q) => handleSearch(null, null, q.text)}
+                />
               )}
             </AnimatePresence>
 
@@ -969,7 +937,7 @@ function App() {
                 )}
 
                 <ConsensusSnapshot
-                  topic={mainTopic || selectedAiQuery}
+                  topic={mainTopic}
                   papers={data.results}
                   apiUrl={defaultApiUrl}
                 />

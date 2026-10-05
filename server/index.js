@@ -1049,18 +1049,19 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
 
 app.post('/api/analyze-query', requireSubscription, async (req, res) => {
   try {
-    const { topic } = req.body;
+    const topic = typeof req.body?.topic === 'string' ? req.body.topic.trim().slice(0, 300) : '';
     if (!topic) {
       return res.status(400).json({ error: 'Topic is required' });
     }
-    if (!process.env.GROQ_API_KEY?.trim()) {
-      return res.status(400).json({ error: 'GROQ_API_KEY is not defined on the server' });
-    }
-    const analysis = await analyzeAndExpandQuery(topic);
+    // Görünen metinlerin dili arayüz dilini izler; arama sorguları her zaman İngilizce.
+    const lang = req.body?.lang === 'en' ? 'en' : 'tr';
+    // Sağlayıcı seçimi ve yedeğe geçiş analyzeAndExpandQuery içinde (Groq -> DeepSeek -> Gemini).
+    const analysis = await analyzeAndExpandQuery(topic, { lang });
     return res.json(analysis);
   } catch (error) {
-    console.error('AI analyze error:', error);
-    return res.status(500).json({ error: error.message || 'AI analysis failed' });
+    console.error('AI analyze error:', error.message);
+    const status = error.code === 'ALL_PROVIDERS_FAILED' ? 503 : 500;
+    return res.status(status).json({ error: status === 503 ? 'AI servisi şu an yanıt vermiyor, biraz sonra tekrar deneyin.' : 'AI analizi yapılamadı.' });
   }
 });
 
