@@ -716,15 +716,17 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, onEditSources, on
               {copied ? <Check size={16} /> : <Copy size={16} />}
               <span>{copied ? t('writer.copied') : t('writer.copy')}</span>
             </button>
-            <button type="button" onClick={handleDownloadDocx} disabled={!generatedText} title={t('writer.download', { f: 'DOCX' })}>
-              <FileDown size={16} />
-              <span>DOCX</span>
+            {/* İndirmeler formatın tanıdık rengi ve adıyla; telefonda da yazılı
+                kalır (önceden üçü de aynı gri ikondu). */}
+            <button type="button" className="writer-export writer-export--word" onClick={handleDownloadDocx} disabled={!generatedText} title={t('writer.download', { f: 'Word (DOCX)' })}>
+              <FileText size={16} />
+              <span>Word</span>
             </button>
-            <button type="button" onClick={handleDownloadPdf} disabled={!generatedText} title={t('writer.download', { f: 'PDF' })}>
-              <Download size={16} />
+            <button type="button" className="writer-export writer-export--pdf" onClick={handleDownloadPdf} disabled={!generatedText} title={t('writer.download', { f: 'PDF' })}>
+              <FileDown size={16} />
               <span>PDF</span>
             </button>
-            <button type="button" onClick={handleDownloadTxt} disabled={!generatedText} title={t('writer.download', { f: 'TXT' })}>
+            <button type="button" className="writer-export writer-export--txt" onClick={handleDownloadTxt} disabled={!generatedText} title={t('writer.download', { f: 'TXT' })}>
               <Download size={16} />
               <span>TXT</span>
             </button>

@@ -1951,3 +1951,16 @@
 .wa-link--muted { color: var(--text-muted); font-weight: 500; }
 .wa-link--muted:hover { color: var(--brand-primary); }
 .wa-link:disabled { opacity: 0.5; cursor: default; text-decoration: none; }
+
+/* İndirme düğmeleri: format rengi + adı (Word mavi, PDF kırmızı, TXT gri) */
+.writer-document-actions button.writer-export { font-weight: 700; }
+.writer-document-actions button.writer-export--word { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
+.writer-document-actions button.writer-export--pdf { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
+.writer-document-actions button.writer-export--txt { border-color: var(--border-light); background: var(--slate-50); color: var(--slate-600); }
+.writer-document-actions button.writer-export--word:hover:not(:disabled) { border-color: #1d4ed8; background: #dbeafe; color: #1e40af; }
+.writer-document-actions button.writer-export--pdf:hover:not(:disabled) { border-color: #b91c1c; background: #fee2e2; color: #991b1b; }
+.writer-document-actions button.writer-export--txt:hover:not(:disabled) { border-color: var(--slate-400); background: var(--slate-100); color: var(--slate-800); }
+/* Telefonda diğer düğmelerin yazısı gizli; indirmelerinki kalır ki ayırt edilsin. */
+@media (max-width: 768px) {
+  .writer-document-actions button.writer-export span { display: inline; }
+}
