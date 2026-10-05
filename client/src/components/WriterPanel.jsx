@@ -515,7 +515,8 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, onEditSources }) 
             placeholder={t('writer.promptPlaceholder')}
           />
           <div className="wa-prompt-meta">
-            {prompt.trim().length < 10 ? <span className="writer-prompt-hint" role="status">{t('writer.promptHint')}</span> : <span />}
+            {/* Yalnızca yazmaya başlanıp 10 karakterin altında kalınca; boşken alttaki kısa not yeterli. */}
+            {prompt.trim().length > 0 && prompt.trim().length < 10 ? <span className="writer-prompt-hint" role="status">{t('writer.promptHint')}</span> : <span />}
             <span className="wa-muted">{t('writer.chars', { n: prompt.length })}</span>
           </div>
         </section>
