@@ -1043,6 +1043,7 @@ function App() {
             apiUrl={defaultApiUrl}
             getToken={getToken}
             onClose={() => setShowWriterPanel(false)}
+            onRemoveSource={(paper) => basket.remove(paper)}
             onEditSources={() => {
               // Kaynaklar sonuç kartlarındaki "Makalene ekle" ile seçiliyor; oraya götür.
               setShowWriterPanel(false);

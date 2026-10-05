@@ -118,7 +118,7 @@ const statusKey = (status) => (status === 'failed' || status === 'warn' ? status
  * ayarlar" altında kapalı durur. Metin üretimi, durdurma, kontrol raporu ve
  * dışa aktarma önceki sürümle aynı; değişen yalnızca arayüz.
  */
-const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, onEditSources }) => {
+const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, onEditSources, onRemoveSource }) => {
   const { t, lang } = useI18n();
   const severityLabel = (s) => t(`writer.severity.${severityKey(s)}`);
   const statusLabel = (s) => t(`writer.status.${statusKey(s)}`);
@@ -137,6 +137,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, onEditSources }) 
   const [copied, setCopied] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [editingSources, setEditingSources] = useState(false);
   const [bibliographyFormat, setBibliographyFormat] = useState('APA 7');
   const [postcheck, setPostcheck] = useState(null);
   const [requestId, setRequestId] = useState(null);
@@ -159,6 +160,11 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, onEditSources }) 
     : papers.length === 0 ? t('writer.needSources')
       : prompt.trim().length < 10 ? t('writer.needPrompt')
         : null;
+
+  // Son kaynak da çıkarılınca düzenleme modu kapanır; boş listede "Bitti" anlamsız.
+  useEffect(() => {
+    if (papers.length === 0) setEditingSources(false);
+  }, [papers.length]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -450,30 +456,59 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, onEditSources }) 
           </div>
         )}
 
-        {/* 1. Kaynaklar: sepetteki makaleler; seçim mekanizması aynı. */}
+        {/* 1. Kaynaklar. Düzenleme modunda tüm liste açılır ve ✓ yerine kaldır
+            düğmesi gelir: önceki aramalardan eklenen kaynak, kartı artık
+            ekranda olmasa da buradan çıkarılabilir. */}
         <section className="wa-section">
           <div className="wa-section__head">
             <h3 className="wa-label">{t('writer.sources')}</h3>
-            <span className="wa-muted">{papers.length > 0 ? t('writer.sourcesCount', { n: papers.length }) : t('writer.noSources')}</span>
+            {editingSources ? (
+              <button type="button" className="wa-done" onClick={() => setEditingSources(false)}>{t('writer.doneEditing')}</button>
+            ) : (
+              <span className="wa-muted">{papers.length > 0 ? t('writer.sourcesCount', { n: papers.length }) : t('writer.noSources')}</span>
+            )}
           </div>
           {papers.length > 0 ? (
-            <ul className="wa-sources">
-              {papers.slice(0, 3).map((paper, index) => (
-                <li key={`${paper.doi || paper.url || paper.title || index}`}>
-                  <Check size={14} aria-hidden="true" />
-                  <span>{paper.title || paper.titleTR || t('writer.untitledSource')}</span>
-                </li>
-              ))}
-              {papers.length > 3 && <li className="wa-sources__more">{t('writer.moreSources', { n: papers.length - 3 })}</li>}
+            <ul className={`wa-sources${editingSources ? ' wa-sources--editing' : ''}`}>
+              {(editingSources ? papers : papers.slice(0, 3)).map((paper, index) => {
+                const title = paper.title || paper.titleTR || t('writer.untitledSource');
+                return (
+                  <li key={`${paper.doi || paper.url || paper.title || index}`}>
+                    {editingSources ? (
+                      <button
+                        type="button"
+                        className="wa-remove"
+                        onClick={() => onRemoveSource?.(paper)}
+                        disabled={isGenerating}
+                        title={t('writer.removeSource')}
+                        aria-label={`${t('writer.removeSource')}: ${title}`}
+                      >
+                        <X size={13} />
+                      </button>
+                    ) : (
+                      <Check size={14} aria-hidden="true" />
+                    )}
+                    <span title={editingSources ? title : undefined}>{title}</span>
+                  </li>
+                );
+              })}
+              {!editingSources && papers.length > 3 && <li className="wa-sources__more">{t('writer.moreSources', { n: papers.length - 3 })}</li>}
             </ul>
           ) : (
             <p className="wa-empty">{t('writer.noSourcesHint')}</p>
           )}
-          {onEditSources && (
-            <button type="button" className="wa-link" onClick={onEditSources}>
-              {papers.length > 0 ? t('writer.editSources') : t('writer.pickFromResults')} <ArrowRight size={14} aria-hidden="true" />
-            </button>
-          )}
+          <div className="wa-source-actions">
+            {papers.length > 0 && !editingSources && onRemoveSource && (
+              <button type="button" className="wa-link" onClick={() => setEditingSources(true)} disabled={isGenerating}>
+                {t('writer.editSources')}
+              </button>
+            )}
+            {onEditSources && (
+              <button type="button" className="wa-link wa-link--muted" onClick={onEditSources}>
+                {t('writer.pickFromResults')} <ArrowRight size={14} aria-hidden="true" />
+              </button>
+            )}
+          </div>
         </section>
 
         {/* 2. Ne yazılacak: sunucunun desteklediği altı tür. */}
