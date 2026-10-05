@@ -53,6 +53,12 @@ import CitationChecker from './components/CitationChecker';
 import { useShare } from './hooks/useShare';
 import { useExport } from './hooks/useExport';
 
+// "Kaynakçanı doğrula" sekmesi şimdilik kapalı (5 Eki 2026): uydurma kaynağı
+// "bulunamadı" yerine başka bir makaleyle eşleştiriyor ve doğru künyelerde de
+// sık sık "hangisini kastettin?" diye soruyor. Düzelince true yapılır; sunucu
+// tarafı (/api/resolve) ve CitationChecker bileşeni yerinde duruyor.
+const VERIFY_MODE_ENABLED = false;
+
 const RESULT_FILTERS = ['all', 'q1q2', 'recent', 'openaccess', 'highcitations'];
 
 /** Sonuc listesindeki hizli filtreler; siralamayi degistirmez, yalnizca suzer. */
@@ -636,7 +642,7 @@ function App() {
               </header>
             )}
 
-            {!isShared && (
+            {VERIFY_MODE_ENABLED && !isShared && (
               <div className="ui-modes" role="tablist" aria-label={t('modes.label')}>
                 <button type="button" role="tab" aria-selected={mode === 'search'} className="ui-modes__tab" onClick={() => setMode('search')}>
                   <Search size={15} /> {t('modes.search')}
@@ -647,7 +653,7 @@ function App() {
               </div>
             )}
 
-            {mode === 'verify' && !isShared ? (
+            {VERIFY_MODE_ENABLED && mode === 'verify' && !isShared ? (
               <CitationChecker
                 apiUrl={defaultApiUrl}
                 getToken={getToken}
