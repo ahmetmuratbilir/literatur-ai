@@ -536,6 +536,12 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
               placeholder={t('writer.promptPlaceholder')}
             />
             <span className="writer-char-count">{t('writer.chars', { n: prompt.length })}</span>
+            {/* Buton 10 karakterin altında kapalı; nedenini burada söyle. */}
+            {prompt.trim().length < 10 && (
+              <span className="writer-prompt-hint" role="status">
+                {t('writer.promptHint')}
+              </span>
+            )}
           </label>
 
           <div className="writer-setup-footer">

@@ -392,6 +392,7 @@ export default {
     prompt: 'Konu ve yönlendirme',
     promptPlaceholder: 'Örn: Bu makaleleri sentezleyerek yapay zekânın sağlık alanındaki etik etkilerini akademik dille tartış.',
     chars: '{n} karakter',
+    promptHint: 'En az 10 karakter yazın. Konunuzu ve ne istediğinizi ayrıntılı yazarsanız (odak, kapsam, bölüm türü) metin daha isabetli olur.',
     checksOn: 'Akademik kontrol açık',
     lastRun: 'Son üretim: {time}',
     showResult: 'Sonucu göster',

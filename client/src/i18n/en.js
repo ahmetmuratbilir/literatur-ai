@@ -392,6 +392,7 @@ export default {
     prompt: 'Topic and instructions',
     promptPlaceholder: 'e.g. Synthesize these papers and discuss the ethical implications of AI in healthcare in an academic tone.',
     chars: '{n} characters',
+    promptHint: 'Write at least 10 characters. The more detail you give about your topic and what you need (focus, scope, section type), the more accurate the text.',
     checksOn: 'Academic checks on',
     lastRun: 'Last run: {time}',
     showResult: 'Show result',

@@ -517,6 +517,14 @@
   text-align: right;
 }
 
+.writer-prompt-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  color: var(--score-med);
+}
+
 .writer-toggles-card {
   display: grid;
   gap: 8px;
