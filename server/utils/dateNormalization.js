@@ -201,6 +201,12 @@ function getCandidateConfigs(sourceName) {
     return configs;
   }
 
+  // PubMed ESummary: pubdate serbest metin ("2026 Mar"); adaptor yili ayiklayip pubYear olarak veriyor.
+  if (lowerSource.includes('pubmed')) {
+    pub('pubYear', 'pubdate', 20, 'medium');
+    return configs;
+  }
+
   // DOAJ: bibjson.year / bibjson.month yayincinin bildirdigi yayin tarihi.
   // doaj.js bunlari `publication_date` olarak birlestirip gonderiyor.
   // Onceki surumde DOAJ icin hic yapilandirma yoktu; her DOAJ makalesi

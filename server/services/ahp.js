@@ -101,14 +101,23 @@ function calculateCitationPerYearScore(citedBy, year) {
 /**
  * 4. Publication Quality Score
  */
-function calculateQualityScore(pubType, sourceType, hasDoi) {
+/** DOI'siz ama dogrulanabilir kimligi (PMID, arXiv, S2 CorpusID, OpenAlex W...) olan kayit mi. */
+function hasAlternativeId(item) {
+  return Boolean(item.arxivId || item.pmid || item.pubmedId || item.corpusId || (item.id && String(item.id).startsWith('W')));
+}
+
+function citationCountOf(item) {
+  return Number.parseInt(item.citedbyCount || item.citedBy || item.citationCount, 10) || 0;
+}
+
+function calculateQualityScore(pubType, sourceType, hasDoi, hasAltId = false, citationCount = 0) {
   // Eksik bilgi ilkesi: yayin/kaynak turu bilinmiyorsa o alt puan 0.
   // (Onceki surum 0.4 / 0.5 notr degerler veriyordu.)
   const pScore = PUB_TYPE_SCORES[pubType] ?? 0;
   const sScore = SOURCE_TYPE_SCORES[sourceType] ?? 0;
   let score = (pScore * 0.6) + (sScore * 0.4);
   
-  if (hasDoi) score += 0.05; // Bonus for DOI
+  if (hasDoi || hasAltId || citationCount >= 20) score += 0.05; // Bonus for DOI, verified AltId or high citations
   return Math.max(0, Math.min(1, score));
 }
 
@@ -120,10 +129,16 @@ function calculateReliabilityScore(item) {
   if (item.retraction?.status === 'retracted') return 0;
 
   let score = 0.5; // Neutral start
-  
-  if (item.doi) score += 0.2;
-  if (item.openCitationVerified) score += 0.2;
-  if (['Scopus', 'OpenAlex', 'Semantic Scholar'].includes(item.source)) score += 0.1;
+
+  if (item.doi) {
+    score += 0.2;
+  } else if (hasAlternativeId(item) || citationCountOf(item) >= 15 || item.openCitationVerified) {
+    score += 0.15; // DOI'siz ama dogrulanmis alternatif kimlik veya yuksek etki
+  }
+  if (item.openCitationVerified) score += 0.1;
+  if (['Scopus', 'OpenAlex', 'Semantic Scholar', 'PubMed', 'Europe PMC', 'CORE', 'ArXiv', 'DOAJ'].includes(item.source)) {
+    score += 0.1;
+  }
   // Endise bildirimi makaleyi gecersiz kilmaz ama guveni belirgin dusurur.
   if (item.retraction?.status === 'concern') score -= 0.3;
   
@@ -247,7 +262,7 @@ export async function calculateAHP(dataset, customWeights = null) {
     const sSim = item.expandedSimilarity || 0;
     const citation = calculateCitationScore(item, trustedPublicationYear);
     const sCit = citation.score;
-    const sQuality = calculateQualityScore(item.pubType, item.sourceType, !!item.doi);
+    const sQuality = calculateQualityScore(item.pubType, item.sourceType, !!item.doi, hasAlternativeId(item), citationCountOf(item));
     const sRecency = calculateRecencyScore(trustedPublicationYear);
     const sRel = calculateReliabilityScore(item);
     const sOA = item.openAccess ? 1.0 : 0.0;

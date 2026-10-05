@@ -74,6 +74,15 @@ export default {
     suggested: 'Suggested academic queries',
   },
   results: {
+    filter: {
+      label: 'Filter results',
+      all: 'All ({n})',
+      q1q2: 'Q1 / Q2 journals',
+      recent: 'Last 3 years',
+      openaccess: 'Open access',
+      highcitations: '10+ citations',
+      clearYear: 'Remove the {year} filter',
+    },
     shown: 'Showing {n} of {total} papers',
     showMore: 'Show {n} more ({left} left)',
     count: '{n} papers',
@@ -182,6 +191,10 @@ export default {
     references: 'References:',
   },
   card: {
+    details: 'Details',
+    findSimilar: 'Find similar',
+    copyBibtexTitle: 'Copy the BibTeX entry for this paper to the clipboard',
+    bibtexCopied: 'Copied',
     scoreShort: '{n}%',
     rank: 'Rank #{n}',
     score: 'AHP score: {n}%',

@@ -1,6 +1,7 @@
 import { Document, HeadingLevel, Packer, Paragraph, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
 import html2pdf from 'html2pdf.js';
+import { toBibTeX, toRIS, downloadText } from '../utils/citationExport.js';
 
 export function useExport() {
   const exportPDF = (mainTopic) => {
@@ -55,5 +56,19 @@ export function useExport() {
     saveAs(blob, `LiteratureAI_Belge_${mainTopic || 'Arastirma'}.docx`);
   };
 
-  return { exportPDF, exportExcel, exportDocx };
+  // Toplu dışa aktarma, sepetteki dışa aktarmayla aynı üreteci kullanır:
+  // RIS'te her yazar ayrı AU satırı, bilinmeyen yıl uydurulmaz.
+  const fileBase = (mainTopic) => `LiteratureAI_${mainTopic ? mainTopic.replace(/[^a-zA-Z0-9]/g, '_') : 'Arastirma'}`;
+
+  const exportBibTeX = (data, mainTopic) => {
+    if (!data?.results?.length) return;
+    downloadText(`${fileBase(mainTopic)}.bib`, toBibTeX(data.results), 'application/x-bibtex');
+  };
+
+  const exportRIS = (data, mainTopic) => {
+    if (!data?.results?.length) return;
+    downloadText(`${fileBase(mainTopic)}.ris`, toRIS(data.results), 'application/x-research-info-systems');
+  };
+
+  return { exportPDF, exportExcel, exportDocx, exportBibTeX, exportRIS };
 }

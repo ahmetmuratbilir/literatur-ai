@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 140" width="540" height="140" fill="none">
+  <!-- Icon Background -->
+  <rect x="10" y="10" width="120" height="120" rx="32" fill="url(#brandGrad)"/>
+  
+  <!-- Lightning Bolt -->
+  <path d="M78 28L42 74H70L60 112L98 64H70L78 28Z" fill="#ffffff" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Text: Literatur AI -->
+  <text x="156" y="86" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="64" font-weight="900" fill="#0f172a" letter-spacing="-0.03em">Literatur <tspan fill="#4f46e5">AI</tspan></text>
+  
+  <defs>
+    <linearGradient id="brandGrad" x1="10" y1="10" x2="130" y2="130" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+</svg>

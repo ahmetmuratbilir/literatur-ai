@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Database, Globe, Unlock, Zap } from 'lucide-react';
+import { Database, Globe, Unlock, Zap, FileText, HeartPulse, Network, Award } from 'lucide-react';
 
 const MotionDiv = motion.div;
 
@@ -7,55 +7,85 @@ const InfiniteTicker = () => {
   const content = (
     <div className="ticker-content">
       <span className="ticker-item">
-        <Zap size={16} className="ticker-icon highlight" />
-        <span className="ticker-text highlight-text">LiteratureAI</span>
-      </span>
-      <span className="ticker-dot">•</span>
-      
-      <span className="ticker-item">
-        <Database size={16} className="ticker-icon" />
-        <span className="ticker-text">Scopus (90M+ Kayıt)</span>
-      </span>
-      <span className="ticker-dot">•</span>
-      
-      <span className="ticker-item">
-        <Globe size={16} className="ticker-icon" />
-        <span className="ticker-text">OpenAlex (250M+ Kayıt)</span>
-      </span>
-      <span className="ticker-dot">•</span>
-      
-      <span className="ticker-item">
-        <Unlock size={16} className="ticker-icon" />
-        <span className="ticker-text">CORE (200M+ Açık Erişim)</span>
+        <Zap size={15} className="ticker-icon highlight" />
+        <span className="ticker-text highlight-text">LiteraturAI</span>
       </span>
       <span className="ticker-dot">•</span>
 
       <span className="ticker-item">
-        <Database size={16} className="ticker-icon" />
-        <span className="ticker-text">Crossref (150M+ Metadata)</span>
+        <Database size={15} className="ticker-icon" />
+        <span className="ticker-text">Scopus</span>
       </span>
       <span className="ticker-dot">•</span>
 
       <span className="ticker-item">
-        <Zap size={16} className="ticker-icon" />
-        <span className="ticker-text">S. Scholar (215M+ AI Destekli)</span>
+        <Globe size={15} className="ticker-icon" />
+        <span className="ticker-text">OpenAlex</span>
       </span>
       <span className="ticker-dot">•</span>
 
       <span className="ticker-item">
-        <Globe size={16} className="ticker-icon" />
-        <span className="ticker-text">ArXiv (2.4M+ Ön Baskı)</span>
+        <HeartPulse size={15} className="ticker-icon" />
+        <span className="ticker-text">PubMed (NCBI)</span>
       </span>
       <span className="ticker-dot">•</span>
 
       <span className="ticker-item">
-        <Unlock size={16} className="ticker-icon" />
-        <span className="ticker-text">DOAJ (10M+ Hakemli)</span>
+        <FileText size={15} className="ticker-icon" />
+        <span className="ticker-text">Europe PMC</span>
       </span>
       <span className="ticker-dot">•</span>
 
       <span className="ticker-item">
-        <span className="ticker-text bold" style={{ color: '#fbbf24' }}>LiteratureAI: 7 Dev Kaynak, 810 Milyondan Fazla Makale</span>
+        <Unlock size={15} className="ticker-icon" />
+        <span className="ticker-text">Unpaywall</span>
+      </span>
+      <span className="ticker-dot">•</span>
+
+      <span className="ticker-item">
+        <Database size={15} className="ticker-icon" />
+        <span className="ticker-text">Crossref</span>
+      </span>
+      <span className="ticker-dot">•</span>
+
+      <span className="ticker-item">
+        <Unlock size={15} className="ticker-icon" />
+        <span className="ticker-text">CORE</span>
+      </span>
+      <span className="ticker-dot">•</span>
+
+      <span className="ticker-item">
+        <Zap size={15} className="ticker-icon" />
+        <span className="ticker-text">Semantic Scholar</span>
+      </span>
+      <span className="ticker-dot">•</span>
+
+      <span className="ticker-item">
+        <Globe size={15} className="ticker-icon" />
+        <span className="ticker-text">ArXiv</span>
+      </span>
+      <span className="ticker-dot">•</span>
+
+      <span className="ticker-item">
+        <Unlock size={15} className="ticker-icon" />
+        <span className="ticker-text">DOAJ</span>
+      </span>
+      <span className="ticker-dot">•</span>
+
+      <span className="ticker-item">
+        <Network size={15} className="ticker-icon" />
+        <span className="ticker-text">OpenCitations</span>
+      </span>
+      <span className="ticker-dot">•</span>
+
+      <span className="ticker-item">
+        <Award size={15} className="ticker-icon" />
+        <span className="ticker-text">DergiPark & TR Dizin</span>
+      </span>
+      <span className="ticker-dot">•</span>
+
+      <span className="ticker-item">
+        <span className="ticker-text bold" style={{ color: '#818cf8' }}>Federated Akademik Tarama & AHP Motoru</span>
       </span>
       <span className="ticker-dot">•</span>
     </div>
@@ -70,10 +100,9 @@ const InfiniteTicker = () => {
           transition={{
             repeat: Infinity,
             ease: "linear",
-            duration: 25, // Animasyon hızı (saniye)
+            duration: 32, // Rahat okunabilir akış hızı
           }}
         >
-          {/* İçeriği iki kere kopyalıyoruz ki sonsuz döngü kesintisiz aksın */}
           {content}
           {content}
         </MotionDiv>

@@ -147,3 +147,52 @@ test('relevance skoru alt-dize eslesmesiyle sismez', () => {
     `alakali makale daha yuksek skor almali (alakali=${relatedScore}, alakasiz=${unrelatedScore})`
   );
 });
+
+test('DOI olmayan makaleler arXiv veya PMID ID ile tek kayda iner ve yuksek atifi korur', () => {
+  const results = [
+    paper({
+      doi: '',
+      arxivId: '2301.07094',
+      title: 'Attention is all you need for distributed training',
+      citedBy: 15,
+      source: 'ArXiv',
+      sourceList: ['ArXiv'],
+    }),
+    paper({
+      doi: '',
+      arxivId: 'arxiv:2301.07094',
+      title: 'Attention Is All You Need For Distributed Training',
+      citedBy: 850,
+      source: 'Semantic Scholar',
+      sourceList: ['Semantic Scholar'],
+    }),
+  ];
+
+  const unique = deduplicateResults(results);
+  assert.equal(unique.length, 1, 'arXiv ID eslesmesi ile tekil kayit olusmali');
+  assert.equal(unique[0].citedBy, 850, 'en yuksek atif sayisi korunmali');
+  assert.deepEqual(unique[0].sourceList.sort(), ['ArXiv', 'Semantic Scholar']);
+});
+
+test('DOI ve alternatif ID olmayan makaleler yuksek benzerlikte fuzzy fallback ile birlestirilir', () => {
+  const results = [
+    paper({
+      doi: '',
+      title: 'Foundations of Deep Reinforcement Learning Algorithms',
+      citedBy: 300,
+      source: 'CORE',
+      sourceList: ['CORE'],
+    }),
+    paper({
+      doi: '',
+      title: 'Foundations of deep reinforcement learning algorithms.',
+      citedBy: 1200,
+      source: 'OpenAlex',
+      sourceList: ['OpenAlex'],
+    }),
+  ];
+
+  const unique = deduplicateResults(results);
+  assert.equal(unique.length, 1, 'Baslik benzerligi ile birlestirilmeli');
+  assert.equal(unique[0].citedBy, 1200, 'Yuksek atif korunmali');
+});

@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LiteraturAI — Yatırımcı Sunumu, Mühendislik & Büyüme Stratejisi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --surface: #101726;
+      --surface-card: rgba(16, 23, 38, 0.75);
+      --surface-border: rgba(255, 255, 255, 0.08);
+      --surface-border-hover: rgba(99, 102, 241, 0.45);
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #64748b;
+      --primary: #6366f1;
+      --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      background-image: 
+        radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.15) 0%, transparent 45%),
+        radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.12) 0%, transparent 45%);
+      background-attachment: fixed;
+      padding-bottom: 5rem;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem;
+    }
+
+    /* Top Nav */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(16px);
+      background: rgba(9, 13, 22, 0.85);
+      border-bottom: 1px solid var(--surface-border);
+      padding: 0.85rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 800;
+      font-size: 1.15rem;
+    }
+    .badge-urgent {
+      background: rgba(244, 63, 94, 0.2);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      color: #fda4af;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Hero */
+    .hero {
+      padding: 3rem 0 2.5rem;
+      text-align: center;
+    }
+    .hero-title {
+      font-size: clamp(2.2rem, 5vw, 3.4rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 1rem;
+      background: var(--primary-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-subtitle {
+      max-width: 820px;
+      margin: 0 auto;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+
+    /* Metric Cards */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+      margin: 2.5rem 0 3.5rem;
+    }
+    .metric-card {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      backdrop-filter: blur(12px);
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .metric-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--surface-border-hover);
+    }
+    .metric-val {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #fff;
+      display: block;
+    }
+    .metric-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    /* Section Headers */
+    .section-title {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .section-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 1.75rem;
+    }
+
+    /* Split Grid */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3.5rem;
+    }
+    .card {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 18px;
+      padding: 2rem;
+      backdrop-filter: blur(10px);
+      position: relative;
+    }
+    .card h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    /* Comparison Table */
+    .table-container {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 18px;
+      overflow-x: auto;
+      margin-bottom: 3.5rem;
+      backdrop-filter: blur(10px);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+    th {
+      background: rgba(255, 255, 255, 0.04);
+      padding: 1.1rem 1.25rem;
+      font-weight: 700;
+      color: #cbd5e1;
+      border-bottom: 1px solid var(--surface-border);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    td {
+      padding: 1.1rem 1.25rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: #e2e8f0;
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    .highlight-cell {
+      background: rgba(99, 102, 241, 0.08);
+      font-weight: 600;
+      color: #a5b4fc;
+    }
+
+    /* Bullets */
+    .bullets {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .bullets li {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+    }
+    .bullets li strong { color: #fff; }
+    .bullet-dot {
+      color: var(--primary);
+      font-size: 1.1rem;
+      line-height: 1;
+      margin-top: 0.15rem;
+    }
+
+    /* Pitch Script Box */
+    .script-box {
+      background: linear-gradient(180deg, rgba(30, 27, 75, 0.5) 0%, rgba(15, 23, 42, 0.7) 100%);
+      border: 1px solid rgba(129, 140, 248, 0.3);
+      border-radius: 18px;
+      padding: 2rem;
+      margin-bottom: 3.5rem;
+    }
+    .script-step {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .script-step:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .step-time {
+      display: inline-block;
+      background: rgba(99, 102, 241, 0.25);
+      color: #c7d2fe;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Interactive Checklist */
+    .checklist-wrap {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 20px;
+      padding: 2.2rem;
+      backdrop-filter: blur(12px);
+    }
+    .check-category {
+      margin-bottom: 2rem;
+    }
+    .check-category:last-child { margin-bottom: 0; }
+    .check-cat-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #e0e7ff;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .check-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+    .check-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+    .check-item.done {
+      background: rgba(16, 185, 129, 0.08);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+    .check-item.done .item-text {
+      text-decoration: line-through;
+      color: var(--text-dim);
+    }
+    .check-checkbox {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      border: 2px solid #6b7280;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      margin-top: 0.15rem;
+      transition: all 0.2s ease;
+    }
+    .check-item.done .check-checkbox {
+      background: var(--accent-emerald);
+      border-color: var(--accent-emerald);
+    }
+    .check-checkbox::after {
+      content: "✓";
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      display: none;
+    }
+    .check-item.done .check-checkbox::after {
+      display: block;
+    }
+    .item-content { flex: 1; }
+    .item-title { font-weight: 600; color: #fff; font-size: 0.95rem; }
+    .item-desc { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+    /* Progress Bar */
+    .progress-box {
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--surface-border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .progress-bar-track {
+      background: rgba(255, 255, 255, 0.08);
+      height: 12px;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #10b981);
+      width: 0%;
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    .badge-pill {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+    .badge-cyan { background: rgba(6, 182, 212, 0.15); color: #22d3ee; }
+    .badge-emerald { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .badge-amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+  </style>
+</head>
+<body>
+
+  <header class="navbar">
+    <div class="nav-brand">
+      <span>📚 LiteraturAI</span>
+      <span class="badge-urgent">🔥 5 Günlük Yatırımcı Sprinti</span>
+    </div>
+    <div>
+      <span style="font-size:0.85rem; color:var(--text-muted);">Hazırlayan: Antigravity AI Engineering</span>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Hero -->
+    <section class="hero">
+      <h1 class="hero-title">Yatırımcı Masasında %90 Kâr Marjıyla Şov Yapma Kılavuzu</h1>
+      <p class="hero-subtitle">
+        5 gün sonraki kritik sunum için; token optimizasyonundan birim ekonomiye, Türkiye/global pazar konumlandırmasından yatırımcıyı ilk 60 saniyede yakalayacak canlı demo kurgusuna kadar eksiksiz oyun planı.
+      </p>
+
+      <div class="metric-grid">
+        <div class="metric-card">
+          <span class="metric-val">$0.007</span>
+          <span class="metric-label">1 Tam Literatür Sentezi Maliyeti (DeepSeek)</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-val">%93+</span>
+          <span class="metric-label">Tahmini SaaS Brüt Kâr Marjı (Gross Margin)</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-val">1.2 sn</span>
+          <span class="metric-label">İlk Yanıt Süresi (SSE Streaming ile)</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-val">7 Veri Tabanı</span>
+          <span class="metric-label">AHP ile Doğrulanmış Sıralama Moat'u</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1. Bizi Rakiplerden Ayıran Şey (Moat / Unfair Advantage) -->
+    <section>
+      <h2 class="section-title">🏆 Piyasada Bizi Devlerden (Consensus, Elicit, Scite) Öne Çıkaran Şey Ne?</h2>
+      <p class="section-desc">Yatırımcı masasında "Peki Google, Perplexity veya Elicit varken neden siz?" sorusuna verilecek öldürücü yanıtlar.</p>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Özellik & Boyut</th>
+              <th>Klasik Araçlar (Elicit, Scite, Perplexity)</th>
+              <th class="highlight-cell">LiteraturAI (Bizim Avantajımız)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Makale Sıralama Mantığı</strong></td>
+              <td>Sadece Vektör Benzerliği (Cosine Similarity). Makalenin uyduruk veya yırtıcı (predatory) dergide çıkmış olmasını umursamaz.</td>
+              <td class="highlight-cell"><strong>AHP (Analitik Hiyerarşi Süreci) + Scimago SJR:</strong> Q1/Q2 dergi prestiji, atıf ivmesi ve semantik alaka çok kriterli matematiksel olarak tartılır.</td>
+            </tr>
+            <tr>
+              <td><strong>Çok Dilli Akademik Köprü</strong></td>
+              <td>Türkçe veya yerel dillerde akademik arama yapıldığında global makaleleri yakalayamaz, sonuçlar kısır kalır.</td>
+              <td class="highlight-cell"><strong>Otomatik Çeviri & MeSH Genişletme:</strong> Türkçe soru sorulsa dahi arka planda tıbbi/mühendislik MeSH terimlerine dönüştürülüp 7 global veritabanı taranır.</td>
+            </tr>
+            <tr>
+              <td><strong>Halüsinasyon Koruması</strong></td>
+              <td>Yapay zekâ var olmayan makaleler veya uydurma DOI'ler uydurabilir.</td>
+              <td class="highlight-cell"><strong>Citation Compliance & Output Gate:</strong> Sentez metnindeki her cümle yalnızca doğrulanmış parça ID'leriyle eşleşir; uydurma atıf sisteme giremez.</td>
+            </tr>
+            <tr>
+              <td><strong>Çoklu AI Fallback Gücü</strong></td>
+              <td>Tek bir modele (genelde sadece OpenAI) bağımlıdır; çöküşte tüm sistem durur.</td>
+              <td class="highlight-cell"><strong>DeepSeek ➔ Gemini ➔ Groq Zinciri:</strong> Kesintisiz çalışma garantisi ve 10 kat daha düşük token maliyeti.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 2. Hedef Kitle & Pazar Büyüklüğü (Market Fit) -->
+    <section>
+      <h2 class="section-title">🎯 Kimlere Hitap Ediyoruz? (Türkiye & Global Pazar)</h2>
+      <p class="section-desc">Yatırımcının duymak istediği TAM (Toplam Pazar) ve B2B/B2C para kazanma kanalları.</p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>🇹🇷 Türkiye Pazarı (Düşük Bariyer, Hızlı Büyüme)</h3>
+          <ul class="bullets">
+            <li><span class="bullet-dot">✦</span><div><strong>208 Üniversite, 185.000+ Akademisyen:</strong> Akademik teşvik ve doçentlik kriterleri için Q1/Q2 makale tarama baskısı çok yüksek.</div></li>
+            <li><span class="bullet-dot">✦</span><div><strong>500.000+ Yüksek Lisans & Doktora Öğrencisi:</strong> Tez yazımının en sancılı süreci "Literatür Özeti" hazırlamaktır. 3 haftalık işi 30 dakikaya indiriyoruz.</div></li>
+            <li><span class="bullet-dot">✦</span><div><strong>TÜBİTAK & Teknokent Ar-Ge Merkezleri:</strong> Proje başvurularında literatür arka planı zorunludur. Kurumsal B2B abonelik potansiyeli.</div></li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>🌍 Global Pazar (Yüksek Gelir, Dolar / Euro Getirisi)</h3>
+          <ul class="bullets">
+            <li><span class="bullet-dot">✦</span><div><strong>Pharma, Biotech & Medikal Araştırmacılar:</strong> İlaç geliştirme ve klinik çalışma taramalarında "hatasız, doğrulanmış atıf" arayan en yüksek ödeme iştahlı kitle.</div></li>
+            <li><span class="bullet-dot">✦</span><div><strong>İngilizce Olmayan Ülkeler (LATAM, MENA, Asya):</strong> İngilizce literatürü kendi ana dilinde anlayıp sentezlemek isteyen 10 milyondan fazla araştırmacı.</div></li>
+            <li><span class="bullet-dot">✦</span><div><strong>Üniversite Kütüphaneleri & Konsorsiyumları:</strong> Turnitin gibi yıllık $5.000 - $25.000 arası lisanslanabilir B2B kurumsal yazılım.</div></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Mühendislik & Maliyet Optimizasyonu (Cost Reduction) -->
+    <section>
+      <h2 class="section-title">⚙️ Token & Arama Maliyetlerini %75 Azaltma Mühendisliği</h2>
+      <p class="section-desc">Yatırımcıya "Kullanıcı sayısı 100 katına çıksa bile sunucu ve LLM faturamız batmaz" güvencesi verecek mimari.</p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>🧠 1. İki Kademeli LLM Ayrımı (Query Routing)</h3>
+          <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:1rem;">Her işlemde pahalı model çağrılmaz:</p>
+          <ul class="bullets">
+            <li><span class="bullet-dot">✦</span><div><strong>Hafif Görevler (Sorgu Çevirisi, MeSH Genişletme):</strong> Groq veya `deepseek-flash` kullanılır. (Maliyet: 1 milyon token başına ~$0.14!).</div></li>
+            <li><span class="bullet-dot">✦</span><div><strong>Ağır Görev (Akademik Sentez):</strong> Yalnızca son 5-8 adet seçilmiş makalenin bağlamıyla `deepseek-v4-pro` çağrılır.</div></li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>🗄️ 2. Semantik Arama & Sentez Önbellekleme (Shared Cache)</h3>
+          <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:1rem;">Aynı veya benzer konuları tekrar tekrar LLM'e göndermemek:</p>
+          <ul class="bullets">
+            <li><span class="bullet-dot">✦</span><div><strong>SearchCache (Mevcut):</strong> Sisteminizdeki `searchCacheStore.js` fingerprint yapısı popüler aramalarda sıfır API maliyetiyle sonuç döner.</div></li>
+            <li><span class="bullet-dot">✦</span><div><strong>Prompt Caching:</strong> DeepSeek API'sinin prompt cache özelliği sayesinde sistem promptu ve sabit akademik yönergeler %90 indirimli fiyatlandırılır.</div></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Fiyatlandırma & Birim Ekonomi (Unit Economics) -->
+    <section>
+      <h2 class="section-title">💰 Fiyatlandırma, Paketler & Birim Ekonomi</h2>
+      <p class="section-desc">Rate limitler, maliyet kontrolü ve yatırımcıların aşık olacağı SaaS marjları.</p>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Paket</th>
+              <th>Fiyat (Aylık / Yıllık)</th>
+              <th>Kullanım Limiti</th>
+              <th>Ortalama API Maliyeti</th>
+              <th>Brüt Kâr Marjı</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Ücretsiz (Freemium)</strong></td>
+              <td>0 TL / $0</td>
+              <td>Günde 3 arama, 1 sentez</td>
+              <td>~$0.02 / kullanıcı / ay</td>
+              <td>Kullanıcı kazanım maliyeti</td>
+            </tr>
+            <tr>
+              <td><strong>Öğrenci & Lisansüstü</strong></td>
+              <td><strong>199 TL / ay</strong> ($9 / ay)</td>
+              <td>Ayda 50 sentez, 200 arama</td>
+              <td>~$0.45 / ay (~15 TL)</td>
+              <td class="highlight-cell"><strong>%92.5 Kâr Marjı</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Akademisyen & Pro</strong></td>
+              <td><strong>499 TL / ay</strong> ($24 / ay)</td>
+              <td>Sınırsız arama, 250 sentez + Export</td>
+              <td>~$1.80 / ay (~60 TL)</td>
+              <td class="highlight-cell"><strong>%88.0 Kâr Marjı</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Laboratuvar / Kurumsal</strong></td>
+              <td><strong>4.990 TL / yıl</strong> ($299 / yıl)</td>
+              <td>Çoklu kullanıcı, PDF Yükleme, Özel API</td>
+              <td>~$15.00 / yıl</td>
+              <td class="highlight-cell"><strong>%95.0 Kâr Marjı</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 5. Yatırımcı Sunumu Canlı Demo Senaryosu -->
+    <section>
+      <h2 class="section-title">🎤 3 Dakikalık Yatırımcı "Demo & Hook" Senaryosu</h2>
+      <p class="section-desc">Sunumda yatırımcıların dikkatini anında kilitleyecek ve salonda alkış aldıracak canlı akış.</p>
+
+      <div class="script-box">
+        <div class="script-step">
+          <span class="step-time">00:00 - 00:45 | KANCA (THE PROBLEM)</span>
+          <h4 style="color:#fff; margin-bottom:0.4rem; font-size:1.1rem;">"Dünyada her 12 saniyede bir yeni akademik makale yayınlanıyor."</h4>
+          <p style="color:var(--text-muted); font-size:0.9rem;">
+            "Bir araştırmacı tez yazarken veya literatür tararken 3 haftasını yüzlerce PDF arasında boğularak harcıyor. Perplexity ve ChatGPT ise uydurma kaynaklar ve kalitesiz dergiler vererek bilimsel güvenilirliği sıfırlıyor. Biz bunu 1 dakikada çözdük."
+          </p>
+        </div>
+
+        <div class="script-step">
+          <span class="step-time">00:45 - 02:00 | CANLI DEMO & ETKİLEŞİM (THE WOW FACTOR)</span>
+          <h4 style="color:#fff; margin-bottom:0.4rem; font-size:1.1rem;">"Ekrana bir QR Kod yansıtıyoruz: 'Lütfen telefonunuzla tarayın'."</h4>
+          <p style="color:var(--text-muted); font-size:0.9rem;">
+            Salondaki bir jüri/yatırımcıdan en çok ilgilendiği konuyu sor (Örn: <em>"Alzheimer tedavisinde mRNA aşıları"</em>). Türkçe yaz. 
+            Sistem saniyeler içinde OpenAlex ve Scopus'tan Q1 dergileri AHP ile sıralasın. Canlı akışla (SSE) atıfları doğrulanmış literatür metni harf harf ekrana dökülsün.
+          </p>
+        </div>
+
+        <div class="script-step">
+          <span class="step-time">02:00 - 03:00 | KAPANIK & RESEND HOŞ GELDİN HEDİYESİ</span>
+          <h4 style="color:#fff; margin-bottom:0.4rem; font-size:1.1rem;">"Giriş yapan herkese e-posta ile anında hazır rapor gitti bile."</h4>
+          <p style="color:var(--text-muted); font-size:0.9rem;">
+            QR'ı okutup e-postasını giren yatırımcıların cebine Resend üzerinden saniyesinde: <em>"Hoş geldiniz! Canlı demoda ürettiğimiz akademik rapor ve 1 aylık Pro deneme hesabınız hazır"</em> maili düşsün. Bu hareket yatırımcıda "Bu ekip ürünü sadece hayal etmemiş, tam çalışan bir büyüme makinesi kurmuş" algısı yaratır!
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. İnteraktif Checklist -->
+    <section>
+      <div class="checklist-wrap">
+        <h2 class="section-title">✅ 5 Günlük Sunum Hazırlığı — İnteraktif Checklist</h2>
+        <p class="section-desc">Yapılan maddeleri işaretledikçe ilerleme çubuğunun dolduğunu görebilirsin. Bu liste seni podyuma eksiksiz çıkarır.</p>
+
+        <div class="progress-box">
+          <div class="progress-meta">
+            <span>Hazırlık Durumu</span>
+            <span id="progressText">0 / 12 Tamamlandı (%0)</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progressBar"></div>
+          </div>
+        </div>
+
+        <!-- Kategori 1: Ürün & Demo -->
+        <div class="check-category">
+          <div class="check-cat-title">
+            <span class="badge-pill badge-cyan">Ürün & UX</span>
+            <span>Göz Boyama & Hız İyileştirmeleri</span>
+          </div>
+          <div class="check-list">
+            <div class="check-item" onclick="toggleCheck(this)">
+              <div class="check-checkbox"></div>
+              <div class="item-content">
+                <div class="item-title">Canlı Telemetri / Adım Göstergesi (Visual Polish)</div>
+                <div class="item-desc">Arama yapılırken ekranda "OpenAlex taranıyor...", "AHP hesaplanıyor...", "Atıflar doğrulanıyor..." mini bildirimlerinin yanıp sönmesi.</div>
+              </div>
+            </div>
+
+            <div class="check-item" onclick="toggleCheck(this)">
+              <div class="check-checkbox"></div>
+              <div class="item-content">
+                <div class="item-title">Tek Tıkla PDF / Word İndirme Butonu</div>
+                <div class="item-desc">Writer panelinde üretilen literatür taramasının üzerinde Nature/IEEE tarzı şık bir kapakla PDF olarak indirilebilmesi.</div>
+              </div>
+            </div>
+
+            <div class="check-item" onclick="toggleCheck(this)">
+              <div class="check-checkbox"></div>
+              <div class="item-content">
+                <div class="item-title">AHP Puan Rozetleri (Q1-Q4 Etiketleri)</div>
+                <div class="item-desc">Sonuç kartlarında makalenin neden birinci olduğunu gösteren yeşil Q1 rozeti ve %94 uyum yüzdesi.</div>
+              </div>
+            </div>
+
+            <div class="check-item" onclick="toggleCheck(this)">
+              <div class="check-checkbox"></div>
+              <div class="item-content">
+                <div class="item-title">Demo Sorularının Hazırlanması (Fail-safe)</div>
+                <div class="item-desc">Sunumda canlı denenecek 2 adet kusursuz çalışan konu belirle (Örn: CRISPR gen tedavisi veya Kuantum bilgisayarlar).</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kategori 2: Büyüme & Resend -->
+        <div class="check-category">
+          <div class="check-cat-title">
+            <span class="badge-pill badge-emerald">Büyüme & CRM</span>
+            <span>QR Kod & Resend Hoş Geldin Akışı</span>
+          </div>
+          <div class="check-list">
+            <div class="check-item" onclick="toggleCheck(this)">
+              <div class="check-checkbox"></div>
+              <div class="item-content">
+                <div class="item-title">Sunum Slaytına Özel QR Kod Yerleştirme</div>
+                <div class="item-desc">Yatırımcıların doğrudan telefonlarından siteye girmesini sağlayan büyük ve şık bir QR kod hazırlığı.</div>
+              </div>
+            </div>
+
+            <div class="check-item" onclick="toggleCheck(this)">
+              <div class="check-checkbox"></div>
+              <div class="item-content">
+                <div class="item-title">Resend ile Otomatik Hoş Geldin E-postası</div>
+                <div class="item-desc">Giriş yapan her yeni kullanıcıya anında düşen "Hoş Geldiniz + Nasıl Kullanılır?" hazır şablonu (Resend'in aylık 3.000 maili ücretsiz!).</div>
+              </div>
+            </div>
+
+            <div class="check-item" onclick="toggleCheck(this)">
+              <div class="check-checkbox"></div>
+              <div class="item-content">
+                <div class="item-title">Magic Link ile Şifresiz 5 Saniyede Kayıt</div>
+                <div class="item-desc">Yatırımcı şifre belirlemekle uğraşmadan e-postasını yazıp tek tıkla içeri girebilsin.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kategori 3: Finans & Sunum -->
+        <div class="check-category">
+          <div class="check-cat-title">
+            <span class="badge-pill badge-amber">Yatırımcı & Pitch</span>
+            <span>Sunum Slaytları & Birim Ekonomi</span>
+          </div>
+          <div class="check-list">
+            <div class="check-item" onclick="toggleCheck(this)">
+              <div class="check-checkbox"></div>
+              <div class="item-content">
+                <div class="item-title">10 Slaytlık Pitch Deck Hazırlığı</div>
+                <div class="item-desc">Problem ➔ Çözüm ➔ Canlı Demo ➔ Pazar Büyüklüğü (TAM) ➔ Rakiplerden Fark (AHP) ➔ Birim Ekonomi ➔ Ekip ➔ Yatırım Talebi.</div>
+              </div>
+            </div>
+
+            <div class="check-item" onclick="toggleCheck(this)">
+              <div class="check-checkbox"></div>
+              <div class="item-content">
+                <div class="item-title">Birim Ekonomi & Kâr Marjı Slaytı (%92 Brüt Kâr)</div>
+                <div class="item-desc">Bir arama/sentez maliyetinin $0.007 olduğunu, 199 TL'lik abonelikte %90'ın üzerinde brüt kâr kaldığını net göstermek.</div>
+              </div>
+            </div>
+
+            <div class="check-item" onclick="toggleCheck(this)">
+              <div class="check-checkbox"></div>
+              <div class="item-content">
+                <div class="item-title">Yatırım Miktarı & Kullanım Planı (Use of Funds)</div>
+                <div class="item-desc">İstenen yatırım tutarının %40 Mühendislik, %40 Pazarlama/Satış (Üniversite ziyaretleri), %20 Sunucu altyapısına ayrıldığını belirtmek.</div>
+              </div>
+            </div>
+
+            <div class="check-item" onclick="toggleCheck(this)">
+              <div class="check-checkbox"></div>
+              <div class="item-content">
+                <div class="item-title">Canlı Sunucu Yük Testi & Fallback Kontrolü</div>
+                <div class="item-desc">DeepSeek yanıt vermezse Gemini'nin sessizce devreye girdiğini teyit etmek; demo sırasında hata ekranı çıkmasını engellemek.</div>
+              </div>
+            </div>
+
+            <div class="check-item" onclick="toggleCheck(this)">
+              <div class="check-checkbox"></div>
+              <div class="item-content">
+                <div class="item-title">3 Dakikalık Zamanlı Konuşma Provası</div>
+                <div class="item-desc">Süre aşımına uğramadan demoyu ve vizyonu 180 saniyede aktaracak şekilde en az 3 kez sesli prova yapmak.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    function updateProgress() {
+      const items = document.querySelectorAll('.check-item');
+      const doneItems = document.querySelectorAll('.check-item.done');
+      const total = items.length;
+      const done = doneItems.length;
+      const pct = Math.round((done / total) * 100);
+
+      document.getElementById('progressBar').style.width = pct + '%';
+      document.getElementById('progressText').innerText = `${done} / ${total} Tamamlandı (%${pct})`;
+    }
+
+    function toggleCheck(el) {
+      el.classList.toggle('done');
+      updateProgress();
+      // LocalStorage'a kaydet (Sayfa yenilense de gitmesin)
+      const states = Array.from(document.querySelectorAll('.check-item')).map(item => item.classList.contains('done'));
+      localStorage.setItem('pitch_checklist_state', JSON.stringify(states));
+    }
+
+    // Load saved states
+    window.addEventListener('DOMContentLoaded', () => {
+      const saved = localStorage.getItem('pitch_checklist_state');
+      if (saved) {
+        try {
+          const states = JSON.parse(saved);
+          const items = document.querySelectorAll('.check-item');
+          items.forEach((item, idx) => {
+            if (states[idx]) item.classList.add('done');
+          });
+        } catch (e) {}
+      }
+      updateProgress();
+    });
+  </script>
+</body>
+</html>

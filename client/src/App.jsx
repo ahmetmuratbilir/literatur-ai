@@ -21,9 +21,10 @@ import {
   ChevronDown,
   GraduationCap,
   ExternalLink,
-  ListChecks
+  ListChecks,
+  X
 } from 'lucide-react';
-import { AuthedOnly, AnonOnly, useAppAuth } from './auth/clerkBridge.js';
+import { AuthedOnly, AnonOnly, useAppAuth, useAppUser } from './auth/clerkBridge.js';
 import { useAdmin } from './hooks/useAdmin';
 import AdminPanel from './components/AdminPanel.jsx';
 import { useI18n } from './i18n/context.js';
@@ -39,6 +40,9 @@ import ShareModal from './components/ShareModal';
 import LandingPage from './components/landing/LandingPage';
 import AppTopBar from './components/AppTopBar';
 import ExportMenu from './components/ExportMenu';
+import PublicationTimeline from './components/PublicationTimeline.jsx';
+import PaperReaderDrawer from './components/PaperReaderDrawer.jsx';
+import ConsensusSnapshot from './components/ConsensusSnapshot.jsx';
 import { useWindowSize } from './hooks/useWindowSize';
 import { useCollections } from './hooks/useCollections';
 import { useBasket } from './hooks/useBasket';
@@ -48,6 +52,22 @@ import WriterDock from './components/WriterDock';
 import CitationChecker from './components/CitationChecker';
 import { useShare } from './hooks/useShare';
 import { useExport } from './hooks/useExport';
+
+const RESULT_FILTERS = ['all', 'q1q2', 'recent', 'openaccess', 'highcitations'];
+
+/** Sonuc listesindeki hizli filtreler; siralamayi degistirmez, yalnizca suzer. */
+function filterResults(results, filter, year) {
+  const currentYear = new Date().getFullYear();
+  return results.filter((item) => {
+    const itemYear = Number.parseInt(item.year, 10);
+    if (year && itemYear !== year) return false;
+    if (filter === 'q1q2') return item.quartile === 'Q1' || item.quartile === 'Q2';
+    if (filter === 'recent') return Boolean(itemYear) && currentYear - itemYear <= 3;
+    if (filter === 'openaccess') return Boolean(item.openAccess || item.isOpenAccess);
+    if (filter === 'highcitations') return (Number.parseInt(item.citedBy || item.citedbyCount, 10) || 0) >= 10;
+    return true;
+  });
+}
 
 const FEATURES = [
   { icon: Sparkles, title: 'features.aiTitle', text: 'features.aiText' },
@@ -126,6 +146,7 @@ function App() {
     : { profileId };
 
   const { userId, isLoaded, getToken } = useAppAuth();
+  const { user, isSignedIn } = useAppUser();
   const { isAdmin } = useAdmin({ getToken, userId });
   const [showAdmin, setShowAdmin] = useState(false);
   const { isMobile, isTablet, isCompact } = useWindowSize();
@@ -142,7 +163,70 @@ function App() {
   // AI önerileri gelince sayfa onlara kaysın; kullanıcı birini seçecek.
   const aiPanelRef = useRef(null);
   const { shareLoading, shareUrl, showShareModal, setShowShareModal, copied, handleShare, copyToClipboard } = useShare({ getToken });
-  const { exportPDF, exportExcel, exportDocx } = useExport();
+  const { exportPDF, exportExcel, exportDocx, exportBibTeX, exportRIS } = useExport();
+  const [resultFilter, setResultFilter] = useState('all');
+  const [selectedYear, setSelectedYear] = useState(null);
+  const [activeReaderPaper, setActiveReaderPaper] = useState(null);
+
+  // Clerk ile oturum açıldığında kullanıcıyı senkronize et ve gerekirse hoş geldin e-postası tetikle
+  useEffect(() => {
+    if (!isSignedIn || !user?.id) return;
+    const syncStorageKey = `welcome_synced_${user.id}`;
+    if (sessionStorage.getItem(syncStorageKey)) return;
+
+    const name = user.fullName || user.firstName || 'Araştırmacı';
+
+    getToken().then((token) => {
+      if (!token) return;
+      axios.post(`${defaultApiUrl}/api/auth/sync-user`, {
+        name,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then((res) => {
+        sessionStorage.setItem(syncStorageKey, 'true');
+        if (res.data?.welcomeEmailSent) {
+          console.log('[AuthSync] Hoş geldin e-postası tetiklendi:', res.data.email);
+        }
+      }).catch((err) => {
+        console.warn('[AuthSync] Senkronizasyon uyarısı:', err?.response?.data || err.message);
+      });
+    }).catch(() => {});
+  }, [isSignedIn, user, getToken]);
+
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const isInput = tag === 'input' || tag === 'textarea' || document.activeElement?.isContentEditable;
+
+      // Cmd+K / Ctrl+K veya input dışındayken '/' -> Arama kutusuna odaklan
+      if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') || (!isInput && e.key === '/')) {
+        e.preventDefault();
+        const searchInput = document.getElementById('topic-input');
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      }
+
+      // Cmd+J / Ctrl+J -> Yazar Panelini aç/kapat
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        setShowWriterPanel(prev => !prev);
+      }
+
+      // Esc -> Modalları / Çekmeceleri kapat
+      if (e.key === 'Escape') {
+        setActiveReaderPaper(null);
+        setShowShareModal(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setShowShareModal]);
+
+
 
   const loadingSteps = t('loading.steps');
 
@@ -199,7 +283,7 @@ function App() {
     if (isMobile) setSidebarOpen(false);
   }, [isMobile]);
 
-  // Loading messages interval
+  // Loading messages interval (akıcı ve dengeli geçiş)
   useEffect(() => {
     let interval;
     if (loading) {
@@ -326,8 +410,12 @@ function App() {
 
   const handleSearch = async (e, directQuery = null) => {
     if (e) e.preventDefault();
-    const query = directQuery || selectedAiQuery;
-    const trimmedTopic = mainTopic.trim();
+    const activeTopic = directQuery ? directQuery.trim() : mainTopic.trim();
+    if (directQuery) {
+      setMainTopic(directQuery);
+    }
+    const query = directQuery ? '' : selectedAiQuery;
+    const trimmedTopic = activeTopic;
     const trimmedAuthor = authorName.trim();
     const normalizedQuery = typeof query === 'string' ? query.trim() : '';
     const cleanKeywords = Array.isArray(keywords)
@@ -699,7 +787,7 @@ function App() {
             <AnimatePresence>
               {loading && (
                 <MotionDiv
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
                   className="ui-panel"
@@ -717,7 +805,7 @@ function App() {
                   <AnimatePresence mode="wait">
                     <motion.p
                       key={loadingStep}
-                      initial={{ opacity: 0, y: 5 }}
+                      initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -5 }}
                       style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', fontWeight: 500, minHeight: '1.5em', margin: 0 }}
@@ -725,6 +813,43 @@ function App() {
                       {loadingSteps[loadingStep % loadingSteps.length]}
                     </motion.p>
                   </AnimatePresence>
+
+                  {/* 4 Aşamalı Süreç Göstergesi */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
+                    gap: '8px',
+                    maxWidth: '820px',
+                    margin: '0 auto 1.5rem',
+                    textAlign: 'left'
+                  }}>
+                    {[
+                      { step: 1, title: 'AI & MeSH Çeviri', desc: 'Boolean Genişletme' },
+                      { step: 2, title: '12+ Global Kaynak', desc: 'PubMed, OpenAlex, Scopus' },
+                      { step: 3, title: 'AHP Matrisi', desc: 'SJR Q1-Q4 & Atıf Skoru' },
+                      { step: 4, title: 'Unpaywall & PDF', desc: 'Açık Erişim Doğrulama' },
+                    ].map((st, i) => {
+                      const isActive = loadingStep >= i;
+                      return (
+                        <div
+                          key={st.step}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: '10px',
+                            background: isActive ? 'rgba(99, 102, 241, 0.08)' : 'rgba(0,0,0,0.02)',
+                            border: isActive ? '1px solid rgba(99, 102, 241, 0.25)' : '1px solid rgba(0,0,0,0.05)',
+                            transition: 'all 0.3s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '700', color: isActive ? 'var(--brand-primary)' : 'var(--text-muted)' }}>
+                            <span style={{ width: '16px', height: '16px', borderRadius: '50%', background: isActive ? 'var(--brand-primary)' : '#cbd5e1', color: '#fff', display: 'grid', placeItems: 'center', fontSize: '9px', fontWeight: '800' }}>{st.step}</span>
+                            <span>{st.title}</span>
+                          </div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px', paddingLeft: '22px' }}>{st.desc}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </MotionDiv>
               )}
             </AnimatePresence>
@@ -813,6 +938,8 @@ function App() {
                       onPdf={() => exportPDF(mainTopic)}
                       onCsv={() => exportExcel(data, mainTopic)}
                       onDocx={() => exportDocx(data, mainTopic)}
+                      onBibtex={() => exportBibTeX(data, mainTopic)}
+                      onRis={() => exportRIS(data, mainTopic)}
                     />
                     {!isShared && (
                       <button
@@ -835,8 +962,46 @@ function App() {
                   </div>
                 )}
 
+                <ConsensusSnapshot
+                  topic={mainTopic || selectedAiQuery}
+                  papers={data.results}
+                  apiUrl={defaultApiUrl}
+                />
+
+                <PublicationTimeline
+                  results={data.results}
+                  selectedYear={selectedYear}
+                  onSelectYear={setSelectedYear}
+                />
+
+                <div role="group" aria-label={t('results.filter.label')} style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center', margin: 'var(--space-3) 0' }}>
+                  {RESULT_FILTERS.map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      className={`ui-chip${resultFilter === f ? ' ui-chip--brand' : ''}`}
+                      style={{ cursor: 'pointer' }}
+                      aria-pressed={resultFilter === f}
+                      onClick={() => setResultFilter(f)}
+                    >
+                      {t(`results.filter.${f}`, { n: data.results.length })}
+                    </button>
+                  ))}
+                  {selectedYear && (
+                    <button
+                      type="button"
+                      className="ui-chip ui-chip--brand"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setSelectedYear(null)}
+                      aria-label={t('results.filter.clearYear', { year: selectedYear })}
+                    >
+                      {selectedYear} <X size={12} />
+                    </button>
+                  )}
+                </div>
+
                 <div id="results-container" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--space-3)' }}>
-                  {data.results.slice(0, shownCount).map((item, idx) => {
+                  {filterResults(data.results, resultFilter, selectedYear).slice(0, shownCount).map((item, idx) => {
                     const isFavorited = isPaperFavorited(item);
                     const inBasket = basket.has(item);
                     return (
@@ -851,6 +1016,8 @@ function App() {
                         isFavorited={isFavorited}
                         isSelected={inBasket}
                         onToggleSelect={(el) => handleToggleBasket(item, el)}
+                        onOpenReader={setActiveReaderPaper}
+                        onFindSimilar={(paper) => handleSearch(null, paper.title)}
                       />
                     );
                   })}
@@ -930,6 +1097,19 @@ function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* Slide-over Paper Reader Drawer */}
+      <PaperReaderDrawer
+        paper={activeReaderPaper}
+        onClose={() => setActiveReaderPaper(null)}
+        isSelected={activeReaderPaper ? basket.has(activeReaderPaper) : false}
+        onToggleSelect={(paper) => handleToggleBasket(paper)}
+        onFindSimilar={(paper) => {
+          setActiveReaderPaper(null);
+          setMainTopic(paper.title);
+          handleSearch(null, paper.title);
+        }}
+      />
     </>
   );
 }

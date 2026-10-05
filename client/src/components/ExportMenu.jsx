@@ -3,10 +3,10 @@ import { ChevronDown, Download } from 'lucide-react';
 import { useI18n } from '../i18n/context.js';
 
 /**
- * PDF / CSV / DOCX tek bir menüde. Önceki üç ayrı düğme mobilde dağınık bir
- * ızgaraya dönüşüyordu.
+ * PDF / CSV / DOCX / BibTeX / RIS tek bir menüde. Önceki ayrı düğmeler mobilde
+ * dağınık bir ızgaraya dönüşüyordu.
  */
-const ExportMenu = ({ onPdf, onCsv, onDocx }) => {
+const ExportMenu = ({ onPdf, onCsv, onDocx, onBibtex, onRis }) => {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -32,6 +32,8 @@ const ExportMenu = ({ onPdf, onCsv, onDocx }) => {
           <li role="none"><button type="button" role="menuitem" className="ui-menu__item" onClick={() => pick(onPdf)}>PDF</button></li>
           <li role="none"><button type="button" role="menuitem" className="ui-menu__item" onClick={() => pick(onDocx)}>Word (DOCX)</button></li>
           <li role="none"><button type="button" role="menuitem" className="ui-menu__item" onClick={() => pick(onCsv)}>Excel (CSV)</button></li>
+          {onBibtex && <li role="none"><button type="button" role="menuitem" className="ui-menu__item" onClick={() => pick(onBibtex)}>BibTeX (Zotero, Mendeley)</button></li>}
+          {onRis && <li role="none"><button type="button" role="menuitem" className="ui-menu__item" onClick={() => pick(onRis)}>RIS (EndNote, Zotero)</button></li>}
         </ul>
       )}
     </div>

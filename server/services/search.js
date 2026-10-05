@@ -8,7 +8,9 @@ import { searchDOAJ } from './doaj.js';
 import { searchEuropePMC } from './europepmc.js';
 import { searchOpenAIRE } from './openaire.js';
 import { searchDataCite } from './datacite.js';
+import { searchPubMed } from './pubmed.js';
 import { sourceBreaker } from './sourceBreaker.js';
+import { findOpenAccessCopy } from './unpaywall.js';
 import { enrichWithCitations } from './opencitations.js';
 
 import { recordSearch } from './sourceZeroTracker.js';
@@ -143,6 +145,10 @@ export function guarded(name, fn, breaker = sourceBreaker) {
 // Yetismeyen kaynak TIMEOUT sayilir (art arda 3 kez -> kesici 2 dk).
 export const SOURCE_DEADLINE_MS = 6500;
 
+/** Arama sirasinda yasal PDF'i onceden aranan ilk sonuc sayisi ve toplam bekleme ust siniri. */
+export const PREFETCH_PDF_COUNT = 8;
+export const PREFETCH_PDF_BUDGET_MS = 2500;
+
 /** Her kaynaktan istenen makale sayisi (gosterilen sayidan bagimsiz). */
 export const SOURCE_FETCH_COUNT = 25;
 
@@ -188,7 +194,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
     console.log('[SourceQuery] S2   :', s2Query || '(bos)');
   }
 
-  const [scopusResult, openAlexResult, coreResult, crossrefResult, s2Result, arxivResult, doajResult, europePmcResult, turkishResult, openAireResult, dataCiteResult] = await Promise.allSettled([
+  const [scopusResult, openAlexResult, coreResult, crossrefResult, s2Result, arxivResult, doajResult, europePmcResult, turkishResult, openAireResult, dataCiteResult, pubmedResult] = await Promise.allSettled([
     isScopusEnabled()
       ? guarded('Scopus', () => searchLiterature(scopusQuery, SOURCE_FETCH_COUNT, null, queryContext))
       : Promise.resolve(SKIPPED),
@@ -206,7 +212,9 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
     // Anahtarsiz, resmi API'ler (1 Eki 2026 eklendi): OpenAIRE kurumsal
     // arsivler ve tezler; DataCite tezler, Zenodo, arsiv kayitlari (yalniz baslikta).
     guarded('OpenAIRE', () => searchOpenAIRE(crossrefQuery, SOURCE_FETCH_COUNT)),
-    guarded('DataCite', () => searchDataCite(crossrefQuery, SOURCE_FETCH_COUNT))
+    guarded('DataCite', () => searchDataCite(crossrefQuery, SOURCE_FETCH_COUNT)),
+    // PubMed duz metin sorgusu bekliyor; Crossref'e giden sade ifade uygun.
+    guarded('PubMed', () => searchPubMed(crossrefQuery, SOURCE_FETCH_COUNT))
   ]);
 
   const categorizeError = classifySourceError;
@@ -218,8 +226,8 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
   let coreQuota = null;
   const failedSources = [];
 
-  const sourceBreakdown = { scopus: 0, openalex: 0, core: 0, crossref: 0, s2: 0, arxiv: 0, doaj: 0, europepmc: 0, openaire: 0, datacite: 0 };
-  const totalFromAPIs   = { scopus: 0, openalex: 0, core: 0, crossref: 0, s2: 0, arxiv: 0, doaj: 0, europepmc: 0, openaire: 0, datacite: 0 };
+  const sourceBreakdown = { scopus: 0, openalex: 0, core: 0, crossref: 0, s2: 0, arxiv: 0, doaj: 0, europepmc: 0, pubmed: 0, openaire: 0, datacite: 0 };
+  const totalFromAPIs   = { scopus: 0, openalex: 0, core: 0, crossref: 0, s2: 0, arxiv: 0, doaj: 0, europepmc: 0, pubmed: 0, openaire: 0, datacite: 0 };
 
   // --- Scopus ---
   if (scopusResult.status === 'fulfilled' && scopusResult.value) {
@@ -337,6 +345,18 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
     failedSources.push({ name: 'DOAJ', type: categorizeError(doajResult.reason), message: doajResult.reason?.message });
   }
 
+  // --- PubMed ---
+  if (pubmedResult.status === 'fulfilled' && pubmedResult.value) {
+    const val = pubmedResult.value;
+    if (val.results?.length) {
+      allResults = [...allResults, ...val.results];
+      sourceBreakdown.pubmed = val.results.length;
+    }
+    totalFromAPIs.pubmed = val.totalFound || 0;
+  } else {
+    console.error('PubMed isteği başarısız oldu:', pubmedResult.reason?.message);
+    failedSources.push({ name: 'PubMed', type: categorizeError(pubmedResult.reason), message: pubmedResult.reason?.message });
+  }
   // --- Europe PMC ---
   if (europePmcResult.status === 'fulfilled' && europePmcResult.value) {
     const val = europePmcResult.value;
@@ -378,7 +398,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
   const sentQueries = {
     openalex: openAlexQuery, core: openAlexQuery, crossref: crossrefQuery,
     s2: s2Query, arxiv: arxivQuery, doaj: doajQuery, scopus: scopusQuery, europepmc: openAlexQuery,
-    openaire: crossrefQuery, datacite: crossrefQuery,
+    openaire: crossrefQuery, datacite: crossrefQuery, pubmed: crossrefQuery,
   };
   const zeroResultSources = [];
   for (const [key, fetched] of Object.entries(sourceBreakdown)) {
@@ -572,6 +592,26 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
   if ((!finalResults || finalResults.length === 0) && enrichedResults?.length > 0) {
     console.log('[SearchResponseFallback] AHP results also empty, using raw enriched results');
     finalResults = enrichedResults.slice(0, displayCount);
+  }
+
+  // Ilk sonuclar icin yasal PDF'i onceden bul: kullanici en ustteki makalelerde
+  // dugmeye basmadan PDF'i gorur. Unpaywall istekleri paralel, onbellekli ve
+  // gunluk kotali (unpaywall.js); toplam bekleme ust sinirla kesilir, gec kalan
+  // makale icin kartta "Ucretsiz PDF bul" dugmesi kalir.
+  if (Array.isArray(finalResults) && finalResults.length > 0) {
+    const lookups = finalResults.slice(0, PREFETCH_PDF_COUNT)
+      .filter((p) => p.doi && !p.pdfUrl)
+      .map(async (p) => {
+        const res = await findOpenAccessCopy(p.doi);
+        if (res.status === 'ok' && res.result?.pdfUrl) {
+          p.pdfUrl = res.result.pdfUrl;
+          p.openAccess = true;
+        }
+      });
+    await Promise.race([
+      Promise.allSettled(lookups),
+      new Promise((resolve) => setTimeout(resolve, PREFETCH_PDF_BUDGET_MS)),
+    ]);
   }
 
   console.log(`[ResponseDebug] FINAL results.length going to frontend = ${finalResults?.length}`);

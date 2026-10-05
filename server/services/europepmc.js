@@ -66,6 +66,10 @@ export function mapEuropePmcResult(r) {
     type: isPreprint ? 'preprint' : (pubTypes.find((t) => /journal article|review/i.test(t)) || pubTypes[0] || null),
     sourceType: isPreprint ? 'Preprint' : undefined,
     openAccess: r.isOpenAccess === 'Y',
+    // Europe PMC'nin kendi bildirdigi yasal PDF kopyasi; kartta dogrudan gosterilir.
+    pdfUrl: (Array.isArray(r.fullTextUrlList?.fullTextUrl)
+      ? r.fullTextUrlList.fullTextUrl.find((u) => u.documentStyle === 'pdf' && u.availabilityCode === 'OA')?.url
+      : null) || null,
     keyCount: 0,
   };
 }

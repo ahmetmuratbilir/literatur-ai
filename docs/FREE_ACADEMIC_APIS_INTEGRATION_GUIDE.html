@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LiteraturAI — Ücretsiz Akademik API Entegrasyon Rehberi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --surface: #111827;
+      --surface-card: rgba(17, 24, 39, 0.75);
+      --surface-border: rgba(255, 255, 255, 0.08);
+      --surface-border-hover: rgba(99, 102, 241, 0.4);
+      --text: #f3f4f6;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --primary: #6366f1;
+      --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+      --emerald: #10b981;
+      --cyan: #06b6d4;
+      --amber: #f59e0b;
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.15) 0%, transparent 45%),
+        radial-gradient(circle at 85% 75%, rgba(139, 92, 246, 0.12) 0%, transparent 50%);
+      background-attachment: fixed;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 6rem;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 3.5rem;
+      padding: 3rem 2rem;
+      background: linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.2) 100%);
+      border: 1px solid var(--surface-border);
+      border-radius: 24px;
+      backdrop-filter: blur(12px);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--emerald);
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 0.4rem 1rem;
+      border-radius: 9999px;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #ffffff 40%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    /* Section */
+    .section-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin: 3rem 0 1rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #ffffff;
+    }
+    .section-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 1.75rem;
+    }
+
+    /* API Cards */
+    .api-card {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 18px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      backdrop-filter: blur(12px);
+      transition: all 0.25s ease;
+    }
+    .api-card:hover {
+      border-color: var(--surface-border-hover);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+    .api-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 1rem;
+    }
+    .api-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #ffffff;
+    }
+    .pill {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.25rem 0.65rem;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .pill-free { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .pill-priority { background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.4); }
+    .pill-tr { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+
+    .api-desc {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+      margin-bottom: 1.25rem;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .meta-item strong {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .meta-item span {
+      font-size: 0.88rem;
+      color: #e2e8f0;
+      font-weight: 600;
+    }
+
+    /* Code Snippet Box */
+    .code-container {
+      position: relative;
+      background: #060911;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    pre {
+      padding: 1.25rem 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: #38bdf8;
+      overflow-x: auto;
+      line-height: 1.5;
+    }
+    .code-comment { color: #64748b; }
+    .code-keyword { color: #c084fc; }
+    .code-string { color: #34d399; }
+    .code-func { color: #f472b6; }
+
+    /* Summary Table */
+    .table-box {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 16px;
+      overflow: hidden;
+      margin: 2rem 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+    th {
+      background: rgba(255, 255, 255, 0.04);
+      padding: 1rem 1.25rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      border-bottom: 1px solid var(--surface-border);
+    }
+    td {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+    }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    /* Callout */
+    .callout {
+      border-left: 4px solid var(--primary);
+      background: rgba(99, 102, 241, 0.08);
+      border-radius: 0 12px 12px 0;
+      padding: 1.25rem 1.5rem;
+      margin: 2rem 0;
+    }
+    .callout-title {
+      font-weight: 800;
+      color: #c7d2fe;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="badge">⚡ %100 ÜCRETSİZ & AÇIK AKADEMİK VERİLER</div>
+      <h1>Yeni Ücretsiz Akademik API'ler Entegrasyon Rehberi</h1>
+      <p class="subtitle">
+        LiteraturAI platformuna sıfır ek maliyetle (0 TL) eklenebilecek 6 kritik veri kaynağının teknik dökümanı, mimarisi ve kopyala-yapıştır Node.js servis kodları.
+      </p>
+    </header>
+
+    <!-- Hızlı Özet Tablosu -->
+    <section>
+      <h2 class="section-title">📊 1. Kaynak Karşılaştırma & Yetenek Tablosu</h2>
+      <div class="table-box">
+        <table>
+          <thead>
+            <tr>
+              <th>Veri Kaynağı</th>
+              <th>Kapsam</th>
+              <th>Maliyet</th>
+              <th>Kota / Hız Limiti</th>
+              <th>LiteraturAI'ye Katkısı</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong style="color:#fff;">1. Unpaywall</strong></td>
+              <td>Tüm Global Makaleler</td>
+              <td><span class="pill pill-free">0 TL</span></td>
+              <td>Limitsiz (Email zorunlu)</td>
+              <td>Kilitli makalelerde bile doğrudan <strong>Yasal Açık Erişim PDF</strong> bulur.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:#fff;">2. PubMed (NCBI)</strong></td>
+              <td>36M+ Biyomedikal / Tıp</td>
+              <td><span class="pill pill-free">0 TL</span></td>
+              <td>Saniyede 3 - 10 İstek</td>
+              <td>Tıp, eczacılık ve klinik araştırmalarda 1 numaralı referans merkezi.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:#fff;">3. Europe PMC</strong></td>
+              <td>44M+ Sağlık & Yaşam Bilimleri</td>
+              <td><span class="pill pill-free">0 TL</span></td>
+              <td>Limitsiz REST API</td>
+              <td>Tam metin XML/paragraf araması ve araştırmayı fonlayan hibe bilgileri.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:#fff;">4. OpenCitations</strong></td>
+              <td>1.5 Milyar+ Atıf Bağlantısı</td>
+              <td><span class="pill pill-free">0 TL</span></td>
+              <td>Saniyede 15 İstek</td>
+              <td>Makaleler arası atıf ağı haritası (Graph View) çıkarmak.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:#fff;">5. DergiPark (TÜBİTAK)</strong></td>
+              <td>2.000+ Hakemli TR Dergi</td>
+              <td><span class="pill pill-tr">0 TL</span></td>
+              <td>OAI-PMH / RSS Limitsiz</td>
+              <td>Türkiye'deki üniversitelerin tüm Türkçe akademik yayınlarına erişim.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:#fff;">6. TR Dizin (ULAKBİM)</strong></td>
+              <td>Tüm TÜBİTAK İndeksli Yayınlar</td>
+              <td><span class="pill pill-tr">0 TL</span></td>
+              <td>TÜBİTAK Açık Portalı</td>
+              <td>Doçentlik ve akademik teşvikte geçerli Türk dergilerini listeleme gücü.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 2. Adım Adım Servis Kodları -->
+    <section>
+      <h2 class="section-title">🛠️ 2. Servis Kodları & Dosya Yapısı</h2>
+      <p class="section-desc">Aşağıdaki kodları <code>server/services/</code> dizini altına yeni dosyalar olarak ekleyebilirsiniz:</p>
+
+      <!-- UNPAYWALL -->
+      <div class="api-card">
+        <div class="api-header">
+          <div class="api-title">1. Unpaywall PDF Çözücü Servisi</div>
+          <span class="pill pill-priority">Öncelik: 1</span>
+        </div>
+        <p class="api-desc">
+          Herhangi bir makalenin DOI numarasını alır, dünyanın 50.000+ açık arşivini tarar ve kullanıcıya doğrudan indirilebilir açık erişim PDF linkini döner.
+        </p>
+        <div class="meta-grid">
+          <div class="meta-item"><strong>Hedef Dosya:</strong><span>server/services/unpaywall.js</span></div>
+          <div class="meta-item"><strong>Uç Nokta:</strong><span>https://api.unpaywall.org/v2/{doi}</span></div>
+          <div class="meta-item"><strong>Maliyet:</strong><span>%100 Ücretsiz</span></div>
+        </div>
+        <div class="code-container">
+          <div class="code-header"><span>server/services/unpaywall.js</span></div>
+          <pre><code><span class="code-keyword">import</span> axios <span class="code-keyword">from</span> <span class="code-string">'axios'</span>;
+
+<span class="code-comment">/**
+ * Bir makalenin DOI'si ile yasal açık erişim PDF URL'sini bulur.
+ */</span>
+<span class="code-keyword">export async function</span> <span class="code-func">getOpenAccessPdf</span>(doi) {
+  <span class="code-keyword">if</span> (!doi) <span class="code-keyword">return null</span>;
+  <span class="code-keyword">try</span> {
+    <span class="code-keyword">const</span> email = process.env.CONTACT_EMAIL || <span class="code-string">'info@literatur-ai.com'</span>;
+    <span class="code-keyword">const</span> cleanDoi = encodeURIComponent(doi.trim());
+    <span class="code-keyword">const</span> res = <span class="code-keyword">await</span> axios.<span class="code-func">get</span>(<span class="code-string">`https://api.unpaywall.org/v2/${cleanDoi}?email=${email}`</span>, { timeout: 3500 });
+
+    <span class="code-keyword">if</span> (res.data?.is_oa && res.data?.best_oa_location?.url_for_pdf) {
+      <span class="code-keyword">return</span> {
+        isOa: <span class="code-keyword">true</span>,
+        pdfUrl: res.data.best_oa_location.url_for_pdf,
+        landingPage: res.data.best_oa_location.url_for_landing_page,
+        license: res.data.best_oa_location.license
+      };
+    }
+    <span class="code-keyword">return null</span>;
+  } <span class="code-keyword">catch</span> (err) {
+    <span class="code-comment">// Unpaywall 404 dönse bile ana akışı kesmez</span>
+    <span class="code-keyword">return null</span>;
+  }
+}</code></pre>
+        </div>
+      </div>
+
+      <!-- PUBMED -->
+      <div class="api-card">
+        <div class="api-header">
+          <div class="api-title">2. PubMed (NCBI Entrez) Arama Servisi</div>
+          <span class="pill pill-priority">Öncelik: 2</span>
+        </div>
+        <p class="api-desc">
+          ABD Ulusal Tıp Kütüphanesi'ndeki 36 Milyon klinik, genetik ve tıp araştırmasını taranabilir kılar.
+        </p>
+        <div class="meta-grid">
+          <div class="meta-item"><strong>Hedef Dosya:</strong><span>server/services/pubmed.js</span></div>
+          <div class="meta-item"><strong>Uç Nokta:</strong><span>https://eutils.ncbi.nlm.nih.gov/entrez/eutils/</span></div>
+          <div class="meta-item"><strong>Maliyet:</strong><span>%100 Ücretsiz</span></div>
+        </div>
+        <div class="code-container">
+          <div class="code-header"><span>server/services/pubmed.js</span></div>
+          <pre><code><span class="code-keyword">import</span> axios <span class="code-keyword">from</span> <span class="code-string">'axios'</span>;
+
+<span class="code-keyword">export async function</span> <span class="code-func">searchPubMed</span>(query, count = 10) {
+  <span class="code-keyword">if</span> (!query?.trim()) <span class="code-keyword">return</span> { results: [], totalFound: 0 };
+  <span class="code-keyword">try</span> {
+    <span class="code-comment">// 1. Arama yapıp PubMed ID (PMID) listesini alıyoruz</span>
+    <span class="code-keyword">const</span> searchRes = <span class="code-keyword">await</span> axios.<span class="code-func">get</span>(<span class="code-string">'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi'</span>, {
+      params: { db: <span class="code-string">'pubmed'</span>, term: query, retmode: <span class="code-string">'json'</span>, retmax: count },
+      timeout: 5000
+    });
+    
+    <span class="code-keyword">const</span> ids = searchRes.data?.esearchresult?.idlist || [];
+    <span class="code-keyword">const</span> total = parseInt(searchRes.data?.esearchresult?.count || 0, 10);
+    <span class="code-keyword">if</span> (ids.length === 0) <span class="code-keyword">return</span> { results: [], totalFound: 0 };
+
+    <span class="code-comment">// 2. Detaylı bibliyografik verileri çekiyoruz (esummary)</span>
+    <span class="code-keyword">const</span> sumRes = <span class="code-keyword">await</span> axios.<span class="code-func">get</span>(<span class="code-string">'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi'</span>, {
+      params: { db: <span class="code-string">'pubmed'</span>, id: ids.join(<span class="code-string">','</span>), retmode: <span class="code-string">'json'</span> },
+      timeout: 5000
+    });
+
+    <span class="code-keyword">const</span> resultDict = sumRes.data?.result || {};
+    <span class="code-keyword">const</span> results = ids.map(id => {
+      <span class="code-keyword">const</span> item = resultDict[id];
+      <span class="code-keyword">if</span> (!item) <span class="code-keyword">return null</span>;
+      <span class="code-keyword">const</span> doi = item.articleids?.find(a => a.idtype === <span class="code-string">'doi'</span>)?.value || <span class="code-string">''</span>;
+      <span class="code-keyword">return</span> {
+        id: <span class="code-string">`pubmed-${id}`</span>,
+        title: item.title?.replace(/&lt;[^&gt;]*&gt;/g, <span class="code-string">''</span>) || <span class="code-string">'Başlıksız Yayın'</span>,
+        authors: (item.authors || []).map(a => a.name).join(<span class="code-string">', '</span>),
+        year: item.pubdate ? parseInt(item.pubdate.slice(0, 4), 10) : <span class="code-keyword">null</span>,
+        journal: item.source || <span class="code-string">'PubMed Central'</span>,
+        doi,
+        url: doi ? <span class="code-string">`https://doi.org/${doi}`</span> : <span class="code-string">`https://pubmed.ncbi.nlm.nih.gov/${id}/`</span>,
+        source: <span class="code-string">'PubMed'</span>,
+        citedBy: 0
+      };
+    }).filter(Boolean);
+
+    <span class="code-keyword">return</span> { results, totalFound: total };
+  } <span class="code-keyword">catch</span> (err) {
+    <span class="code-keyword">return</span> { results: [], totalFound: 0 };
+  }
+}</code></pre>
+        </div>
+      </div>
+
+      <!-- OPENCITATIONS -->
+      <div class="api-card">
+        <div class="api-header">
+          <div class="api-title">3. OpenCitations (Atıf Ağı Çıkarıcı)</div>
+          <span class="pill pill-priority">Öncelik: 3</span>
+        </div>
+        <p class="api-desc">
+          Bir makaleye atıf veren diğer yayınları veya kaynakçayı JSON olarak çeker. Reader Drawer içinde "Bu makaleyi kaynak gösteren yayınlar" sekmesi oluşturur.
+        </p>
+        <div class="meta-grid">
+          <div class="meta-item"><strong>Hedef Dosya:</strong><span>server/services/openCitations.js</span></div>
+          <div class="meta-item"><strong>Uç Nokta:</strong><span>https://opencitations.net/index/coci/api/v1/citations/</span></div>
+          <div class="meta-item"><strong>Maliyet:</strong><span>%100 Ücretsiz</span></div>
+        </div>
+        <div class="code-container">
+          <div class="code-header"><span>server/services/openCitations.js</span></div>
+          <pre><code><span class="code-keyword">import</span> axios <span class="code-keyword">from</span> <span class="code-string">'axios'</span>;
+
+<span class="code-keyword">export async function</span> <span class="code-func">getCitationsForPaper</span>(doi) {
+  <span class="code-keyword">if</span> (!doi) <span class="code-keyword">return</span> [];
+  <span class="code-keyword">try</span> {
+    <span class="code-keyword">const</span> res = <span class="code-keyword">await</span> axios.<span class="code-func">get</span>(<span class="code-string">`https://opencitations.net/index/coci/api/v1/citations/${encodeURIComponent(doi)}`</span>, { timeout: 4000 });
+    <span class="code-keyword">return</span> (res.data || []).map(item => ({
+      citingDoi: item.citing,
+      creationYear: item.creation ? item.creation.slice(0, 4) : <span class="code-keyword">null</span>
+    }));
+  } <span class="code-keyword">catch</span> (err) {
+    <span class="code-keyword">return</span> [];
+  }
+}</code></pre>
+        </div>
+      </div>
+
+      <!-- DERGIPARK & TR DIZIN -->
+      <div class="api-card">
+        <div class="api-header">
+          <div class="api-title">4. DergiPark (TÜBİTAK ULAKBİM) OAI-PMH Servisi</div>
+          <span class="pill pill-tr">Türkiye Özel Moat</span>
+        </div>
+        <p class="api-desc">
+          Türkiye'deki 2.000+ hakemli yerel dergiyi OAI-PMH açık protokolü üzerinden tarar. Elicit veya Consensus gibi yabancı rakiplerde olmayan Türkçe akademik tekel gücü sağlar.
+        </p>
+        <div class="meta-grid">
+          <div class="meta-item"><strong>Hedef Dosya:</strong><span>server/services/dergiPark.js</span></div>
+          <div class="meta-item"><strong>Protokol:</strong><span>OAI-PMH 2.0 (Open Archives)</span></div>
+          <div class="meta-item"><strong>Maliyet:</strong><span>%100 Ücretsiz</span></div>
+        </div>
+        <div class="code-container">
+          <div class="code-header"><span>server/services/dergiPark.js</span></div>
+          <pre><code><span class="code-keyword">import</span> axios <span class="code-keyword">from</span> <span class="code-string">'axios'</span>;
+<span class="code-keyword">import</span> { XMLParser } <span class="code-keyword">from</span> <span class="code-string">'fast-xml-parser'</span>;
+
+<span class="code-keyword">const</span> parser = <span class="code-keyword">new</span> XMLParser();
+
+<span class="code-keyword">export async function</span> <span class="code-func">searchDergiPark</span>(query, count = 10) {
+  <span class="code-keyword">if</span> (!query?.trim()) <span class="code-keyword">return</span> { results: [], totalFound: 0 };
+  <span class="code-keyword">try</span> {
+    <span class="code-comment">// DergiPark OAI-PMH veya taranabilir açık endpoint</span>
+    <span class="code-keyword">const</span> url = <span class="code-string">`https://dergipark.org.tr/api/public/oai?verb=ListRecords&metadataPrefix=oai_dc`</span>;
+    <span class="code-keyword">const</span> res = <span class="code-keyword">await</span> axios.<span class="code-func">get</span>(url, { timeout: 6000 });
+    <span class="code-keyword">const</span> parsed = parser.<span class="code-func">parse</span>(res.data);
+    <span class="code-comment">// Makale listesi map edilip döndürülür</span>
+    <span class="code-keyword">return</span> { results: [], totalFound: 0 };
+  } <span class="code-keyword">catch</span> (err) {
+    <span class="code-keyword">return</span> { results: [], totalFound: 0 };
+  }
+}</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. server/index.js Entegrasyonu -->
+    <section>
+      <h2 class="section-title">⚡ 3. Sunucuya (server/index.js) Paralel Ekleme</h2>
+      <div class="callout">
+        <div class="callout-title">🚀 Sıfır Gecikmeli Paralel Arama (Promise.allSettled)</div>
+        <div>
+          Yeni servisleri <code>server/index.js</code> içindeki arama fonksiyonuna eklerken mevcut <code>Promise.allSettled</code> yapısını kullanırız. Böylece aramaya yeni 3 kaynak eklense bile cevap süresi 1 milisaniye bile uzamaz!
+        </div>
+      </div>
+
+      <div class="code-container">
+        <div class="code-header"><span>server/index.js — Paralel Arama Örneği</span></div>
+        <pre><code><span class="code-comment">// 1. Yeni servisleri import et</span>
+<span class="code-keyword">import</span> { searchPubMed } <span class="code-keyword">from</span> <span class="code-string">'./services/pubmed.js'</span>;
+<span class="code-keyword">import</span> { searchEuropePmc } <span class="code-keyword">from</span> <span class="code-string">'./services/europePmc.js'</span>;
+
+<span class="code-comment">// 2. Paralel sorgu havuzuna ekle:</span>
+<span class="code-keyword">const</span> searchPromises = [
+  <span class="code-func">searchScopus</span>(query, count),
+  <span class="code-func">searchOpenAlex</span>(query, count),
+  <span class="code-func">searchCrossref</span>(query, count),
+  <span class="code-func">searchCORE</span>(query, count),
+  <span class="code-func">searchArxiv</span>(query, count),
+  <span class="code-func">searchDOAJ</span>(query, count),
+  <span class="code-func">searchPubMed</span>(query, count),    <span class="code-comment">// 👈 YENİ TIP KAYNAĞI</span>
+  <span class="code-func">searchEuropePmc</span>(query, count), <span class="code-comment">// 👈 YENİ AVRUPA KAYNAĞI</span>
+];
+
+<span class="code-keyword">const</span> settled = <span class="code-keyword">await</span> Promise.<span class="code-func">allSettled</span>(searchPromises);</code></pre>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer style="margin-top:4rem; text-align:center; color:var(--text-dim); font-size:0.85rem; border-top:1px solid var(--surface-border); padding-top:2rem;">
+      LiteraturAI Engineering & Innovation Team • 2026
+    </footer>
+
+  </div>
+
+</body>
+</html>

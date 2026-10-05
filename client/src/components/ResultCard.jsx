@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, FileText, User as UserIcon, ExternalLink, ChevronDown, ChevronUp, Quote, Star, Check, AlertCircle, Loader2, AlertTriangle, BookOpen, BookmarkPlus, BookmarkCheck } from 'lucide-react';
+import { Calendar, FileText, User as UserIcon, ExternalLink, ChevronDown, ChevronUp, Quote, Star, Check, AlertCircle, Loader2, AlertTriangle, BookOpen, BookmarkPlus, BookmarkCheck, Copy, Search } from 'lucide-react';
 import { getYearDisplay } from '../utils/yearDisplay.js';
+import { toBibTeX } from '../utils/citationExport.js';
 import RankBreakdown from './RankBreakdown.jsx';
 import { useI18n } from '../i18n/context.js';
 
@@ -9,13 +10,14 @@ const MotionDiv = motion.div;
 
 const TIER_CHIP = { Q1: 'ui-chip--ok', Q2: 'ui-chip--brand', Q3: 'ui-chip--warn', Q4: '' };
 
-const ResultCard = ({ item, rank, onFavorite, isFavorited, isSelected, onToggleSelect, appliedWeights, oaEnabled = false, onFindPdf }) => {
+const ResultCard = ({ item, rank, onFavorite, isFavorited, isSelected, onToggleSelect, appliedWeights, oaEnabled = false, onFindPdf, onOpenReader, onFindSimilar }) => {
   const { t, lang } = useI18n();
   // Unpaywall: 'idle' | 'loading' | { found, pdfUrl, landingUrl, version } | 'error'
   const [pdfState, setPdfState] = useState('idle');
   const [expanded, setExpanded] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [favFeedback, setFavFeedback] = useState(null); // 'added' | 'removed' | 'error'
+  const [bibtexCopied, setBibtexCopied] = useState(false);
 
   // Favori geri bildirimini temizle
   useEffect(() => {
@@ -160,7 +162,14 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, isSelected, onToggleS
             </button>
           )}
 
-          {oaEnabled && item.doi && onFindPdf && (() => {
+          {/* Arama sırasında bulunmuş yasal PDF (Europe PMC veya ilk sonuçlar için Unpaywall) */}
+          {item.pdfUrl && (
+            <a href={item.pdfUrl} target="_blank" rel="noopener noreferrer" className="ui-btn ui-btn--ghost ui-btn--sm ui-link-btn ui-link-btn--ok">
+              <FileText size={14} /> {t('card.freePdf')}
+            </a>
+          )}
+
+          {!item.pdfUrl && oaEnabled && item.doi && onFindPdf && (() => {
             if (pdfState && typeof pdfState === 'object') {
               if (!pdfState.found) {
                 return <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)', paddingInline: '6px' }}>{t('card.noFreeCopy')}</span>;
@@ -196,6 +205,34 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, isSelected, onToggleS
               <ExternalLink size={14} /> {t('card.open')}
             </a>
           )}
+
+          {onOpenReader && (
+            <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={() => onOpenReader(item)}>
+              <BookOpen size={14} /> {t('card.details')}
+            </button>
+          )}
+
+          {onFindSimilar && (
+            <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={() => onFindSimilar(item)}>
+              <Search size={14} /> {t('card.findSimilar')}
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="ui-btn ui-btn--ghost ui-btn--sm"
+            title={t('card.copyBibtexTitle')}
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(toBibTeX([item]));
+                setBibtexCopied(true);
+                setTimeout(() => setBibtexCopied(false), 2000);
+              } catch { /* pano izni yoksa sessizce geç */ }
+            }}
+          >
+            {bibtexCopied ? <Check size={14} strokeWidth={3} /> : <Copy size={14} />}
+            {bibtexCopied ? t('card.bibtexCopied') : 'BibTeX'}
+          </button>
         </div>
 
         <div className="ui-card__actions">

@@ -26,6 +26,19 @@ function applyDateMetadata(target, dateMetadata) {
   return target;
 }
 
+function extractAltId(item) {
+  if (!item) return null;
+  if (item.pmid) return `pmid:${String(item.pmid).trim().toLowerCase()}`;
+  if (item.pubmedId) return `pmid:${String(item.pubmedId).trim().toLowerCase()}`;
+  if (item.arxivId) return `arxiv:${String(item.arxivId).trim().toLowerCase().replace(/^arxiv:\s*/i, '')}`;
+  if (item.corpusId) return `corpus:${String(item.corpusId).trim()}`;
+  if (item.id && typeof item.id === 'string' && (item.id.startsWith('W') || item.id.startsWith('https://openalex.org/W'))) {
+    const oId = item.id.replace('https://openalex.org/', '');
+    return `openalex:${oId}`;
+  }
+  return null;
+}
+
 /**
  * Aynı makalenin iki kaydını birleştirir.
  *
@@ -50,15 +63,16 @@ function mergeDuplicateResult(existing, incoming) {
   }
 
   // Atıf sayısında kaynaklar ciddi şekilde ayrışır; en yükseği en güncel olanıdır.
-  const existingCited = Number.parseInt(existing.citedBy ?? existing.citedbyCount, 10) || 0;
-  const incomingCited = Number.parseInt(incoming.citedBy ?? incoming.citedbyCount, 10) || 0;
+  const existingCited = Number.parseInt(existing.citedBy ?? existing.citedbyCount ?? existing.citationCount, 10) || 0;
+  const incomingCited = Number.parseInt(incoming.citedBy ?? incoming.citedbyCount ?? incoming.citationCount, 10) || 0;
   if (incomingCited > existingCited) {
     existing.citedBy = incomingCited;
     existing.citedbyCount = incomingCited;
+    existing.citationCount = incomingCited;
   }
 
-  // Eksik kalan tanımlayıcıları tamamla (varsa üzerine yazma).
-  for (const field of ['doi', 'url', 'publicationName', 'authors', 'pubType', 'pmid', 'pmcid']) {
+  // Eksik kalan tanımlayıcıları ve alternatif ID'leri tamamla (varsa üzerine yazma).
+  for (const field of ['doi', 'url', 'publicationName', 'authors', 'pubType', 'pmid', 'pmcid', 'arxivId', 'corpusId', 'pdfUrl', 'downloadUrl']) {
     if (!existing[field] && incoming[field]) {
       existing[field] = incoming[field];
     }
@@ -76,6 +90,7 @@ function mergeDuplicateResult(existing, incoming) {
   if (!existing.sourceType && incoming.sourceType) existing.sourceType = incoming.sourceType;
 
   if (!existing.openAccess && incoming.openAccess) existing.openAccess = incoming.openAccess;
+  if (incoming.isOpenAccess) existing.openAccess = true;
 
   // DOAJ: herhangi bir kaynak "listede" diyorsa listede. "Listede degil"
   // yalnizca bilinmeyenin yerine gecer, "listede"nin ustune yazamaz.
@@ -158,8 +173,6 @@ export function normalizeSearchResult(result) {
     year: resolvePublicationYear(normalizedDateMetadata),
     ...normalizedDateMetadata,
     // AHP'nin kalite (%18) ve açık erişim (%5) kriterleri bu iki alana bakıyor.
-    // Hiçbir canlı adaptör bunları doldurmadığı için ikisi de sabit değere
-    // düşüyordu; burada kaynakların ham tip alanlarından türetiyoruz.
     pubType: normalizePublicationType(
       result.pubType || result.type || result.subtypeDescription || result.publicationTypes
     ) || SOURCE_DEFAULT_PUB_TYPE[result.source] || null,
@@ -171,22 +184,20 @@ export function normalizeSearchResult(result) {
       : (result.source === 'DOAJ' ? true : null),
     sourceList: [result.source || 'Unknown']
   };
+
   return enrichPaperRanking(normalized);
 }
 
 export function deduplicateResults(results) {
   const uniqueMap = new Map();
 
-  // DOI ve başlık ayrı birer alias indeksinde tutuluyor. Önceki sürüm DOI
-  // anahtarını hesaplayıp hemen ardından `title:` ile eziyordu; bu yüzden
-  // DOI'li hiçbir kayıt `doi:` anahtarıyla saklanmıyor ve aynı DOI ikinci kez
-  // geldiğinde bulunamıyordu. Aynı makale 4 kaynaktan gelip başlıkları birebir
-  // aynı değilse listede 4 kez görünüyordu.
   const doiIndex = new Map();
+  const altIdIndex = new Map();
   const titleEntries = [];
 
   for (const item of results) {
     const doi = normalizeDoi(item.doi);
+    const altId = extractAltId(item);
     const titleClean = normalizeTitleForComparison(item.title);
 
     // 1. DOI kesin eşleşme
@@ -195,7 +206,15 @@ export function deduplicateResults(results) {
       continue;
     }
 
-    // 2. Başlık benzerliği
+    // 2. Alternatif ID kesin eşleşme (PMID, arXiv ID, CorpusID, OpenAlex)
+    if (altId && altIdIndex.has(altId)) {
+      const matchedKey = altIdIndex.get(altId);
+      mergeDuplicateResult(uniqueMap.get(matchedKey), item);
+      if (doi && !doiIndex.has(doi)) doiIndex.set(doi, matchedKey);
+      continue;
+    }
+
+    // 3. Başlık benzerliği (Fuzzy Fallback: Jaro-Winkler > 0.95)
     if (titleClean.length > 10) {
       let matchedKey = null;
       for (const entry of titleEntries) {
@@ -208,20 +227,23 @@ export function deduplicateResults(results) {
 
       if (matchedKey) {
         mergeDuplicateResult(uniqueMap.get(matchedKey), item);
-        // Bu kayıt DOI taşıyorsa, aynı DOI'nin sonraki kopyaları da bulunabilsin.
+        // Bu kayıt DOI veya altId taşıyorsa indeksleri güncelle
         if (doi && !doiIndex.has(doi)) doiIndex.set(doi, matchedKey);
+        if (altId && !altIdIndex.has(altId)) altIdIndex.set(altId, matchedKey);
         continue;
       }
     }
 
-    // 3. Yeni kayıt
+    // 4. Yeni kayıt
     let key;
     if (doi) key = `doi:${doi}`;
+    else if (altId) key = `alt:${altId}`;
     else if (titleClean.length > 10) key = `title:${titleClean}`;
     else key = `id:${item.id || `${uniqueMap.size}-${titleClean}`}`;
 
     uniqueMap.set(key, item);
     if (doi) doiIndex.set(doi, key);
+    if (altId) altIdIndex.set(altId, key);
     if (titleClean.length > 10) titleEntries.push({ titleClean, key });
   }
 

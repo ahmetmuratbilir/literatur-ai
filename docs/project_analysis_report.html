@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LiteraturAI — Kapsamlı Mimari, API & Geliştirme Raporu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --surface: #111827;
+      --surface-card: rgba(17, 24, 39, 0.7);
+      --surface-border: rgba(255, 255, 255, 0.08);
+      --surface-border-hover: rgba(99, 102, 241, 0.4);
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      --primary: #6366f1;
+      --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --glow: rgba(99, 102, 241, 0.25);
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 75%, rgba(168, 85, 247, 0.1) 0%, transparent 45%);
+      background-attachment: fixed;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #374151; }
+
+    /* Top Navigation */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(16px);
+      background: rgba(11, 15, 25, 0.85);
+      border-bottom: 1px solid var(--surface-border);
+      padding: 0.85rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 700;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-badge {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: #a5b4fc;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+    .nav-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+    .nav-link:hover {
+      color: #fff;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 6rem;
+    }
+
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      padding: 3rem 1rem 4rem;
+      position: relative;
+    }
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      color: #c7d2fe;
+      padding: 0.4rem 1.1rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+    .hero-title {
+      font-size: clamp(2.2rem, 5vw, 3.6rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 1.25rem;
+      background: var(--primary-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-subtitle {
+      max-width: 760px;
+      margin: 0 auto 2rem;
+      color: var(--text-muted);
+      font-size: 1.15rem;
+      font-weight: 400;
+    }
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .stat-pill {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 14px;
+      padding: 1.2rem;
+      text-align: left;
+      backdrop-filter: blur(12px);
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .stat-pill:hover {
+      transform: translateY(-3px);
+      border-color: var(--surface-border-hover);
+    }
+    .stat-num {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #fff;
+      display: block;
+    }
+    .stat-label {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    /* Section Header */
+    .section-header {
+      margin: 4.5rem 0 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 1px solid var(--surface-border);
+      padding-bottom: 1rem;
+    }
+    .section-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .section-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-top: 0.3rem;
+    }
+
+    /* Architecture Flow Grid */
+    .flow-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+    }
+    .step-card {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .step-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+      background: rgba(99, 102, 241, 0.2);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+    .step-card h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-bottom: 0.6rem;
+      color: #fff;
+    }
+    .step-card p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .step-meta {
+      margin-top: 1rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: #818cf8;
+    }
+
+    /* API Keys Table */
+    .table-wrapper {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-top: 1.5rem;
+      backdrop-filter: blur(12px);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+    th {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 1rem 1.25rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--surface-border);
+    }
+    td {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+    .tag-required {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .tag-primary {
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .tag-optional {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .code-pill {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      color: #38bdf8;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Dual Cards (UI/UX & Features) */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    .feature-box {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+    .feature-box:hover {
+      border-color: var(--surface-border-hover);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px -10px var(--glow);
+    }
+    .feature-icon {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+      display: inline-block;
+    }
+    .feature-box h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .feature-box p {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      margin-bottom: 1rem;
+    }
+    .feature-bullets {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .feature-bullets li {
+      font-size: 0.85rem;
+      color: #d1d5db;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .feature-bullets li::before {
+      content: "✦";
+      color: var(--primary);
+      font-size: 0.85rem;
+      margin-top: 0.1rem;
+    }
+
+    /* Interactive Simulation Box */
+    .demo-container {
+      background: linear-gradient(180deg, rgba(17, 24, 39, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 20px;
+      padding: 2rem;
+      margin-top: 2rem;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+    }
+    .demo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--surface-border);
+    }
+    .demo-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .bar-row {
+      display: grid;
+      grid-template-columns: 140px 1fr 60px;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.88rem;
+    }
+    .bar-track {
+      background: rgba(255, 255, 255, 0.06);
+      height: 12px;
+      border-radius: 9999px;
+      overflow: hidden;
+      position: relative;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 9999px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Roadmap Timeline */
+    .timeline {
+      position: relative;
+      margin-top: 2rem;
+      padding-left: 2rem;
+      border-left: 2px solid rgba(99, 102, 241, 0.25);
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 2.5rem;
+    }
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      left: calc(-2rem - 6px);
+      top: 4px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 10px var(--primary);
+    }
+    .timeline-phase {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #a5b4fc;
+      margin-bottom: 0.3rem;
+    }
+    .timeline-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.5rem;
+    }
+    .timeline-body {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+    }
+
+    /* Interactive Copy Box */
+    .code-box {
+      background: #060911;
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      position: relative;
+      margin-top: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: #94a3b8;
+      overflow-x: auto;
+    }
+    .copy-btn {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #fff;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .copy-btn:hover { background: rgba(255, 255, 255, 0.18); }
+
+    /* Footer */
+    footer {
+      margin-top: 6rem;
+      text-align: center;
+      padding-top: 2rem;
+      border-top: 1px solid var(--surface-border);
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <span>📚 LiteraturAI</span>
+      <span class="brand-badge">Sistem & Yol Haritası</span>
+    </div>
+    <nav class="nav-links">
+      <a href="#mimari" class="nav-link">Mimari</a>
+      <a href="#apikeys" class="nav-link">API Anahtarları</a>
+      <a href="#uiux" class="nav-link">UI/UX Fırsatları</a>
+      <a href="#features" class="nav-link">Yeni Özellikler</a>
+      <a href="#yolharitasi" class="nav-link">Yol Haritası</a>
+    </nav>
+  </header>
+
+  <main class="container">
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-eyebrow">
+        <span>⚡ Derin Kod Analizi & Strateji Raporu</span>
+      </div>
+      <h1 class="hero-title">LiteraturAI: Sistem Mimarisi & Geliştirme Pusulası</h1>
+      <p class="hero-subtitle">
+        Çok kaynaklı akademik arama, AHP tabanlı makale sıralaması, yapay zekâ destekli literatür sentezi ve gelecek nesil araştırma arayüzü rehberi.
+      </p>
+
+      <div class="hero-stats">
+        <div class="stat-pill">
+          <span class="stat-num">7+</span>
+          <span class="stat-label">Akademik Arama Motoru</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-num">3'lü</span>
+          <span class="stat-label">AI Fallback Zinciri (DeepSeek, Gemini, Groq)</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-num">AHP</span>
+          <span class="stat-label">Çok Kriterli Sıralama Algoritması</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-num">RAG</span>
+          <span class="stat-label">Doğrulanmış Literatür Sentezi</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1. Sistem Mimarisi -->
+    <section id="mimari">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">🏗️ Sistem Mimarisi & İşlem Hattı</h2>
+          <p class="section-desc">Kullanıcının sorgusundan akademik sentez taslağına kadar geçen 5 aşamalı yaşam döngüsü.</p>
+        </div>
+      </div>
+
+      <div class="flow-steps">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div>
+            <h3>Çeviri & MeSH Genişletme</h3>
+            <p>Kullanıcı Türkçe yazsa dahi sorgu İngilizceye dönüştürülür (`translation.js`) ve LLM ile akademik anahtar kelimelere genişletilir.</p>
+          </div>
+          <div class="step-meta">Groq / DeepSeek Flash</div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div>
+            <h3>Federated Multi-Search</h3>
+            <p>OpenAlex, Semantic Scholar, Scopus, CORE, arXiv, Crossref ve DOAJ servislerine eşzamanlı istek atılarak makaleler derlenir.</p>
+          </div>
+          <div class="step-meta">searchAll() • Parallel HTTP</div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div>
+            <h3>AHP Çok Kriterli Sıralama</h3>
+            <p>Atıf sayısı, güncellik, dergi prestij çeyreği (Q1-Q4) ve semantik uygunluk Analitik Hiyerarşi Süreci ile objektif olarak puanlanır.</p>
+          </div>
+          <div class="step-meta">ahp.js • Scimago SJR</div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">4</div>
+          <div>
+            <h3>RAG Sentez Hattı</h3>
+            <p>En yüksek puanlı makaleler seçilir, parça parça bağlama eklenir ve akademik tonla literatür taraması taslağı yazılır.</p>
+          </div>
+          <div class="step-meta">writerPipeline.js • DeepSeek v4</div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">5</div>
+          <div>
+            <h3>Postcheck & Kalite Kapısı</h3>
+            <p>Üretilen metindeki atıflar kontrol edilir, halüsinasyon saptayıcı çalıştırılır ve metin kalite onayından geçirilir.</p>
+          </div>
+          <div class="step-meta">outputGateService.js</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. API Anahtarları ve Bağımlılıklar -->
+    <section id="apikeys">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">🔑 API Anahtarları & Dış Servis Bağımlılıkları</h2>
+          <p class="section-desc">LiteraturAI'nin tam randımanlı çalışabilmesi için gereken anahtarlar ve rolleri.</p>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Ortam Değişkeni</th>
+              <th>Durum</th>
+              <th>Sağlayıcı / Rol</th>
+              <th>Önemi & Açıklama</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="code-pill">MONGODB_URI</span></td>
+              <td><span class="tag-required">Zorunlu</span></td>
+              <td>MongoDB Atlas</td>
+              <td>Geçmiş, koleksiyonlar, embeddingler ve arama önbelleği için temel veritabanı.</td>
+            </tr>
+            <tr>
+              <td><span class="code-pill">DEEPSEEK_API_KEY</span></td>
+              <td><span class="tag-primary">Birincil AI</span></td>
+              <td>DeepSeek API</td>
+              <td>En ucuz ve en yüksek performanslı model (`deepseek-flash` ve `deepseek-v4-pro`).</td>
+            </tr>
+            <tr>
+              <td><span class="code-pill">GEMINI_API_KEY</span></td>
+              <td><span class="tag-optional">Yedek AI 1</span></td>
+              <td>Google AI Studio</td>
+              <td>`gemini-2.5-flash` ile DeepSeek yoğunluğunda anında devreye giren yedek beyin.</td>
+            </tr>
+            <tr>
+              <td><span class="code-pill">GROQ_API_KEY</span></td>
+              <td><span class="tag-optional">Yedek AI 2</span></td>
+              <td>Groq Console</td>
+              <td>Ultra hızlı sorgu çevirisi ve anında genişletme için Llama/OpenAI OSS modelleri.</td>
+            </tr>
+            <tr>
+              <td><span class="code-pill">VITE_CLERK_PUBLISHABLE_KEY</span></td>
+              <td><span class="tag-required">Zorunlu</span></td>
+              <td>Clerk Auth</td>
+              <td>Frontend oturum açma, kullanıcı profili ve kimlik doğrulama ara katmanı.</td>
+            </tr>
+            <tr>
+              <td><span class="code-pill">OPENALEX_MAIL</span></td>
+              <td><span class="tag-primary">Kritik</span></td>
+              <td>OpenAlex</td>
+              <td>Polite pool e-postası (Ücretsizdir). Kota sınırlamasını kaldırır ve hızlı yanıt sağlar.</td>
+            </tr>
+            <tr>
+              <td><span class="code-pill">SCOPUS_API_KEY</span></td>
+              <td><span class="tag-optional">İsteğe Bağlı</span></td>
+              <td>Elsevier Scopus</td>
+              <td>Kurumsal abonelik varsa en prestijli hakemli dergi makalelerini getirir.</td>
+            </tr>
+            <tr>
+              <td><span class="code-pill">CORE_API_KEY</span></td>
+              <td><span class="tag-optional">İsteğe Bağlı</span></td>
+              <td>CORE.ac.uk</td>
+              <td>Dünya çapındaki açık erişim üniversite tez ve makale depolarından tam metin tarar.</td>
+            </tr>
+            <tr>
+              <td><span class="code-pill">SEMANTIC_SCHOLAR_API_KEY</span></td>
+              <td><span class="tag-optional">İsteğe Bağlı</span></td>
+              <td>Semantic Scholar</td>
+              <td>Gelişmiş atıf sayıları ve TLDR özetleri için yüksek kota sağlar (Anahtarsız da çalışır).</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="code-box">
+        <button class="copy-btn" onclick="copyEnvTemplate()">Kopyala</button>
+        <pre id="envTemplate"># LiteraturAI Hızlı Başlangıç .env Şablonu
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/literature-ai
+DEEPSEEK_API_KEY=sk-your-deepseek-key
+GEMINI_API_KEY=your-gemini-key
+GROQ_API_KEY=gsk_your-groq-key
+OPENALEX_MAIL=iletisim@domain.com
+AI_PROVIDERS=deepseek,gemini,groq
+WRITER_POSTCHECK_ENABLED=true
+BILLING_REQUIRED=false</pre>
+      </div>
+    </section>
+
+    <!-- 3. AHP Sıralama Simülasyonu -->
+    <section>
+      <div class="demo-container">
+        <div class="demo-header">
+          <div>
+            <h3 style="color:#fff; font-size:1.2rem; font-weight:700;">🎯 İnteraktif AHP Sıralama Ağırlıkları</h3>
+            <p style="color:var(--text-muted); font-size:0.88rem;">Sistem makaleleri sıralarken bu 4 temel kriteri nasıl dengeliyor?</p>
+          </div>
+          <span class="tag-primary">Algoritmik Karar Modeli</span>
+        </div>
+
+        <div class="demo-bars">
+          <div class="bar-row">
+            <span style="color:#fff; font-weight:600;">Semantik Alaka</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: 40%; background: linear-gradient(90deg, #6366f1, #818cf8);"></div>
+            </div>
+            <span style="font-family:var(--font-mono); color:#818cf8;">%40</span>
+          </div>
+
+          <div class="bar-row">
+            <span style="color:#fff; font-weight:600;">Atıf Etkisi</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: 25%; background: linear-gradient(90deg, #06b6d4, #38bdf8);"></div>
+            </div>
+            <span style="font-family:var(--font-mono); color:#38bdf8;">%25</span>
+          </div>
+
+          <div class="bar-row">
+            <span style="color:#fff; font-weight:600;">Dergi Prestiji (Q1-Q4)</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: 20%; background: linear-gradient(90deg, #10b981, #34d399);"></div>
+            </div>
+            <span style="font-family:var(--font-mono); color:#34d399;">%20</span>
+          </div>
+
+          <div class="bar-row">
+            <span style="color:#fff; font-weight:600;">Güncellik (Yıl)</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: 15%; background: linear-gradient(90deg, #f59e0b, #fbbf24);"></div>
+            </div>
+            <span style="font-family:var(--font-mono); color:#fbbf24;">%15</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. UI / UX İyileştirme Fikirleri -->
+    <section id="uiux">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">🎨 UI & UX Geliştirme Önerileri</h2>
+          <p class="section-desc">Kullanıcıyı ilk bakışta etkileyecek ve araştırma hızını 3 katına çıkaracak arayüz dönüşümleri.</p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="feature-box">
+          <span class="feature-icon">🖥️</span>
+          <h3>Split-View Hızlı Okuma Modu</h3>
+          <p>Sonuç listesinde bir makaleye tıklandığında sayfadan kopmadan sağ tarafta açılan panel.</p>
+          <ul class="feature-bullets">
+            <li>Özet, yöntem ve bulguların anında madde madde çıkarımı.</li>
+            <li>Entegre PDF önizleme penceresi.</li>
+            <li>Klavye kısayolları (`J` / `K` ile sonuçlar arası hızlı geçiş).</li>
+          </ul>
+        </div>
+
+        <div class="feature-box">
+          <span class="feature-icon">🕸️</span>
+          <h3>İnteraktif Atıf Ağı Haritası (Citation Graph)</h3>
+          <p>Makalelerin birbirleriyle olan atıf ilişkisini 2D/3D interaktif ağ grafiği olarak görselleştirme.</p>
+          <ul class="feature-bullets">
+            <li>"Kök makale" (Seminal Paper) otomatik tespiti ve vurgulanması.</li>
+            <li>Atıf yoğunluğuna göre büyüyen düğümler (Node scaling).</li>
+            <li>Zaman tüneli modu: Yıllara göre literatürün gelişim dalgaları.</li>
+          </ul>
+        </div>
+
+        <div class="feature-box">
+          <span class="feature-icon">📊</span>
+          <h3>Açıklanabilir AHP Skor Rozetleri</h3>
+          <p>Bir makalenin neden 1. sırada olduğunu kullanıcıya şeffaf şekilde anlatan mikro görselleştirme.</p>
+          <ul class="feature-bullets">
+            <li>Mini radar grafik veya puan dökümü tooltip'i.</li>
+            <li>"Q1 Dergi • Yüksek Atıf Hızı • %94 Semantik Uyum" etiketleri.</li>
+            <li>Kullanıcının kriter ağırlıklarını sürgülerle anında değiştirebilmesi.</li>
+          </ul>
+        </div>
+
+        <div class="feature-box">
+          <span class="feature-icon">📝</span>
+          <h3>Notion-Stili Zengin Metin Yazarı (TipTap)</h3>
+          <p>Writer panelini düz textarea'dan çıkartıp tam teşekküllü akademik blok editöre dönüştürme.</p>
+          <ul class="feature-bullets">
+            <li>Tek tıkla atıf stili değiştirme (APA 7, IEEE, Harvard, MLA).</li>
+            <li>Metin içi sürükle-bırak referans ekleme (`@` ile makale etiketleme).</li>
+            <li>Doğrudan Word (.docx), PDF veya LaTeX (.tex) dışa aktarımı.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Yeni Özellik (Feature) Fikirleri -->
+    <section id="features">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">🚀 Çığır Açıcı Özellik (Feature) Önerileri</h2>
+          <p class="section-desc">LiteraturAI'yi sadece bir arama motoru değil, eksiksiz bir araştırma asistanı yapacak yetenekler.</p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="feature-box">
+          <span class="feature-icon">📑</span>
+          <h3>Kendi Makaleni Yükle ("Chat with PDF + Literatür")</h3>
+          <p>Kullanıcının kendi tez veya makale taslağını sisteme yükleyip literatürle çarpıştırması.</p>
+          <ul class="feature-bullets">
+            <li>"Taslağımda hangi argümanlar literatürde eksik kalmış?" analizi.</li>
+            <li>Kişisel kütüphane oluşturma ve koleksiyonlar arası semantik arama.</li>
+          </ul>
+        </div>
+
+        <div class="feature-box">
+          <span class="feature-icon">🔍</span>
+          <h3>Araştırma Boşluğu Bulucu (Research Gap Finder)</h3>
+          <p>Alanın son 5 yıllık trendlerini tarayıp henüz az çalışılmış veya tartışmalı alanları listeler.</p>
+          <ul class="feature-bullets">
+            <li>Gelecekteki tez ve makale konuları için hipotez üretimi.</li>
+            <li>Çelişkili sonuçlar veren çalışmaların karşılaştırma tablosu (Matrix View).</li>
+          </ul>
+        </div>
+
+        <div class="feature-box">
+          <span class="feature-icon">📥</span>
+          <h3>Referans Yöneticisi Entegrasyonu (Zotero & Mendeley)</h3>
+          <p>Bulunan kaynakların doğrudan favori referans yöneticilerine tek tıkla gönderilmesi.</p>
+          <ul class="feature-bullets">
+            <li>Tek tıkla BibTeX, RIS, EndNote formatında indirme.</li>
+            <li>Zotero Web API ile doğrudan kullanıcının kütüphanesine senkronizasyon.</li>
+          </ul>
+        </div>
+
+        <div class="feature-box">
+          <span class="feature-icon">⚡</span>
+          <h3>Canlı Akış (Streaming Responses / SSE)</h3>
+          <p>Yapay zekâ yanıtlarının ve arama adımlarının kullanıcıya canlı olarak akması.</p>
+          <ul class="feature-bullets">
+            <li>Uzun süren literatür taraması sentezlerinde bekleme hissini sıfırlama.</li>
+            <li>Arama adımlarının (OpenAlex taranıyor... AHP hesaplanıyor...) görsel telemetrisi.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Yol Haritası -->
+    <section id="yolharitasi">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">🗺️ Uygulama & Geliştirme Yol Haritası</h2>
+          <p class="section-desc">Projeyi aşama aşama büyüteceğimiz stratejik geliştirme fazları.</p>
+        </div>
+      </div>
+
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-phase">Faz 1 • Hızlı Kazanımlar (1-2 Gün)</div>
+          <div class="timeline-title">Arayüz İyileştirmeleri & Export Genişletmesi</div>
+          <div class="timeline-body">
+            Sonuç kartlarında AHP puan dökümü ve dergi çeyreği (Q1-Q4) rozetlerinin gösterilmesi. BibTeX / RIS tek tıkla kopyalama ve indirme özelliklerinin eklenmesi.
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-phase">Faz 2 • Derin UX & Yazım Gücü (3-5 Gün)</div>
+          <div class="timeline-title">Split-View Reader & Canlı Streaming</div>
+          <div class="timeline-body">
+            Arama sonuçlarında bölünmüş ekran okuyucu entegrasyonu. Writer Pipeline için Server-Sent Events (SSE) ile canlı akış ve TipTap zengin metin editörü.
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-phase">Faz 3 • İleri Seviye Zekâ & Görselleştirme (2. Hafta)</div>
+          <div class="timeline-title">Atıf Haritası & Research Gap Finder</div>
+          <div class="timeline-body">
+            D3.js tabanlı interaktif literatür ağı haritası, PDF yükleme ve literatürdeki boşlukları çıkaran analitik LLM istem hattı.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <p>LiteraturAI Mimari & Strateji Raporu • 2026</p>
+    </footer>
+
+  </main>
+
+  <script>
+    function copyEnvTemplate() {
+      const text = document.getElementById('envTemplate').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        const orig = btn.innerText;
+        btn.innerText = 'Kopyalandı! ✓';
+        btn.style.background = 'rgba(16, 185, 129, 0.4)';
+        setTimeout(() => {
+          btn.innerText = orig;
+          btn.style.background = 'rgba(255, 255, 255, 0.08)';
+        }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>

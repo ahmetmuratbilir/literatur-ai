@@ -74,6 +74,15 @@ export default {
     suggested: 'Önerilen akademik sorgular',
   },
   results: {
+    filter: {
+      label: 'Sonuçları süz',
+      all: 'Tümü ({n})',
+      q1q2: 'Q1 / Q2 dergiler',
+      recent: 'Son 3 yıl',
+      openaccess: 'Açık erişim',
+      highcitations: '10+ atıf',
+      clearYear: '{year} yılı filtresini kaldır',
+    },
     shown: '{total} makaleden {n} tanesi gösteriliyor',
     showMore: '{n} makale daha göster ({left} kaldı)',
     count: '{n} makale',
@@ -182,6 +191,10 @@ export default {
     references: 'Kaynaklar:',
   },
   card: {
+    details: 'Detay',
+    findSimilar: 'Benzerini bul',
+    copyBibtexTitle: 'Bu makalenin BibTeX kaydını panoya kopyala',
+    bibtexCopied: 'Kopyalandı',
     scoreShort: '%{n}',
     rank: 'Sıra #{n}',
     score: 'AHP skoru: %{n}',

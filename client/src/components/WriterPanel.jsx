@@ -381,18 +381,59 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
       const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
       const margin = 48;
       const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2;
+      const fullPageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      // Akademik Başlık Alanı
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      pdf.setTextColor(30, 41, 59);
+      pdf.text('LITERATURAI ACADEMIC SYNTHESIS REPORT', margin, 52);
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(100, 116, 139);
+      const metaLine = `Tarih: ${new Date().toLocaleDateString('tr-TR')} | Format: ${bibliographyFormat} | Kaynak: ${papers.length} Makale | Mod: AHP Doğrulamalı`;
+      pdf.text(metaLine, margin, 68);
+
+      // Üst Çizgi
+      pdf.setDrawColor(203, 213, 225);
+      pdf.setLineWidth(1);
+      pdf.line(margin, 76, fullPageWidth - margin, 76);
+
+      // Metin Alanı
       const lines = pdf.splitTextToSize(generatedText, pageWidth);
-      let y = margin;
+      let y = 100;
       pdf.setFont('times', 'normal');
       pdf.setFontSize(11);
+      pdf.setTextColor(15, 23, 42);
+
+      let pageNum = 1;
       lines.forEach((line) => {
-        if (y > 780) {
+        if (y > pageHeight - 60) {
+          // Alt Bilgi
+          pdf.setFont('helvetica', 'italic');
+          pdf.setFontSize(8);
+          pdf.setTextColor(148, 163, 184);
+          pdf.text(`LiteraturAI • Sayfa ${pageNum}`, margin, pageHeight - 30);
+
           pdf.addPage();
-          y = margin;
+          pageNum++;
+          y = 52;
+          pdf.setFont('times', 'normal');
+          pdf.setFontSize(11);
+          pdf.setTextColor(15, 23, 42);
         }
         pdf.text(line, margin, y);
-        y += 17;
+        y += 16;
       });
+
+      // Son sayfa alt bilgi
+      pdf.setFont('helvetica', 'italic');
+      pdf.setFontSize(8);
+      pdf.setTextColor(148, 163, 184);
+      pdf.text(`LiteraturAI • Sayfa ${pageNum}`, margin, pageHeight - 30);
+
       pdf.save(`literatur-ai_${outputType}_${Date.now()}.pdf`);
     } catch (err) {
       console.error('PDF export error', err);
