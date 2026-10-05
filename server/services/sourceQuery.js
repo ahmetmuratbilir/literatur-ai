@@ -51,6 +51,17 @@ export function searchText(phrase) {
 const MAX_EXACT_PHRASE_WORDS = 4;
 const isShortPhrase = (text) => text.split(' ').filter(Boolean).length <= MAX_EXACT_PHRASE_WORDS;
 
+/**
+ * arXiv bu kelimeleri dizinlemiyor; AND ile baglaninca sorgu bos donuyor.
+ * Olculen (5 Eki 2026): "large language models higher education" 299 sonuc,
+ * araya "all:in" eklenince 0. Dort test aramasinin dordunde de arXiv bu yuzden
+ * sessizce 0 donduruyordu (hata degil, SOURCE_ZERO).
+ */
+const ARXIV_STOPWORDS = new Set(['a', 'an', 'and', 'are', 'as', 'at', 'be', 'but', 'by', 'for', 'from', 'if', 'in', 'into', 'is', 'it', 'no', 'not', 'of', 'on', 'or', 'such', 'that', 'the', 'their', 'then', 'there', 'these', 'they', 'this', 'to', 'was', 'will', 'with']);
+// arXiv tam ifadeyi birebir ariyor: "small modular reactor" 18 sonuc,
+// "small modular reactor safety" 0. Diger kaynaklardan daha kisa tutuluyor.
+const ARXIV_MAX_EXACT_PHRASE_WORDS = 3;
+
 // --- Boolean sorgu ayristirici -------------------------------------------
 
 /**
@@ -171,9 +182,11 @@ function phraseFor(phrase, target) {
   if (target === 'plain') return text;
   const exact = !phrase.loose && isShortPhrase(text);
   if (target === 'arxiv') {
-    return exact
-      ? `all:"${text}"`
-      : `(${text.split(' ').map((w) => `all:${w.replace(/[^\p{L}\p{N}\-]/gu, '')}`).filter((w) => w !== 'all:').join(' AND ')})`;
+    const words = text.split(' ').map((w) => w.replace(/[^\p{L}\p{N}\-]/gu, '')).filter(Boolean);
+    if (!phrase.loose && words.length <= ARXIV_MAX_EXACT_PHRASE_WORDS) return `all:"${text}"`;
+    const terms = words.filter((w) => !ARXIV_STOPWORDS.has(w.toLowerCase()));
+    if (terms.length === 0) return '';
+    return `(${terms.map((w) => `all:${w}`).join(' AND ')})`;
   }
   return exact ? `"${text}"` : `(${text})`;
 }

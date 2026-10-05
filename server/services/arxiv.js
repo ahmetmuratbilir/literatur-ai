@@ -36,6 +36,16 @@ export function isThrottled(error) {
 }
 
 /**
+ * arXiv baglantiyi sik sik yarida kesiyor (ECONNRESET). Olculen (5 Eki 2026):
+ * ayni sorgu dogrudan 117 sonuc, bizim istek ECONNRESET ile basarisiz. Bu
+ * hata hizli geldigi icin tek kisa yeniden deneme kaynak suresini asmiyor.
+ */
+export function isConnectionReset(error) {
+  return ['ECONNRESET', 'EPIPE', 'ECONNABORTED'].includes(error?.code) && !error?.response;
+}
+const RESET_RETRY_DELAY_MS = 800;
+
+/**
  * @param {string} query
  * @param {number} count
  * @param {{fielded?: boolean}} [options]
@@ -79,6 +89,12 @@ export const searchArXiv = async (query, count = 10, options = {}) => {
             `[ArXiv] Kota asimi HTTP ${err.response?.status} (${attempt}/${MAX_RETRIES}). ${waitMs}ms bekleniyor...`
           );
           await sleep(waitMs);
+          continue;
+        }
+
+        if (isConnectionReset(err) && !isLast) {
+          console.warn(`[ArXiv] Baglanti kesildi (${err.code}), ${RESET_RETRY_DELAY_MS}ms sonra yeniden deneniyor`);
+          await sleep(RESET_RETRY_DELAY_MS);
           continue;
         }
 

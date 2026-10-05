@@ -47,6 +47,19 @@ test('uzun ifade tam ifade olarak ARANMAZ (neredeyse hic sonuc dondurmez)', () =
   assert.match(forArxiv(long), /all:deep AND all:learning/);
 });
 
+test('arXiv: dizinlenmeyen baglaclar sorguya girmez (all:in sonucu sifirliyordu)', () => {
+  const plan = { phrases: [{ original: 'x', translated: 'large language models in higher education' }] };
+  const q = forArxiv(plan);
+  assert.doesNotMatch(q, /all:in\b/);
+  assert.equal(q, '(all:large AND all:language AND all:models AND all:higher AND all:education)');
+});
+
+test('arXiv: dort kelimelik ifade tam ifade olarak aranmaz', () => {
+  const plan = { phrases: [{ original: 'x', translated: 'small modular reactor safety' }] };
+  assert.equal(forArxiv(plan), '(all:small AND all:modular AND all:reactor AND all:safety)');
+  assert.equal(forDoaj(plan), '"small modular reactor safety"');
+});
+
 test('birden fazla ifade AND ile baglanir', () => {
   assert.equal(forDoaj(MULTI), '"nuclear reactor" AND "passive safety"');
   assert.equal(forArxiv(MULTI), 'all:"nuclear reactor" AND all:"passive safety"');

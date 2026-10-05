@@ -1,8 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { isThrottled } from '../services/arxiv.js';
+import { isThrottled, isConnectionReset } from '../services/arxiv.js';
 import { classifySourceError } from '../services/search.js';
+
+test('arXiv baglanti kesilmesi yeniden denenecek hata sayilir, HTTP yaniti sayilmaz', () => {
+  assert.equal(isConnectionReset({ code: 'ECONNRESET' }), true);
+  assert.equal(isConnectionReset({ code: 'ECONNRESET', response: { status: 500 } }), false);
+  assert.equal(isConnectionReset({ code: 'ENOTFOUND' }), false);
+});
 
 test('arXiv kota asimini 406 uzerinden tanir', () => {
   // arXiv kota asiminda 429 degil 406 (Not Acceptable) donuyor.
