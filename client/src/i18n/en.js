@@ -71,18 +71,13 @@ export default {
   ai: {
     title: 'AI research analysis',
     goal: 'Goal:',
-    keywords: 'Key concepts',
-    searchedAs: 'Searched as',
-    suggested: 'Search approaches',
-    pickHint: 'Pick one; the search runs in the background with these concepts and their synonyms.',
-    match: '{n}% match',
-    matchTitle: 'How close this approach is to your topic (AI estimate)',
-    searchThis: 'Search with this approach',
+    suggested: 'Suggested searches',
   },
   results: {
     filter: {
       label: 'Filter results',
       all: 'All ({n})',
+      relevant: 'Closest to topic',
       q1q2: 'Q1 / Q2 journals',
       recent: 'Last 3 years',
       openaccess: 'Open access',

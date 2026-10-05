@@ -60,11 +60,28 @@ import { useExport } from './hooks/useExport';
 // tarafı (/api/resolve) ve CitationChecker bileşeni yerinde duruyor.
 const VERIFY_MODE_ENABLED = false;
 
-const RESULT_FILTERS = ['all', 'q1q2', 'recent', 'openaccess', 'highcitations'];
+const RESULT_FILTERS = ['all', 'relevant', 'q1q2', 'recent', 'openaccess', 'highcitations'];
 
-/** Sonuc listesindeki hizli filtreler; siralamayi degistirmez, yalnizca suzer. */
+/** Konuya yakınlık: sorgu terimlerinin başlık/özette geçmesi (relevanceScore), eşitlikte başlık benzerliği. */
+const topicCloseness = (item) => [Number(item.relevanceScore) || 0, Number(item.sSim ?? item.expandedSimilarity) || 0];
+
+/**
+ * Sonuç listesindeki hızlı filtreler. 'relevant' süzmez, listeyi AHP puanı
+ * yerine arama konusuna yakınlığa göre yeniden sıralar; diğerleri süzer ve
+ * AHP sırasını korur.
+ */
 function filterResults(results, filter, year) {
   const currentYear = new Date().getFullYear();
+  if (filter === 'relevant') {
+    return results
+      .filter((item) => !year || Number.parseInt(item.year, 10) === year)
+      .slice()
+      .sort((a, b) => {
+        const [ra, sa] = topicCloseness(a);
+        const [rb, sb] = topicCloseness(b);
+        return rb - ra || sb - sa;
+      });
+  }
   return results.filter((item) => {
     const itemYear = Number.parseInt(item.year, 10);
     if (year && itemYear !== year) return false;
@@ -108,7 +125,9 @@ const RESULT_LIMIT = 100;
 function App() {
   const { t, lang } = useI18n();
   const [mainTopic, setMainTopic] = useState('');
-  const [authorName, setAuthorName] = useState('');
+  // Yazar araması arayüzden kaldırıldı (5 Eki 2026); sunucu parametresi boş gider.
+  // Geçmişten açılan eski bir aramanın yazarı da geri yüklenmez: görünmeyen bir filtre olurdu.
+  const authorName = '';
   const [keywords, setKeywords] = useState([]);
   // Sunucu siraladigi tum adaylari (en fazla 100) dondurur; kaynaklardan
   // cekilen miktar bundan bagimsiz (server SOURCE_FETCH_COUNT). Ekranda 25'er
@@ -124,7 +143,6 @@ function App() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(null);
   const [aiAnalysis, setAiAnalysis] = useState(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [deviceId, setDeviceId] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
@@ -593,7 +611,6 @@ function App() {
           apiUrl={defaultApiUrl}
           onSelectHistory={(item) => {
             setMainTopic(item.mainTopic || '');
-            setAuthorName(item.authorName || '');
             setKeywords(item.keywords || []);
             handleSearch(null, item.aiQuery);
           }}
@@ -609,7 +626,6 @@ function App() {
           onNewSearch={() => {
             setData(null);
             setMainTopic('');
-            setAuthorName('');
             setKeywords([]);
             setAiAnalysis(null);
             setIsShared(false);
@@ -723,48 +739,7 @@ function App() {
                         <AlertCircle size={14} /> {aiError}
                       </div>
                     )}
-                    <p className="ui-hint" style={{ marginTop: 'var(--space-2)' }}>{t('search.sourcesLine')}</p>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="ui-btn ui-btn--ghost ui-btn--sm"
-                    aria-expanded={showAdvanced}
-                    style={{ alignSelf: 'flex-start', color: 'var(--brand-primary)', marginTop: '-8px' }}
-                  >
-                    <Settings size={13} />
-                    {showAdvanced ? t('search.advancedHide') : t('search.advancedShow')}
-                  </button>
-
-                  <AnimatePresence>
-                    {showAdvanced && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        style={{ overflow: 'hidden' }}
-                      >
-                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 'var(--space-4)' }}>
-                          <div>
-                            <label htmlFor="author-input" className="ui-field-label">{t('search.authorLabel')}</label>
-                            <div style={{ position: 'relative' }}>
-                              <User style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-400)' }} size={16} />
-                              <input
-                                id="author-input"
-                                type="text"
-                                className="input"
-                                style={{ height: '44px', paddingLeft: '40px', fontSize: 'var(--fs-sm)', width: '100%' }}
-                                placeholder={t('search.authorPlaceholder')}
-                                value={authorName}
-                                onChange={(e) => setAuthorName(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
 
                   {/* Sıralama tercihi ARAMADAN ÖNCE seçilir; varsayılan "Dengeli".
                       Sonuçlar geldikten sonra değiştirilirse mevcut sonuçlar

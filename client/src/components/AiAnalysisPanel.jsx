@@ -1,97 +1,73 @@
 import { forwardRef } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Target, ArrowRight } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useI18n } from '../i18n/context.js';
 
 const MotionDiv = motion.div;
 
-/** Eski kayıtlarda (etiket yokken) Boolean sorgudan okunabilir bir başlık çıkarır. */
-function readableLabel(query) {
-  if (query.label) return query.label;
+/** Yaklaşımın kavramları; eski kayıtlarda (kavram listesi yokken) Boolean sorgudan çıkarılır. */
+function conceptsOf(query) {
+  if (Array.isArray(query.keywords) && query.keywords.length > 0) return query.keywords;
   return String(query.text || '')
-    .replace(/[()"]/g, ' ')
-    .replace(/\b(AND|OR|NOT)\b/g, ' · ')
-    .replace(/\s+/g, ' ')
-    .replace(/^( ·)+|( ·)+$/g, '')
-    .trim();
+    .split(/\b(?:AND|OR|NOT)\b/)
+    .map((part) => part.replace(/[()"]/g, ' ').replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
 }
 
 /**
- * "AI ile geliştir" sonucu: niyet, anahtar kavram bulutu ve arama yaklaşımları.
+ * "AI ile geliştir" sonucu: hedef cümlesi ve satır satır arama yaklaşımları.
  *
- * Boolean sorgu kullanıcıya gösterilmez; yaklaşım seçilince arama arka
- * planda o sorguyla yapılır (onPick). Kavram bulutunda büyüklük önemi
- * gösterir: 3 = konunun çekirdeği, 1 = yakın / geniş terim.
+ * Her satır bir yaklaşım; Boolean sorgu yerine kapsadığı kavramlar etiket
+ * olarak görünür. Satıra tıklanınca arama arka planda o yaklaşımın Boolean
+ * sorgusuyla yapılır (onPick); konu kutusu değişmez. Konunun çekirdek
+ * kavramları (ağırlık 3) vurgulu etiketle gösterilir.
  */
 const AiAnalysisPanel = forwardRef(({ analysis, onPick }, ref) => {
-  const { t, lang } = useI18n();
-  const keywords = Array.isArray(analysis.keywords) ? analysis.keywords : [];
+  const { t } = useI18n();
   const queries = Array.isArray(analysis.queries) ? analysis.queries : [];
-  // Yaklaşım kartındaki terimler İngilizce arama terimi; kullanıcıya bulutta
-  // gördüğü dildeki karşılığıyla gösterilir.
-  const labelOf = new Map(keywords.map((k) => [String(k.term).toLowerCase(), k.label]));
-  const displayTerm = (term) => labelOf.get(String(term).toLowerCase()) || term;
+  const coreConcepts = new Set(
+    (Array.isArray(analysis.keywords) ? analysis.keywords : [])
+      .filter((k) => k.weight >= 3)
+      .flatMap((k) => [String(k.label).toLowerCase(), String(k.term).toLowerCase()])
+  );
 
   return (
     <MotionDiv
       ref={ref}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
       className="ui-panel ai-panel"
     >
       <div className="ai-panel__head">
-        <span className="ai-panel__icon" aria-hidden="true"><Sparkles size={16} /></span>
+        <Sparkles size={18} color="var(--brand-primary)" aria-hidden="true" />
         <h3 className="ai-panel__title">{t('ai.title')}</h3>
       </div>
 
       {analysis.intent && (
         <p className="ai-panel__intent">
-          <Target size={15} aria-hidden="true" />
-          <span><strong>{t('ai.goal')}</strong> {analysis.intent}</span>
+          <span className="ai-panel__goal">{t('ai.goal')}</span> {analysis.intent}
         </p>
       )}
 
-      {keywords.length > 0 && (
-        <section className="ai-panel__section" aria-labelledby="ai-keywords-label">
-          <h4 id="ai-keywords-label" className="ui-section-label">{t('ai.keywords')}</h4>
-          <ul className="ai-cloud">
-            {keywords.map((k) => (
-              <li
-                key={k.term}
-                className={`ai-cloud__term ai-cloud__term--w${k.weight}`}
-                // Türkçe arayüzde aramada kullanılan İngilizce terim ipucunda görünür.
-                title={lang !== 'en' && k.term !== k.label ? `${t('ai.searchedAs')}: ${k.term}` : undefined}
-              >
-                {k.label}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {queries.length > 0 && (
-        <section className="ai-panel__section" aria-labelledby="ai-approaches-label">
-          <h4 id="ai-approaches-label" className="ui-section-label">{t('ai.suggested')}</h4>
-          <p className="ui-hint ai-panel__hint">{t('ai.pickHint')}</p>
-          <div className="ai-approaches">
-            {queries.map((q, i) => (
-              <button key={`${i}-${q.text}`} type="button" className="ai-approach" onClick={() => onPick(q)}>
-                <span className="ai-approach__top">
-                  <span className="ai-approach__label">{readableLabel(q)}</span>
-                  <span className="ui-chip ui-chip--brand" title={t('ai.matchTitle')}>{t('ai.match', { n: q.relevanceScore })}</span>
-                </span>
-                {q.focus && <span className="ai-approach__focus">{q.focus}</span>}
-                {Array.isArray(q.keywords) && q.keywords.length > 0 && (
-                  <span className="ai-approach__terms">
-                    {q.keywords.slice(0, 4).map((term) => <span key={term} className="ui-chip">{displayTerm(term)}</span>)}
-                  </span>
-                )}
-                <span className="ai-approach__go">{t('ai.searchThis')} <ArrowRight size={14} aria-hidden="true" /></span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+      <h4 className="ui-section-label ai-panel__label">{t('ai.suggested')}</h4>
+      <div className="ai-rows">
+        {queries.map((q, i) => (
+          <button
+            key={`${i}-${q.text}`}
+            type="button"
+            className="ai-row"
+            onClick={() => onPick(q)}
+            title={q.focus || q.label || undefined}
+          >
+            <span className="ai-row__concepts">
+              {conceptsOf(q).map((c) => (
+                <span key={c} className={`ai-row__concept${coreConcepts.has(String(c).toLowerCase()) ? ' ai-row__concept--core' : ''}`}>{c}</span>
+              ))}
+            </span>
+            <span className="badge badge-info ai-row__score">%{q.relevanceScore}</span>
+          </button>
+        ))}
+      </div>
     </MotionDiv>
   );
 });
