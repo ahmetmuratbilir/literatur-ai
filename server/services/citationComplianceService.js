@@ -27,7 +27,10 @@ function extractReferenceLines(referencesText) {
 
 function detectReferenceStyle(bodyText, referenceLines) {
   const ieeeInTextMatches = bodyText.match(/\[(\d+(?:\s*,\s*\d+)*)\]/g) || [];
-  const authorYearMatches = bodyText.match(/\([^)]+(?:19|20)\d{2}[a-z]?[^)]*\)/gi) || [];
+  // [^)]* : yalniz yil iceren parantez de sayilir; anlati ici atifta ("Singh vd.
+  // (2024)") yazar parantezin disinda. Yalniz anlati atifli metinde stil
+  // 'unknown' cikiyor ve hic kullanilmayan kaynak yakalanmiyordu.
+  const authorYearMatches = bodyText.match(/\([^)]*(?:19|20)\d{2}[a-z]?[^)]*\)/gi) || [];
   const ieeeRefMatches = referenceLines.filter((line) => /^\[\d+\]|^\d+[.)]\s/.test(line));
 
   const ieeeSignal = ieeeInTextMatches.length + ieeeRefMatches.length;
