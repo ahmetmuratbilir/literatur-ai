@@ -500,11 +500,15 @@ export default {
     },
     hero: {
       eyebrow: 'Akademik arama · şeffaf AHP sıralaması',
-      title: 'Önemli makaleleri bulun; sıralamayı sizin belirlediğiniz ölçütler yapsın.',
-      lead: 'Tek sorgu dokuz akademik veri tabanını aynı anda tarar. Sonuçlar tekilleştirilir, alaka düzeyine göre süzülür, geri çekilme kontrolünden geçer ve Analitik Hiyerarşi Süreci ile sıralanır; her puanın açıklaması vardır.',
+      title: 'Doğru kaynak, saniyeler içinde.',
+      lead: 'Konunuzu yazın, on akademik veri tabanı aynı anda taransın. Sonuçlar tekilleştirilir, geri çekilme kontrolünden geçer ve sizin belirlediğiniz ölçütlere göre sıralanır; her puanın açıklaması vardır.',
       placeholder: 'Araştırma konunuzu yazın…',
       search: 'Ara',
       try: 'Örnekler:',
+      statPapers: 'akademik yayın',
+      statSources: 'veri kaynağı, tek arama',
+      statSecondsValue: '4-10 sn',
+      statSeconds: 'ortalama arama süresi',
     },
     preview: {
       label: 'Örnek sonuç listesi',
@@ -536,6 +540,7 @@ export default {
       enrichment: 'Sonuçları zenginleştirmek için',
       language: 'En geniş kapsam için aramalar İngilizce yapılır; sonuç başlıkları isteğe bağlı olarak Türkçe gösterilebilir.',
       items: {
+        pubmed: 'Tıp, klinik ve sağlık araştırmaları',
         openalex: 'Yayın, yazar ve dergilerin geniş dizini',
         crossref: 'DOI üst verisi ve geri çekilme kayıtları',
         s2: 'Atıf verili, yapay zekâ destekli dizin',

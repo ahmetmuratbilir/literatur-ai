@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
   BarChart2,
@@ -27,12 +28,13 @@ import LanguageSwitcher from '../LanguageSwitcher';
  * kartta "örnek" etiketi var.
  */
 
-const SEARCH_SOURCES = ['openalex', 'crossref', 's2', 'europepmc', 'openaire', 'datacite', 'doaj', 'arxiv', 'core'];
+const SEARCH_SOURCES = ['openalex', 'crossref', 's2', 'pubmed', 'europepmc', 'openaire', 'datacite', 'doaj', 'arxiv', 'core'];
 const ENRICHMENT_SOURCES = ['opencitations', 'unpaywall'];
 const SOURCE_NAMES = {
   openalex: 'OpenAlex',
   crossref: 'Crossref',
   s2: 'Semantic Scholar',
+  pubmed: 'PubMed',
   europepmc: 'Europe PMC',
   doaj: 'DOAJ',
   arxiv: 'arXiv',
@@ -61,6 +63,41 @@ const EXAMPLE_RESULTS = [
   { title: 'BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding', meta: 'Devlin et al. · 2019 · NAACL', sources: ['Crossref', 'Semantic Scholar'], score: 88 },
   { title: 'LoRA: Low-Rank Adaptation of Large Language Models', meta: 'Hu et al. · 2022 · ICLR', sources: ['arXiv', 'OpenAlex'], score: 81 },
 ];
+
+/**
+ * Rakam görünür olunca sayarak yükselir. Değerler doğrulanmış (OpenAlex
+ * toplamı 5 Eki 2026'da 332M) ve roll-up afişiyle aynı; animasyon yalnızca
+ * görsel. Hareketi azaltılmış tercihde doğrudan son değer yazılır.
+ */
+const prefersReducedMotion = () => typeof window !== 'undefined'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const CountUp = ({ to, suffix = '' }) => {
+  // Hareketi azaltılmış tercihte doğrudan son değerle başla; animasyon hiç kurulmaz.
+  const [value, setValue] = useState(() => (prefersReducedMotion() ? to : 0));
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || prefersReducedMotion()) return undefined;
+    let frame;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      observer.disconnect();
+      const start = performance.now();
+      const tick = (now) => {
+        const p = Math.min(1, (now - start) / 900);
+        setValue(Math.round(to * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) frame = requestAnimationFrame(tick);
+      };
+      frame = requestAnimationFrame(tick);
+    }, { threshold: 0.4 });
+    observer.observe(node);
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  }, [to]);
+
+  return <span ref={ref}>{value}{suffix}</span>;
+};
 
 const SignInCta = ({ className, children }) => (
   <AppSignInButton mode="modal">
@@ -113,6 +150,21 @@ export default function LandingPage({ landingTheme = 'light', setLandingTheme })
             <input readOnly placeholder={t('landing.hero.placeholder')} aria-label={t('landing.hero.placeholder')} />
             <SignInCta className="lp-btn lp-btn--primary">{t('landing.hero.search')}</SignInCta>
           </div>
+          <dl className="lp-stats">
+            <div>
+              <dt><CountUp to={300} suffix="M+" /></dt>
+              <dd>{t('landing.hero.statPapers')}</dd>
+            </div>
+            <div>
+              <dt><CountUp to={10} suffix="+" /></dt>
+              <dd>{t('landing.hero.statSources')}</dd>
+            </div>
+            <div>
+              <dt>{t('landing.hero.statSecondsValue')}</dt>
+              <dd>{t('landing.hero.statSeconds')}</dd>
+            </div>
+          </dl>
+
           <div className="lp-examples">
             <span>{t('landing.hero.try')}</span>
             {EXAMPLE_QUERIES.map((q) => (

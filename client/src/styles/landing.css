@@ -140,6 +140,29 @@
 }
 .lp-search input::placeholder { color: var(--lp-faint); }
 
+/* Hero rakamları: roll-up afişiyle aynı doğrulanmış değerler, görünürken sayar. */
+.lp-stats {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: stretch;
+  gap: var(--space-4) var(--space-8); margin: 0 0 var(--space-6);
+}
+.lp-stats > div { display: grid; gap: 2px; justify-items: center; min-width: 0; }
+.lp-stats > div + div {
+  padding-left: var(--space-8);
+  border-left: 1px solid var(--lp-border);
+  margin-left: calc(-1 * var(--space-4));
+}
+.lp-stats dt {
+  font-size: clamp(1.6rem, 5vw, 2.1rem); font-weight: 800; line-height: 1;
+  letter-spacing: -0.03em; color: var(--lp-text); font-variant-numeric: tabular-nums;
+}
+.lp-stats dd { margin: 0; font-size: var(--fs-sm); color: var(--lp-muted); text-align: center; }
+
+@media (max-width: 560px) {
+  .lp-stats { gap: var(--space-4); }
+  .lp-stats > div + div { padding-left: var(--space-4); margin-left: 0; }
+  .lp-stats dd { font-size: var(--fs-xs); }
+}
+
 .lp-examples { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: var(--space-2); }
 .lp-examples > span { font-size: var(--fs-sm); color: var(--lp-faint); }
 .lp-chip {

@@ -500,11 +500,15 @@ export default {
     },
     hero: {
       eyebrow: 'Academic search · transparent AHP ranking',
-      title: 'Find the papers that matter, ranked by criteria you control.',
-      lead: 'One query searches nine scholarly databases at once. Results are deduplicated, filtered for relevance, checked for retractions and ranked with the Analytic Hierarchy Process — and every score comes with an explanation.',
+      title: 'The right sources, in seconds.',
+      lead: 'Type your topic and ten scholarly databases are searched at once. Results are deduplicated, checked for retractions and ranked by criteria you set — and every score comes with an explanation.',
       placeholder: 'Describe your research topic…',
       search: 'Search',
       try: 'Try:',
+      statPapers: 'scholarly works',
+      statSources: 'data sources, one search',
+      statSecondsValue: '4-10 s',
+      statSeconds: 'typical search time',
     },
     preview: {
       label: 'Example result list',
@@ -536,6 +540,7 @@ export default {
       enrichment: 'Used to enrich results',
       language: 'Searches run in English for the best coverage; result titles can optionally be shown in Turkish.',
       items: {
+        pubmed: 'Medical, clinical and health research',
         openalex: 'Broad index of works, authors and venues',
         crossref: 'DOI metadata and retraction notices',
         s2: 'AI-assisted index with citation data',
