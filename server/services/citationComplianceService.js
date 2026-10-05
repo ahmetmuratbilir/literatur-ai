@@ -84,6 +84,13 @@ function extractAuthorYearKeysFromInText(bodyText) {
       keys.add(`${token[1].toLowerCase()}-${token[2].toLowerCase()}`);
     }
   }
+  // Anlati ici atif: "Ahmed vd. (2025)", "Leonard ve Tisdale (2024)",
+  // "Smith et al. (2023)". Yazar bunu sik kullaniyor; taninmadigi icin metinde
+  // atif yapilan kaynak "kullanilmamis" (ORPHAN_REFERENCE_ENTRY) sayiliyordu.
+  const narrative = /([A-ZÇĞİÖŞÜ][\p{L}'`-]+)(?:\s+(?:vd\.|et al\.|(?:ve|and|&)\s+[A-ZÇĞİÖŞÜ][\p{L}'`-]+))?\s*\(((?:19|20)\d{2}[a-z]?)\)/gu;
+  while ((m = narrative.exec(bodyText)) !== null) {
+    keys.add(`${m[1].toLowerCase()}-${m[2].toLowerCase()}`);
+  }
   return keys;
 }
 

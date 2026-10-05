@@ -2,6 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runCitationCompliance } from '../services/citationComplianceService.js';
 
+test('anlati ici atif ("Singh vd. (2024)") kaynagi yetim saymaz', () => {
+  const text = [
+    'Tedavi etkilidir (Ahmed vd., 2025). FDA onayladi (Leonard ve Tisdale, 2024). Singh vd. (2024) onemini vurguladi.',
+    '',
+    '## Kaynakça',
+    'Ahmed, R., & Elsherbiny, N. M. (2025). CRISPR. Molecular Biotechnology, 68(1), 23–32.',
+    'Leonard, A., & Tisdale, J. F. (2024). A new frontier. Molecular Therapy, 32(2), 264–267.',
+    'Singh, A., & Akilimali, A. (2024). Breakthrough. Annals of Medicine & Surgery, 86(8), 4555–4559.',
+  ].join('\n');
+  const report = runCitationCompliance(text, { papers: [] });
+  assert.equal(report.metrics.orphanReferenceCount, 0);
+  assert.ok(!report.findings.some((f) => f.code === 'ORPHAN_REFERENCE_ENTRY'));
+});
+
 test('citation compliance detects orphan citations and invalid DOI', () => {
   const text = `
 ## Literature Review
