@@ -1726,9 +1726,16 @@ app.post('/api/writer/generate', WRITER_RATE_LIMITER, requireWriterSubscription,
     ref: i + 1,
     id: String(p.id || p.doi || p.url || p.title || p.titleTR || `paper-${i + 1}`).slice(0, 300),
     title: String(p.title || p.titleTR || 'Başlıksız').slice(0, 200),
+    // Prompt'a giden kisa yazar alani: her metin parcasina ekleniyor.
     authors: String(p.creator || (Array.isArray(p.authors) ? p.authors.slice(0, 3).join(', ') : p.authors) || 'Bilinmiyor').slice(0, 150),
+    // Kaynakca icin tam liste. APA 7 yirmi yazara kadar hepsini ister;
+    // 150 karakterde kesilen liste "..., & Step." gibi yarim isim uretiyordu.
+    authorsFull: String(p.creator || (Array.isArray(p.authors) ? p.authors.join(', ') : p.authors) || '').slice(0, 3000),
     year: p.year || 'n.d.',
     journal: String(p.publicationName || '').slice(0, 150),
+    volume: String(p.volume || '').slice(0, 30),
+    issue: String(p.issue || '').slice(0, 30),
+    pages: String(p.pages || '').slice(0, 30),
     citedBy: p.citedBy || p.citedbyCount || 0,
     abstract: String(p.description || p.teaserTR || '').slice(0, 600),
     doi: String(p.doi || '').slice(0, 100),

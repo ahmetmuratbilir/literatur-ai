@@ -72,7 +72,7 @@ function mergeDuplicateResult(existing, incoming) {
   }
 
   // Eksik kalan tanımlayıcıları ve alternatif ID'leri tamamla (varsa üzerine yazma).
-  for (const field of ['doi', 'url', 'publicationName', 'authors', 'pubType', 'pmid', 'pmcid', 'arxivId', 'corpusId', 'pdfUrl', 'downloadUrl']) {
+  for (const field of ['doi', 'url', 'publicationName', 'authors', 'pubType', 'pmid', 'pmcid', 'arxivId', 'corpusId', 'pdfUrl', 'downloadUrl', 'volume', 'issue', 'pages']) {
     if (!existing[field] && incoming[field]) {
       existing[field] = incoming[field];
     }

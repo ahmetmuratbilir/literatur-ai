@@ -29,7 +29,7 @@ export const searchCrossref = async (query, count = 10) => {
       params: {
         query: query,
         rows: count,
-        select: 'DOI,title,author,published,published-print,published-online,issued,created,deposited,indexed,container-title,abstract,type,is-referenced-by-count,updated-by',
+        select: 'DOI,title,author,published,published-print,published-online,issued,created,deposited,indexed,container-title,volume,issue,page,abstract,type,is-referenced-by-count,updated-by',
         sort: 'relevance'
       },
       headers: {
@@ -65,6 +65,9 @@ export const searchCrossref = async (query, count = 10) => {
         year: dateMetadata.publicationYear ?? null,
         ...dateMetadata,
         doi: item.DOI,
+        volume: item.volume || null,
+        issue: item.issue || null,
+        pages: item.page || null,
         url: item.DOI ? `https://doi.org/${item.DOI}` : '',
         citedBy: parseInt(item['is-referenced-by-count'], 10) || 0,
         description: item.abstract ? item.abstract.replace(/<[^>]*>?/gm, '').substring(0, 500) : '',

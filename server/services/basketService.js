@@ -1,4 +1,4 @@
-import { BASKET_LIMIT } from '../models/Basket.js';
+import { BASKET_LIMIT, BASKET_AUTHORS_MAX } from '../models/Basket.js';
 
 /**
  * Kaynak sepeti için saf yardımcılar (veritabanına dokunmaz, test edilebilir).
@@ -8,14 +8,20 @@ const clip = (value, max) => (typeof value === 'string' ? value.trim().slice(0, 
 
 /** İstemciden gelen sonucu sepete yazılacak küçük kayda indirger. */
 export function minimizeBasketPaper(paper = {}) {
+  // Tüm yazarlar saklanır: kaynakça (APA 7) 20 yazara kadar hepsini ister.
+  // Eskiden ilk 3 yazar / 150 karakter tutuluyordu ve kaynakça "..., & Step."
+  // gibi yarım isimle bitiyordu. Prompt'a giden kısa liste writer route'ta kesiliyor.
   const authors = Array.isArray(paper.authors)
-    ? paper.authors.slice(0, 3).join(', ')
+    ? paper.authors.join(', ')
     : (paper.creator || paper.authors);
   return {
     title: clip(paper.title, 200),
-    authors: clip(authors, 150),
+    authors: clip(authors, BASKET_AUTHORS_MAX),
     year: clip(String(paper.year ?? ''), 8),
     publicationName: clip(paper.publicationName, 150),
+    volume: clip(String(paper.volume ?? ''), 30),
+    issue: clip(String(paper.issue ?? ''), 30),
+    pages: clip(String(paper.pages ?? ''), 30),
     citedBy: Math.max(0, Number(paper.citedBy) || 0),
     description: clip(paper.description, 600),
     doi: clip(paper.doi, 100),

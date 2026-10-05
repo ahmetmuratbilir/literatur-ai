@@ -4,6 +4,12 @@ import { normalizePublicationDate } from '../utils/dateNormalization.js';
 const { WordTokenizer } = pkg;
 const tokenizer = new WordTokenizer();
 
+/** "123" + "130" -> "123-130"; tek sayfa veya bos alanlar korunur. */
+function pageRange(first, last) {
+  if (!first) return null;
+  return last && String(last) !== String(first) ? `${first}-${last}` : String(first);
+}
+
 // Inverted index'i düz metne çevirir
 function reconstructAbstract(invertedIndex) {
   if (!invertedIndex) return '';
@@ -142,6 +148,14 @@ export async function searchOpenAlex(queryContext, params, booleanQuery, options
         normalized.topCitedPercent = pct?.is_in_top_1_percent ? 1 : (pct?.is_in_top_10_percent ? 10 : null);
         normalized.fwci = typeof item.fwci === 'number' ? item.fwci : null;
         normalized.url = openAlexLinkUrl(item);
+        // DOI eskiden yalnizca link icin okunuyordu; kayda yazilmadigi icin
+        // geri cekme kontrolu, Unpaywall ve kaynakca OpenAlex makalelerini
+        // DOI'siz goruyordu.
+        normalized.doi = item.doi ? String(item.doi).replace(/^https?:\/\/doi\.org\//i, '') : '';
+        // Kaynakca kunyesi: DOI'si olmayan makalede de cilt/sayi/sayfa kalsin.
+        normalized.volume = item.biblio?.volume || null;
+        normalized.issue = item.biblio?.issue || null;
+        normalized.pages = pageRange(item.biblio?.first_page, item.biblio?.last_page);
         normalized.source = 'OpenAlex';
         // AHP kalite ve acik erisim kriterleri icin ham alanlar.
         normalized.type = item.type || null;

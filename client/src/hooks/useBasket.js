@@ -14,9 +14,13 @@ export const basketKey = (paper) => {
 // Sunucuya giden alanlar; yazar modu ve kaynakça bunlarla çalışır.
 const toBasketPaper = (p) => ({
   title: p.title,
-  creator: p.creator || (Array.isArray(p.authors) ? p.authors.slice(0, 3).join(', ') : p.authors),
+  // Tüm yazarlar: kaynakça (APA 7) 20 yazara kadar hepsini ister.
+  creator: p.creator || (Array.isArray(p.authors) ? p.authors.join(', ') : p.authors),
   year: p.year ?? '',
   publicationName: p.publicationName,
+  volume: p.volume,
+  issue: p.issue,
+  pages: p.pages,
   citedBy: p.citedBy ?? p.citedbyCount,
   description: p.description,
   doi: p.doi,
