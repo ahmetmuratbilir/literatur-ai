@@ -150,7 +150,6 @@ function App() {
   const [activeLandingTab, setActiveLandingTab] = useState(null);
   const [landingTheme, setLandingTheme] = useState('light');
   const [showWriterPanel, setShowWriterPanel] = useState(false);
-  const [writerSize, setWriterSize] = useState('default');
   // Siralama profili. Tarayicida hatirlanir (MongoDB baglaninca kullanici
   // profiline tasinacak). localStorage gizli pencerede atabilir; sessizce
   // varsayilana duser.
@@ -243,6 +242,8 @@ function App() {
       if (e.key === 'Escape') {
         setActiveReaderPaper(null);
         setShowShareModal(false);
+        // Yazı yazarken (istek kutusu vb.) ESC paneli kapatmasın: istek ve metin kaybolur.
+        if (!isInput) setShowWriterPanel(false);
       }
     };
 
@@ -636,7 +637,8 @@ function App() {
         <main className="app-main" style={{
           marginLeft: isMobile ? '0px' : (sidebarOpen ? '280px' : '72px'),
           marginRight: (!isMobile && showWriterPanel)
-            ? (writerSize === 'default' ? '420px' : (writerSize === 'half' ? '50vw' : '100vw'))
+            // AI Yazar ayarları 420px'lik panelde; sonuçlar yanında görünür kalır.
+            ? '420px'
             : '0px',
           transition: 'margin 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           minHeight: '100vh',
@@ -1041,8 +1043,13 @@ function App() {
             apiUrl={defaultApiUrl}
             getToken={getToken}
             onClose={() => setShowWriterPanel(false)}
-            size={writerSize}
-            setSize={setWriterSize}
+            onEditSources={() => {
+              // Kaynaklar sonuç kartlarındaki "Makalene ekle" ile seçiliyor; oraya götür.
+              setShowWriterPanel(false);
+              const target = document.getElementById('results-container') || document.getElementById('topic-input');
+              target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              if (!document.getElementById('results-container')) target?.focus();
+            }}
           />
         )}
       </AnimatePresence>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { PenLine, Trash2 } from 'lucide-react';
+import { Sparkles, Trash2 } from 'lucide-react';
 import { useI18n } from '../i18n/context.js';
 
 const MotionDiv = motion.div;
@@ -46,7 +46,7 @@ const WriterDock = ({ count, limit, onOpen, onClear }) => {
         title={t('writerDock.title')}
         aria-label={t('writerDock.aria', { n: count })}
       >
-        <PenLine size={18} />
+        <Sparkles size={17} />
         <span className="ui-writer-dock__label">{t('writerDock.label')}</span>
         <span className="ui-writer-dock__count">{count}<small>/{limit}</small></span>
       </button>

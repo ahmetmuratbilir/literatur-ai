@@ -1,26 +1,21 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Activity,
   AlertCircle,
-  BookMarked,
+  ArrowRight,
   BookOpen,
   Check,
+  ChevronDown,
   Copy,
   Download,
   FileDown,
   FileText,
-  Languages,
-  Layers,
   Lightbulb,
   Loader2,
   MessageSquare,
-  Monitor,
-  PanelRight,
-  PanelRightOpen,
   PenLine,
   RefreshCw,
-  Settings,
+  Settings2,
   ShieldCheck,
   Sparkles,
   X,
@@ -47,13 +42,6 @@ const BIBLIOGRAPHY_OPTIONS = [
   { value: 'IEEE', label: 'IEEE' },
   { value: 'MLA', label: 'MLA' },
   { value: 'Chicago', label: 'Chicago' },
-];
-
-const LOADING_PHASES = [
-  { key: 'analyzing', icon: Layers },
-  { key: 'context', icon: BookMarked },
-  { key: 'writing', icon: Sparkles },
-  { key: 'checks', icon: ShieldCheck },
 ];
 
 function escapeHtml(value) {
@@ -122,7 +110,15 @@ function countWarnings(postcheck) {
 const severityKey = (severity) => (severity === 'high' || severity === 'medium' ? severity : 'low');
 const statusKey = (status) => (status === 'failed' || status === 'warn' ? status : 'clean');
 
-const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default', setSize }) => {
+/**
+ * AI Yazar: sağdan açılan akademik yazım asistanı.
+ *
+ * Ayarlar ekranı bir form değil, sırayla ilerleyen bir akış: kaynaklar ->
+ * ne yazılacak -> istek -> uzunluk. Kaynakça stili, ton ve dil "Gelişmiş
+ * ayarlar" altında kapalı durur. Metin üretimi, durdurma, kontrol raporu ve
+ * dışa aktarma önceki sürümle aynı; değişen yalnızca arayüz.
+ */
+const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, onEditSources }) => {
   const { t, lang } = useI18n();
   const severityLabel = (s) => t(`writer.severity.${severityKey(s)}`);
   const statusLabel = (s) => t(`writer.status.${statusKey(s)}`);
@@ -140,13 +136,12 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const [loadingStep, setLoadingStep] = useState(0);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [bibliographyFormat, setBibliographyFormat] = useState('APA 7');
   const [postcheck, setPostcheck] = useState(null);
   const [requestId, setRequestId] = useState(null);
   const [, setDoneEventCount] = useState(0);
   const [reportOpen, setReportOpen] = useState(false);
-  const [lastCompletedAt, setLastCompletedAt] = useState(null);
 
   const abortRef = useRef(null);
   const outputRef = useRef(null);
@@ -156,42 +151,20 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
   const warningCount = countWarnings(postcheck);
   const canGenerate = papers.length > 0 && prompt.trim().length >= 10 && !isGenerating && cooldown === 0;
   const showDocument = view === 'document';
-  const shellWidth = isMobile
-    ? '100vw'
-    : showDocument
-      ? '100vw'
-      : size === 'default'
-        ? '420px'
-        : size === 'half'
-          ? '50vw'
-          : '100vw';
-  const shellStartX = isMobile
-    ? '100vw'
-    : showDocument
-      ? '100vw'
-      : size === 'default'
-        ? 420
-        : size === 'half'
-          ? '50vw'
-          : '100vw';
+  // Ayarlar dar panelde (sonuçlar yanında görünür kalır); metin okunurken tam genişlik.
+  const shellWidth = isMobile || showDocument ? '100vw' : '420px';
+  const shellStartX = isMobile || showDocument ? '100vw' : 420;
+  // Oluştur kapalıysa nedeni altta yazılır.
+  const blockedReason = isGenerating || cooldown > 0 ? null
+    : papers.length === 0 ? t('writer.needSources')
+      : prompt.trim().length < 10 ? t('writer.needPrompt')
+        : null;
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  useEffect(() => {
-    let interval;
-    if (isGenerating && !generatedText) {
-      interval = setInterval(() => {
-        setLoadingStep((step) => (step + 1) % LOADING_PHASES.length);
-      }, 2200);
-    } else {
-      setLoadingStep(0);
-    }
-    return () => clearInterval(interval);
-  }, [isGenerating, generatedText]);
 
   useEffect(() => {
     if (showDocument && generatedText && outputRef.current) {
@@ -298,7 +271,6 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
       }
       flushEvents(decoder.decode(), true);
 
-      setLastCompletedAt(new Date());
       if (localDoneCount === 0) {
         setError(t('writer.errNoDone'));
       }
@@ -441,18 +413,36 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
     }
   };
 
-  const renderSettingsStage = () => (
-    <section className="writer-setup-stage" aria-label={t('writer.settings')}>
-      <div className="writer-setup-card">
-        <div className="writer-setup-hero">
-          <span className="writer-setup-icon"><Settings size={22} /></span>
-          <div>
-            <p>{t('writer.settings')}</p>
-            <h2>{t('writer.settingsHeadline')}</h2>
-            <small>{t('writer.selectedMeta', { n: papers.length, style: bibliographyFormat, lang: language.toUpperCase() })}</small>
-          </div>
-        </div>
+  // Seçenek grubu (uzunluk, kaynakça, ton, dil). Bileşen değil fonksiyon:
+  // her çizimde yeniden bağlanıp odağı kaybetmesin.
+  const renderSegment = (label, value, options, onChange, getLabel) => (
+    <div className="wa-segment" role="radiogroup" aria-label={label}>
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          role="radio"
+          aria-checked={value === option}
+          className={value === option ? 'active' : ''}
+          onClick={() => onChange(option)}
+          disabled={isGenerating}
+        >
+          {getLabel(option)}
+        </button>
+      ))}
+    </div>
+  );
 
+  const renderSettingsStage = () => (
+    <form
+      className="wa-setup"
+      aria-label={t('writer.assistantTitle')}
+      onSubmit={(event) => {
+        event.preventDefault();
+        handleGenerate();
+      }}
+    >
+      <div className="wa-body">
         {error && (
           <div className="writer-error">
             <AlertCircle size={16} />
@@ -460,117 +450,136 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
           </div>
         )}
 
-        <div className="writer-source-strip">
-          <div className="writer-card-title">
-            <BookMarked size={16} />
-            {t('writer.selectedSources')}
-            <span>{papers.length}</span>
+        {/* 1. Kaynaklar: sepetteki makaleler; seçim mekanizması aynı. */}
+        <section className="wa-section">
+          <div className="wa-section__head">
+            <h3 className="wa-label">{t('writer.sources')}</h3>
+            <span className="wa-muted">{papers.length > 0 ? t('writer.sourcesCount', { n: papers.length }) : t('writer.noSources')}</span>
           </div>
-          <div className="writer-source-list">
-            {papers.length > 0 ? papers.slice(0, 4).map((paper, index) => (
-              <div key={`${paper.doi || paper.url || paper.title || index}`} className="writer-source-row">
-                <span>{index + 1}</span>
-                <p>{paper.title || paper.titleTR || t('writer.untitledSource')}</p>
+          {papers.length > 0 ? (
+            <ul className="wa-sources">
+              {papers.slice(0, 3).map((paper, index) => (
+                <li key={`${paper.doi || paper.url || paper.title || index}`}>
+                  <Check size={14} aria-hidden="true" />
+                  <span>{paper.title || paper.titleTR || t('writer.untitledSource')}</span>
+                </li>
+              ))}
+              {papers.length > 3 && <li className="wa-sources__more">{t('writer.moreSources', { n: papers.length - 3 })}</li>}
+            </ul>
+          ) : (
+            <p className="wa-empty">{t('writer.noSourcesHint')}</p>
+          )}
+          {onEditSources && (
+            <button type="button" className="wa-link" onClick={onEditSources}>
+              {papers.length > 0 ? t('writer.editSources') : t('writer.pickFromResults')} <ArrowRight size={14} aria-hidden="true" />
+            </button>
+          )}
+        </section>
+
+        {/* 2. Ne yazılacak: sunucunun desteklediği altı tür. */}
+        <section className="wa-section">
+          <h3 className="wa-label">{t('writer.whatToWrite')}</h3>
+          <div className="wa-types" role="radiogroup" aria-label={t('writer.whatToWrite')}>
+            {OUTPUT_TYPES.map((type) => {
+              const TypeIcon = type.icon;
+              const active = outputType === type.value;
+              return (
+                <button
+                  key={type.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  className={`wa-type${active ? ' active' : ''}`}
+                  onClick={() => setOutputType(type.value)}
+                  disabled={isGenerating}
+                  title={t(`writer.types.${type.value}.desc`)}
+                >
+                  <TypeIcon size={16} aria-hidden="true" />
+                  <span>{typeLabel(type.value)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="wa-muted wa-type-desc">{t(`writer.types.${selectedType.value}.desc`)}</p>
+        </section>
+
+        {/* 3. İstek: sunucu en az 10 karakter istiyor; metnin kalitesini en çok bu belirliyor. */}
+        <section className="wa-section">
+          <label htmlFor="writer-prompt" className="wa-label">{t('writer.prompt')}</label>
+          <textarea
+            id="writer-prompt"
+            className="writer-prompt wa-prompt"
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            disabled={isGenerating}
+            placeholder={t('writer.promptPlaceholder')}
+          />
+          <div className="wa-prompt-meta">
+            {prompt.trim().length < 10 ? <span className="writer-prompt-hint" role="status">{t('writer.promptHint')}</span> : <span />}
+            <span className="wa-muted">{t('writer.chars', { n: prompt.length })}</span>
+          </div>
+        </section>
+
+        {/* 4. Uzunluk */}
+        <section className="wa-section">
+          <span className="wa-label">{t('writer.length')}</span>
+          {renderSegment(t('writer.length'), length, LENGTH_OPTIONS, setLength, (v) => t(`writer.lengths.${v}`))}
+        </section>
+
+        {/* 5. Gelişmiş ayarlar: varsayılan kapalı. */}
+        <section className="wa-section wa-advanced">
+          <button
+            type="button"
+            className="wa-advanced__toggle"
+            aria-expanded={advancedOpen}
+            onClick={() => setAdvancedOpen((open) => !open)}
+          >
+            <Settings2 size={15} aria-hidden="true" />
+            <span>{t('writer.advanced')}</span>
+            <small>{bibliographyFormat} · {t(`writer.tones.${tone}`)} · {language.toUpperCase()}</small>
+            <ChevronDown size={16} aria-hidden="true" className={advancedOpen ? 'is-open' : ''} />
+          </button>
+          {advancedOpen && (
+            <div className="wa-advanced__body">
+              <div className="wa-field">
+                <span className="wa-label wa-label--sub">{t('writer.bibStyle')}</span>
+                {renderSegment(t('writer.bibStyle'), bibliographyFormat, BIBLIOGRAPHY_OPTIONS.map((o) => o.value), setBibliographyFormat, (v) => v)}
               </div>
-            )) : (
-              <p className="writer-muted">{t('writer.noSourcesHint')}</p>
-            )}
-          </div>
-          {papers.length > 4 && <div className="writer-more-sources">{t('writer.moreSources', { n: papers.length - 4 })}</div>}
-        </div>
-
-        <form className="writer-settings-form" onSubmit={(event) => {
-          event.preventDefault();
-          handleGenerate();
-        }}>
-          <div className="writer-field-grid">
-            <label>
-              <span className="writer-label">{t('writer.textType')}</span>
-              <select className="writer-field" value={outputType} onChange={(event) => setOutputType(event.target.value)} disabled={isGenerating}>
-                {OUTPUT_TYPES.map((type) => <option key={type.value} value={type.value}>{typeLabel(type.value)}</option>)}
-              </select>
-              <small>{t(`writer.types.${selectedType.value}.desc`)}</small>
-            </label>
-
-            <label>
-              <span className="writer-label">{t('writer.bibStyle')}</span>
-              <select className="writer-field" value={bibliographyFormat} onChange={(event) => setBibliographyFormat(event.target.value)} disabled={isGenerating}>
-                {BIBLIOGRAPHY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-            </label>
-
-            <label>
-              <span className="writer-label">{t('writer.tone')}</span>
-              <select className="writer-field" value={tone} onChange={(event) => setTone(event.target.value)} disabled={isGenerating}>
-                {TONE_OPTIONS.map((value) => <option key={value} value={value}>{t(`writer.tones.${value}`)}</option>)}
-              </select>
-            </label>
-
-            <label>
-              <span className="writer-label">{t('writer.length')}</span>
-              <select className="writer-field" value={length} onChange={(event) => setLength(event.target.value)} disabled={isGenerating}>
-                {LENGTH_OPTIONS.map((value) => <option key={value} value={value}>{t(`writer.lengths.${value}`)}</option>)}
-              </select>
-            </label>
-          </div>
-
-          <div className="writer-language-row">
-            <span className="writer-label">{t('writer.outputLanguage')}</span>
-            <div className="writer-segment">
-              <button type="button" className={language === 'tr' ? 'active' : ''} onClick={() => setLanguage('tr')} disabled={isGenerating}>
-                <Languages size={14} /> TR
-              </button>
-              <button type="button" className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')} disabled={isGenerating}>
-                EN
-              </button>
+              <div className="wa-field">
+                <span className="wa-label wa-label--sub">{t('writer.tone')}</span>
+                {renderSegment(t('writer.tone'), tone, TONE_OPTIONS, setTone, (v) => t(`writer.tones.${v}`))}
+              </div>
+              <div className="wa-field">
+                <span className="wa-label wa-label--sub">{t('writer.outputLanguage')}</span>
+                {renderSegment(t('writer.outputLanguage'), language, ['tr', 'en'], setLanguage, (v) => v.toUpperCase())}
+              </div>
             </div>
-          </div>
-
-          <label className="writer-prompt-block">
-            <span className="writer-label">{t('writer.prompt')}</span>
-            <textarea
-              className="writer-prompt"
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              disabled={isGenerating}
-              placeholder={t('writer.promptPlaceholder')}
-            />
-            <span className="writer-char-count">{t('writer.chars', { n: prompt.length })}</span>
-            {/* Buton 10 karakterin altında kapalı; nedenini burada söyle. */}
-            {prompt.trim().length < 10 && (
-              <span className="writer-prompt-hint" role="status">
-                {t('writer.promptHint')}
-              </span>
-            )}
-          </label>
-
-          <div className="writer-setup-footer">
-            <div className="writer-run-state">
-              <div><ShieldCheck size={15} /> {t('writer.checksOn')}</div>
-              {lastCompletedAt && <div><Activity size={15} /> {t('writer.lastRun', { time: lastCompletedAt.toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' }) })}</div>}
-            </div>
-
-            <div className="writer-setup-actions">
-              {generatedText && !isGenerating && (
-                <button type="button" className="writer-secondary-action" onClick={() => setView('document')}>
-                  {t('writer.showResult')}
-                </button>
-              )}
-              {!isGenerating ? (
-                <button type="submit" className="writer-primary-action" disabled={!canGenerate}>
-                  <Sparkles size={17} />
-                  {cooldown > 0 ? t('writer.wait', { n: cooldown }) : (generatedText ? t('writer.regenerate') : t('writer.generate'))}
-                </button>
-              ) : (
-                <button type="button" className="writer-stop-action" onClick={handleStop}>
-                  <X size={17} /> {t('writer.stop')}
-                </button>
-              )}
-            </div>
-          </div>
-        </form>
+          )}
+        </section>
       </div>
-    </section>
+
+      {/* Sabit alt alan: ana eylem ve kapalıysa nedeni. */}
+      <footer className="wa-footer">
+        {blockedReason && <p className="wa-footer__hint">{blockedReason}</p>}
+        <div className="wa-footer__actions">
+          {generatedText && !isGenerating && (
+            <button type="button" className="writer-secondary-action" onClick={() => setView('document')}>
+              {t('writer.showResult')}
+            </button>
+          )}
+          {!isGenerating ? (
+            <button type="submit" className="writer-primary-action wa-generate" disabled={!canGenerate}>
+              <Sparkles size={17} />
+              {cooldown > 0 ? t('writer.wait', { n: cooldown }) : (generatedText ? t('writer.regenerate') : t('writer.generateText'))}
+            </button>
+          ) : (
+            <button type="button" className="writer-stop-action wa-generate" onClick={handleStop}>
+              <X size={17} /> {t('writer.stop')}
+            </button>
+          )}
+        </div>
+      </footer>
+    </form>
   );
 
   const renderReportPanel = () => {
@@ -724,13 +733,12 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
 
         <div ref={outputRef} className="writer-document-scroll">
           {isGenerating && !generatedText && (
-            <div className="writer-loading-state">
-              {(() => {
-                const LoadingIcon = LOADING_PHASES[loadingStep].icon;
-                return <LoadingIcon size={28} />;
-              })()}
+            // Gerçek durum: sunucu kaynak künyelerini hazırlıyor, ilk kelime
+            // gelince metin akmaya başlar. Önceki sürüm zamanlayıcıyla dönen
+            // sahte aşamalar gösteriyordu.
+            <div className="writer-loading-state" role="status">
               <Loader2 size={42} className="writer-spinner" />
-              <strong>{t(`writer.phases.${LOADING_PHASES[loadingStep].key}`)}</strong>
+              <strong>{t('writer.preparingTitle')}</strong>
               <span>{t('writer.preparing', { n: papers.length })}</span>
             </div>
           )}
@@ -776,7 +784,7 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
 
   return (
     <MotionDiv
-      className={`writer-shell writer-shell--${size} ${showDocument ? 'writer-shell--document' : 'writer-shell--setup'}`}
+      className={`writer-shell writer-shell--default ${showDocument ? 'writer-shell--document' : 'writer-shell--setup'}`}
       initial={{ x: shellStartX, opacity: 0 }}
       animate={{ x: 0, opacity: 1, width: shellWidth }}
       exit={{ x: shellStartX, opacity: 0 }}
@@ -784,34 +792,17 @@ const WriterPanel = ({ papers = [], apiUrl, getToken, onClose, size = 'default',
     >
       <div className="writer-backdrop" />
 
-      <header className="writer-topbar">
-        <div className="writer-title">
-          <span><PenLine size={18} /></span>
+      <header className="writer-topbar wa-topbar">
+        <div className="wa-title">
+          <span className="wa-title__icon" aria-hidden="true"><Sparkles size={16} /></span>
           <div>
-            <strong>{t('writer.title')}</strong>
-            <small>{showDocument ? t('writer.preview') : t('writer.settings')}</small>
+            <strong>{t('writer.assistantTitle')}</strong>
+            <small>{showDocument ? typeLabel(selectedType.value) : t('writer.assistantSubtitle')}</small>
           </div>
         </div>
-
-        <div className="writer-mode-title">
-          {showDocument ? <FileText size={15} /> : <Settings size={15} />}
-          <span>{showDocument ? t('writer.preview') : typeLabel(selectedType.value)}</span>
-        </div>
-
-        <div className="writer-window-actions">
-          <button type="button" className={size === 'default' ? 'active' : ''} onClick={() => setSize('default')} title={t('writer.sizeSide')} aria-label={t('writer.sizeSide')}>
-            <PanelRight size={15} />
-          </button>
-          <button type="button" className={size === 'half' ? 'active' : ''} onClick={() => setSize('half')} title={t('writer.sizeHalf')} aria-label={t('writer.sizeHalf')}>
-            <PanelRightOpen size={15} />
-          </button>
-          <button type="button" className={size === 'full' ? 'active' : ''} onClick={() => setSize('full')} title={t('writer.sizeFull')} aria-label={t('writer.sizeFull')}>
-            <Monitor size={15} />
-          </button>
-          <button type="button" onClick={onClose} title={t('common.close')} aria-label={t('common.close')}>
-            <X size={17} />
-          </button>
-        </div>
+        <button type="button" className="wa-close" onClick={onClose} title={t('common.close')} aria-label={t('common.close')}>
+          <X size={18} />
+        </button>
       </header>
 
       <main className={`writer-flow ${showDocument ? 'writer-flow--document' : 'writer-flow--settings'}`}>
