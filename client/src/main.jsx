@@ -19,8 +19,13 @@ const clerkAppearance = {
     fontSize: '1rem',
   },
   elements: {
+    // Sabit 480px telefonda ekrandan genişti: 390px ekranda pencere 45px sola
+    // taşıyordu (sol kenar kesik, sağda boşluk). Ekrandan 32px dar, en fazla 480px.
     rootBox: {
-      width: '480px',
+      width: 'min(480px, calc(100vw - 32px))',
+    },
+    cardBox: {
+      width: '100%',
       maxWidth: '100%',
     },
     card: {
