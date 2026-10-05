@@ -2,6 +2,25 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runCitationCompliance } from '../services/citationComplianceService.js';
 
+const TR_PAPERS = [
+  { authors: 'Ajeet Singh, Hira Irfan', year: 2024, title: 'A' },
+  { authors: 'Dinah V. Parums', year: 2024, title: 'B' },
+  { authors: 'Alexis Kristine Leonard, John F. Tisdale', year: 2024, title: 'C' },
+];
+const TR_REFS = '\n\n## Kaynakça\nLeonard, A., & Tisdale, J. F. (2024). C. Molecular Therapy.\nParums, D. V. (2024). B. Medical Science Monitor.\nSingh, A., & Irfan, H. (2024). A. Annals.';
+
+test('Turkce anlati bicimleri ("ve arkadaslari", "Parums\'un") yanlis uyari uretmez', () => {
+  const body = "Hem Singh ve arkadaşlarının (2024) hem de Parums'un (2024) çalışması önemlidir. Leonard ve Tisdale'nin (2024) değerlendirmesi de benzerdir.";
+  const report = runCitationCompliance(body + TR_REFS, { papers: TR_PAPERS });
+  assert.equal(report.status, 'ok', report.findings.map((f) => f.code).join(', '));
+});
+
+test('gercekten kullanilmayan kaynak hala uyari verir', () => {
+  const body = "Singh ve arkadaşları (2024) ve Parums'un (2024) çalışmaları önemlidir.";
+  const report = runCitationCompliance(body + TR_REFS, { papers: TR_PAPERS });
+  assert.deepEqual(report.findings.map((f) => f.code), ['ORPHAN_REFERENCE_ENTRY']);
+});
+
 test('anlati ici atif ("Singh vd. (2024)") kaynagi yetim saymaz', () => {
   const text = [
     'Tedavi etkilidir (Ahmed vd., 2025). FDA onayladi (Leonard ve Tisdale, 2024). Singh vd. (2024) onemini vurguladi.',
