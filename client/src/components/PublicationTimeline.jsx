@@ -1,7 +1,9 @@
-import React, { useMemo } from 'react';
-import { TrendingUp, BarChart2 } from 'lucide-react';
+import { useMemo } from 'react';
+import { BarChart2 } from 'lucide-react';
+import { useI18n } from '../i18n/context.js';
 
 export default function PublicationTimeline({ results = [], selectedYear, onSelectYear }) {
+  const { t } = useI18n();
   const { yearCounts, maxCount, years } = useMemo(() => {
     const counts = {};
     results.forEach(r => {
@@ -44,10 +46,10 @@ export default function PublicationTimeline({ results = [], selectedYear, onSele
           </div>
           <div>
             <h4 style={{ margin: 0, fontSize: 'var(--fs-sm)', fontWeight: '700', color: 'var(--text-main)' }}>
-              Yıllara Göre Yayın Dağılımı & Trend
+              {t('timeline.title')}
             </h4>
             <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>
-              Yıla tıklayarak yalnızca o dönemin çalışmalarını filtreleyin.
+              {t('timeline.hint')}
             </p>
           </div>
         </div>
@@ -67,7 +69,7 @@ export default function PublicationTimeline({ results = [], selectedYear, onSele
               cursor: 'pointer'
             }}
           >
-            Filtreyi Temizle ({selectedYear}) ✕
+            {t('timeline.clear', { year: selectedYear })} ✕
           </button>
         )}
       </div>
@@ -90,7 +92,7 @@ export default function PublicationTimeline({ results = [], selectedYear, onSele
               key={y}
               type="button"
               onClick={() => onSelectYear(isSelected ? null : y)}
-              title={`${y}: ${count} Makale (Filtrelemek için tıkla)`}
+              title={t('timeline.barTitle', { year: y, n: count })}
               style={{
                 flex: 1,
                 minWidth: '38px',

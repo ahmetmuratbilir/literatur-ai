@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
 const MotionDiv = motion.div;
@@ -51,6 +51,8 @@ import Toasts from './components/Toasts';
 import WriterDock from './components/WriterDock';
 import CitationChecker from './components/CitationChecker';
 import AiAnalysisPanel from './components/AiAnalysisPanel';
+import JournalBreakdown from './components/JournalBreakdown';
+import { journalKey } from './utils/journalKey.js';
 import { useShare } from './hooks/useShare';
 import { useExport } from './hooks/useExport';
 
@@ -60,36 +62,45 @@ import { useExport } from './hooks/useExport';
 // tarafı (/api/resolve) ve CitationChecker bileşeni yerinde duruyor.
 const VERIFY_MODE_ENABLED = false;
 
-const RESULT_FILTERS = ['all', 'relevant', 'q1q2', 'recent', 'openaccess', 'highcitations'];
+const RESULT_FILTERS = ['all', 'relevant', 'impact', 'recent', 'openaccess', 'highcitations'];
 
 /** Konuya yakınlık: sorgu terimlerinin başlık/özette geçmesi (relevanceScore), eşitlikte başlık benzerliği. */
 const topicCloseness = (item) => [Number(item.relevanceScore) || 0, Number(item.sSim ?? item.expandedSimilarity) || 0];
 
 /**
- * Sonuç listesindeki hızlı filtreler. 'relevant' süzmez, listeyi AHP puanı
- * yerine arama konusuna yakınlığa göre yeniden sıralar; diğerleri süzer ve
- * AHP sırasını korur.
+ * Tek bir makale filtreye uyuyor mu. Çip sayıları da bununla hesaplanır, böylece
+ * sayı ile listenin uzunluğu ayrışamaz.
+ *
+ * 'impact' eski "Q1 / Q2 dergiler" çipinin yerini aldı: dergi çeyreği yalnızca
+ * elle yazılmış altı derginin listesinden geliyordu, bu yüzden o çip pratikte
+ * hiçbir zaman sonuç döndürmüyordu. Alan-normalize atıf (OpenAlex fwci ve
+ * yüzdelik) gerçek ve ölçülen bir veri.
  */
-function filterResults(results, filter, year) {
-  const currentYear = new Date().getFullYear();
-  if (filter === 'relevant') {
-    return results
-      .filter((item) => !year || Number.parseInt(item.year, 10) === year)
-      .slice()
-      .sort((a, b) => {
-        const [ra, sa] = topicCloseness(a);
-        const [rb, sb] = topicCloseness(b);
-        return rb - ra || sb - sa;
-      });
-  }
-  return results.filter((item) => {
-    const itemYear = Number.parseInt(item.year, 10);
-    if (year && itemYear !== year) return false;
-    if (filter === 'q1q2') return item.quartile === 'Q1' || item.quartile === 'Q2';
-    if (filter === 'recent') return Boolean(itemYear) && currentYear - itemYear <= 3;
-    if (filter === 'openaccess') return Boolean(item.openAccess || item.isOpenAccess);
-    if (filter === 'highcitations') return (Number.parseInt(item.citedBy || item.citedbyCount, 10) || 0) >= 10;
-    return true;
+function matchesFilter(item, filter) {
+  if (filter === 'all' || filter === 'relevant') return true;
+  const year = Number.parseInt(item.year, 10);
+  if (filter === 'recent') return Boolean(year) && new Date().getFullYear() - year <= 3;
+  if (filter === 'openaccess') return Boolean(item.openAccess || item.isOpenAccess);
+  if (filter === 'highcitations') return (Number.parseInt(item.citedBy || item.citedbyCount, 10) || 0) >= 10;
+  if (filter === 'impact') return (typeof item.fwci === 'number' && item.fwci > 1) || Boolean(item.topCitedPercent);
+  return true;
+}
+
+/**
+ * Sonuç listesindeki hızlı filtreler ve dergi seçimi. 'relevant' süzmez,
+ * listeyi AHP puanı yerine arama konusuna yakınlığa göre yeniden sıralar.
+ */
+function filterResults(results, filter, year, journal) {
+  const narrowed = results.filter((item) => {
+    if (year && Number.parseInt(item.year, 10) !== year) return false;
+    if (journal && journalKey(item.publicationName || '') !== journal) return false;
+    return matchesFilter(item, filter);
+  });
+  if (filter !== 'relevant') return narrowed;
+  return narrowed.slice().sort((a, b) => {
+    const [ra, sa] = topicCloseness(a);
+    const [rb, sb] = topicCloseness(b);
+    return rb - ra || sb - sa;
   });
 }
 
@@ -189,6 +200,7 @@ function App() {
   const { exportPDF, exportExcel, exportDocx, exportBibTeX, exportRIS } = useExport();
   const [resultFilter, setResultFilter] = useState('all');
   const [selectedYear, setSelectedYear] = useState(null);
+  const [selectedJournal, setSelectedJournal] = useState(null);
   const [activeReaderPaper, setActiveReaderPaper] = useState(null);
 
   // Clerk ile oturum açıldığında kullanıcıyı senkronize et ve gerekirse hoş geldin e-postası tetikle
@@ -254,6 +266,22 @@ function App() {
 
 
   const loadingSteps = t('loading.steps');
+
+  // Çip üstündeki sayılar listeyle aynı koşuldan geçer; yıl ve dergi seçimi dahil.
+  const filterCounts = useMemo(() => {
+    const rows = (data?.results || []).filter((item) => {
+      if (selectedYear && Number.parseInt(item.year, 10) !== selectedYear) return false;
+      if (selectedJournal && journalKey(item.publicationName || '') !== selectedJournal) return false;
+      return true;
+    });
+    return Object.fromEntries(RESULT_FILTERS.map((f) => [f, rows.filter((item) => matchesFilter(item, f)).length]));
+  }, [data, selectedYear, selectedJournal]);
+
+  const journalLabel = useMemo(() => {
+    if (!selectedJournal) return '';
+    const hit = (data?.results || []).find((item) => journalKey(item.publicationName || '') === selectedJournal);
+    return hit?.publicationName || selectedJournal;
+  }, [data, selectedJournal]);
 
   const canSubmitSearch = Boolean(
     mainTopic.trim() ||
@@ -925,17 +953,24 @@ function App() {
                   onSelectYear={setSelectedYear}
                 />
 
+                <JournalBreakdown
+                  results={data.results}
+                  selectedJournal={selectedJournal}
+                  onSelectJournal={setSelectedJournal}
+                />
+
                 <div role="group" aria-label={t('results.filter.label')} style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center', margin: 'var(--space-3) 0' }}>
                   {RESULT_FILTERS.map((f) => (
                     <button
                       key={f}
                       type="button"
                       className={`ui-chip${resultFilter === f ? ' ui-chip--brand' : ''}`}
-                      style={{ cursor: 'pointer' }}
+                      style={{ cursor: 'pointer', opacity: filterCounts[f] === 0 ? 0.45 : 1 }}
                       aria-pressed={resultFilter === f}
+                      // Sonucu olmayan filtre tıklanabilir kalır ama sayısı 0 görünür.
                       onClick={() => setResultFilter(f)}
                     >
-                      {t(`results.filter.${f}`, { n: data.results.length })}
+                      {t(`results.filter.${f}`, { n: filterCounts[f] })}
                     </button>
                   ))}
                   {selectedYear && (
@@ -949,10 +984,21 @@ function App() {
                       {selectedYear} <X size={12} />
                     </button>
                   )}
+                  {selectedJournal && (
+                    <button
+                      type="button"
+                      className="ui-chip ui-chip--brand"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setSelectedJournal(null)}
+                      aria-label={t('journals.clear')}
+                    >
+                      {journalLabel} <X size={12} />
+                    </button>
+                  )}
                 </div>
 
                 <div id="results-container" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--space-3)' }}>
-                  {filterResults(data.results, resultFilter, selectedYear).slice(0, shownCount).map((item, idx) => {
+                  {filterResults(data.results, resultFilter, selectedYear, selectedJournal).slice(0, shownCount).map((item, idx) => {
                     const isFavorited = isPaperFavorited(item);
                     const inBasket = basket.has(item);
                     return (
