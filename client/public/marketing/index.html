@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<title>Literatür AI — Fuar demosu</title>
+<meta name="description" content="Literatür AI'yi 60 saniyede tanıyın: konunuzu seçin, aramanın nasıl yürüdüğünü canlı izleyin, sıralamayı kendiniz değiştirin.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: tek sütunlu telefon akışı (max 440px), 3 ekran, altta sabit eylem çubuğu. Roll-up'ın beyaz, sade dili; tek canlı an demo. */
+:root {
+  color-scheme: light;
+  --paper: #ffffff;
+  --ink: #0d0b1f;
+  --muted: #5b5870;
+  --tint: #f5f2ff;
+  --line: #e2dbfb;
+  --violet: #6d28d9;
+  --indigo: #4f46e5;
+  --lilac: #8b5cf6;
+  --grad: linear-gradient(135deg, var(--indigo), var(--lilac));
+  --warn: #b42318;
+  --warn-tint: #fdf0ee;
+  --ok: #067a57;
+  --font-display: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --r-lg: 20px;
+  --r-md: 14px;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--paper); }
+body {
+  margin: 0; color: var(--ink); font-family: var(--font-display); font-size: 16px; line-height: 1.5;
+  padding-inline: 20px; padding-block: 0 120px; -webkit-font-smoothing: antialiased;
+}
+.app { max-width: 440px; margin: 0 auto; }
+
+/* Üst şerit */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding-block: 14px 12px; display: grid; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 19px; letter-spacing: -0.02em; }
+.mark { width: 34px; height: 34px; border-radius: 10px; background: var(--grad); display: grid; place-items: center; flex-shrink: 0; }
+.mark svg { width: 18px; height: 18px; }
+.brand .tag { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--violet); background: var(--tint); border: 1px solid var(--line);
+  padding: 4px 10px; border-radius: 999px; letter-spacing: 0.01em; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.steps span { height: 4px; border-radius: 4px; background: var(--line); position: relative; overflow: hidden; }
+.steps span::after { content: ''; position: absolute; inset: 0; background: var(--grad); transform: scaleX(0); transform-origin: left; transition: transform .5s ease; }
+.steps span.on::after { transform: scaleX(1); }
+.steps-l { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; margin-top: -6px; }
+.steps-l b { font-weight: 600; }
+.steps-l b.on { color: var(--violet); }
+
+/* Ekranlar */
+.screen { display: grid; gap: 22px; padding-top: 18px; animation: enter .45s ease both; }
+@keyframes enter { from { opacity: .001; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+h1, h2 { font-weight: 800; letter-spacing: -0.035em; line-height: 1.0; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(44px, 13vw, 56px); }
+h2 { font-size: clamp(32px, 9vw, 40px); }
+.v { color: var(--violet); }
+.lead { color: var(--muted); font-size: 17px; margin: 0; max-width: 34ch; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+
+/* Ekran 1 */
+.stats { display: grid; grid-template-columns: 1fr 1fr; border-block: 1px solid var(--line); }
+.stat { padding-block: 16px; }
+.stat + .stat { border-left: 1px solid var(--line); padding-left: 18px; }
+.stat b { display: block; font-size: 44px; font-weight: 800; letter-spacing: -0.05em; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat b small { font-size: .5em; color: var(--violet); margin-left: 2px; letter-spacing: 0; }
+.stat span { font-size: 14px; color: var(--muted); }
+.pick { display: grid; gap: 10px; }
+.topics { display: grid; gap: 10px; }
+.topic { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; font: inherit; font-weight: 500; font-size: 16px; color: var(--ink);
+  background: var(--tint); border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px 16px; min-height: 56px; cursor: pointer;
+  transition: border-color .2s, transform .15s; }
+.topic:hover { border-color: var(--lilac); }
+.topic:active { transform: scale(.98); }
+.topic:focus-visible, .btn:focus-visible, .link:focus-visible, .role:focus-visible, input:focus-visible { outline: 3px solid color-mix(in srgb, var(--lilac) 55%, transparent); outline-offset: 2px; }
+.topic svg { flex-shrink: 0; width: 20px; height: 20px; color: var(--violet); }
+.topic .go { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--violet); white-space: nowrap; }
+
+/* Ekran 2: demo */
+.qbox { display: flex; align-items: center; gap: 10px; background: var(--tint); border: 1px solid var(--line); border-radius: 999px; padding: 8px 8px 8px 16px; min-height: 52px; }
+.qbox svg { width: 18px; height: 18px; color: var(--violet); flex-shrink: 0; }
+.qbox .q { flex: 1; min-width: 0; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qbox .q::after { content: ''; display: inline-block; width: 2px; height: 1.05em; background: var(--violet); vertical-align: -2px; margin-left: 2px; animation: blink 1s steps(1) infinite; }
+.qbox.done .q::after { display: none; }
+@keyframes blink { 50% { opacity: 0; } }
+.qbox .timer { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: #fff; background: var(--grad); border-radius: 999px; padding: 8px 12px; font-variant-numeric: tabular-nums; }
+.demo-note { font-size: 13px; color: var(--muted); background: var(--tint); border-radius: 10px; padding: 10px 12px; margin: 0; }
+.demo-note b { color: var(--ink); font-weight: 600; }
+.bool { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); background: var(--paper); border: 1px dashed var(--line); border-radius: var(--r-md);
+  padding: 10px 12px; margin: 0; overflow-wrap: anywhere; min-height: 44px; }
+.bool .k { color: var(--violet); font-weight: 500; }
+.panel-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.panel-h small { font-size: 12px; color: var(--muted); }
+.sources { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.src { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: 13px; font-weight: 500;
+  color: var(--muted); transition: background .3s, color .3s, border-color .3s; min-width: 0; }
+.src i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); flex-shrink: 0; transition: background .3s, box-shadow .3s; }
+.src em { margin-left: auto; font-style: normal; font-family: var(--font-mono); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.src .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.src.live { color: var(--ink); background: var(--tint); }
+.src.live i { background: var(--lilac); box-shadow: 0 0 0 4px color-mix(in srgb, var(--lilac) 22%, transparent); }
+.src.extra { border-style: dashed; }
+.funnel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.fn { padding: 10px 8px; border-radius: 12px; background: var(--tint); text-align: left; opacity: .35; transition: opacity .4s; min-width: 0; }
+.fn.on { opacity: 1; }
+.fn b { display: block; font-size: 20px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.fn span { font-size: 11px; color: var(--muted); line-height: 1.25; display: block; margin-top: 2px; }
+.fn.warn b { color: var(--warn); }
+
+.results { display: grid; gap: 10px; position: relative; }
+.card { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 14px 12px; display: grid; gap: 8px; background: var(--paper);
+  transition: border-color .3s, background .3s; }
+.card.top1 { border-color: var(--lilac); }
+.card .row { display: flex; gap: 12px; align-items: flex-start; }
+.rank { font-size: 13px; font-weight: 700; color: var(--muted); width: 18px; flex-shrink: 0; padding-top: 2px; font-variant-numeric: tabular-nums; }
+.card h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; flex: 1; min-width: 0; }
+.card .meta { font-size: 12.5px; color: var(--muted); margin: 2px 0 0; }
+.score { flex-shrink: 0; text-align: right; }
+.score b { display: block; font-size: 24px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+.score span { font-size: 11px; color: var(--muted); }
+.bars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding-left: 30px; }
+.bar { display: grid; gap: 3px; font-size: 10.5px; color: var(--muted); letter-spacing: 0.02em; }
+.bar s { display: block; height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; text-decoration: none; }
+.bar s::after { content: ''; display: block; height: 100%; width: var(--w, 0%); background: var(--grad); transition: width .6s ease; }
+.card.retracted { background: var(--warn-tint); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+.card.retracted .score b { color: var(--warn); }
+.flag { display: none; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--warn); padding-left: 30px; }
+.card.retracted .flag { display: flex; }
+
+.tune { display: grid; gap: 10px; background: var(--tint); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px; }
+.tune p { margin: 0; font-weight: 600; font-size: 15px; }
+.tune .ends { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); font-weight: 500; }
+input[type=range] { width: 100%; accent-color: var(--violet); height: 28px; margin: 0; }
+.verdict { font-size: 22px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.2; margin: 0; text-wrap: balance; }
+.note { font-size: 12px; color: var(--muted); margin: 0; }
+.hide-soft { opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity .4s, transform .4s; }
+.show-soft { opacity: 1; transform: none; pointer-events: auto; }
+
+/* Ekran 3: form */
+form { display: grid; gap: 18px; }
+.field { display: grid; gap: 6px; }
+label, .lbl { font-size: 14px; font-weight: 600; }
+label .opt { font-weight: 400; color: var(--muted); }
+input[type=text], input[type=email] { font: inherit; font-size: 17px; color: var(--ink); background: var(--tint); border: 1px solid var(--line); border-radius: var(--r-md);
+  padding: 14px 16px; min-height: 54px; width: 100%; }
+input::placeholder { color: color-mix(in srgb, var(--muted) 70%, transparent); }
+input[aria-invalid=true] { border-color: var(--warn); }
+.err { font-size: 13px; color: var(--warn); min-height: 0; margin: 0; }
+.roles { display: flex; flex-wrap: wrap; gap: 8px; }
+.role { font: inherit; font-size: 15px; font-weight: 500; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 999px;
+  padding: 10px 16px; min-height: 46px; cursor: pointer; transition: background .2s, border-color .2s, color .2s; }
+.role[aria-pressed=true] { background: var(--grad); color: #fff; border-color: transparent; }
+.consent { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; color: var(--muted); font-weight: 400; line-height: 1.45; }
+.consent input { width: 22px; height: 22px; accent-color: var(--violet); flex-shrink: 0; margin: 1px 0 0; }
+.consent a { color: var(--violet); }
+.kvkk-text { font-size: 13px; color: var(--muted); }
+.kvkk-text summary { cursor: pointer; font-weight: 600; color: var(--violet); padding: 6px 0; min-height: 32px; }
+.kvkk-text p { margin: 4px 0 0; line-height: 1.5; }
+.kvkk-text a { color: var(--violet); }
+.pitch { display: grid; gap: 8px; border-left: 3px solid var(--lilac); padding: 4px 0 4px 14px; }
+.pitch p { margin: 0; font-size: 15px; }
+.pitch b { font-weight: 600; }
+
+/* Ekran 4 */
+.done-mark { width: 72px; height: 72px; border-radius: 50%; background: var(--grad); display: grid; place-items: center; animation: pop .5s cubic-bezier(.2,1.4,.4,1) both; }
+.done-mark svg { width: 34px; height: 34px; }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+.next { display: grid; gap: 10px; }
+.next a, .next button { text-decoration: none; }
+
+/* Butonlar ve alt çubuk */
+.btn { font: inherit; font-size: 17px; font-weight: 600; border: 0; border-radius: 999px; min-height: 56px; padding: 0 24px; width: 100%; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: #fff; background: var(--grad); transition: transform .15s, opacity .2s; }
+.btn:active { transform: scale(.98); }
+.btn.soft { background: var(--tint); color: var(--ink); border: 1px solid var(--line); }
+.btn[disabled] { opacity: .5; cursor: default; }
+.link { font: inherit; font-size: 15px; font-weight: 600; color: var(--violet); background: none; border: 0; padding: 10px 4px; cursor: pointer; text-align: center; }
+.dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, var(--paper) 70%, color-mix(in srgb, var(--paper) 0%, transparent)); }
+.dock .in { max-width: 440px; margin: 0 auto; display: grid; gap: 2px; }
+
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><path d="M13.5 2 4 13.6h6.6L9.6 22 20 9.9h-6.7z"/></svg></span>
+      Literatür AI
+      <span class="tag">Fuar demosu</span>
+    </div>
+    <div class="steps" aria-hidden="true"><span id="s1" class="on"></span><span id="s2"></span><span id="s3"></span></div>
+    <div class="steps-l" aria-hidden="true"><b id="l1" class="on">Tanıyın</b><b id="l2">Deneyin</b><b id="l3">Görüşelim</b></div>
+  </header>
+
+  <!-- 1. Tanıyın -->
+  <section class="screen" id="v-intro" aria-labelledby="h-intro">
+    <h1 id="h-intro">Doğru kaynak,<br><span class="v">saniyeler içinde.</span></h1>
+    <p class="lead">Yapay zekâ destekli akademik arama asistanı. Konunuzu yazın, en güvenilir makaleler sıralı ve gerekçeli olarak önünüze gelsin.</p>
+    <div class="stats">
+      <div class="stat"><b>11</b><span>açık akademik kaynak, tek arama</span></div>
+      <div class="stat"><b>4–10<small>sn</small></b><span>konudan sıralı listeye</span></div>
+    </div>
+    <div class="pick">
+      <p class="eyebrow">Bir konuya dokunun, canlı izleyin</p>
+      <div class="topics" id="topics"></div>
+    </div>
+  </section>
+
+  <!-- 2. Deneyin -->
+  <section class="screen" id="v-demo" hidden aria-labelledby="h-demo">
+    <h2 id="h-demo" class="vh">Canlı demo</h2>
+    <p class="demo-note">Bu bir <b>canlandırma</b>: akış gerçek ürünün adımlarını birebir izler, makaleler ve sayılar örnektir.</p>
+    <div class="qbox" id="qbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="q" id="q"></span>
+      <span class="timer" id="timer">0,0 sn</span>
+    </div>
+    <p class="bool" id="bool" aria-live="polite"></p>
+
+    <div class="panel-h"><p class="eyebrow">Kaynaklar paralel taranıyor</p><small id="srcCount">0 / 11</small></div>
+    <div class="sources" id="sources"></div>
+
+    <div class="funnel" id="funnel">
+      <div class="fn" id="f1"><b>0</b><span>kayıt bulundu</span></div>
+      <div class="fn" id="f2"><b>0</b><span>kopya DOI ile birleşti</span></div>
+      <div class="fn" id="f3"><b>0</b><span>konuyla alakalı</span></div>
+      <div class="fn warn" id="f4"><b>0</b><span>geri çekilmiş yakalandı</span></div>
+    </div>
+
+    <div class="hide-soft" id="resWrap" style="display:grid;gap:12px">
+      <div class="panel-h"><p class="eyebrow" id="rankLbl">AHP ile sıralanıyor…</p><small>Örnek gösterim</small></div>
+      <div class="results" id="results"></div>
+    </div>
+
+    <div class="hide-soft" id="after" style="display:grid;gap:18px">
+      <div class="tune">
+        <p>Sıralamayı siz belirleyin</p>
+        <label for="w" class="vh">Klasik çalışmalar ile güncel çalışmalar arasındaki ağırlık</label>
+        <input type="range" id="w" min="0" max="100" value="35">
+        <div class="ends"><span>Çok atıf alanlar</span><span>En güncel</span></div>
+      </div>
+      <p class="verdict" id="verdict"></p>
+      <p class="note">Gösterimdeki makaleler örnektir. Gerçek aramalar 4–10 saniye sürer ve her puanın gerekçesi görünür.</p>
+    </div>
+  </section>
+
+  <!-- 3. Görüşelim -->
+  <section class="screen" id="v-form" hidden aria-labelledby="h-form">
+    <h2 id="h-form">Sunumu<br><span class="v">e-postanıza</span> gönderelim.</h2>
+    <p class="lead">Yatırımcı sunumumuzu hemen iletelim, 48 saat içinde görüşme için size dönelim.</p>
+    <div class="pitch" id="pitch" hidden></div>
+    <form id="lead" novalidate>
+      <div class="field">
+        <label for="name">Ad soyad</label>
+        <input type="text" id="name" name="name" autocomplete="name" placeholder="Ayşe Demir" required>
+        <p class="err" id="e-name" hidden>Size nasıl hitap edeceğimizi yazın.</p>
+      </div>
+      <div class="field">
+        <label for="email">E-posta</label>
+        <input type="email" id="email" name="email" autocomplete="email" inputmode="email" placeholder="ayse@fon.com" required>
+        <p class="err" id="e-email" hidden>Sunumu gönderebilmemiz için geçerli bir e-posta yazın.</p>
+      </div>
+      <div class="field">
+        <span class="lbl" id="roleLbl">Sizi en iyi ne tanımlar?</span>
+        <div class="roles" role="group" aria-labelledby="roleLbl" id="roles"></div>
+        <p class="err" id="e-role" hidden>Bir seçenek işaretleyin.</p>
+      </div>
+      <div class="field">
+        <label for="org">Şirket veya fon <span class="opt">(isteğe bağlı)</span></label>
+        <input type="text" id="org" name="org" autocomplete="organization" placeholder="Örn. Anadolu Girişim">
+      </div>
+      <div class="field">
+        <label class="consent" for="kvkk"><input type="checkbox" id="kvkk" name="kvkk" required>
+          <span>Bilgilerimin sunum gönderimi ve görüşme için işlenmesini kabul ediyorum.</span></label>
+        <details class="kvkk-text">
+          <summary>KVKK aydınlatma metni</summary>
+          <p>Veri sorumlusu Literatür AI'dir. Bu formda verdiğiniz ad, e-posta, rol ve kurum bilgisi
+          yalnızca size yatırımcı sunumunu iletmek ve görüşme talebinizi karşılamak için işlenir;
+          üçüncü taraflarla paylaşılmaz ve en geç bir yıl içinde silinir. KVKK 11. madde kapsamındaki
+          bilgi edinme, düzeltme ve silme haklarınızı <a href="mailto:info@literatur-ai.com">info@literatur-ai.com</a>
+          adresine yazarak kullanabilirsiniz.</p>
+        </details>
+        <p class="err" id="e-kvkk" hidden>Devam etmek için onay kutusunu işaretleyin.</p>
+      </div>
+    </form>
+  </section>
+
+  <!-- 4. Teşekkür -->
+  <section class="screen" id="v-done" hidden aria-labelledby="h-done">
+    <div class="done-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div>
+    <h2 id="h-done">Teşekkürler,<br><span class="v" id="hi">Ayşe</span>.</h2>
+    <p class="lead" id="doneLead">Sunumumuz e-postanıza yolda. Fuar boyunca standımızda da sizi bekliyoruz.</p>
+    <div class="next">
+      <a class="btn" href="https://www.literatur-ai.com/" target="_blank" rel="noopener">Ürünü kendiniz deneyin →</a>
+      <button class="btn soft" type="button" id="replay">Demoyu tekrar izleyin</button>
+    </div>
+  </section>
+</div>
+
+<nav class="dock" aria-label="Akış"><div class="in" id="dock"></div></nav>
+
+<script>
+/* Yatırımcı bilgileri: doldurulan satırlar formun üstünde görünür, boş olanlar hiç gösterilmez. */
+const PITCH = { pazar: '', cekis: '', arayis: '' };
+/* Form gönderim adresi, ör. '/api/leads' ya da bir form servisinin URL'si.
+   Boş bırakılırsa form, ziyaretçinin kendi e-posta uygulamasını hazır bir
+   taslakla açar; böylece uç nokta kurulmadan da hiçbir kayıt kaybolmaz. */
+const SUBMIT_ENDPOINT = '';
+/* mailto yedeğinin gideceği adres. */
+const LEAD_EMAIL = 'info@literatur-ai.com';
+
+const TOPICS = [
+  { id: 'smr', label: 'Küçük modüler nükleer reaktörler', q: 'Küçük modüler nükleer reaktörler',
+    bool: ['("small modular reactor" OR SMR)', 'AND', '(safety OR economics OR licensing)'],
+    total: 14820, dedup: 9412, rel: 286, retr: 2,
+    papers: [
+      { t: 'Small modular reactors: a comparative review of passive safety systems', v: 'Progress in Nuclear Energy', y: 2023, c: 64, r: 88, a: 96, k: 90 },
+      { t: 'Economics of SMR deployment under carbon pricing scenarios', v: 'Energy Policy', y: 2021, c: 82, r: 72, a: 90, k: 86 },
+      { t: 'Licensing pathways for factory-built nuclear units', v: 'Nuclear Engineering and Design', y: 2019, c: 91, r: 48, a: 84, k: 88 },
+      { t: 'Coolant behaviour in integral pressurised water SMRs', v: 'Annals of Nuclear Energy', y: 2024, c: 30, r: 97, a: 88, k: 80 },
+      { t: 'Thermal margin claims for micro-reactors', v: 'Journal of Nuclear Science', y: 2022, c: 70, r: 80, a: 92, k: 85, retracted: true },
+    ] },
+  { id: 'ai', label: 'Yapay zekâ ile kanser teşhisi', q: 'Yapay zekâ ile kanser teşhisi',
+    bool: ['("deep learning" OR "artificial intelligence")', 'AND', '(cancer OR tumor) AND (diagnosis OR screening)'],
+    total: 38410, dedup: 24977, rel: 412, retr: 3,
+    papers: [
+      { t: 'Deep learning for mammography screening: a multi-centre evaluation', v: 'The Lancet Digital Health', y: 2022, c: 88, r: 80, a: 97, k: 95 },
+      { t: 'Explainable models for skin lesion classification', v: 'Nature Medicine', y: 2020, c: 95, r: 60, a: 90, k: 96 },
+      { t: 'Foundation models in computational pathology', v: 'Cell', y: 2024, c: 40, r: 98, a: 89, k: 92 },
+      { t: 'Bias in AI-assisted lung nodule detection', v: 'Radiology', y: 2023, c: 52, r: 90, a: 86, k: 90 },
+      { t: 'Near-perfect accuracy in pancreatic cancer prediction', v: 'Journal of Oncology AI', y: 2021, c: 75, r: 70, a: 94, k: 82, retracted: true },
+    ] },
+  { id: 'climate', label: 'İklim değişikliği ve tarımsal verim', q: 'İklim değişikliği ve tarımsal verim',
+    bool: ['("climate change" OR warming)', 'AND', '("crop yield" OR agriculture OR "food security")'],
+    total: 26145, dedup: 17306, rel: 349, retr: 1,
+    papers: [
+      { t: 'Global crop yield responses to temperature extremes', v: 'Nature Food', y: 2021, c: 90, r: 70, a: 96, k: 94 },
+      { t: 'Drought adaptation strategies in Mediterranean wheat', v: 'Agricultural Systems', y: 2023, c: 55, r: 88, a: 93, k: 88 },
+      { t: 'Climate trends and global crop production since 1980', v: 'Science', y: 2011, c: 99, r: 18, a: 88, k: 97 },
+      { t: 'Soil carbon and yield stability under warming', v: 'Global Change Biology', y: 2024, c: 28, r: 98, a: 85, k: 87 },
+      { t: 'Rapid yield recovery after heatwaves in maize', v: 'Field Crops Letters', y: 2020, c: 66, r: 64, a: 90, k: 80, retracted: true },
+    ] },
+];
+const SOURCES = [
+  ['OpenAlex', .34], ['Crossref', .22], ['Semantic Scholar', .14], ['Europe PMC', .08], ['arXiv', .05],
+  ['DOAJ', .05], ['CORE', .06], ['OpenAIRE', .04], ['DataCite', .02], ['OpenCitations', 0, 1], ['Unpaywall', 0, 1],
+];
+const ROLES = ['Melek yatırımcı', 'Girişim sermayesi (VC)', 'Kurumsal / stratejik', 'Akademi / üniversite', 'Diğer'];
+
+const $ = (s) => document.querySelector(s);
+const fmt = (n) => Math.round(n).toLocaleString('tr-TR');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const views = { intro: $('#v-intro'), demo: $('#v-demo'), form: $('#v-form'), done: $('#v-done') };
+let topic = TOPICS[0], timers = [], role = null, penalize = false;
+
+const ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+$('#topics').innerHTML = TOPICS.map((t) => `<button class="topic" type="button" data-id="${t.id}">${ICON}<span>${t.label}</span><span class="go">İzle →</span></button>`).join('');
+$('#topics').addEventListener('click', (e) => { const b = e.target.closest('.topic'); if (b) start(TOPICS.find((t) => t.id === b.dataset.id)); });
+$('#roles').innerHTML = ROLES.map((r) => `<button class="role" type="button" aria-pressed="false">${r}</button>`).join('');
+$('#roles').addEventListener('click', (e) => {
+  const b = e.target.closest('.role'); if (!b) return;
+  document.querySelectorAll('.role').forEach((x) => x.setAttribute('aria-pressed', x === b));
+  role = b.textContent; $('#e-role').hidden = true;
+});
+
+const pitchRows = [['Pazar', PITCH.pazar], ['Çekiş', PITCH.cekis], ['Aradığımız', PITCH.arayis]].filter(([, v]) => v);
+if (pitchRows.length) { $('#pitch').innerHTML = pitchRows.map(([k, v]) => `<p><b>${k}:</b> ${v}</p>`).join(''); $('#pitch').hidden = false; }
+
+function dock(html) { $('#dock').innerHTML = html; }
+function step(n) {
+  [1, 2, 3].forEach((i) => { $('#s' + i).classList.toggle('on', i <= n); $('#l' + i).classList.toggle('on', i === n); });
+}
+function show(name) {
+  Object.entries(views).forEach(([k, el]) => { el.hidden = k !== name; });
+  scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+}
+function later(fn, ms) { timers.push(setTimeout(fn, reduce ? 0 : ms)); }
+function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+function countTo(el, to, ms) {
+  if (reduce) { el.textContent = fmt(to); return; }
+  const t0 = performance.now();
+  const tick = (now) => { const p = Math.min(1, (now - t0) / ms); el.textContent = fmt(to * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+}
+
+function introDock() {
+  dock(`<button class="btn" type="button" id="goDemo">Canlı demoyu başlatın →</button>
+        <button class="link" type="button" id="skip1">Demoyu atlayıp sunumu isteyin</button>`);
+  $('#goDemo').onclick = () => start(topic);
+  $('#skip1').onclick = toForm;
+}
+
+/* --- Demo --- */
+function score(p, w) {
+  // AHP benzeri: alaka ve kalite sabit, atıf ↔ güncellik kaydırıcıyla paylaşılır. Geri çekilen ağır ceza alır.
+  const s = p.a * 0.35 + p.k * 0.15 + p.c * 0.5 * (1 - w) + p.r * 0.5 * w;
+  return p.retracted && penalize ? s * 0.35 : s;
+}
+function renderResults(animate) {
+  const w = $('#w').value / 100;
+  const all = topic.papers.map((p) => ({ p, s: score(p, w) })).sort((a, b) => b.s - a.s);
+  // Ceza sonrası geri çekilen makale listeden düşmez, yakalandığı görünsün diye en alta iner.
+  const list = penalize ? [...all.filter((x) => !x.p.retracted).slice(0, 3), ...all.filter((x) => x.p.retracted)] : all.slice(0, 4);
+  const host = $('#results');
+  const before = new Map([...host.children].map((el) => [el.dataset.k, el.getBoundingClientRect().top]));
+  host.innerHTML = list.map(({ p, s }, i) => `
+    <article class="card${i === 0 ? ' top1' : ''}${p.retracted && penalize ? ' retracted' : ''}" data-k="${p.t}">
+      <div class="row"><span class="rank">${i + 1}</span>
+        <div style="flex:1;min-width:0"><h3>${p.t}</h3><p class="meta">${p.v} · ${p.y}</p></div>
+        <div class="score"><b>${Math.round(s)}</b><span>/ 100</span></div></div>
+      <div class="bars">
+        <span class="bar">Atıf<s style="--w:${animate ? 0 : p.c}%" data-w="${p.c}"></s></span>
+        <span class="bar">Güncellik<s style="--w:${animate ? 0 : p.r}%" data-w="${p.r}"></s></span>
+        <span class="bar">Alaka<s style="--w:${animate ? 0 : p.a}%" data-w="${p.a}"></s></span>
+        <span class="bar">Kalite<s style="--w:${animate ? 0 : p.k}%" data-w="${p.k}"></s></span>
+      </div>
+      <p class="flag">⚠ Geri çekilmiş makale: Crossref kaydıyla işaretlendi, aşağı indirildi</p>
+    </article>`).join('');
+  if (animate) requestAnimationFrame(() => host.querySelectorAll('.bar s').forEach((s) => s.style.setProperty('--w', s.dataset.w + '%')));
+  if (!reduce) [...host.children].forEach((el) => {
+    const old = before.get(el.dataset.k); if (old == null) return;
+    const dy = old - el.getBoundingClientRect().top; if (!dy) return;
+    el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  });
+  const top = list[0].p;
+  $('#rankLbl').textContent = penalize ? 'AHP ile sıralandı · ilk 3 + yakalanan' : 'AHP ile sıralanıyor…';
+  $('#verdict').innerHTML = `<span class="v">${fmt(topic.dedup)}</span> makaleden en uygunu: “${top.t.split(':')[0]}”.`;
+}
+$('#w').addEventListener('input', () => renderResults(false));
+
+function start(t) {
+  topic = t; clearTimers(); step(2); show('demo');
+  dock(`<button class="btn" type="button" id="toForm">Yatırımcı sunumunu alın →</button>`);
+  $('#toForm').onclick = toForm;
+
+  // sıfırla
+  $('#qbox').classList.remove('done'); $('#q').textContent = ''; $('#bool').innerHTML = '&nbsp;';
+  $('#sources').innerHTML = SOURCES.map(([n, , extra]) => `<div class="src${extra ? ' extra' : ''}"><i></i><span class="nm">${n}</span><em>–</em></div>`).join('');
+  $('#srcCount').textContent = '0 / ' + SOURCES.length;
+  ['#f1', '#f2', '#f3', '#f4'].forEach((f) => { $(f).classList.remove('on'); $(f + ' b').textContent = '0'; });
+  ['#resWrap', '#after'].forEach((s) => $(s).classList.replace('show-soft', 'hide-soft'));
+  $('#results').innerHTML = ''; $('#w').value = 35; penalize = false;
+
+  const t0 = performance.now(); let running = true;
+  const clock = () => { if (!running) return; $('#timer').textContent = ((performance.now() - t0) / 1000).toFixed(1).replace('.', ',') + ' sn'; requestAnimationFrame(clock); };
+  if (!reduce) requestAnimationFrame(clock);
+
+  // 1) sorgu yazılır
+  [...t.q].forEach((ch, i) => later(() => { $('#q').textContent += ch; }, 25 * i));
+  const typed = 25 * t.q.length + 150;
+  later(() => { $('#qbox').classList.add('done'); $('#bool').innerHTML = `<span class="k">Yapay zekâ sorgusu:</span> ${t.bool.join(' ')}`; }, typed);
+
+  // 2) kaynaklar yanar
+  const srcEls = () => [...document.querySelectorAll('.src')];
+  SOURCES.forEach(([, share, extra], i) => later(() => {
+    const el = srcEls()[i]; el.classList.add('live');
+    const em = el.querySelector('em');
+    if (extra) em.textContent = 'zengin.'; else countTo(em, t.total * share, 500);
+    $('#srcCount').textContent = (i + 1) + ' / ' + SOURCES.length;
+  }, typed + 300 + i * 190));
+  const srcDone = typed + 300 + SOURCES.length * 190;
+
+  // 3) huni
+  [['#f1', t.total], ['#f2', t.dedup], ['#f3', t.rel], ['#f4', t.retr]].forEach(([f, n], i) => later(() => {
+    $(f).classList.add('on'); countTo($(f + ' b'), n, 550);
+  }, srcDone + 200 + i * 420));
+  const funnelDone = srcDone + 200 + 4 * 420;
+
+  // 4) sonuçlar
+  later(() => { $('#resWrap').classList.replace('hide-soft', 'show-soft'); renderResults(true); }, funnelDone);
+  later(() => { penalize = true; renderResults(false); }, funnelDone + 1100);
+  later(() => {
+    running = false; $('#after').classList.replace('hide-soft', 'show-soft');
+    if (reduce) $('#timer').textContent = '6,1 sn';
+  }, funnelDone + 1900);
+}
+
+/* --- Form --- */
+function toForm() { clearTimers(); step(3); show('form');
+  dock(`<button class="btn" type="submit" form="lead" id="send">Sunumu gönderin</button>`); }
+
+$('#lead').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = $('#name').value.trim(), email = $('#email').value.trim(), kvkk = $('#kvkk').checked;
+  const checks = [['name', name.length > 1], ['email', /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)], ['role', !!role], ['kvkk', kvkk]];
+  let first = null;
+  checks.forEach(([k, ok]) => {
+    $('#e-' + k).hidden = ok;
+    const input = $('#' + k); if (input && input.tagName === 'INPUT' && input.type !== 'checkbox') input.setAttribute('aria-invalid', !ok);
+    if (!ok && !first) first = k;
+  });
+  if (first) { (first === 'role' ? $('.role') : $('#' + first)).focus(); return; }
+
+  const payload = { name, email, role, org: $('#org').value.trim(), topic: topic.id, kvkk: true, at: new Date().toISOString(), source: 'fuar-qr' };
+  const btn = $('#send'); btn.disabled = true; btn.textContent = 'Gönderiliyor…';
+  if (SUBMIT_ENDPOINT) {
+    let saved = false;
+    try { const r = await fetch(SUBMIT_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); saved = r.ok; }
+    catch { saved = false; }
+    if (!saved) { btn.disabled = false; btn.textContent = 'Tekrar deneyin'; $('#e-email').hidden = false;
+      $('#e-email').textContent = 'Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin.'; return; }
+  } else {
+    // Uç nokta yoksa kayıt kaybolmasın: ziyaretçinin e-posta uygulaması hazır taslakla açılır.
+    const body = [`Ad soyad: ${name}`, `E-posta: ${email}`, `Rol: ${role}`,
+      `Kurum: ${payload.org || '-'}`, `İlgilendiği konu: ${topic.label}`, '', 'Yatırımcı sunumunu rica ediyorum.'].join('\n');
+    location.href = `mailto:${LEAD_EMAIL}?subject=${encodeURIComponent('Sunum talebi — ' + name)}&body=${encodeURIComponent(body)}`;
+  }
+  $('#hi').textContent = name.split(' ')[0];
+  $('#doneLead').textContent = SUBMIT_ENDPOINT
+    ? 'Sunumumuz e-postanıza yolda. Fuar boyunca standımızda da sizi bekliyoruz.'
+    : 'E-posta uygulamanızda hazır bir mesaj açıldı; göndermeniz yeterli. Fuar boyunca standımızda da sizi bekliyoruz.';
+  step(3); show('done'); dock('');
+});
+
+$('#replay').onclick = () => start(topic);
+introDock();
+</script>
+</body>
+</html>

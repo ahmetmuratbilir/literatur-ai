@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Literatür AI roll-up sade</title>
+<!--
+  Roll-up afiş (beyaz, sade), 900 x 2000 mm, birebir ölçek (1 CSS mm = 1 baskı mm).
+  Baskı: ?bleed=3 ile 906 x 2006 mm PDF (Edge/Chrome), sonra Ghostscript ile
+  CMYK + yazılar eğri. Güvenli alanlar: yanlar 60 mm, üst 70 mm, alt 150 mm
+  (kaset/ayak arkasında kalır). ?guides=1 ile çizgiler görünür.
+
+  Renkler baskı değerine göre seçildi. CMYK dönüşümü basit formülle yapılıyor
+  (Ghostscript UseFastColor + tam siyah üretimi): K = 1 - max(R,G,B), kalan
+  C/M/Y = 1 - R/G/B. Bu yüzden ekranda daha canlı görünen RGB değerleri
+  baskıda aşağıdaki CMYK'ya karşılık gelir. Siyah/gri metin yalnız K kanalında
+  (dört renkli siyah kayıp renkli hale yapmasın). Baskı görünümü için
+  CMYK PDF'ten üretilen önizlemeye bakın, tarayıcıya değil.
+
+  Rakamların dayanağı (3 Eki 2026):
+  - "300M+ akademik yayın": OpenAlex /works toplamı 327.439.234
+    (Crossref ayrıca 187 milyon kayıt). Kaynaklar örtüştüğü için toplanmadı.
+  - "10+ veri kaynağı": 9 arama kaynağı + OpenCitations + Unpaywall = 11.
+  - "saniyeler içinde": ölçülen arama süresi 4-10 sn.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: 900mm 2000mm; margin: 0; }
+  :root {
+    --ink: #000000;        /* K100 */
+    --muted: #595959;      /* K65 */
+    --purple: #4d1aff;     /* C70 M90 Y0 K0 */
+    --indigo: #334dff;     /* C80 M70 Y0 K0 */
+    --violet: #8c38ff;     /* C45 M78 Y0 K0 */
+    --tint: #f5f2ff;       /* C4 M5 Y0 K0 */
+    --tint-line: #dbd1ff;  /* C14 M18 Y0 K0 */
+    --b: 0mm; /* taşma payı; ?bleed=3 ile 3 mm */
+    --W: calc(900mm + 2 * var(--b));
+    --H: calc(2000mm + 2 * var(--b));
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: var(--W); height: var(--H); background: #fff; overflow: hidden; }
+  body { font-family: 'Outfit', system-ui, sans-serif; color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  svg.i { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+  .page { position: relative; width: var(--W); height: var(--H); overflow: hidden; background: #fff; }
+  /* Bölümler üstten alta eşit aralıkla dağılır (link bandı yok). */
+  .content { position: absolute; left: calc(60mm + var(--b)); right: calc(60mm + var(--b)); top: calc(80mm + var(--b)); bottom: calc(185mm + var(--b));
+    display: flex; flex-direction: column; justify-content: space-between; }
+
+  .brand { display: flex; align-items: center; gap: 32mm; }
+  .mark { width: 132mm; height: 132mm; border-radius: 36mm; display: grid; place-items: center; color: #fff; font-size: 78mm;
+    background: linear-gradient(135deg, var(--indigo), var(--violet)); }
+  .mark svg { fill: currentColor; stroke: none; }
+  .brand-name { font-size: 102mm; font-weight: 700; letter-spacing: -2.5mm; line-height: 1; }
+
+  h1 { font-size: 118mm; font-weight: 800; line-height: 1.0; letter-spacing: -4mm; }
+  h1 .accent { color: var(--purple); }
+  .lead { margin-top: 44mm; font-size: 31mm; line-height: 1.42; color: var(--muted); font-weight: 400; }
+
+  .search { height: 104mm; display: flex; align-items: center; gap: 18mm; padding: 0 14mm 0 34mm; border-radius: 999mm;
+    background: var(--tint); border: 1.2mm solid var(--tint-line); font-size: 27mm; color: var(--muted); }
+  .search .i { font-size: 34mm; color: var(--purple); }
+  .search span { flex: 1; font-weight: 400; }
+  .search b { height: 76mm; padding: 0 36mm; border-radius: 999mm; display: grid; place-items: center; font-size: 26mm; font-weight: 600; color: #fff;
+    background: linear-gradient(135deg, var(--indigo), var(--violet)); }
+
+  .stats { display: grid; grid-template-columns: auto 1fr; }
+  .stat:first-child { padding-right: 50mm; }
+  .stat + .stat { padding-left: 50mm; border-left: 1.2mm solid var(--tint-line); }
+  .num { font-size: 124mm; font-weight: 800; line-height: 0.9; letter-spacing: -5mm; white-space: nowrap; }
+  .num small { font-size: 0.5em; letter-spacing: -1mm; color: var(--purple); margin-left: 3mm; }
+  .label { margin-top: 14mm; font-size: 27mm; color: var(--muted); font-weight: 400; }
+
+  .list { display: grid; gap: 26mm; list-style: none; }
+  .list li { display: flex; align-items: center; gap: 20mm; font-size: 32mm; font-weight: 500; line-height: 1.1; }
+  .tick { width: 46mm; height: 46mm; border-radius: 50%; display: grid; place-items: center; font-size: 26mm; color: #fff; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--indigo), var(--violet)); }
+  .tick svg { stroke-width: 3; }
+
+  /* Önizleme çizgileri (?guides=1); PDF'de kapalı */
+  .guides .page::after { content: ''; position: absolute; inset: calc(70mm + var(--b)) calc(60mm + var(--b)) calc(150mm + var(--b)) calc(60mm + var(--b)); outline: 2mm dashed rgba(239, 68, 68, 0.7); pointer-events: none; }
+  .guides .page::before { content: 'ALT 150 mm: ayak/kaset arkasında kalır'; position: absolute; left: 0; right: 0; bottom: 0; height: calc(150mm + var(--b));
+    display: grid; place-items: center; font-size: 20mm; font-weight: 700; color: rgba(185, 28, 28, 0.85);
+    background: repeating-linear-gradient(45deg, rgba(239, 68, 68, 0.08) 0 12mm, transparent 12mm 24mm); z-index: 5; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="content">
+    <div class="brand">
+      <div class="mark"><svg class="i" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></div>
+      <div class="brand-name">Literatür AI</div>
+    </div>
+
+    <div class="hero">
+      <h1>Doğru kaynak,<br><span class="accent">saniyeler<br>içinde.</span></h1>
+      <p class="lead">Yapay zekâ destekli akademik arama asistanı. Konunuzu yazın, en güvenilir makaleler önünüze gelsin.</p>
+    </div>
+
+    <div class="search">
+      <svg class="i" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+      <span>Araştırma konunuzu yazın…</span>
+      <b>Ara</b>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="num">300M<small>+</small></div>
+        <div class="label">akademik yayın</div>
+      </div>
+      <div class="stat">
+        <div class="num">10<small>+</small></div>
+        <div class="label">veri kaynağı, tek arama</div>
+      </div>
+    </div>
+
+    <ul class="list">
+      <li><span class="tick"><svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>Yapay zekâ ile akıllı sorgu</li>
+      <li><span class="tick"><svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>Şeffaf ve açıklanabilir sıralama</li>
+      <li><span class="tick"><svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>Kaynakça doğrulama, APA 7</li>
+      <li><span class="tick"><svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>Seçtiğiniz makalelerle taslak yazımı</li>
+    </ul>
+  </div>
+</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  if (q.has('guides')) document.documentElement.classList.add('guides');
+  if (q.has('bleed')) document.documentElement.style.setProperty('--b', `${Number(q.get('bleed')) || 0}mm`);
+</script>
+</body>
+</html>
