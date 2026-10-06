@@ -489,7 +489,7 @@ export default {
     hero: {
       eyebrow: 'Academic search · transparent AHP ranking',
       title: 'Not a hundred papers. The right ten.',
-      lead: 'One query searches nine scholarly databases at once. Results are deduplicated, filtered for relevance and checked for retractions, then ranked by the criteria you weight — and every score comes with an explanation.',
+      lead: 'Nine scholarly databases, one query. You set the ranking criteria and see the reason behind every score.',
       placeholder: 'Describe your research topic…',
       search: 'Search',
       try: 'Try:',

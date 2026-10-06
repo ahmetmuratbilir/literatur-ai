@@ -489,7 +489,7 @@ export default {
     hero: {
       eyebrow: 'Akademik arama · şeffaf AHP sıralaması',
       title: 'Yüz makale değil, doğru on makale.',
-      lead: 'Tek sorgu dokuz akademik veri tabanını aynı anda tarar. Sonuçlar tekilleştirilir, alaka düzeyine göre süzülür, geri çekilme kontrolünden geçer ve sizin belirlediğiniz ölçütlerle sıralanır; her puanın açıklaması vardır.',
+      lead: 'Dokuz akademik veri tabanı, tek sorgu. Sıralama ölçütlerini siz belirlersiniz, her puanın gerekçesini görürsünüz.',
       placeholder: 'Araştırma konunuzu yazın…',
       search: 'Ara',
       try: 'Örnekler:',
