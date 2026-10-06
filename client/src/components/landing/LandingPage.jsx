@@ -206,13 +206,13 @@ export default function LandingPage({ landingTheme = 'light', setLandingTheme })
                       {row.map((key) => (
                         <span
                           key={key}
-                          className={`lp-chip${ENRICHMENT_SOURCES.includes(key) ? ' lp-chip--enrich' : ''}`}
+                          className={`lp-srcchip${ENRICHMENT_SOURCES.includes(key) ? ' lp-srcchip--enrich' : ''}`}
                           title={t(`landing.sources.items.${key}`)}
                         >
-                          <span className="lp-chip__dot" aria-hidden="true" />
+                          <span className="lp-srcchip__dot" aria-hidden="true" />
                           {SOURCE_NAMES[key]}
                           {ENRICHMENT_SOURCES.includes(key) && (
-                            <small className="lp-chip__tag">{t('landing.sources.enrichTag')}</small>
+                            <small className="lp-srcchip__tag">{t('landing.sources.enrichTag')}</small>
                           )}
                         </span>
                       ))}
