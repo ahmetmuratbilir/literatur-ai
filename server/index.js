@@ -771,7 +771,7 @@ app.post('/api/retractions', searchLimiter, async (req, res) => {
   }
 });
 
-// Fuar sayfasindaki (/marketing) iletisim formu. Kimlik dogrulamasi yok:
+// Fuar tanitim sayfasindaki (/tanitim) iletisim formu. Kimlik dogrulamasi yok:
 // ziyaretci bize QR ile geliyor, giris yapmis degil. O yuzden alan uzunluklari
 // sinirli ve IP basina dakikada bes gonderim var.
 const leadLimiter = rateLimit({
