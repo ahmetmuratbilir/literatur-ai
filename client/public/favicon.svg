@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140" width="140" height="140" fill="none">
+  <!-- logo.svg'deki marka işaretinin kare hâli: sekme simgesi, PWA ikonu ve
+       uygulama içindeki .ui-brand-mark aynı şimşeği gösterir. -->
+  <rect width="140" height="140" rx="32" fill="url(#brandGrad)"/>
+  <path d="M78 28L42 74H70L60 112L98 64H70L78 28Z" fill="#ffffff" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <defs>
+    <linearGradient id="brandGrad" x1="0" y1="0" x2="140" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+</svg>

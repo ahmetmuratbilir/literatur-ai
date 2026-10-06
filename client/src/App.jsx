@@ -814,7 +814,7 @@ function App() {
                   }}>
                     {[
                       { step: 1, title: 'AI & MeSH Çeviri', desc: 'Boolean Genişletme' },
-                      { step: 2, title: '12+ Global Kaynak', desc: 'PubMed, OpenAlex, Scopus' },
+                      { step: 2, title: '9 Açık Kaynak', desc: 'OpenAlex, Crossref, Europe PMC' },
                       { step: 3, title: 'AHP Matrisi', desc: 'SJR Q1-Q4 & Atıf Skoru' },
                       { step: 4, title: 'Unpaywall & PDF', desc: 'Açık Erişim Doğrulama' },
                     ].map((st, i) => {
