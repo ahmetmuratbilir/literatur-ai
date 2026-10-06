@@ -4,7 +4,6 @@ import {
   Download,
   FileSearch,
   Languages,
-  ListChecks,
   Moon,
   PenLine,
   Search,
@@ -42,6 +41,11 @@ const SOURCE_NAMES = {
   opencitations: 'OpenCitations',
   unpaywall: 'Unpaywall',
 };
+
+const ALL_SOURCES = [...SEARCH_SOURCES, ...ENRICHMENT_SOURCES];
+// Kaydırma şeridi iki satır; ikinci satır ters yöne akıyor.
+const MARQUEE_ROWS = [ALL_SOURCES.slice(0, 6), ALL_SOURCES.slice(6)];
+const FLOW_STEPS = ['adapt', 'parallel', 'merge'];
 
 const FEATURES = [
   { key: 'profiles', icon: SlidersHorizontal },
@@ -183,23 +187,42 @@ export default function LandingPage({ landingTheme = 'light', setLandingTheme })
           <p className="lp-eyebrow">{t('landing.sources.eyebrow')}</p>
           <h2>{t('landing.sources.title')}</h2>
           <p className="lp-section__lead">{t('landing.sources.lead')}</p>
-          <div className="lp-sources">
-            {SEARCH_SOURCES.map((key) => (
-              <div key={key} className="lp-source">
-                <strong>{SOURCE_NAMES[key]}</strong>
-                <span>{t(`landing.sources.items.${key}`)}</span>
+
+          <ol className="lp-flow">
+            {FLOW_STEPS.map((step, i) => (
+              <li key={step} className="lp-flow__step" style={{ '--i': i }}>
+                <span className="lp-flow__pulse" aria-hidden="true" />
+                {t(`landing.sources.flow.${step}`)}
+              </li>
+            ))}
+          </ol>
+
+          <div className="lp-marquee" aria-label={t('landing.sources.marqueeLabel')}>
+            {MARQUEE_ROWS.map((row, i) => (
+              <div key={i} className={`lp-marquee__row${i % 2 ? ' lp-marquee__row--reverse' : ''}`}>
+                <div className="lp-marquee__track">
+                  {[0, 1].map((copy) => (
+                    <div key={copy} className="lp-marquee__group" aria-hidden={copy === 1 || undefined}>
+                      {row.map((key) => (
+                        <span
+                          key={key}
+                          className={`lp-chip${ENRICHMENT_SOURCES.includes(key) ? ' lp-chip--enrich' : ''}`}
+                          title={t(`landing.sources.items.${key}`)}
+                        >
+                          <span className="lp-chip__dot" aria-hidden="true" />
+                          {SOURCE_NAMES[key]}
+                          {ENRICHMENT_SOURCES.includes(key) && (
+                            <small className="lp-chip__tag">{t('landing.sources.enrichTag')}</small>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
-          <h3 className="lp-subhead"><ListChecks size={16} aria-hidden="true" /> {t('landing.sources.enrichment')}</h3>
-          <div className="lp-sources lp-sources--two">
-            {ENRICHMENT_SOURCES.map((key) => (
-              <div key={key} className="lp-source">
-                <strong>{SOURCE_NAMES[key]}</strong>
-                <span>{t(`landing.sources.items.${key}`)}</span>
-              </div>
-            ))}
-          </div>
+
           <p className="lp-note"><Languages size={14} aria-hidden="true" /> {t('landing.sources.language')}</p>
         </section>
 

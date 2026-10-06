@@ -505,12 +505,12 @@ export default {
       title: 'From a topic to a ranked reading list in three steps',
       query: { title: 'Describe your topic', text: 'Write in English or Turkish. Turkish topics are translated, and AI builds a Boolean query adapted to each source.' },
       collect: { title: 'Collect and clean', text: 'Sources are queried in parallel, duplicates are merged by DOI, off-topic results are removed and retracted papers are flagged.' },
-      rank: { title: 'Rank transparently', text: 'AHP weighs citations, recency, relevance and quality. Pick a profile or set your own pairwise judgments, checked for consistency.' },
+      rank: { title: 'Rank transparently', text: 'AHP weighs citations, recency, relevance and quality. Pick a preset profile or set each criterion’s percentage yourself.' },
     },
     features: {
       eyebrow: 'Features',
       title: 'Built for literature reviews you can defend',
-      profiles: { title: 'Ranking profiles', text: 'Balanced, citation-focused, recent work and more — or compare criteria pairwise on the Saaty scale, with a consistency ratio check.' },
+      profiles: { title: 'Ranking profiles', text: 'Balanced, citation-focused, recent work and more — or set the weight of each criterion as a percentage yourself.' },
       explain: { title: 'Explainable scores', text: 'See how much each criterion contributed to a paper’s rank, and why a missing value scored zero.' },
       retraction: { title: 'Retraction check', text: 'Every result with a DOI is checked against Crossref retraction notices; retracted papers are flagged and pushed down.' },
       oa: { title: 'Open-access copies', text: 'Find legal free versions of paywalled papers through Unpaywall.' },
@@ -522,6 +522,13 @@ export default {
       title: 'Open scholarly infrastructure, searched together',
       lead: 'Each source is queried with a query adapted to its own syntax. Unavailable sources are reported in the results instead of failing silently.',
       enrichment: 'Used to enrich results',
+      marqueeLabel: 'Open scholarly sources we search',
+      enrichTag: 'enrichment',
+      flow: {
+        adapt: 'The query is adapted to each source’s syntax',
+        parallel: 'Sources are called in parallel',
+        merge: 'Results are merged by DOI and ranked',
+      },
       language: 'Searches run in English for the best coverage; result titles can optionally be shown in Turkish.',
       items: {
         openalex: 'Broad index of works, authors and venues',

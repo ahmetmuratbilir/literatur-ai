@@ -505,12 +505,12 @@ export default {
       title: 'Konudan sıralı okuma listesine üç adımda',
       query: { title: 'Konunuzu yazın', text: 'Türkçe ya da İngilizce yazın. Türkçe konular çevrilir; yapay zekâ her kaynağa uygun bir Boolean sorgu kurar.' },
       collect: { title: 'Topla ve temizle', text: 'Kaynaklar paralel sorgulanır, kopyalar DOI ile birleştirilir, konu dışı sonuçlar elenir, geri çekilen makaleler işaretlenir.' },
-      rank: { title: 'Şeffaf sırala', text: 'AHP atıf, güncellik, alaka ve kaliteyi tartar. Bir profil seçin ya da kendi ikili karşılaştırmalarınızı girin; tutarlılık kontrol edilir.' },
+      rank: { title: 'Şeffaf sırala', text: 'AHP atıf, güncellik, alaka ve kaliteyi tartar. Hazır bir profil seçin ya da ölçütlerin yüzdelerini kendiniz ayarlayın.' },
     },
     features: {
       eyebrow: 'Özellikler',
       title: 'Savunabileceğiniz literatür taramaları için',
-      profiles: { title: 'Sıralama profilleri', text: 'Dengeli, atıf odaklı, güncel çalışmalar ve daha fazlası; ya da ölçütleri Saaty ölçeğinde ikili karşılaştırın, tutarlılık oranı denetlensin.' },
+      profiles: { title: 'Sıralama profilleri', text: 'Dengeli, atıf odaklı, güncel çalışmalar ve daha fazlası; ya da her ölçütün ağırlığını yüzde olarak kendiniz belirleyin.' },
       explain: { title: 'Açıklanabilir puanlar', text: 'Her ölçütün makalenin sırasına katkısını ve eksik bir değerin neden sıfır aldığını görün.' },
       retraction: { title: 'Geri çekilme kontrolü', text: 'DOI’si olan her sonuç Crossref geri çekilme kayıtlarıyla karşılaştırılır; geri çekilen makaleler işaretlenir ve aşağı iner.' },
       oa: { title: 'Açık erişim kopyaları', text: 'Ücretli makalelerin yasal ücretsiz sürümlerini Unpaywall üzerinden bulun.' },
@@ -522,6 +522,13 @@ export default {
       title: 'Açık akademik altyapı, birlikte taranır',
       lead: 'Her kaynak kendi sözdizimine uyarlanmış bir sorguyla aranır. Yanıt vermeyen kaynaklar sessizce atlanmaz, sonuçlarda belirtilir.',
       enrichment: 'Sonuçları zenginleştirmek için',
+      marqueeLabel: 'Taranan açık akademik kaynaklar',
+      enrichTag: 'zenginleştirme',
+      flow: {
+        adapt: 'Sorgu her kaynağın sözdizimine uyarlanır',
+        parallel: 'Kaynaklar aynı anda çağrılır',
+        merge: 'Sonuçlar DOI ile birleştirilip sıralanır',
+      },
       language: 'En geniş kapsam için aramalar İngilizce yapılır; sonuç başlıkları isteğe bağlı olarak Türkçe gösterilebilir.',
       items: {
         openalex: 'Yayın, yazar ve dergilerin geniş dizini',
