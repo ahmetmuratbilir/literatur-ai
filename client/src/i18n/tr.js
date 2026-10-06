@@ -488,8 +488,8 @@ export default {
     },
     hero: {
       eyebrow: 'Akademik arama · şeffaf AHP sıralaması',
-      title: 'Önemli makaleleri bulun; sıralamayı sizin belirlediğiniz ölçütler yapsın.',
-      lead: 'Tek sorgu dokuz akademik veri tabanını aynı anda tarar. Sonuçlar tekilleştirilir, alaka düzeyine göre süzülür, geri çekilme kontrolünden geçer ve Analitik Hiyerarşi Süreci ile sıralanır; her puanın açıklaması vardır.',
+      title: 'Yüz makale değil, doğru on makale.',
+      lead: 'Tek sorgu dokuz akademik veri tabanını aynı anda tarar. Sonuçlar tekilleştirilir, alaka düzeyine göre süzülür, geri çekilme kontrolünden geçer ve sizin belirlediğiniz ölçütlerle sıralanır; her puanın açıklaması vardır.',
       placeholder: 'Araştırma konunuzu yazın…',
       search: 'Ara',
       try: 'Örnekler:',

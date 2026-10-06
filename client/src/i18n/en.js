@@ -488,8 +488,8 @@ export default {
     },
     hero: {
       eyebrow: 'Academic search · transparent AHP ranking',
-      title: 'Find the papers that matter, ranked by criteria you control.',
-      lead: 'One query searches nine scholarly databases at once. Results are deduplicated, filtered for relevance, checked for retractions and ranked with the Analytic Hierarchy Process — and every score comes with an explanation.',
+      title: 'Not a hundred papers. The right ten.',
+      lead: 'One query searches nine scholarly databases at once. Results are deduplicated, filtered for relevance and checked for retractions, then ranked by the criteria you weight — and every score comes with an explanation.',
       placeholder: 'Describe your research topic…',
       search: 'Search',
       try: 'Try:',
