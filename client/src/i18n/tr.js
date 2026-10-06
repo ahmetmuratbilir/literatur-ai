@@ -492,6 +492,13 @@ export default {
       title: 'Açık akademik altyapı, birlikte taranır',
       lead: 'Her kaynak kendi sözdizimine uyarlanmış bir sorguyla aranır. Yanıt vermeyen kaynaklar sessizce atlanmaz, sonuçlarda belirtilir.',
       enrichment: 'Sonuçları zenginleştirmek için',
+      marqueeLabel: 'Taranan açık akademik kaynaklar',
+      enrichTag: 'zenginleştirme',
+      flow: {
+        adapt: 'Sorgu her kaynağın sözdizimine uyarlanır',
+        parallel: 'Kaynaklar aynı anda çağrılır',
+        merge: 'Sonuçlar DOI ile birleştirilip sıralanır',
+      },
       language: 'En geniş kapsam için aramalar İngilizce yapılır; sonuç başlıkları isteğe bağlı olarak Türkçe gösterilebilir.',
       items: {
         openalex: 'Yayın, yazar ve dergilerin geniş dizini',

@@ -492,6 +492,13 @@ export default {
       title: 'Open scholarly infrastructure, searched together',
       lead: 'Each source is queried with a query adapted to its own syntax. Unavailable sources are reported in the results instead of failing silently.',
       enrichment: 'Used to enrich results',
+      marqueeLabel: 'Open scholarly sources we search',
+      enrichTag: 'enrichment',
+      flow: {
+        adapt: 'The query is adapted to each source’s syntax',
+        parallel: 'Sources are called in parallel',
+        merge: 'Results are merged by DOI and ranked',
+      },
       language: 'Searches run in English for the best coverage; result titles can optionally be shown in Turkish.',
       items: {
         openalex: 'Broad index of works, authors and venues',
