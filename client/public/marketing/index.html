@@ -8,6 +8,18 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <title>Literatür AI — Fuar demosu</title>
 <meta name="description" content="Literatür AI'yi 60 saniyede tanıyın: konunuzu seçin, aramanın nasıl yürüdüğünü canlı izleyin, sıralamayı kendiniz değiştirin.">
+<script>
+/* Bu sayfa yalnızca fuardaki QR koduyla açılsın diye anahtar ister; anahtarsız
+   gelen ana sayfaya döner. Gizlilik değil görünmezlik sağlar: adresi bilen
+   herkes açabilir, o yüzden burada gizli hiçbir şey durmamalı.
+   QR'ın göstereceği adres:  https://literatur-ai.com/marketing/?d=fuar26  */
+(function () {
+  var KEY = 'fuar26';
+  try {
+    if (new URLSearchParams(location.search).get('d') !== KEY) location.replace('/');
+  } catch (e) { /* eski tarayıcı: sayfayı göster */ }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -318,10 +330,12 @@ input[aria-invalid=true] { border-color: var(--warn); }
 <script>
 /* Yatırımcı bilgileri: doldurulan satırlar formun üstünde görünür, boş olanlar hiç gösterilmez. */
 const PITCH = { pazar: '', cekis: '', arayis: '' };
-/* Form gönderim adresi, ör. '/api/leads' ya da bir form servisinin URL'si.
-   Boş bırakılırsa form, ziyaretçinin kendi e-posta uygulamasını hazır bir
-   taslakla açar; böylece uç nokta kurulmadan da hiçbir kayıt kaybolmaz. */
-const SUBMIT_ENDPOINT = '';
+/* Sunucunun kök adresi, ör. 'https://literatur-ai-api.onrender.com'.
+   Burası doldurulunca form POST /api/leads ile talebi info@literatur-ai.com
+   adresine e-posta olarak iletir. Boş bırakılırsa ziyaretçinin kendi e-posta
+   uygulaması hazır bir taslakla açılır; yani her hâlükârda kayıp olmaz. */
+const API_BASE = '';
+const SUBMIT_ENDPOINT = API_BASE ? API_BASE + '/api/leads' : '';
 /* mailto yedeğinin gideceği adres. */
 const LEAD_EMAIL = 'info@literatur-ai.com';
 

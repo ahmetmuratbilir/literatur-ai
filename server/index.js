@@ -34,7 +34,7 @@ import { runRevisionCoach } from './services/revisionCoachService.js';
 import { createRequestId, runWriterPipeline } from './services/writerPipeline.js';
 import { logger } from './utils/logger.js';
 import { clerkMiddleware, getAuth as clerkGetAuth, clerkClient } from '@clerk/express';
-import { sendWelcomeDemoEmail, sendWelcomeOnboardingEmail } from './services/emailService.js';
+import { sendLeadEmail, sendWelcomeDemoEmail, sendWelcomeOnboardingEmail } from './services/emailService.js';
 import UserProfile from './models/UserProfile.js';
 import {
   buildSearchCacheFingerprint,
@@ -768,6 +768,42 @@ app.post('/api/retractions', searchLimiter, async (req, res) => {
   } catch (error) {
     console.error('Retraction check error:', error);
     return res.status(502).json({ error: 'Geri cekilme kontrolu yapilamadi' });
+  }
+});
+
+// Fuar sayfasindaki (/marketing) iletisim formu. Kimlik dogrulamasi yok:
+// ziyaretci bize QR ile geliyor, giris yapmis degil. O yuzden alan uzunluklari
+// sinirli ve IP basina dakikada bes gonderim var.
+const leadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => ipKeyGenerator(req.ip),
+  message: { error: 'Cok fazla gonderim yapildi. Lutfen 1 dakika bekleyin.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const leadField = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
+
+app.post('/api/leads', leadLimiter, async (req, res) => {
+  const name = leadField(req.body?.name, 120);
+  const email = leadField(req.body?.email, 200);
+  const role = leadField(req.body?.role, 60);
+  const org = leadField(req.body?.org, 120);
+  const topic = leadField(req.body?.topic, 60);
+
+  if (name.length < 2) return res.status(400).json({ error: 'Ad soyad eksik' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return res.status(400).json({ error: 'Gecerli bir e-posta yazin' });
+  if (req.body?.kvkk !== true) return res.status(400).json({ error: 'Onay kutusu isaretlenmeli' });
+
+  try {
+    const result = await sendLeadEmail({ name, email, role, org, topic });
+    // RESEND_API_KEY yoksa e-posta gitmez; istemciye basarili demeyelim.
+    if (result?.simulated) return res.status(503).json({ error: 'E-posta servisi yapilandirilmamis' });
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('Lead email error:', error);
+    return res.status(502).json({ error: 'Talep iletilemedi' });
   }
 });
 

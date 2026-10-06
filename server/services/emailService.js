@@ -230,3 +230,59 @@ https://literatur-ai.com`;
   return data;
 }
 
+
+/**
+ * Fuar sayfasindaki formdan gelen iletisim talebi.
+ *
+ * Ziyaretcinin girdigi her alan HTML'e kacisli giriyor: form acik, kimlik
+ * dogrulamasi yok, yani alanlarin icerigi guvenilmez.
+ */
+export async function sendLeadEmail({ name, email, role, org, topic }) {
+  const inbox = process.env.LEAD_INBOX_EMAIL || 'info@literatur-ai.com';
+  const rows = [
+    ['Ad soyad', name],
+    ['E-posta', email],
+    ['Rol', role],
+    ['Kurum', org || '-'],
+    ['Demoda baktigi konu', topic || '-'],
+  ];
+
+  if (!resend) {
+    logger.warn({ email }, '[EmailService] RESEND_API_KEY tanimlanmamis, fuar talebi simule edildi.');
+    return { simulated: true };
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head><meta charset="utf-8"></head>
+    <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; color:#0f172a; padding:24px;">
+      <h2 style="margin:0 0 4px; font-size:18px;">Fuar sayfasindan yeni talep</h2>
+      <p style="margin:0 0 16px; color:#475569; font-size:13px;">literatur-ai.com/marketing</p>
+      <table style="border-collapse:collapse; font-size:14px;">
+        ${rows.map(([k, v]) => `<tr>
+          <td style="padding:6px 16px 6px 0; color:#475569; vertical-align:top;">${escapeHtml(k)}</td>
+          <td style="padding:6px 0;"><strong>${escapeHtml(v)}</strong></td>
+        </tr>`).join('')}
+      </table>
+    </body>
+    </html>
+  `;
+
+  const { data, error } = await resend.emails.send({
+    from: fromEmail,
+    to: [inbox],
+    replyTo: email,
+    subject: `Fuar talebi — ${plainLine(name)}`,
+    html,
+    text: rows.map(([k, v]) => `${k}: ${v}`).join('\n'),
+  });
+
+  if (error) {
+    logger.error({ error, email }, '[EmailService] Fuar talebi e-postasi gonderilemedi');
+    throw new Error(error.message);
+  }
+
+  logger.info({ email }, '[EmailService] Fuar talebi iletildi.');
+  return data;
+}
