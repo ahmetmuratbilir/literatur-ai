@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0b0a14">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<title>Literatür AI — Döngü</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Fuar ekranı döngüsü: bir aramanın baştan sona nasıl yürüdüğünü kendiliğinden,
+   sonsuz döngüde gösterir. Siteden bağımsız; hiçbir yerden bağlantı verilmez.
+   1920x1080 bir sahne üzerine kurulu ve her 16:9 ekrana orantılı sığar; yazılar
+   2-3 metreden okunacak boyutta. Koyu zemin bilerek: aydınlık fuar salonunda
+   parlak vurgu uzaktan beyaz ekrandan çok daha fazla dikkat çeker.
+   Kamera, sayfayı kaydırmak yerine içeriği transform ile yumuşakça kaydırır. */
+:root {
+  --paper: #0b0a14;
+  --panel: #14122a;
+  --panel-2: #1c1940;
+  --line: #2d2a52;
+  --ink: #f4f2fb;
+  --muted: #b4b1c6;
+  --faint: #8a86a3;
+  --accent: #a78bff;
+  --indigo: #334dff;
+  --violet: #8c38ff;
+  --grad: linear-gradient(135deg, var(--indigo), var(--violet));
+  --warn: #ff8a7a;
+  --warn-tint: #2c1418;
+  --font: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--paper); overflow: hidden; }
+body { font-family: var(--font); color: var(--ink); -webkit-font-smoothing: antialiased; cursor: none; }
+
+/* Sahne: 1920x1080, ekrana göre ölçeklenir ve ortalanır */
+.frame { position: fixed; inset: 0; display: grid; place-items: center; }
+.stage { position: relative; width: 1920px; height: 1080px; flex: none; overflow: hidden; transform-origin: center;
+  background: radial-gradient(70% 60% at 85% 0%, rgb(140 56 255 / 0.22), transparent 60%),
+              radial-gradient(60% 50% at 0% 100%, rgb(51 77 255 / 0.16), transparent 60%), var(--paper); }
+
+/* Üst şerit: marka, adımlar, dürüstlük etiketi */
+.topbar { position: absolute; z-index: 5; top: 0; left: 0; right: 0; height: 128px; padding: 0 96px; display: flex; align-items: center; gap: 48px;
+  background: linear-gradient(to bottom, var(--paper) 70%, transparent); }
+.brand { display: flex; align-items: center; gap: 16px; font-weight: 800; font-size: 36px; letter-spacing: -0.035em; white-space: nowrap; }
+.mark { width: 56px; height: 56px; border-radius: 16px; background: var(--grad); display: grid; place-items: center; box-shadow: 0 12px 30px -10px var(--violet); }
+.mark svg { width: 30px; height: 30px; }
+.steps { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+.step { display: grid; gap: 10px; }
+.step i { display: block; height: 5px; border-radius: 5px; background: var(--line); position: relative; overflow: hidden; }
+.step i::after { content: ''; position: absolute; inset: 0; background: var(--grad); transform: scaleX(0); transform-origin: left; transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.step.done i::after, .step.on i::after { transform: scaleX(1); }
+.step span { font-size: 17px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); transition: color 0.4s; }
+.step.on span { color: var(--accent); }
+.tag { font-size: 16px; font-weight: 600; letter-spacing: 0.04em; color: var(--muted); border: 1px solid var(--line); background: var(--panel);
+  padding: 10px 18px; border-radius: 999px; white-space: nowrap; }
+
+/* Kamera ve sayfa */
+.cam { position: absolute; inset: 0; }
+.page { position: absolute; left: 0; right: 0; top: 0; padding: 176px 0 400px; transition: transform 1.3s cubic-bezier(0.65, 0, 0.35, 1); will-change: transform; }
+.col { width: 1360px; margin: 0 auto; }
+.sec { margin-bottom: 150px; }
+
+/* Adım başlığı */
+.cap { display: flex; align-items: flex-start; gap: 28px; margin-bottom: 40px; opacity: 0.25; transition: opacity 0.6s; }
+.cap.on { opacity: 1; }
+.num { width: 72px; height: 72px; border-radius: 22px; background: var(--panel-2); border: 1px solid var(--line); display: grid; place-items: center;
+  font-size: 34px; font-weight: 800; color: var(--accent); flex: none; transition: background 0.4s, color 0.4s; }
+.cap.on .num { background: var(--grad); color: #fff; border-color: transparent; }
+.cap h2 { margin: 0; font-size: 60px; font-weight: 800; letter-spacing: -0.045em; line-height: 1.02; }
+.cap p { margin: 10px 0 0; font-size: 28px; color: var(--muted); line-height: 1.4; max-width: 1100px; }
+
+/* 1-2: arama kutusu ve yapay zekâ sorgusu */
+.search { display: flex; align-items: center; gap: 24px; height: 120px; padding: 0 16px 0 40px; border-radius: 999px; background: var(--panel);
+  border: 1px solid var(--line); box-shadow: 0 30px 70px -40px rgb(140 56 255 / 0.6); margin-bottom: 72px; }
+.search > svg { width: 40px; height: 40px; color: var(--accent); flex: none; }
+.q { flex: 1; min-width: 0; font-size: 44px; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; }
+.q::after { content: ''; display: inline-block; width: 4px; height: 1em; background: var(--accent); vertical-align: -6px; margin-left: 4px; animation: blink 1s steps(1) infinite; }
+.search.done .q::after { display: none; }
+@keyframes blink { 50% { opacity: 0; } }
+.timer { font-family: var(--mono); font-size: 30px; font-weight: 500; color: var(--paper); background: var(--ink); border-radius: 999px; padding: 22px 30px;
+  font-variant-numeric: tabular-nums; flex: none; }
+.bool { font-family: var(--mono); font-size: 34px; line-height: 1.55; color: var(--ink); background: var(--panel); border: 1px dashed var(--line);
+  border-radius: 28px; padding: 36px 44px; min-height: 140px; overflow-wrap: anywhere; }
+.bool .op { color: var(--accent); font-weight: 500; }
+.bool .tr { display: block; font-family: var(--font); font-size: 22px; color: var(--faint); margin-bottom: 14px; letter-spacing: 0.02em; }
+
+/* 3: kaynaklar */
+.sources { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.src { display: flex; align-items: center; gap: 16px; height: 96px; padding: 0 28px; border-radius: 22px; border: 1px solid var(--line); background: var(--panel);
+  font-size: 28px; font-weight: 600; color: var(--faint); transition: background 0.4s, color 0.4s, border-color 0.4s; }
+.src i { width: 14px; height: 14px; border-radius: 50%; background: var(--line); flex: none; transition: background 0.4s, box-shadow 0.4s; }
+.src em { margin-left: auto; font-style: normal; font-family: var(--mono); font-size: 24px; font-variant-numeric: tabular-nums; }
+.src.live { color: var(--ink); background: var(--panel-2); border-color: transparent; }
+.src.live i { background: var(--violet); box-shadow: 0 0 0 8px rgb(140 56 255 / 0.22); }
+.src.extra { border-style: dashed; }
+.src.extra em { font-family: var(--font); font-size: 18px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+
+/* 4: huni */
+.funnel { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; align-items: stretch; gap: 0; }
+.fn { padding: 40px 36px; border-radius: 28px; background: var(--panel); border: 1px solid var(--line); opacity: 0.3; transition: opacity 0.5s, transform 0.5s; transform: translateY(12px); }
+.fn.on { opacity: 1; transform: none; }
+.fn b { display: block; font-size: 76px; font-weight: 800; letter-spacing: -0.05em; line-height: 1; font-variant-numeric: tabular-nums; }
+.fn span { display: block; margin-top: 14px; font-size: 26px; color: var(--muted); line-height: 1.3; }
+.fn.warn { background: var(--warn-tint); border-color: rgb(255 138 122 / 0.3); }
+.fn.warn b { color: var(--warn); }
+.arrow { display: grid; place-items: center; width: 64px; color: var(--faint); font-size: 40px; }
+
+/* 5: sıralı liste */
+.results { display: grid; gap: 22px; }
+.card { display: grid; grid-template-columns: 64px 1fr 150px; gap: 8px 28px; align-items: start; padding: 34px 40px; border-radius: 30px;
+  background: var(--panel); border: 1px solid var(--line); opacity: 0; transform: translateY(24px); transition: opacity 0.5s, transform 0.5s, background 0.5s, border-color 0.5s; }
+.card.in { opacity: 1; transform: none; }
+.card.top1 { border-color: rgb(167 139 255 / 0.6); box-shadow: 0 0 0 4px rgb(140 56 255 / 0.18); }
+.rank { font-size: 40px; font-weight: 800; color: var(--faint); font-variant-numeric: tabular-nums; padding-top: 2px; }
+.card.top1 .rank { color: var(--accent); }
+.card h3 { margin: 0; font-size: 34px; font-weight: 700; line-height: 1.22; letter-spacing: -0.02em; }
+.meta { margin: 10px 0 0; font-size: 24px; color: var(--muted); display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.badge { font-size: 18px; font-weight: 700; letter-spacing: 0.04em; padding: 6px 12px; border-radius: 10px; background: var(--panel-2); color: var(--accent); }
+.score { text-align: right; }
+.score b { display: block; font-size: 64px; font-weight: 800; letter-spacing: -0.05em; line-height: 1; font-variant-numeric: tabular-nums; }
+.score span { font-size: 20px; color: var(--faint); }
+.bars { grid-column: 2 / 4; display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 18px; }
+.bar { display: grid; gap: 10px; font-size: 20px; color: var(--muted); letter-spacing: 0.03em; }
+.bar s { display: block; height: 8px; border-radius: 8px; background: var(--line); overflow: hidden; text-decoration: none; }
+.bar s::after { content: ''; display: block; height: 100%; width: var(--w, 0%); background: var(--grad); transition: width 0.9s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.flag { grid-column: 2 / 4; display: none; margin: 14px 0 0; font-size: 24px; font-weight: 700; color: var(--warn); }
+.card.retracted { background: var(--warn-tint); border-color: rgb(255 138 122 / 0.4); box-shadow: none; }
+.card.retracted .score b { color: var(--warn); }
+.card.retracted .flag { display: block; }
+
+/* 6: puan dökümü */
+.why { padding: 48px 52px; border-radius: 32px; background: var(--panel); border: 1px solid var(--line); }
+.why h3 { margin: 0 0 8px; font-size: 38px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+.why .sub { margin: 0 0 40px; font-size: 24px; color: var(--muted); }
+.stack { display: flex; height: 96px; border-radius: 22px; overflow: hidden; background: var(--paper); border: 1px solid var(--line); }
+.seg { width: 0; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden;
+  transition: width 1.2s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 36px; }
+.lg { display: grid; gap: 6px; }
+.lg b { font-size: 46px; font-weight: 800; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.lg span { font-size: 22px; color: var(--muted); display: flex; align-items: center; gap: 10px; }
+.lg span i { width: 16px; height: 16px; border-radius: 5px; flex: none; }
+.total { margin-top: 36px; padding-top: 32px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: baseline; font-size: 30px; color: var(--muted); }
+.total b { font-size: 64px; font-weight: 800; color: var(--ink); letter-spacing: -0.05em; }
+
+/* Kapanış kartı */
+.end { position: absolute; inset: 0; z-index: 10; display: grid; grid-template-columns: 1fr 520px; align-items: center; gap: 120px; padding: 0 180px;
+  background: radial-gradient(70% 70% at 80% 30%, rgb(140 56 255 / 0.28), transparent 65%), var(--paper); opacity: 0; pointer-events: none; transition: opacity 0.8s; }
+.end.on { opacity: 1; }
+.end .brand { font-size: 44px; margin-bottom: 56px; }
+.end .brand .mark { width: 72px; height: 72px; border-radius: 20px; }
+.end .brand .mark svg { width: 38px; height: 38px; }
+.end h1 { margin: 0; font-size: 116px; font-weight: 800; letter-spacing: -0.05em; line-height: 0.98; }
+.end h1 span { color: var(--accent); }
+.end p { margin: 40px 0 0; font-size: 34px; color: var(--muted); line-height: 1.4; max-width: 900px; }
+.qrbox { display: grid; gap: 26px; justify-items: center; text-align: center; }
+.qrcard { width: 440px; height: 440px; padding: 20px; border-radius: 36px; background: #fff; box-shadow: 0 40px 90px -40px rgb(140 56 255 / 0.8); }
+.qrcard svg { display: block; width: 100%; height: 100%; }
+.qrbox strong { font-size: 40px; font-weight: 800; letter-spacing: -0.03em; }
+.qrbox small { font-size: 28px; color: var(--muted); }
+.qrbox small span { color: var(--accent); font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+  .page, .cap, .fn, .card, .bar s::after, .seg, .end, .step i::after { transition-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+<div class="frame"><div class="stage" id="stage">
+
+  <header class="topbar">
+    <div class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><path d="M13.5 2 4 13.6h6.6L9.6 22 20 9.9h-6.7z"/></svg></span>Literatür AI</div>
+    <div class="steps" id="steps"></div>
+    <div class="tag">Canlandırma · örnek veriler</div>
+  </header>
+
+  <div class="cam"><div class="page" id="page"><div class="col">
+
+    <section class="sec" id="sec1">
+      <div class="cap" id="cap1"><span class="num">1</span><div><h2>Konunuzu yazın</h2><p>Türkçe ya da İngilizce, aklınıza nasıl geliyorsa öyle.</p></div></div>
+      <div class="search" id="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span class="q" id="q"></span>
+        <span class="timer" id="timer">0,0 sn</span>
+      </div>
+      <div class="cap" id="cap2"><span class="num">2</span><div><h2>Yapay zekâ sorguyu kurar</h2><p>Konu İngilizceye çevrilir; her kaynağın kendi diline uygun bir Boolean sorgu oluşturulur.</p></div></div>
+      <div class="bool" id="bool"></div>
+    </section>
+
+    <section class="sec" id="sec3">
+      <div class="cap" id="cap3"><span class="num">3</span><div><h2>Dokuz veri tabanı aynı anda taranır</h2><p>Sonuçlar iki kaynakla daha zenginleştirilir: açık atıf sayıları ve yasal ücretsiz kopyalar.</p></div></div>
+      <div class="sources" id="sources"></div>
+    </section>
+
+    <section class="sec" id="sec4">
+      <div class="cap" id="cap4"><span class="num">4</span><div><h2>Temizlenir</h2><p>Kopyalar DOI ile birleşir, konu dışı sonuçlar elenir, geri çekilmiş makaleler Crossref kaydıyla yakalanır.</p></div></div>
+      <div class="funnel">
+        <div class="fn" id="f1"><b>0</b><span>kayıt bulundu</span></div><div class="arrow">→</div>
+        <div class="fn" id="f2"><b>0</b><span>kopyalar birleşince</span></div><div class="arrow">→</div>
+        <div class="fn" id="f3"><b>0</b><span>konuyla alakalı</span></div><div class="arrow">→</div>
+        <div class="fn warn" id="f4"><b>0</b><span>geri çekilmiş yakalandı</span></div>
+      </div>
+    </section>
+
+    <section class="sec" id="sec5">
+      <div class="cap" id="cap5"><span class="num">5</span><div><h2>Gerekçeli sıralanır</h2><p>AHP atıf, güncellik, alaka ve kaliteyi dengeli ağırlıklarla tartar. Geri çekilen makale aşağı iner.</p></div></div>
+      <div class="results" id="results"></div>
+    </section>
+
+    <section class="sec" id="sec6">
+      <div class="cap" id="cap6"><span class="num">6</span><div><h2>Her puanın bir gerekçesi var</h2><p>Hangi ölçütün puana ne kadar katkı verdiği açıkça görünür. Kara kutu yok.</p></div></div>
+      <div class="why">
+        <h3 id="whyTitle"></h3>
+        <p class="sub">1. sıradaki makale, neden orada?</p>
+        <div class="stack" id="stack"></div>
+        <div class="legend" id="legend"></div>
+        <div class="total"><span>Toplam puan</span><b id="whyTotal">0</b></div>
+      </div>
+    </section>
+
+  </div></div></div>
+
+  <div class="end" id="end">
+    <div>
+      <div class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><path d="M13.5 2 4 13.6h6.6L9.6 22 20 9.9h-6.7z"/></svg></span>Literatür AI</div>
+      <h1>Yüz makale değil,<br><span>doğru on makale.</span></h1>
+      <p>Dokuz akademik veri tabanı, tek sorgu. Her makalenin neden o sırada olduğunu görürsünüz.</p>
+    </div>
+    <div class="qrbox">
+      <div class="qrcard" id="qr"></div>
+      <strong>Telefonunuzla okutun</strong>
+      <small>literatur-ai.com/<span>tanitim</span></small>
+    </div>
+  </div>
+
+</div></div>
+
+<script>
+/* Tanıtım sayfasındaki demoyla aynı örnek konu ve makaleler: ekranda ve QR'da aynı hikâye. */
+const TOPICS = [
+  { id: 'smr', label: 'Küçük modüler nükleer reaktörler', q: 'Küçük modüler nükleer reaktörler',
+    bool: ['("small modular reactor" OR SMR)', 'AND', '(safety OR economics OR licensing)'],
+    total: 14820, dedup: 9412, rel: 286, retr: 2,
+    papers: [
+      { t: 'Small modular reactors: a comparative review of passive safety systems', v: 'Progress in Nuclear Energy', y: 2023, c: 64, r: 88, a: 96, k: 90 },
+      { t: 'Economics of SMR deployment under carbon pricing scenarios', v: 'Energy Policy', y: 2021, c: 82, r: 72, a: 90, k: 86 },
+      { t: 'Licensing pathways for factory-built nuclear units', v: 'Nuclear Engineering and Design', y: 2019, c: 91, r: 48, a: 84, k: 88 },
+      { t: 'Coolant behaviour in integral pressurised water SMRs', v: 'Annals of Nuclear Energy', y: 2024, c: 30, r: 97, a: 88, k: 80 },
+      { t: 'Thermal margin claims for micro-reactors', v: 'Journal of Nuclear Science', y: 2022, c: 70, r: 80, a: 92, k: 85, retracted: true },
+    ] },
+  { id: 'ai', label: 'Yapay zekâ ile kanser teşhisi', q: 'Yapay zekâ ile kanser teşhisi',
+    bool: ['("deep learning" OR "artificial intelligence")', 'AND', '(cancer OR tumor) AND (diagnosis OR screening)'],
+    total: 38410, dedup: 24977, rel: 412, retr: 3,
+    papers: [
+      { t: 'Deep learning for mammography screening: a multi-centre evaluation', v: 'The Lancet Digital Health', y: 2022, c: 88, r: 80, a: 97, k: 95 },
+      { t: 'Explainable models for skin lesion classification', v: 'Nature Medicine', y: 2020, c: 95, r: 60, a: 90, k: 96 },
+      { t: 'Foundation models in computational pathology', v: 'Cell', y: 2024, c: 40, r: 98, a: 89, k: 92 },
+      { t: 'Bias in AI-assisted lung nodule detection', v: 'Radiology', y: 2023, c: 52, r: 90, a: 86, k: 90 },
+      { t: 'Near-perfect accuracy in pancreatic cancer prediction', v: 'Journal of Oncology AI', y: 2021, c: 75, r: 70, a: 94, k: 82, retracted: true },
+    ] },
+  { id: 'climate', label: 'İklim değişikliği ve tarımsal verim', q: 'İklim değişikliği ve tarımsal verim',
+    bool: ['("climate change" OR warming)', 'AND', '("crop yield" OR agriculture OR "food security")'],
+    total: 26145, dedup: 17306, rel: 349, retr: 1,
+    papers: [
+      { t: 'Global crop yield responses to temperature extremes', v: 'Nature Food', y: 2021, c: 90, r: 70, a: 96, k: 94 },
+      { t: 'Drought adaptation strategies in Mediterranean wheat', v: 'Agricultural Systems', y: 2023, c: 55, r: 88, a: 93, k: 88 },
+      { t: 'Climate trends and global crop production since 1980', v: 'Science', y: 2011, c: 99, r: 18, a: 88, k: 97 },
+      { t: 'Soil carbon and yield stability under warming', v: 'Global Change Biology', y: 2024, c: 28, r: 98, a: 85, k: 87 },
+      { t: 'Rapid yield recovery after heatwaves in maize', v: 'Field Crops Letters', y: 2020, c: 66, r: 64, a: 90, k: 80, retracted: true },
+    ] },
+];
+const SOURCES = [
+  ['OpenAlex', .34], ['Crossref', .22], ['Semantic Scholar', .14], ['Europe PMC', .08], ['arXiv', .05],
+  ['DOAJ', .05], ['CORE', .06], ['OpenAIRE', .04], ['DataCite', .02], ['OpenCitations', 0, 1], ['Unpaywall', 0, 1],
+];
+
+/* QR: marketing/qr/literatur-ai-tanitim-qr.svg ile aynı kod, https://www.literatur-ai.com/tanitim */
+const QR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37 37" shape-rendering="crispEdges"><path fill="#ffffff" d="M0 0h37v37H0z"/><path stroke="#000000" d="M4 4.5h7m3 0h1m2 0h1m1 0h1m2 0h3m1 0h7M4 5.5h1m5 0h1m2 0h1m1 0h1m1 0h4m1 0h1m1 0h1m1 0h1m5 0h1M4 6.5h1m1 0h3m1 0h1m1 0h3m1 0h2m1 0h2m3 0h1m1 0h1m1 0h3m1 0h1M4 7.5h1m1 0h3m1 0h1m1 0h1m1 0h2m2 0h1m2 0h1m1 0h1m2 0h1m1 0h3m1 0h1M4 8.5h1m1 0h3m1 0h1m1 0h2m6 0h4m2 0h1m1 0h3m1 0h1M4 9.5h1m5 0h1m1 0h1m3 0h1m2 0h2m1 0h1m3 0h1m5 0h1M4 10.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M12 11.5h1m2 0h1m2 0h2m3 0h1M4 12.5h1m1 0h5m2 0h2m6 0h2m1 0h1m1 0h5M7 13.5h1m3 0h2m4 0h2m1 0h9m3 0h1M4 14.5h2m1 0h1m2 0h4m1 0h5m1 0h1m2 0h1m1 0h1M5 15.5h2m4 0h1m2 0h4m1 0h2m1 0h1m1 0h2m1 0h1m1 0h1m1 0h1M6 16.5h2m2 0h1m2 0h1m1 0h2m1 0h4m2 0h1m4 0h2M6 17.5h1m5 0h1m1 0h1m1 0h1m3 0h1m1 0h5m1 0h1m3 0h1M4 18.5h1m1 0h1m1 0h1m1 0h2m3 0h2m2 0h4m2 0h3m1 0h2M5 19.5h1m1 0h1m4 0h1m2 0h1m2 0h2m4 0h1m2 0h2m2 0h1M6 20.5h1m2 0h4m2 0h2m4 0h1m2 0h1m2 0h1m1 0h2M4 21.5h1m7 0h2m1 0h4m1 0h5m1 0h3m1 0h1m1 0h1M4 22.5h1m3 0h3m1 0h1m2 0h5m1 0h1m2 0h1m2 0h1m2 0h1M4 23.5h1m1 0h1m2 0h1m1 0h4m1 0h2m2 0h1m4 0h1m1 0h2m2 0h1M4 24.5h1m2 0h7m2 0h1m1 0h1m2 0h1m2 0h5m1 0h3M12 25.5h5m3 0h3m1 0h1m3 0h5M4 26.5h7m2 0h2m4 0h2m2 0h2m1 0h1m1 0h3M4 27.5h1m5 0h1m1 0h1m5 0h2m3 0h2m3 0h1m2 0h1M4 28.5h1m1 0h3m1 0h1m1 0h1m6 0h1m1 0h2m1 0h5m1 0h1M4 29.5h1m1 0h3m1 0h1m1 0h1m2 0h1m2 0h1m1 0h3m1 0h1m2 0h1m1 0h4M4 30.5h1m1 0h3m1 0h1m1 0h1m1 0h2m1 0h3m1 0h1m3 0h7M4 31.5h1m5 0h1m3 0h1m4 0h2m2 0h2m2 0h1m1 0h1m1 0h1M4 32.5h7m1 0h1m2 0h1m1 0h5m1 0h1m3 0h4"/></svg>';
+
+// Dengeli profil: tanıtım demosundaki score() ile aynı ağırlıklar (atıf ↔ güncellik w = 0,35).
+const W = { a: 0.35, k: 0.15, c: 0.5 * (1 - 0.35), r: 0.5 * 0.35 };
+const CRIT = [
+  { key: 'a', label: 'Alaka', color: '#8c38ff' },
+  { key: 'c', label: 'Atıf', color: '#334dff' },
+  { key: 'r', label: 'Güncellik', color: '#5b8cff' },
+  { key: 'k', label: 'Kalite', color: '#c48bff' },
+];
+const STEP_LABELS = ['Yaz', 'Sorgu', 'Tara', 'Temizle', 'Sırala', 'Gerekçe'];
+
+const $ = (s) => document.querySelector(s);
+const fmt = (n) => Math.round(n).toLocaleString('tr-TR');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const sleep = (ms) => new Promise((r) => setTimeout(r, reduce ? Math.min(ms, 400) : ms));
+
+$('#qr').innerHTML = QR_SVG;
+$('#steps').innerHTML = STEP_LABELS.map((l) => `<div class="step"><i></i><span>${l}</span></div>`).join('');
+
+/* Sahneyi ekrana sığdır */
+function fit() {
+  const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+  $('#stage').style.transform = `scale(${s})`;
+}
+addEventListener('resize', fit); fit();
+
+function setStep(n) {
+  document.querySelectorAll('.step').forEach((el, i) => { el.classList.toggle('on', i === n - 1); el.classList.toggle('done', i < n - 1); });
+  document.querySelectorAll('.cap').forEach((el) => el.classList.toggle('on', el.id === 'cap' + n));
+}
+/* Kamera: bölümü üst şeridin altına getirir */
+function camToSec(id, extra = 0) {
+  const sec = document.getElementById(id);
+  $('#page').style.transform = `translateY(${-(sec.offsetTop - 176 + extra)}px)`;
+}
+function countTo(el, to, ms) {
+  if (reduce) { el.textContent = fmt(to); return Promise.resolve(); }
+  return new Promise((done) => {
+    const t0 = performance.now();
+    const tick = (now) => {
+      const p = Math.max(0, Math.min(1, (now - t0) / ms));
+      el.textContent = fmt(to * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(tick); else done();
+    };
+    requestAnimationFrame(tick);
+  });
+}
+const score = (p, penalize) => {
+  const s = p.a * W.a + p.k * W.k + p.c * W.c + p.r * W.r;
+  return p.retracted && penalize ? s * 0.35 : s;
+};
+
+function renderCards(topic, penalize) {
+  const host = $('#results');
+  const before = new Map([...host.children].map((el) => [el.dataset.k, el.getBoundingClientRect().top]));
+  const all = topic.papers.map((p) => ({ p, s: score(p, penalize) })).sort((a, b) => b.s - a.s);
+  const list = penalize ? [...all.filter((x) => !x.p.retracted), ...all.filter((x) => x.p.retracted)] : all;
+  const keep = new Set([...host.children].filter((el) => el.classList.contains('in')).map((el) => el.dataset.k));
+  host.innerHTML = list.map(({ p, s }, i) => `
+    <article class="card${i === 0 ? ' top1' : ''}${p.retracted && penalize ? ' retracted' : ''}${keep.has(p.t) ? ' in' : ''}" data-k="${p.t}">
+      <span class="rank">${i + 1}</span>
+      <div><h3>${p.t}</h3><p class="meta">${p.v} · ${p.y}${p.k >= 88 ? '<span class="badge">Q1</span>' : ''}${p.r >= 85 ? '<span class="badge">GÜNCEL</span>' : ''}</p></div>
+      <div class="score"><b>${Math.round(s)}</b><span>/ 100</span></div>
+      <div class="bars">
+        ${CRIT.map((c) => `<span class="bar">${c.label}<s style="--w:${keep.has(p.t) ? p[c.key] : 0}%" data-w="${p[c.key]}"></s></span>`).join('')}
+      </div>
+      <p class="flag">⚠ Geri çekilmiş makale · Crossref kaydıyla işaretlendi, aşağı indirildi</p>
+    </article>`).join('');
+  // FLIP: yer değiştiren kartlar eski konumlarından kayarak gelsin
+  if (!reduce) [...host.children].forEach((el) => {
+    const old = before.get(el.dataset.k); if (old == null) return;
+    const dy = (old - el.getBoundingClientRect().top) / currentScale(); if (!dy) return;
+    el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 900, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  });
+  return [...host.children];
+}
+const currentScale = () => $('#stage').getBoundingClientRect().width / 1920;
+
+function reset(topic) {
+  $('#end').classList.remove('on');
+  $('#page').style.transition = 'none';
+  $('#page').style.transform = 'translateY(0)';
+  void $('#page').offsetHeight;
+  $('#page').style.transition = '';
+  setStep(1);
+  $('#search').classList.remove('done');
+  $('#q').textContent = '';
+  $('#timer').textContent = '0,0 sn';
+  $('#bool').innerHTML = '';
+  $('#sources').innerHTML = SOURCES.map(([n, , extra]) => `<div class="src${extra ? ' extra' : ''}"><i></i><span>${n}</span><em>–</em></div>`).join('');
+  ['#f1', '#f2', '#f3', '#f4'].forEach((f) => { $(f).classList.remove('on'); $(f + ' b').textContent = '0'; });
+  $('#results').innerHTML = '';
+  $('#stack').innerHTML = ''; $('#legend').innerHTML = ''; $('#whyTotal').textContent = '0'; $('#whyTitle').textContent = '';
+}
+
+async function play(topic) {
+  // Hangi konunun oynadığı: video kaydında tam bir turu kesmek için.
+  document.documentElement.dataset.topic = topic.id;
+  reset(topic);
+  await sleep(900);
+
+  // saat: arama süresini gösterir (yaz → sırala)
+  let clockOn = true; const t0 = performance.now();
+  const clock = () => { if (!clockOn) return; $('#timer').textContent = ((performance.now() - t0) / 1000).toFixed(1).replace('.', ',') + ' sn'; requestAnimationFrame(clock); };
+  if (!reduce) requestAnimationFrame(clock);
+
+  // 1) konu yazılır
+  for (const ch of topic.q) { $('#q').textContent += ch; await sleep(55); }
+  $('#search').classList.add('done');
+  await sleep(900);
+
+  // 2) Boolean sorgu
+  setStep(2);
+  $('#bool').innerHTML = '<span class="tr">İngilizce Boolean sorgu</span>';
+  const parts = topic.bool;
+  for (const part of parts) {
+    const span = document.createElement('span');
+    if (part === 'AND' || part === 'OR') span.className = 'op';
+    $('#bool').appendChild(span);
+    for (const ch of part) { span.textContent += ch; await sleep(18); }
+    $('#bool').appendChild(document.createTextNode(' '));
+  }
+  await sleep(1400);
+
+  // 3) kaynaklar
+  setStep(3); camToSec('sec3'); await sleep(1300);
+  const srcEls = [...document.querySelectorAll('.src')];
+  for (let i = 0; i < SOURCES.length; i++) {
+    const [, share, extra] = SOURCES[i];
+    srcEls[i].classList.add('live');
+    const em = srcEls[i].querySelector('em');
+    if (extra) em.textContent = 'zenginleştirme'; else countTo(em, topic.total * share, 700);
+    await sleep(230);
+  }
+  await sleep(1300);
+
+  // 4) huni
+  setStep(4); camToSec('sec4'); await sleep(1300);
+  for (const [f, n] of [['#f1', topic.total], ['#f2', topic.dedup], ['#f3', topic.rel], ['#f4', topic.retr]]) {
+    $(f).classList.add('on'); countTo($(f + ' b'), n, 700); await sleep(650);
+  }
+  await sleep(1500);
+
+  // 5) sıralama: kartlar gelir, sonra geri çekilen yakalanıp aşağı iner, kamera listeyi gezer
+  setStep(5); camToSec('sec5'); await sleep(1300);
+  let cards = renderCards(topic, false);
+  for (const el of cards) {
+    el.classList.add('in');
+    el.querySelectorAll('.bar s').forEach((s) => s.style.setProperty('--w', s.dataset.w + '%'));
+    await sleep(220);
+  }
+  await sleep(1600);
+  renderCards(topic, true);
+  await sleep(1800);
+  clockOn = false;
+  // listenin sonuna doğru yavaşça in: yakalanan makale en altta görünsün
+  $('#page').style.transition = 'transform 3.2s cubic-bezier(0.45, 0, 0.25, 1)';
+  const sec5 = $('#sec5');
+  camToSec('sec5', Math.max(0, sec5.offsetHeight - 860));
+  await sleep(3800);
+  $('#page').style.transition = '';
+
+  // 6) puan dökümü
+  setStep(6); camToSec('sec6'); await sleep(1300);
+  const best = topic.papers.map((p) => ({ p, s: score(p, true) })).sort((a, b) => b.s - a.s)[0];
+  $('#whyTitle').textContent = '“' + best.p.t + '”';
+  const parts6 = CRIT.map((c) => ({ ...c, v: best.p[c.key] * W[c.key] }));
+  $('#stack').innerHTML = parts6.map((c) => `<div class="seg" style="background:${c.color}" data-w="${c.v}">${c.label}</div>`).join('');
+  $('#legend').innerHTML = parts6.map((c) => `<div class="lg"><b>+${c.v.toFixed(1).replace('.', ',')}</b><span><i style="background:${c.color}"></i>${c.label} · ağırlık %${Math.round(W[c.key] * 100)}</span></div>`).join('');
+  await sleep(150);
+  document.querySelectorAll('.seg').forEach((s) => { s.style.width = s.dataset.w + '%'; });
+  countTo($('#whyTotal'), best.s, 1200);
+  await sleep(4200);
+
+  // kapanış: slogan + QR
+  $('#end').classList.add('on');
+  await sleep(7000);
+}
+
+(async function loop() {
+  if (document.fonts && document.fonts.ready) await document.fonts.ready;
+  for (let i = 0; ; i = (i + 1) % TOPICS.length) await play(TOPICS[i]);
+})();
+</script>
+</body>
+</html>
