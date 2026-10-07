@@ -35,7 +35,7 @@ import { runRevisionCoach } from './services/revisionCoachService.js';
 import { createRequestId, runWriterPipeline } from './services/writerPipeline.js';
 import { logger } from './utils/logger.js';
 import { clerkMiddleware, getAuth as clerkGetAuth, clerkClient } from '@clerk/express';
-import { sendLeadEmail, sendWelcomeDemoEmail, sendWelcomeOnboardingEmail } from './services/emailService.js';
+import { sendLeadEmail, sendLeadThanksEmail, sendWelcomeDemoEmail, sendWelcomeOnboardingEmail } from './services/emailService.js';
 import UserProfile from './models/UserProfile.js';
 import {
   buildSearchCacheFingerprint,
@@ -788,7 +788,8 @@ const leadField = (value, max) => (typeof value === 'string' ? value.trim().slic
 
 app.post('/api/leads', leadLimiter, async (req, res) => {
   const name = leadField(req.body?.name, 120);
-  const email = leadField(req.body?.email, 200);
+  // Kucuk harf: 24 saatlik tesekkur sinirinin Ayse@Fon.com ile ayse@fon.com'u ayni sayabilmesi icin.
+  const email = leadField(req.body?.email, 200).toLowerCase();
   const role = leadField(req.body?.role, 60);
   const org = leadField(req.body?.org, 120);
   const topic = leadField(req.body?.topic, 60);
@@ -819,7 +820,29 @@ app.post('/api/leads', leadLimiter, async (req, res) => {
 
   if (lead && emailed) await Lead.updateOne({ _id: lead._id }, { emailed: true }).catch(() => {});
   if (!lead && !emailed) return res.status(503).json({ error: 'Talep su an kaydedilemedi' });
-  return res.json({ ok: true, saved: Boolean(lead), emailed });
+
+  // Ziyaretciye tesekkur. Form herkese acik: biri baskasinin adresini tekrar
+  // tekrar yazip onu mail yagmuruna tutamasin diye ayni adrese 24 saatte bir.
+  // Sikayet ve geri donen mailler alan adinin itibarini dusurup tum mailleri
+  // spam'e iter. Basarisiz olursa talep yine alinmis sayilir.
+  let thanked = false;
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recent = lead
+      ? await Lead.countDocuments({ email: lead.email, createdAt: { $gte: since } })
+      : 1;
+    // Ayrilmis test alan adlari (example.com, .test, .invalid) hic teslim edilmez;
+    // geri donen mail gondericinin itibarini dusurur.
+    const reserved = /@(example\.(com|net|org)|[^@]+\.(test|invalid|example|localhost))$/.test(email);
+    if (recent <= 1 && !reserved) {
+      const result = await sendLeadThanksEmail({ name, email });
+      thanked = !result?.simulated;
+    }
+  } catch (error) {
+    console.error('Lead thanks email error:', error?.message || error);
+  }
+
+  return res.json({ ok: true, saved: Boolean(lead), emailed, thanked });
 });
 
 app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {

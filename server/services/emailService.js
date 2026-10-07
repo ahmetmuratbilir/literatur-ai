@@ -286,3 +286,56 @@ export async function sendLeadEmail({ name, email, role, org, topic }) {
   logger.info({ email }, '[EmailService] Fuar talebi iletildi.');
   return data;
 }
+
+/**
+ * Tanıtım formunu dolduran ziyaretçiye teşekkür.
+ *
+ * Spam'e düşmemesi için bilerek sade: düz metin + aynı içerikte basit HTML,
+ * görsel ve emoji yok, tek bağlantı. Altta neden alındığı ve silme talebi için
+ * adres yazıyor (KVKK ve filtreler için). Yanıtlar info@ adresine gider.
+ * Alan adı Resend'de doğrulanmadan ziyaretçiye gönderilemez; Resend o durumda
+ * hata döner ve çağıran bunu yutar, kayıt etkilenmez.
+ */
+export async function sendLeadThanksEmail({ name, email }) {
+  if (!resend) return { simulated: true };
+
+  const firstName = plainLine(String(name || '').trim().split(/\s+/)[0], 40);
+  const replyTo = process.env.LEAD_INBOX_EMAIL || 'info@literatur-ai.com';
+  const site = 'https://www.literatur-ai.com';
+
+  const paragraphs = [
+    firstName ? `Merhaba ${firstName},` : 'Merhaba,',
+    'Literatür AI ile tanıştığınız için teşekkür ederiz.',
+    'Yatırımcı sunumumuzu kısa süre içinde bu adrese göndereceğiz. Sorunuz olursa bu e-postayı yanıtlamanız yeterli; doğrudan ekibimize ulaşır.',
+    `Bu arada ürünü kendiniz deneyebilirsiniz: ${site}`,
+    'Saygılarımızla,\nLiteratür AI ekibi',
+  ];
+  const footer = 'Bu e-postayı literatur-ai.com/tanitim adresindeki formu doldurduğunuz için aldınız. Bilgilerinizin silinmesini isterseniz info@literatur-ai.com adresine yazabilirsiniz.';
+
+  const text = `${paragraphs.join('\n\n')}\n\n--\n${footer}`;
+  const html = `<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="utf-8"></head>
+<body style="margin:0; padding:24px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:15px; line-height:1.6; color:#0f172a;">
+  ${paragraphs.map((p) => `<p style="margin:0 0 14px;">${escapeHtml(p).replace(site, `<a href="${site}" style="color:#4d1aff;">${site.replace('https://', '')}</a>`).split('\n').join('<br>')}</p>`).join('\n  ')}
+  <p style="margin:24px 0 0; padding-top:12px; border-top:1px solid #e2e8f0; font-size:12px; color:#64748b;">${escapeHtml(footer)}</p>
+</body>
+</html>`;
+
+  const { data, error } = await resend.emails.send({
+    from: fromEmail,
+    to: [email],
+    replyTo,
+    subject: firstName ? `Teşekkürler, ${firstName} - Literatür AI` : 'Teşekkürler - Literatür AI',
+    html,
+    text,
+  });
+
+  if (error) {
+    logger.error({ error, email }, '[EmailService] Teşekkür e-postası gönderilemedi');
+    throw new Error(error.message);
+  }
+
+  logger.info({ email }, '[EmailService] Teşekkür e-postası gönderildi.');
+  return data;
+}
