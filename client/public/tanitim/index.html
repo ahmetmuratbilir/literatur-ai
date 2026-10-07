@@ -78,7 +78,7 @@
 [hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; background: var(--paper); }
 body {
-  margin: 0; min-height: 100vh; color: var(--ink); font-family: var(--font-display); font-size: 16px; line-height: 1.5;
+  margin: 0; color: var(--ink); font-family: var(--font-display); font-size: 16px; line-height: 1.5;
   padding: 0 20px 132px; -webkit-font-smoothing: antialiased; overflow-x: clip;
   background: radial-gradient(130% 55% at 100% 0%, rgb(140 56 255 / 0.10), transparent 62%) no-repeat, var(--paper);
 }
@@ -455,7 +455,11 @@ $('#roles').addEventListener('click', (e) => {
 const pitchRows = [['Pazar', PITCH.pazar], ['Çekiş', PITCH.cekis], ['Aradığımız', PITCH.arayis]].filter(([, v]) => v);
 if (pitchRows.length) { $('#pitch').innerHTML = pitchRows.map(([k, v]) => `<p><b>${k}:</b> ${v}</p>`).join(''); $('#pitch').hidden = false; }
 
-function dock(html) { $('#dock').innerHTML = html; }
+function dock(html) {
+  $('#dock').innerHTML = html;
+  // Alttaki pay, o anki alt çubuk kadar: içerik çubuğun arkasında kalmasın, altta boşluk da birikmesin.
+  document.body.style.paddingBottom = ($('.dock').offsetHeight + 16) + 'px';
+}
 function step(n) {
   [1, 2, 3].forEach((i) => { $('#s' + i).classList.toggle('on', i <= n); $('#l' + i).classList.toggle('on', i === n); });
 }
