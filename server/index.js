@@ -12,6 +12,7 @@ import { translateToEnglish } from './utils/translation.js';
 import SearchHistory from './models/SearchHistory.js';
 import Collection from './models/Collection.js';
 import SharedSearch from './models/SharedSearch.js';
+import Lead from './models/Lead.js';
 import crypto from 'crypto';
 import Analysis from './models/Analysis.js';
 import Basket, { BASKET_LIMIT } from './models/Basket.js';
@@ -796,15 +797,29 @@ app.post('/api/leads', leadLimiter, async (req, res) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return res.status(400).json({ error: 'Gecerli bir e-posta yazin' });
   if (req.body?.kvkk !== true) return res.status(400).json({ error: 'Onay kutusu isaretlenmeli' });
 
+  // Once veritabanina yaz, sonra mail dene: fuarda RESEND_API_KEY tanimli
+  // olmasa ya da Resend dusse bile hicbir talep kaybolmasin. Ikisinden biri
+  // basariliysa talep alinmis demektir.
+  let lead = null;
+  if (mongoose.connection.readyState === 1) {
+    try {
+      lead = await Lead.create({ name, email, role, org });
+    } catch (error) {
+      console.error('Lead save error:', error);
+    }
+  }
+
+  let emailed = false;
   try {
     const result = await sendLeadEmail({ name, email, role, org, topic });
-    // RESEND_API_KEY yoksa e-posta gitmez; istemciye basarili demeyelim.
-    if (result?.simulated) return res.status(503).json({ error: 'E-posta servisi yapilandirilmamis' });
-    return res.json({ ok: true });
+    emailed = !result?.simulated;
   } catch (error) {
     console.error('Lead email error:', error);
-    return res.status(502).json({ error: 'Talep iletilemedi' });
   }
+
+  if (lead && emailed) await Lead.updateOne({ _id: lead._id }, { emailed: true }).catch(() => {});
+  if (!lead && !emailed) return res.status(503).json({ error: 'Talep su an kaydedilemedi' });
+  return res.json({ ok: true, saved: Boolean(lead), emailed });
 });
 
 app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {

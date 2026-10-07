@@ -113,10 +113,13 @@ h1, h2 { font-weight: 800; letter-spacing: -0.045em; line-height: 0.98; margin: 
 h1 { font-size: clamp(46px, 14vw, 60px); }
 h2 { font-size: clamp(34px, 10vw, 42px); }
 .v { color: var(--accent); }
+.nw { white-space: nowrap; }
 .lead { color: var(--muted); font-size: 17px; line-height: 1.55; margin: 0; max-width: 34ch; }
 .eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); margin: 0; }
 
 /* Ekran 1: Tanıyın */
+.welcome { display: flex; align-items: center; gap: 12px; margin: 0; padding: 12px 14px; background: var(--tint);
+  border: 1px solid var(--line); border-radius: var(--r-sm); font-size: 14px; font-weight: 500; line-height: 1.4; }
 .stats { display: grid; grid-template-columns: 1fr 1fr; }
 .stat + .stat { border-left: 1px solid var(--line); padding-left: 20px; }
 .stat b { display: block; font-size: clamp(38px, 12vw, 54px); font-weight: 800; letter-spacing: -0.06em; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -227,13 +230,6 @@ input[aria-invalid=true] { border-color: var(--warn); }
 .pitch p { margin: 0; font-size: 15px; }
 .pitch b { font-weight: 700; }
 
-/* Ekran 4: Teşekkür */
-.done-mark { width: 76px; height: 76px; border-radius: 50%; background: var(--grad); display: grid; place-items: center;
-  box-shadow: 0 14px 30px -12px var(--violet); animation: pop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
-.done-mark svg { width: 34px; height: 34px; }
-@keyframes pop { from { transform: scale(0.4); opacity: 0; } to { transform: none; opacity: 1; } }
-.next { display: grid; gap: 10px; }
-
 /* Düğmeler ve alt çubuk */
 .btn { font: inherit; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; border: 0; border-radius: 999px; min-height: 58px; padding: 0 24px;
   width: 100%; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: #fff; background: var(--grad);
@@ -263,11 +259,12 @@ input[aria-invalid=true] { border-color: var(--warn); }
       Literatür AI
     </div>
     <div class="steps" aria-hidden="true"><span id="s1" class="on"></span><span id="s2"></span><span id="s3"></span></div>
-    <div class="steps-l" aria-hidden="true"><b id="l1" class="on">Tanıyın</b><b id="l2">Deneyin</b><b id="l3">Görüşelim</b></div>
+    <div class="steps-l" aria-hidden="true"><b id="l1" class="on">Tanışalım</b><b id="l2">Tanıyın</b><b id="l3">Deneyin</b></div>
   </header>
 
   <!-- 1. Tanıyın -->
-  <section class="screen" id="v-intro" aria-labelledby="h-intro">
+  <section class="screen" id="v-intro" hidden aria-labelledby="h-intro">
+    <p class="welcome" id="welcome" hidden><span class="ck" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span><span id="welcomeText"></span></p>
     <h1 id="h-intro">Doğru kaynak,<br><span class="v">saniyeler içinde.</span></h1>
     <p class="lead">Yapay zekâ destekli akademik arama asistanı. Konunuzu yazın, en güvenilir makaleler önünüze gelsin.</p>
     <div class="stats">
@@ -319,9 +316,9 @@ input[aria-invalid=true] { border-color: var(--warn); }
   </section>
 
   <!-- 3. Görüşelim -->
-  <section class="screen" id="v-form" hidden aria-labelledby="h-form">
-    <h2 id="h-form">Sunumu<br><span class="v">e-postanıza</span> gönderelim.</h2>
-    <p class="lead">Yatırımcı sunumumuzu hemen iletelim, 48 saat içinde görüşme için size dönelim.</p>
+  <section class="screen" id="v-form" aria-labelledby="h-form">
+    <h1 id="h-form">Önce tanışalım,<br><span class="v">sonra gösterelim.</span></h1>
+    <p class="lead">Bilgilerinizi bırakın, yatırımcı sunumumuzu <span class="nw">e-postanıza</span> gönderelim. Ardından Literatür AI'yi 60 saniyede canlı izleyin.</p>
     <div class="pitch" id="pitch" hidden></div>
     <form id="lead" novalidate>
       <div class="field">
@@ -359,16 +356,6 @@ input[aria-invalid=true] { border-color: var(--warn); }
     </form>
   </section>
 
-  <!-- 4. Teşekkür -->
-  <section class="screen" id="v-done" hidden aria-labelledby="h-done">
-    <div class="done-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div>
-    <h2 id="h-done">Teşekkürler,<br><span class="v" id="hi">Ayşe</span>.</h2>
-    <p class="lead" id="doneLead">Sunumumuz e-postanıza yolda. Fuar boyunca standımızda da sizi bekliyoruz.</p>
-    <div class="next">
-      <a class="btn" href="https://www.literatur-ai.com/" target="_blank" rel="noopener">Ürünü kendiniz deneyin →</a>
-      <button class="btn soft" type="button" id="replay">Demoyu tekrar izleyin</button>
-    </div>
-  </section>
 </div>
 
 <nav class="dock" aria-label="Akış"><div class="in" id="dock"></div></nav>
@@ -380,8 +367,11 @@ const PITCH = { pazar: '', cekis: '', arayis: '' };
    Burası doldurulunca form POST /api/leads ile talebi info@literatur-ai.com
    adresine e-posta olarak iletir. Boş bırakılırsa ziyaretçinin kendi e-posta
    uygulaması hazır bir taslakla açılır; yani her hâlükârda kayıp olmaz. */
-const API_BASE = '';
+const API_BASE = 'https://literatur-ai.onrender.com';
 const SUBMIT_ENDPOINT = API_BASE ? API_BASE + '/api/leads' : '';
+/* Render'ın ücretsiz planı 15 dakika boşta kalınca uyuyor ve uyanması ~30 sn sürüyor.
+   Sayfa açılır açılmaz uyandırıyoruz: ziyaretçi formu doldururken sunucu kalkmış olur. */
+if (API_BASE) fetch(API_BASE + '/api/health', { mode: 'no-cors' }).catch(() => {});
 /* mailto yedeğinin gideceği adres. */
 const LEAD_EMAIL = 'info@literatur-ai.com';
 
@@ -426,7 +416,7 @@ const ROLES = ['Melek yatırımcı', 'Girişim sermayesi (VC)', 'Kurumsal / stra
 const $ = (s) => document.querySelector(s);
 const fmt = (n) => Math.round(n).toLocaleString('tr-TR');
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const views = { intro: $('#v-intro'), demo: $('#v-demo'), form: $('#v-form'), done: $('#v-done') };
+const views = { form: $('#v-form'), intro: $('#v-intro'), demo: $('#v-demo') };
 let topic = TOPICS[0], timers = [], role = null, penalize = false;
 
 const ICON = '<span class="ti" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>';
@@ -464,10 +454,8 @@ function countTo(el, to, ms) {
 }
 
 function introDock() {
-  dock(`<button class="btn" type="button" id="goDemo">Canlı demoyu başlatın →</button>
-        <button class="link" type="button" id="skip1">Demoyu atlayıp sunumu isteyin</button>`);
+  dock(`<button class="btn" type="button" id="goDemo">Canlı demoyu başlatın →</button>`);
   $('#goDemo').onclick = () => start(topic);
-  $('#skip1').onclick = toForm;
 }
 
 /* --- Demo --- */
@@ -508,9 +496,10 @@ function renderResults(animate) {
 }
 
 function start(t) {
-  topic = t; clearTimers(); step(2); show('demo');
-  dock(`<button class="btn" type="button" id="toForm">Yatırımcı sunumunu alın →</button>`);
-  $('#toForm').onclick = toForm;
+  topic = t; clearTimers(); step(3); show('demo');
+  dock(`<a class="btn" href="https://www.literatur-ai.com/" target="_blank" rel="noopener">Ürünü kendiniz deneyin →</a>
+        <button class="link" type="button" id="replay">Demoyu tekrar izleyin</button>`);
+  $('#replay').onclick = () => start(topic);
 
   // sıfırla
   $('#qbox').classList.remove('done'); $('#q').textContent = ''; $('#bool').innerHTML = '&nbsp;';
@@ -555,8 +544,8 @@ function start(t) {
 }
 
 /* --- Form --- */
-function toForm() { clearTimers(); step(3); show('form');
-  dock(`<button class="btn" type="submit" form="lead" id="send">Sunumu gönderin</button>`); }
+function toForm() { clearTimers(); step(1); show('form');
+  dock(`<button class="btn" type="submit" form="lead" id="send">Sunumu alın, demoya geçin →</button>`); }
 
 $('#lead').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -570,29 +559,37 @@ $('#lead').addEventListener('submit', async (e) => {
   });
   if (first) { (first === 'role' ? $('.role') : $('#' + first)).focus(); return; }
 
-  const payload = { name, email, role, org: $('#org').value.trim(), topic: topic.id, kvkk: true, at: new Date().toISOString(), source: 'tanitim-qr' };
-  const btn = $('#send'); btn.disabled = true; btn.textContent = 'Gönderiliyor…';
+  const payload = { name, email, role, org: $('#org').value.trim(), kvkk: true, source: 'tanitim-qr' };
+  const btn = $('#send'); btn.disabled = true; btn.textContent = 'Kaydediliyor…';
+
+  // Sunucu kaydı veritabanına yazar ve info@ adresine iletir. Uyanmamışsa ya da
+  // bağlantı yoksa 25 sn sonra vazgeçip ziyaretçinin e-posta uygulamasını hazır
+  // taslakla açıyoruz: her iki yolda da talep kaybolmaz, ziyaretçi de takılmaz.
+  let saved = false;
   if (SUBMIT_ENDPOINT) {
-    let saved = false;
-    try { const r = await fetch(SUBMIT_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); saved = r.ok; }
-    catch { saved = false; }
-    if (!saved) { btn.disabled = false; btn.textContent = 'Tekrar deneyin'; $('#e-email').hidden = false;
-      $('#e-email').textContent = 'Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin.'; return; }
-  } else {
-    // Uç nokta yoksa kayıt kaybolmasın: ziyaretçinin e-posta uygulaması hazır taslakla açılır.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 25000);
+    try {
+      const r = await fetch(SUBMIT_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: ctrl.signal });
+      saved = r.ok;
+    } catch { saved = false; }
+    clearTimeout(timer);
+  }
+  if (!saved) {
     const body = [`Ad soyad: ${name}`, `E-posta: ${email}`, `Rol: ${role}`,
-      `Kurum: ${payload.org || '-'}`, `İlgilendiği konu: ${topic.label}`, '', 'Yatırımcı sunumunu rica ediyorum.'].join('\n');
+      `Kurum: ${payload.org || '-'}`, '', 'Yatırımcı sunumunu rica ediyorum.'].join('\n');
     location.href = `mailto:${LEAD_EMAIL}?subject=${encodeURIComponent('Sunum talebi — ' + name)}&body=${encodeURIComponent(body)}`;
   }
-  $('#hi').textContent = name.split(' ')[0];
-  $('#doneLead').textContent = SUBMIT_ENDPOINT
-    ? 'Sunumumuz e-postanıza yolda. Fuar boyunca standımızda da sizi bekliyoruz.'
-    : 'E-posta uygulamanızda hazır bir mesaj açıldı; göndermeniz yeterli. Fuar boyunca standımızda da sizi bekliyoruz.';
-  step(3); show('done'); dock('');
+
+  const firstName = name.split(' ')[0];
+  $('#welcomeText').textContent = saved
+    ? `Teşekkürler, ${firstName}. Sunumumuzu kısa süre içinde e-postanıza göndereceğiz.`
+    : `Teşekkürler, ${firstName}. E-posta uygulamanızda hazır bir mesaj açıldı; göndermeniz yeterli.`;
+  $('#welcome').hidden = false;
+  step(2); show('intro'); introDock();
 });
 
-$('#replay').onclick = () => start(topic);
-introDock();
+toForm();
 </script>
 </body>
 </html>
