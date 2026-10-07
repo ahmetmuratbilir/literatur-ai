@@ -32,7 +32,6 @@ import { useI18n } from './i18n/context.js';
 const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 import ResultCard from './components/ResultCard';
-import RankingPanel from './components/RankingPanel';
 import GlobalStats from './components/GlobalStats';
 import HistorySidebar from './components/HistorySidebar';
 import WriterPanel from './components/WriterPanel';
@@ -150,23 +149,12 @@ function App() {
   const [activeLandingTab, setActiveLandingTab] = useState(null);
   const [landingTheme, setLandingTheme] = useState('light');
   const [showWriterPanel, setShowWriterPanel] = useState(false);
-  // Siralama profili. Tarayicida hatirlanir (MongoDB baglaninca kullanici
-  // profiline tasinacak). localStorage gizli pencerede atabilir; sessizce
-  // varsayilana duser.
-  const [profileId, setProfileId] = useState(() => {
-    try { return window.localStorage.getItem('rankingProfile') || 'dengeli'; } catch { return 'dengeli'; }
-  });
   const [lastSearchParams, setLastSearchParams] = useState(null);
-  const [rerankLoading, setRerankLoading] = useState(false);
-  // Gelismis moddan gelen ozel agirliklar. Doluysa profilin yerine gecer.
-  const [customWeights, setCustomWeights] = useState(() => {
-    try { return JSON.parse(window.localStorage.getItem('rankingCustomWeights') || 'null'); } catch { return null; }
-  });
-  // Metin degil bayrak: dil degisince uyari da yeni dilde gorunmeli.
-  const [inconsistentRanking, setInconsistentRanking] = useState(false);
-  const rankingParams = customWeights
-    ? { weights: JSON.stringify(customWeights) }
-    : { profileId };
+  // Siralama herkes icin "Dengeli". Kullanicinin profil/agirlik secebildigi panel
+  // kaldirildi; tarayicida eskiden kalmis bir tercih (rankingProfile,
+  // rankingCustomWeights) artik okunmuyor, yoksa degistirilemeyen gizli bir
+  // agirlik olarak her aramaya uygulanirdi.
+  const rankingParams = { profileId: 'dengeli' };
 
   const { userId, isLoaded, getToken } = useAppAuth();
   const { user, isSignedIn } = useAppUser();
@@ -379,41 +367,6 @@ function App() {
     }
   };
 
-  /**
-   * Profil degisince yalnizca YENIDEN SIRALAR. handleSearch'u cagirmiyoruz:
-   * o fonksiyon AI analizini ve yazara secilmis makaleleri siliyor, gecmise
-   * ikinci bir kayit ekliyor. Sunucu ayni sorguyu onbellekten bu profilin
-   * agirliklariyla yeniden siraladigi icin istek hizli doner.
-   */
-  const rerank = async (nextRankingParams) => {
-    if (!lastSearchParams || isShared) return;
-    setRerankLoading(true);
-    try {
-      const token = await getToken();
-      const response = await axios.get(`${defaultApiUrl}/api/search`, {
-        params: { ...lastSearchParams, ...rankingParams, ...nextRankingParams },
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setData(response.data);
-    } catch (err) {
-      setError(err.response?.data?.error || t('search.rerankFailed'));
-    } finally {
-      setRerankLoading(false);
-    }
-  };
-
-  const handleProfileChange = async (nextProfileId) => {
-    setProfileId(nextProfileId);
-    setCustomWeights(null);
-    setInconsistentRanking(false);
-    try {
-      window.localStorage.setItem('rankingProfile', nextProfileId);
-      window.localStorage.removeItem('rankingCustomWeights');
-    } catch { /* yok say */ }
-    // Ozel agirlik temizlendigi icin weights parametresini de ez.
-    await rerank({ profileId: nextProfileId, weights: undefined });
-  };
-
   /** Unpaywall: DOI için yasal ücretsiz kopya (kart düğmesinden, arama sırasında değil). */
   const findFreePdf = async (doi) => {
     const token = await getToken();
@@ -422,15 +375,6 @@ function App() {
       headers: { Authorization: `Bearer ${token}` }
     });
     return oa;
-  };
-
-  const handleWeightsApply = async (weights, { inconsistent = false } = {}) => {
-    setCustomWeights(weights);
-    // Kullanici tutarsiz tercihlerle devam etmeyi secerse kilitlemiyoruz, ama
-    // siralamanin bu sekilde uretildigini gizlemiyoruz.
-    setInconsistentRanking(inconsistent);
-    try { window.localStorage.setItem('rankingCustomWeights', JSON.stringify(weights)); } catch { /* yok say */ }
-    await rerank({ weights: JSON.stringify(weights), profileId: undefined });
   };
 
   /**
@@ -554,7 +498,6 @@ function App() {
     window.open('https://tez.yok.gov.tr/UlusalTezMerkezi/tarama.jsp', '_blank', 'noopener');
     pushToast({ tone: 'success', title: t('yok.opened'), text: copied ? t('yok.copied', { q: query }) : t('yok.typeIt') });
   };
-  const rankingWarnings = [...(data?.ranking?.warnings || []), ...(inconsistentRanking ? [t('results.inconsistentNote')] : [])];
 
   // Yalnızca geliştirmede: Clerk kapalıyken tanıtım sayfası hiç görünmediği
   // için ?landing ile önizlenebilir.
@@ -743,22 +686,6 @@ function App() {
                     )}
                   </div>
 
-                  {/* Sıralama tercihi ARAMADAN ÖNCE seçilir; varsayılan "Dengeli".
-                      Sonuçlar geldikten sonra değiştirilirse mevcut sonuçlar
-                      yeniden sıralanır. */}
-                  <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 'var(--space-5)' }}>
-                    <RankingPanel
-                      apiUrl={defaultApiUrl}
-                      profileId={profileId}
-                      customWeights={customWeights}
-                      onProfile={handleProfileChange}
-                      onCustom={handleWeightsApply}
-                      disabled={rerankLoading || loading}
-                      warnings={rankingWarnings}
-                      hasResults={Boolean(data?.results?.length)}
-                    />
-                  </div>
-
                   <button
                     type="submit"
                     disabled={loading || !canSubmitSearch}
@@ -872,12 +799,8 @@ function App() {
 
                 <div className="ui-toolbar export-actions">
                   <div className="ui-toolbar__meta" aria-live="polite">
-                    {rerankLoading ? t('results.updating') : (
-                      <>
-                        <strong>{t('results.shown', { n: Math.min(shownCount, data.results.length), total: data.results.length })}</strong>
-                        {data.relevance?.dropped > 0 && <> · {t('results.dropped', { n: data.relevance.dropped })}</>}
-                      </>
-                    )}
+                    <strong>{t('results.shown', { n: Math.min(shownCount, data.results.length), total: data.results.length })}</strong>
+                    {data.relevance?.dropped > 0 && <> · {t('results.dropped', { n: data.relevance.dropped })}</>}
                   </div>
                   <div className="ui-toolbar__group">
                     {!isShared && (
