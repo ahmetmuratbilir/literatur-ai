@@ -22,6 +22,7 @@ import {
   GraduationCap,
   ExternalLink,
   ListChecks,
+  UserRound,
   X
 } from 'lucide-react';
 import { AuthedOnly, AnonOnly, useAppAuth, useAppUser } from './auth/clerkBridge.js';
@@ -32,6 +33,7 @@ import { useI18n } from './i18n/context.js';
 const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 import ResultCard from './components/ResultCard';
+import AuthorPicker from './components/AuthorPicker.jsx';
 import GlobalStats from './components/GlobalStats';
 import HistorySidebar from './components/HistorySidebar';
 import WriterPanel from './components/WriterPanel';
@@ -126,7 +128,12 @@ function App() {
   const [mainTopic, setMainTopic] = useState('');
   // Yazar araması arayüzden kaldırıldı (5 Eki 2026); sunucu parametresi boş gider.
   // Geçmişten açılan eski bir aramanın yazarı da geri yüklenmez: görünmeyen bir filtre olurdu.
-  const authorName = '';
+  // Arama türü: konu ya da yazar. Yazar modunda kişi listeden seçilir; arama
+  // adıyla değil OpenAlex kimliğiyle yapılır (aynı adda çok sayıda yazar var).
+  const [searchMode, setSearchMode] = useState('topic');
+  const [selectedAuthor, setSelectedAuthor] = useState(null);
+  const activeAuthor = searchMode === 'author' ? selectedAuthor : null;
+  const authorName = activeAuthor?.name || '';
   const [keywords, setKeywords] = useState([]);
   // Sunucu siraladigi tum adaylari (en fazla 100) dondurur; kaynaklardan
   // cekilen miktar bundan bagimsiz (server SOURCE_FETCH_COUNT). Ekranda 25'er
@@ -243,11 +250,10 @@ function App() {
 
   const loadingSteps = t('loading.steps');
 
-  const canSubmitSearch = Boolean(
-    mainTopic.trim() ||
-    authorName.trim() ||
-    keywords.length > 0
-  );
+  // Yazar modunda konu isteğe bağlı ama kişi seçilmiş olmalı.
+  const canSubmitSearch = searchMode === 'author'
+    ? Boolean(selectedAuthor)
+    : Boolean(mainTopic.trim() || keywords.length > 0);
 
   // Auth effect
   useEffect(() => {
@@ -382,23 +388,36 @@ function App() {
    * @param aiQueryOverride Yalnızca bu aramada kullanılacak AI Boolean sorgusu.
    *   Konu kutusuna yazılmaz ve state'te tutulmaz: önceki sürüm seçilen sorguyu
    *   kutuya yazıyor ve saklıyordu, sonraki elle aramalar da onu gönderiyordu.
+   * @param authorOverride undefined: ekrandaki yazar seçimi; null: yazarsız;
+   *   { id, name }: o yazar (geçmişten açılan arama, state henüz güncellenmemişken).
    */
-  const handleSearch = async (e, directQuery = null, aiQueryOverride = null) => {
+  const handleSearch = async (e, directQuery = null, aiQueryOverride = null, authorOverride = undefined) => {
     if (e) e.preventDefault();
-    const activeTopic = directQuery ? directQuery.trim() : mainTopic.trim();
+    // null: ekrandaki konu. Metin (boş dâhil): o konu. Geçmişten açılışta konu
+    // açıkça geçiriliyor; setMainTopic henüz yansımadığı için state eski konuyu
+    // tutuyor olabilir.
+    const activeTopic = directQuery !== null ? String(directQuery).trim() : mainTopic.trim();
     if (directQuery) {
       setMainTopic(directQuery);
     }
+    // "Benzerini bul" bir konu araması: seçili yazara takılmasın.
+    const author = authorOverride !== undefined ? authorOverride : (directQuery ? null : activeAuthor);
+    if (directQuery && authorOverride === undefined && searchMode === 'author') setSearchMode('topic');
+    if (authorOverride === undefined && directQuery === null && searchMode === 'author' && !author) {
+      setError(t('search.authorNeedPick'));
+      return;
+    }
     const query = aiQueryOverride ?? '';
     const trimmedTopic = activeTopic;
-    const trimmedAuthor = authorName.trim();
+    const trimmedAuthor = author?.name?.trim() || '';
+    const authorId = author?.id || '';
     const normalizedQuery = typeof query === 'string' ? query.trim() : '';
     const cleanKeywords = Array.isArray(keywords)
       ? keywords.map((k) => String(k).trim()).filter(Boolean)
       : [];
     const hasKeywords = cleanKeywords.length > 0;
 
-    if (!trimmedTopic && !normalizedQuery && !trimmedAuthor && !hasKeywords) {
+    if (!trimmedTopic && !normalizedQuery && !authorId && !hasKeywords) {
       setError(t('search.needInput'));
       return;
     }
@@ -415,6 +434,7 @@ function App() {
         params: {
           mainTopic: trimmedTopic,
           authorName: trimmedAuthor,
+          authorId,
           count: count,
           aiQuery: normalizedQuery,
           keywords: JSON.stringify(cleanKeywords),
@@ -426,6 +446,7 @@ function App() {
       setLastSearchParams({
         mainTopic: trimmedTopic,
         authorName: trimmedAuthor,
+        authorId,
         count,
         aiQuery: normalizedQuery,
         keywords: JSON.stringify(cleanKeywords)
@@ -444,6 +465,7 @@ function App() {
       await axios.post(`${defaultApiUrl}/api/history`, {
         mainTopic: trimmedTopic,
         authorName: trimmedAuthor,
+        authorId,
         keywords: cleanKeywords,
         aiQuery: normalizedQuery
       }, {
@@ -556,7 +578,13 @@ function App() {
           onSelectHistory={(item) => {
             setMainTopic(item.mainTopic || '');
             setKeywords(item.keywords || []);
-            handleSearch(null, item.aiQuery);
+            // Yazar aramasıysa aynı kişiyle aç; değilse ekranda kalmış bir yazar seçimi
+            // konu aramasına sızmasın. State güncellemesi gecikeceği için yazar
+            // doğrudan geçiriliyor.
+            const author = item.authorId ? { id: item.authorId, name: item.authorName || '' } : null;
+            setSearchMode(author ? 'author' : 'topic');
+            setSelectedAuthor(author);
+            handleSearch(null, item.mainTopic || '', item.aiQuery || null, author);
           }}
           onDeleteHistoryEntry={async (id) => {
             const token = await getToken();
@@ -641,8 +669,27 @@ function App() {
                 </div>
               ) : (
                 <form className="query-form" onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+                  <div className="ui-mode-tabs" role="tablist" aria-label={t('search.modeLabel')}>
+                    <button type="button" role="tab" className="ui-mode-tab" aria-selected={searchMode === 'topic'} onClick={() => setSearchMode('topic')}>
+                      <Search size={14} aria-hidden="true" /> {t('search.modeTopic')}
+                    </button>
+                    <button type="button" role="tab" className="ui-mode-tab" aria-selected={searchMode === 'author'} onClick={() => setSearchMode('author')}>
+                      <UserRound size={14} aria-hidden="true" /> {t('search.modeAuthor')}
+                    </button>
+                  </div>
+
+                  {searchMode === 'author' && (
+                    <AuthorPicker
+                      apiUrl={defaultApiUrl}
+                      getToken={getToken}
+                      value={selectedAuthor}
+                      onChange={setSelectedAuthor}
+                      disabled={loading}
+                    />
+                  )}
+
                   <div>
-                    <label htmlFor="topic-input" className="ui-field-label">{t('search.topicLabel')}</label>
+                    <label htmlFor="topic-input" className="ui-field-label">{t(searchMode === 'author' ? 'search.authorTopicLabel' : 'search.topicLabel')}</label>
                     <div className="input-wrapper query-input-shell" style={{ position: 'relative' }}>
                       <Search style={{ position: 'absolute', left: '16px', top: isCompact ? '26px' : '50%', transform: 'translateY(-50%)', color: 'var(--slate-400)' }} size={18} />
                       <input
@@ -652,12 +699,12 @@ function App() {
                         style={{
                           height: '52px',
                           paddingLeft: '46px',
-                          paddingRight: isCompact ? '16px' : '170px',
+                          paddingRight: isCompact || searchMode === 'author' ? '16px' : '170px',
                           fontSize: 'var(--fs-md)',
                           borderRadius: 'var(--radius-md)',
                           width: '100%'
                         }}
-                        placeholder={t('search.topicPlaceholder')}
+                        placeholder={t(searchMode === 'author' ? 'search.authorTopicPlaceholder' : 'search.topicPlaceholder')}
                         value={mainTopic}
                         onChange={(e) => setMainTopic(e.target.value)}
                         inputMode="search"
@@ -666,19 +713,23 @@ function App() {
                         autoCapitalize="none"
                         autoComplete="off"
                       />
-                      <button
-                        type="button"
-                        onClick={handleAiSuggest}
-                        disabled={aiLoading}
-                        className="ui-btn ui-btn--outline"
-                        style={isCompact
-                          ? { width: '100%', marginTop: 'var(--space-2)', height: '42px', color: 'var(--brand-primary)' }
-                          : { position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--brand-primary)' }}
-                      >
-                        {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                        {aiLoading ? t('search.aiAnalyzing') : t('search.aiImprove')}
-                      </button>
+                      {/* AI geliştirme konu sorgusu kuruyor; yazar aramasında yeri yok. */}
+                      {searchMode !== 'author' && (
+                        <button
+                          type="button"
+                          onClick={handleAiSuggest}
+                          disabled={aiLoading}
+                          className="ui-btn ui-btn--outline"
+                          style={isCompact
+                            ? { width: '100%', marginTop: 'var(--space-2)', height: '42px', color: 'var(--brand-primary)' }
+                            : { position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--brand-primary)' }}
+                        >
+                          {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                          {aiLoading ? t('search.aiAnalyzing') : t('search.aiImprove')}
+                        </button>
+                      )}
                     </div>
+                    {searchMode === 'author' && <p className="ui-author-note" style={{ marginTop: 'var(--space-2)' }}>{t('search.authorNote')}</p>}
                     {aiError && (
                       <div style={{ marginTop: 'var(--space-2)', color: 'var(--score-low)', fontSize: 'var(--fs-sm)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <AlertCircle size={14} /> {aiError}
@@ -776,7 +827,7 @@ function App() {
                   ref={aiPanelRef}
                   analysis={aiAnalysis}
                   // Konu kutusu değişmez; seçilen yaklaşımın Boolean sorgusu yalnızca bu aramaya gider.
-                  onPick={(q) => handleSearch(null, null, q.text)}
+                  onPick={(q) => { setSearchMode('topic'); handleSearch(null, null, q.text, null); }}
                 />
               )}
             </AnimatePresence>

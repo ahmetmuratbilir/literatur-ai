@@ -151,6 +151,9 @@ export const PREFETCH_PDF_BUDGET_MS = 2500;
 
 /** Her kaynaktan istenen makale sayisi (gosterilen sayidan bagimsiz). */
 export const SOURCE_FETCH_COUNT = 25;
+// Yazar aramasinda tek kaynak (OpenAlex) var; havuz o kisinin eserlerinden
+// olusuyor, bu yuzden kaynak basina 25 yerine daha genis cekiliyor.
+export const AUTHOR_FETCH_COUNT = 100;
 
 /**
  * @param {object|null} rankingWeights  Kullanicinin profil/ozel agirliklari
@@ -194,27 +197,43 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
     console.log('[SourceQuery] S2   :', s2Query || '(bos)');
   }
 
+  // Yazar aramasi: secilen kisinin OpenAlex kimligiyle (authorships.author.id).
+  // Diger kaynaklar bu kimligi tanimiyor; isimle eslestirmek "Mehmet Yilmaz"
+  // gibi bir adda baska kisilerin makalelerini karistiriyor, bu yuzden atlaniyor.
+  // Konu da yazildiysa yazarin eserleri o konuyla daraltilir; yazilmadiysa en
+  // cok atif alan eserler once gelir.
+  const authorId = typeof options.authorId === 'string' && /^A\d+$/.test(options.authorId) ? options.authorId : null;
+  const authorMode = Boolean(authorId);
+  const skipIfAuthor = (run) => (authorMode ? Promise.resolve(SKIPPED) : run());
+  const openAlexCall = authorMode
+    ? () => searchOpenAlex(queryContext, { ...sourceParams, count: AUTHOR_FETCH_COUNT }, openAlexQuery, {
+      filter: `authorships.author.id:${authorId}`,
+      sort: (openAlexQuery || queryContext).trim() ? undefined : 'cited_by_count:desc',
+    })
+    : () => searchOpenAlex(queryContext, sourceParams, openAlexQuery);
+  if (authorMode) console.log(`[Author] ${authorId} icin yalnizca OpenAlex soruluyor`);
+
   const [scopusResult, openAlexResult, coreResult, crossrefResult, s2Result, arxivResult, doajResult, europePmcResult, turkishResult, openAireResult, dataCiteResult, pubmedResult] = await Promise.allSettled([
-    isScopusEnabled()
+    isScopusEnabled() && !authorMode
       ? guarded('Scopus', () => searchLiterature(scopusQuery, SOURCE_FETCH_COUNT, null, queryContext))
       : Promise.resolve(SKIPPED),
-    guarded('OpenAlex', () => searchOpenAlex(queryContext, sourceParams, openAlexQuery)),
-    guarded('CORE', () => searchCore(queryContext, sourceParams, openAlexQuery)),
-    guarded('Crossref', () => searchCrossref(crossrefQuery, SOURCE_FETCH_COUNT)),
-    guarded('SemanticScholar', () => searchSemanticScholar(s2Query, SOURCE_FETCH_COUNT)),
-    arxivQuery ? guarded('ArXiv', () => searchArXiv(arxivQuery, SOURCE_FETCH_COUNT, { fielded: true })) : Promise.resolve(SKIPPED),
-    guarded('DOAJ', () => searchDOAJ(doajQuery, SOURCE_FETCH_COUNT)),
+    guarded('OpenAlex', openAlexCall),
+    skipIfAuthor(() => guarded('CORE', () => searchCore(queryContext, sourceParams, openAlexQuery))),
+    skipIfAuthor(() => guarded('Crossref', () => searchCrossref(crossrefQuery, SOURCE_FETCH_COUNT))),
+    skipIfAuthor(() => guarded('SemanticScholar', () => searchSemanticScholar(s2Query, SOURCE_FETCH_COUNT))),
+    arxivQuery && !authorMode ? guarded('ArXiv', () => searchArXiv(arxivQuery, SOURCE_FETCH_COUNT, { fielded: true })) : Promise.resolve(SKIPPED),
+    skipIfAuthor(() => guarded('DOAJ', () => searchDOAJ(doajQuery, SOURCE_FETCH_COUNT))),
     // Europe PMC OpenAlex ile ayni boolean sorgu dilini anliyor.
-    guarded('EuropePMC', () => searchEuropePMC(openAlexQuery, SOURCE_FETCH_COUNT)),
-    turkishQuery
+    skipIfAuthor(() => guarded('EuropePMC', () => searchEuropePMC(openAlexQuery, SOURCE_FETCH_COUNT))),
+    turkishQuery && !authorMode
       ? guarded('OpenAlex', () => searchOpenAlex(turkishQuery, { count: turkishCount }, turkishQuery, { filter: 'language:tr' }))
       : Promise.resolve(SKIPPED),
     // Anahtarsiz, resmi API'ler (1 Eki 2026 eklendi): OpenAIRE kurumsal
     // arsivler ve tezler; DataCite tezler, Zenodo, arsiv kayitlari (yalniz baslikta).
-    guarded('OpenAIRE', () => searchOpenAIRE(crossrefQuery, SOURCE_FETCH_COUNT)),
-    guarded('DataCite', () => searchDataCite(crossrefQuery, SOURCE_FETCH_COUNT)),
+    skipIfAuthor(() => guarded('OpenAIRE', () => searchOpenAIRE(crossrefQuery, SOURCE_FETCH_COUNT))),
+    skipIfAuthor(() => guarded('DataCite', () => searchDataCite(crossrefQuery, SOURCE_FETCH_COUNT))),
     // PubMed duz metin sorgusu bekliyor; Crossref'e giden sade ifade uygun.
-    guarded('PubMed', () => searchPubMed(crossrefQuery, SOURCE_FETCH_COUNT))
+    skipIfAuthor(() => guarded('PubMed', () => searchPubMed(crossrefQuery, SOURCE_FETCH_COUNT)))
   ]);
 
   const categorizeError = classifySourceError;
@@ -403,6 +422,10 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
   const zeroResultSources = [];
   for (const [key, fetched] of Object.entries(sourceBreakdown)) {
     if (fetched > 0) continue;
+    // Yazar aramasinda diger kaynaklar bilerek atlaniyor; OpenAlex'in sifiri da
+    // (yazar + dar konu) sorgunun dogasi, kaynak arizasi degil. Ardisik sifir
+    // sayacina girerlerse sahte SOURCE_ZERO_STREAK alarmi uretirler.
+    if (authorMode) continue;
     if (failedSources.some((f) => f.name.toLowerCase().replace(/\s/g, '') === key.replace('s2', 'semanticscholar'))) continue;
     if (key === 'scopus' && !isScopusEnabled()) continue;
     if (key === 'arxiv' && !arxivQuery) continue;

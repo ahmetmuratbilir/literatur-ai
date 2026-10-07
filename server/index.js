@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import mongoose from 'mongoose';
 import { searchAll } from './services/search.js';
+import { searchOpenAlexAuthors } from './services/openalex.js';
 import { analyzeAndExpandQuery, generateConsensusSnapshot } from './services/llm.js';
 import { translateToEnglish } from './utils/translation.js';
 import SearchHistory from './models/SearchHistory.js';
@@ -845,12 +846,33 @@ app.post('/api/leads', leadLimiter, async (req, res) => {
   return res.json({ ok: true, saved: Boolean(lead), emailed, thanked });
 });
 
+// Yazar adaylari: kullanici aramadan once dogru kisiyi kurum/ORCID ile secer,
+// arama sonra o kisinin kimligiyle yapilir (ayni adda yuzlerce yazar olabiliyor).
+app.get('/api/authors', searchLimiter, async (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) return;
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
+  if (q.length < 2) return res.json({ authors: [] });
+  try {
+    const authors = await searchOpenAlexAuthors(q);
+    return res.json({ authors });
+  } catch (error) {
+    console.error('Author lookup error:', error?.message || error);
+    return res.status(502).json({ error: 'Yazar listesi alinamadi' });
+  }
+});
+
 app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
 
   try {
     const { mainTopic, authorName, keywords, language, count } = req.query;
+    // Secilen yazarin OpenAlex kimligi (ornek A5016678671). Bicim disi bir deger
+    // sessizce yok sayilir; arama o zaman yalnizca konuyla yapilir.
+    const authorId = typeof req.query.authorId === 'string' && /^A\d{1,15}$/.test(req.query.authorId)
+      ? req.query.authorId
+      : null;
 
     let keywordList = [];
 
@@ -885,6 +907,7 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
     const cacheFingerprint = buildSearchCacheFingerprint({
       mainTopic,
       authorName,
+      authorId,
       keywords: keywordList,
       language,
       aiQuery: req.query.aiQuery,
@@ -893,6 +916,7 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
     const hasSearchInput = Boolean(
       mainTopic?.trim() ||
       authorName?.trim() ||
+      authorId ||
       req.query.aiQuery?.trim() ||
       keywordList.length > 0
     );
@@ -1008,8 +1032,8 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
       queryParts.push(`(${topicQuery})`);
     }
 
-    if (authorName) {
-      queryParts.push(`aut(${authorName})`);
+    if (authorName || authorId) {
+      queryParts.push(`aut(${authorName || authorId})`);
     }
 
     if (keywordList.length > 0) {
@@ -1066,7 +1090,7 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
 
     // Yeni yapıya parametreleri gönderiyoruz
     const params = { mainTopic, authorName, keywords: keywordList, count: limit };
-    const results = await searchAll(params, queryContext, finalQuery, booleanQuery, queryPlan, ranking.weights, { translate: translateEnabled });
+    const results = await searchAll(params, queryContext, finalQuery, booleanQuery, queryPlan, ranking.weights, { translate: translateEnabled, authorId });
     let cacheSave = { saved: false };
     try {
       // Sadece dolu sonuçları cache'e kaydet
@@ -1214,6 +1238,7 @@ app.post('/api/history', async (req, res) => {
 
   try {
     const { userId, mainTopic, authorName, keywords, aiQuery } = req.body;
+    const authorId = typeof req.body.authorId === 'string' && /^A\d{1,15}$/.test(req.body.authorId) ? req.body.authorId : '';
     console.log(`[History] Yeni kayıt isteği: User=${userId}, Topic=${mainTopic || 'AI Sorgusu'}`);
     
     if (!userId || (!mainTopic && !authorName && !aiQuery)) {
@@ -1231,6 +1256,7 @@ app.post('/api/history', async (req, res) => {
       userId,
       mainTopic: mainTopic?.trim().slice(0, 150),
       authorName: authorName?.trim().slice(0, 80),
+      authorId,
       keywords: Array.isArray(keywords) ? keywords.map(k => k.trim().slice(0, 40)).filter(Boolean) : [],
       aiQuery: aiQuery?.trim().slice(0, 300)
     };
@@ -1241,6 +1267,7 @@ app.post('/api/history', async (req, res) => {
       const isDuplicate =
         (lastSearch.mainTopic || '') === (cleanHistory.mainTopic || '') &&
         (lastSearch.authorName || '') === (cleanHistory.authorName || '') &&
+        (lastSearch.authorId || '') === (cleanHistory.authorId || '') &&
         JSON.stringify(lastSearch.keywords || []) === JSON.stringify(cleanHistory.keywords || []) &&
         (lastSearch.aiQuery || '') === (cleanHistory.aiQuery || '');
 

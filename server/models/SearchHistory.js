@@ -20,6 +20,14 @@ const SearchHistorySchema = new mongoose.Schema({
     trim: true,
     maxlength: 80
   },
+  // Secilen yazarin OpenAlex kimligi (A5016678671). Gecmisten acilan bir yazar
+  // aramasi ayni kisiyle calissin diye: ad tek basina birden cok kisiye denk gelir.
+  authorId: {
+    type: String,
+    default: "",
+    trim: true,
+    maxlength: 20
+  },
   keywords: {
     type: [{ type: String, trim: true, maxlength: 40 }],
     validate: [

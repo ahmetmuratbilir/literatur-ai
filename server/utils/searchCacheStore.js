@@ -108,7 +108,10 @@ export const buildSearchCacheFingerprint = (params) => {
     authorName: normalizeText(params.authorName),
     language: normalizeText(params.language),
     keywords: normalizeKeywords(params.keywords),
-    count: normalizeCount(params.count)
+    count: normalizeCount(params.count),
+    // Yalnizca yazar aramasinda eklenir: her anahtara bos alan olarak girseydi
+    // mevcut tum onbellek kayitlarinin ozeti degisir, hepsi bosa giderdi.
+    ...(params.authorId ? { authorId: String(params.authorId) } : {})
   };
 
   const serialized = JSON.stringify(normalizedParams);
@@ -116,6 +119,7 @@ export const buildSearchCacheFingerprint = (params) => {
   const displayParts = [
     normalizedParams.aiQuery || normalizedParams.mainTopic,
     normalizedParams.authorName ? `author:${normalizedParams.authorName}` : '',
+    normalizedParams.authorId ? `authorId:${normalizedParams.authorId}` : '',
     normalizedParams.keywords.length ? `keywords:${normalizedParams.keywords.join(',')}` : '',
     normalizedParams.language ? `language:${normalizedParams.language}` : '',
     `count:${normalizedParams.count}`
