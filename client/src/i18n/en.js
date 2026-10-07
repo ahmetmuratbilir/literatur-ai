@@ -489,7 +489,7 @@ export default {
     hero: {
       eyebrow: 'Academic search · transparent AHP ranking',
       title: 'Not a hundred papers. The right ten.',
-      lead: 'Nine scholarly databases, one query. You set the ranking criteria and see the reason behind every score.',
+      lead: 'Nine scholarly databases, one query. See why every paper ranks where it does.',
       placeholder: 'Describe your research topic…',
       search: 'Search',
       try: 'Try:',
@@ -505,12 +505,12 @@ export default {
       title: 'From a topic to a ranked reading list in three steps',
       query: { title: 'Describe your topic', text: 'Write in English or Turkish. Turkish topics are translated, and AI builds a Boolean query adapted to each source.' },
       collect: { title: 'Collect and clean', text: 'Sources are queried in parallel, duplicates are merged by DOI, off-topic results are removed and retracted papers are flagged.' },
-      rank: { title: 'Rank transparently', text: 'AHP weighs citations, recency, relevance and quality. Pick a preset profile or set each criterion’s percentage yourself.' },
+      rank: { title: 'Rank transparently', text: 'AHP weighs citations, recency, relevance and quality in balance; retracted papers are pushed down.' },
     },
     features: {
       eyebrow: 'Features',
       title: 'Built for literature reviews you can defend',
-      profiles: { title: 'Ranking profiles', text: 'Balanced, citation-focused, recent work and more — or set the weight of each criterion as a percentage yourself.' },
+      filters: { title: 'Quick filters', text: 'Narrow the results to Q1/Q2 journals, the last three years, open access or papers with 10+ citations in one tap.' },
       explain: { title: 'Explainable scores', text: 'See how much each criterion contributed to a paper’s rank, and why a missing value scored zero.' },
       retraction: { title: 'Retraction check', text: 'Every result with a DOI is checked against Crossref retraction notices; retracted papers are flagged and pushed down.' },
       oa: { title: 'Open-access copies', text: 'Find legal free versions of paywalled papers through Unpaywall.' },

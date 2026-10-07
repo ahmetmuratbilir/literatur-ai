@@ -23,7 +23,7 @@
 <meta name="robots" content="noindex">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <title>Literatür AI — Tanıtım</title>
-<meta name="description" content="Literatür AI'yi 60 saniyede tanıyın: konunuzu seçin, aramanın nasıl yürüdüğünü canlı izleyin, sıralamayı kendiniz değiştirin.">
+<meta name="description" content="Literatür AI'yi 60 saniyede tanıyın: konunuzu seçin, aramanın nasıl yürüdüğünü canlı izleyin, her makalenin neden o sırada olduğunu görün.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -197,10 +197,6 @@ input[type=checkbox]:focus-visible, input[type=range]:focus-visible {
 .flag { display: none; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--warn); padding-left: 30px; margin: 0; }
 .card.retracted .flag { display: flex; }
 
-.tune { display: grid; gap: 10px; background: var(--tint); border-radius: var(--r-lg); padding: 18px; }
-.tune p { margin: 0; font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
-.tune .ends { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); font-weight: 500; }
-input[type=range] { width: 100%; accent-color: var(--accent); height: 32px; margin: 0; }
 .verdict { font-size: 24px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.15; margin: 0; text-wrap: balance; }
 .note { font-size: 12px; color: var(--faint); margin: 0; }
 .hide-soft { opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity 0.4s, transform 0.4s; }
@@ -317,12 +313,6 @@ input[aria-invalid=true] { border-color: var(--warn); }
     </div>
 
     <div class="hide-soft" id="after" style="display:grid;gap:18px">
-      <div class="tune">
-        <p>Sıralamayı siz belirleyin</p>
-        <label for="w" class="vh">Klasik çalışmalar ile güncel çalışmalar arasındaki ağırlık</label>
-        <input type="range" id="w" min="0" max="100" value="35">
-        <div class="ends"><span>Çok atıf alanlar</span><span>En güncel</span></div>
-      </div>
       <p class="verdict" id="verdict"></p>
       <p class="note">Gösterimdeki makaleler örnektir. Gerçek aramalar 4–10 saniye sürer ve her puanın gerekçesi görünür.</p>
     </div>
@@ -482,12 +472,12 @@ function introDock() {
 
 /* --- Demo --- */
 function score(p, w) {
-  // AHP benzeri: alaka ve kalite sabit, atıf ↔ güncellik kaydırıcıyla paylaşılır. Geri çekilen ağır ceza alır.
+  // AHP benzeri, üründeki gibi sabit "Dengeli" ağırlıklar: alaka ve kalite sabit, atıf ile güncellik dengede. Geri çekilen ağır ceza alır.
   const s = p.a * 0.35 + p.k * 0.15 + p.c * 0.5 * (1 - w) + p.r * 0.5 * w;
   return p.retracted && penalize ? s * 0.35 : s;
 }
 function renderResults(animate) {
-  const w = $('#w').value / 100;
+  const w = 0.35;
   const all = topic.papers.map((p) => ({ p, s: score(p, w) })).sort((a, b) => b.s - a.s);
   // Ceza sonrası geri çekilen makale listeden düşmez, yakalandığı görünsün diye en alta iner.
   const list = penalize ? [...all.filter((x) => !x.p.retracted).slice(0, 3), ...all.filter((x) => x.p.retracted)] : all.slice(0, 4);
@@ -516,7 +506,6 @@ function renderResults(animate) {
   $('#rankLbl').textContent = penalize ? 'AHP ile sıralandı · ilk 3 + yakalanan' : 'AHP ile sıralanıyor…';
   $('#verdict').innerHTML = `<span class="v">${fmt(topic.dedup)}</span> makaleden en uygunu: “${top.t.split(':')[0]}”.`;
 }
-$('#w').addEventListener('input', () => renderResults(false));
 
 function start(t) {
   topic = t; clearTimers(); step(2); show('demo');
@@ -529,7 +518,7 @@ function start(t) {
   $('#srcCount').textContent = '0 / ' + SOURCES.length;
   ['#f1', '#f2', '#f3', '#f4'].forEach((f) => { $(f).classList.remove('on'); $(f + ' b').textContent = '0'; });
   ['#resWrap', '#after'].forEach((s) => $(s).classList.replace('show-soft', 'hide-soft'));
-  $('#results').innerHTML = ''; $('#w').value = 35; penalize = false;
+  $('#results').innerHTML = ''; penalize = false;
 
   const t0 = performance.now(); let running = true;
   const clock = () => { if (!running) return; $('#timer').textContent = ((performance.now() - t0) / 1000).toFixed(1).replace('.', ',') + ' sn'; requestAnimationFrame(clock); };

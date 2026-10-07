@@ -48,7 +48,7 @@ const MARQUEE_ROWS = [ALL_SOURCES.slice(0, 6), ALL_SOURCES.slice(6)];
 const FLOW_STEPS = ['adapt', 'parallel', 'merge'];
 
 const FEATURES = [
-  { key: 'profiles', icon: SlidersHorizontal },
+  { key: 'filters', icon: SlidersHorizontal },
   { key: 'explain', icon: BarChart2 },
   { key: 'retraction', icon: ShieldAlert },
   { key: 'oa', icon: Unlock },

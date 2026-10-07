@@ -489,7 +489,7 @@ export default {
     hero: {
       eyebrow: 'Akademik arama · şeffaf AHP sıralaması',
       title: 'Yüz makale değil, doğru on makale.',
-      lead: 'Dokuz akademik veri tabanı, tek sorgu. Sıralama ölçütlerini siz belirlersiniz, her puanın gerekçesini görürsünüz.',
+      lead: 'Dokuz akademik veri tabanı, tek sorgu. Her makalenin neden o sırada olduğunu görürsünüz.',
       placeholder: 'Araştırma konunuzu yazın…',
       search: 'Ara',
       try: 'Örnekler:',
@@ -505,12 +505,12 @@ export default {
       title: 'Konudan sıralı okuma listesine üç adımda',
       query: { title: 'Konunuzu yazın', text: 'Türkçe ya da İngilizce yazın. Türkçe konular çevrilir; yapay zekâ her kaynağa uygun bir Boolean sorgu kurar.' },
       collect: { title: 'Topla ve temizle', text: 'Kaynaklar paralel sorgulanır, kopyalar DOI ile birleştirilir, konu dışı sonuçlar elenir, geri çekilen makaleler işaretlenir.' },
-      rank: { title: 'Şeffaf sırala', text: 'AHP atıf, güncellik, alaka ve kaliteyi tartar. Hazır bir profil seçin ya da ölçütlerin yüzdelerini kendiniz ayarlayın.' },
+      rank: { title: 'Şeffaf sırala', text: 'AHP atıf, güncellik, alaka ve kaliteyi dengeli ağırlıklarla tartar; geri çekilen makaleler aşağı iner.' },
     },
     features: {
       eyebrow: 'Özellikler',
       title: 'Savunabileceğiniz literatür taramaları için',
-      profiles: { title: 'Sıralama profilleri', text: 'Dengeli, atıf odaklı, güncel çalışmalar ve daha fazlası; ya da her ölçütün ağırlığını yüzde olarak kendiniz belirleyin.' },
+      filters: { title: 'Hızlı filtreler', text: 'Sonuçları Q1/Q2 dergilere, son üç yıla, açık erişime ya da 10’dan fazla atıf alanlara göre tek dokunuşla daraltın.' },
       explain: { title: 'Açıklanabilir puanlar', text: 'Her ölçütün makalenin sırasına katkısını ve eksik bir değerin neden sıfır aldığını görün.' },
       retraction: { title: 'Geri çekilme kontrolü', text: 'DOI’si olan her sonuç Crossref geri çekilme kayıtlarıyla karşılaştırılır; geri çekilen makaleler işaretlenir ve aşağı iner.' },
       oa: { title: 'Açık erişim kopyaları', text: 'Ücretli makalelerin yasal ücretsiz sürümlerini Unpaywall üzerinden bulun.' },
