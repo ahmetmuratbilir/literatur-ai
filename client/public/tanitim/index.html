@@ -95,8 +95,6 @@ body {
 .mark { width: 36px; height: 36px; border-radius: 11px; background: var(--grad); display: grid; place-items: center; flex-shrink: 0;
   box-shadow: 0 8px 18px -8px var(--violet); }
 .mark svg { width: 19px; height: 19px; }
-.brand .tag { margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent);
-  background: var(--tint); border: 1px solid var(--line); padding: 5px 10px; border-radius: 999px; }
 .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 14px; }
 .steps span { height: 3px; border-radius: 3px; background: var(--line); position: relative; overflow: hidden; }
 .steps span::after { content: ''; position: absolute; inset: 0; background: var(--grad); transform: scaleX(0); transform-origin: left;
@@ -267,7 +265,6 @@ input[aria-invalid=true] { border-color: var(--warn); }
     <div class="brand">
       <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><path d="M13.5 2 4 13.6h6.6L9.6 22 20 9.9h-6.7z"/></svg></span>
       Literatür AI
-      <span class="tag">Fuar demosu</span>
     </div>
     <div class="steps" aria-hidden="true"><span id="s1" class="on"></span><span id="s2"></span><span id="s3"></span></div>
     <div class="steps-l" aria-hidden="true"><b id="l1" class="on">Tanıyın</b><b id="l2">Deneyin</b><b id="l3">Görüşelim</b></div>
