@@ -215,10 +215,17 @@ export function deduplicateResults(results) {
     }
 
     // 3. Başlık benzerliği (Fuzzy Fallback: Jaro-Winkler > 0.95)
+    const year = publicationYearOf(item);
     if (titleClean.length > 10) {
       let matchedKey = null;
       for (const entry of titleEntries) {
         if (cannotReachSimilarityThreshold(titleClean.length, entry.titleClean.length)) continue;
+        // Farklı DOI + yıllar uzak = başlığı benzese de ayrı makale. Araştırmacılar
+        // aynı başlığı yıllar sonra yeniden kullanıyor: Aziz Sancar'ın 1996 Annual
+        // Review ve 2012 Cell Cycle "DNA excision repair" makaleleri tek sayılıyor,
+        // biri listeden kayboluyordu. Aynı yıl içindeki ön baskı / yayımlanmış
+        // sürüm / özet kaydı birleşmeye devam ediyor.
+        if (doi && entry.doi && doi !== entry.doi && year && entry.year && Math.abs(year - entry.year) > 1) continue;
         if (JaroWinklerDistance(titleClean, entry.titleClean) > 0.95) {
           matchedKey = entry.key;
           break;
@@ -244,10 +251,15 @@ export function deduplicateResults(results) {
     uniqueMap.set(key, item);
     if (doi) doiIndex.set(doi, key);
     if (altId) altIdIndex.set(altId, key);
-    if (titleClean.length > 10) titleEntries.push({ titleClean, key });
+    if (titleClean.length > 10) titleEntries.push({ titleClean, key, doi, year });
   }
 
   return Array.from(uniqueMap.values());
+}
+
+function publicationYearOf(item) {
+  const y = Number.parseInt(item?.year ?? item?.publicationYear, 10);
+  return Number.isFinite(y) && y > 1000 ? y : null;
 }
 
 /**

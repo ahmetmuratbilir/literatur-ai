@@ -85,6 +85,8 @@ export async function searchOpenAlex(queryContext, params, booleanQuery, options
   // Konusuz yazar aramasinda 'search' olmadigi icin alaka sirasi yok; en cok
   // atif alan eserler once gelsin diye cagiran siralamayi verebiliyor.
   if (options.sort) urlParams.set('sort', options.sort);
+  // Sayfalama: '*' ilk sayfa; yanittaki meta.next_cursor sonrakini getirir.
+  if (options.cursor) urlParams.set('cursor', options.cursor);
 
   const mailto = process.env.OPENALEX_MAIL || process.env.CONTACT_EMAIL || 'ahmet@literatureai.com';
   if (mailto) urlParams.set('mailto', mailto);
@@ -198,7 +200,7 @@ export async function searchOpenAlex(queryContext, params, booleanQuery, options
       }
     }
 
-    return { results: cleaned, quotaInfo, totalFound };
+    return { results: cleaned, quotaInfo, totalFound, nextCursor: data.meta?.next_cursor || null };
   } catch (error) {
     console.error('OpenAlex fetch hatası:', error.message);
     throw error;

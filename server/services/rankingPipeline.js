@@ -69,12 +69,14 @@ export async function rankFromPool(pool, options = {}) {
     // Ceviri ISTEGE BAGLI, varsayilan KAPALI (kullanici karari). Kapaliyken
     // onbellekte ceviri olsa bile uygulanmaz: kullanici Ingilizce istedi.
     translateEnabled = false,
+    // Yazar aramasi: konu suzmesini OpenAlex yapti, alaka esigi tekrar uygulanmaz.
+    skipRelevanceGate = false,
   } = options;
 
   // calculateAHP her makale icin YENI nesne donduruyor (...item); havuz
   // nesneleri degismez, boylece ayni havuz farkli agirliklarla tekrar
   // siralanabilir.
-  const ranked = (await calculateAHP(pool || [], weights)).slice(0, displayCount);
+  const ranked = (await calculateAHP(pool || [], weights, { skipRelevanceGate })).slice(0, displayCount);
   if (!translateEnabled) {
     return { results: ranked, translations: { ...translations }, translatedCount: 0 };
   }

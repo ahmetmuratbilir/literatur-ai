@@ -921,7 +921,10 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
       keywordList.length > 0
     );
 
-    if (hasSearchInput) {
+    // Yazar aramalari onbellege alinmiyor: 1000 esere kadar havuz kayit basina
+    // birkac MB tutuyor ve ucretsiz Atlas kumesi toplam 512 MB. OpenAlex
+    // ucretsiz ve hizli; bir yazar aramasi 1-5 istek.
+    if (hasSearchInput && !authorId) {
       const cachedResult = await getSharedSearchCache(cacheFingerprint);
       if (cachedResult) {
         // Cache'teki sonuç boşsa (eski hatalı kayıt) bypass et, canlı arama yap
@@ -1095,7 +1098,9 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
     try {
       // Sadece dolu sonuçları cache'e kaydet
       const resultCount = Array.isArray(results.results) ? results.results.length : 0;
-      if (resultCount > 0) {
+      if (authorId) {
+        // Yukaridaki okuma ile ayni gerekce: yazar aramasi onbellege yazilmaz.
+      } else if (resultCount > 0) {
         cacheSave = await saveSharedSearchCache(cacheFingerprint, results);
         if (cacheSave.saved) {
           console.log(`[SearchCache] Mongo save: ${cacheFingerprint.displayQuery || cacheFingerprint.cacheKey} (${resultCount} sonuç)`);

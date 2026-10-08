@@ -252,7 +252,12 @@ export function resolveWeights(customWeights) {
   return resolved;
 }
 
-export async function calculateAHP(dataset, customWeights = null) {
+/**
+ * @param {{skipRelevanceGate?: boolean}} [options] skipRelevanceGate: yazar
+ *   aramasinda konu suzmesini OpenAlex zaten yapti; burada tekrar baslik+ozet
+ *   kelime esigi uygulamak ozeti olmayan eserleri dusuruyordu.
+ */
+export async function calculateAHP(dataset, customWeights = null, { skipRelevanceGate = false } = {}) {
   const weights = resolveWeights(customWeights);
 
   const processedData = dataset.map(item => {
@@ -349,6 +354,8 @@ export async function calculateAHP(dataset, customWeights = null) {
   // (or. demo verisi) eski filtreye duser. Eski filtre 5'ten az makale
   // gecerse filtreyi TAMAMEN kaldiriyordu; az sonuclu aramalarda konu disi
   // makaleler tam da bu yoldan giriyordu.
+  if (skipRelevanceGate) return processedData.sort((a, b) => b.totalPoint - a.totalPoint);
+
   const gate = relevanceGate(processedData);
   let filtered;
   if (gate.level !== 'none') {

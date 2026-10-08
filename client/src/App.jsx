@@ -852,6 +852,12 @@ function App() {
                   <div className="ui-toolbar__meta" aria-live="polite">
                     <strong>{t('results.shown', { n: Math.min(shownCount, data.results.length), total: data.results.length })}</strong>
                     {data.relevance?.dropped > 0 && <> · {t('results.dropped', { n: data.relevance.dropped })}</>}
+                    {data.author && (
+                      <> · {t(data.author.capped ? 'results.authorCapped' : 'results.authorAll', {
+                        n: Number(data.author.fetched || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US'),
+                        total: Number(data.author.total || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US'),
+                      })}{data.author.partial && <> · {t('results.authorPartial')}</>}</>
+                    )}
                   </div>
                   <div className="ui-toolbar__group">
                     {!isShared && (

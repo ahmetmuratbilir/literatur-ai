@@ -151,9 +151,57 @@ export const PREFETCH_PDF_BUDGET_MS = 2500;
 
 /** Her kaynaktan istenen makale sayisi (gosterilen sayidan bagimsiz). */
 export const SOURCE_FETCH_COUNT = 25;
-// Yazar aramasinda tek kaynak (OpenAlex) var; havuz o kisinin eserlerinden
-// olusuyor, bu yuzden kaynak basina 25 yerine daha genis cekiliyor.
-export const AUTHOR_FETCH_COUNT = 100;
+// Yazar aramasi: kisinin eserlerinin tamami, 1000'e kadar. Gercek arastirmacilarin
+// neredeyse hepsi bunun altinda (Aziz Sancar 652); ustu genelde buyuk fizik
+// isbirlikleri ya da OpenAlex'in yanlislikla birlestirdigi kayitlar ("T.
+// Kobayashi" 2,9 milyon eser). Sayfalar sirayla ve arada beklemeyle cekiliyor:
+// OpenAlex'in saniyede 10 istek sinirinin cok altinda kalmak icin.
+export const AUTHOR_MAX_WORKS = 1000;
+export const AUTHOR_PAGE_SIZE = 200;
+export const AUTHOR_PAGE_DELAY_MS = 150;
+
+/**
+ * Bir yazarin eserlerini sayfa sayfa ceker.
+ *
+ * Her sayfa guarded() ile AYRI cagriliyor: guarded kaynaga toplam 6,5 sn veriyor
+ * ve ust uste 3 asimda OpenAlex'i 2 dk kapatiyor. Bes sayfanin tamami tek bir
+ * guarded icinde olsaydi uretken bir yazarin aramasi kesiciyi acip o sure
+ * boyunca herkesin konu aramasini OpenAlex'siz birakirdi.
+ * Ilk sayfa basarisizsa kaynak hata verir; sonraki bir sayfa basarisizsa o ana
+ * kadar gelenler korunur ve sonuc kismi olarak isaretlenir.
+ */
+async function fetchAuthorWorks(authorId, queryContext, params, openAlexQuery) {
+  const hasTopic = Boolean(String(openAlexQuery || queryContext || '').trim());
+  const results = [];
+  let cursor = '*';
+  let totalFound = 0;
+  let quotaInfo = {};
+  let partial = false;
+  const maxPages = Math.ceil(AUTHOR_MAX_WORKS / AUTHOR_PAGE_SIZE);
+
+  for (let page = 0; page < maxPages && cursor; page += 1) {
+    if (page > 0) await new Promise((r) => setTimeout(r, AUTHOR_PAGE_DELAY_MS));
+    let res;
+    try {
+      res = await guarded('OpenAlex', () => searchOpenAlex(queryContext, { ...params, count: AUTHOR_PAGE_SIZE }, openAlexQuery, {
+        filter: `authorships.author.id:${authorId}`,
+        sort: hasTopic ? undefined : 'cited_by_count:desc',
+        cursor,
+      }));
+    } catch (error) {
+      if (page === 0) throw error;
+      console.warn(`[Author] ${page + 1}. sayfa alinamadi, ${results.length} eserle devam:`, error?.message);
+      partial = true;
+      break;
+    }
+    if (page === 0) { totalFound = res.totalFound || 0; quotaInfo = res.quotaInfo || {}; }
+    results.push(...(res.results || []));
+    cursor = res.nextCursor;
+    if (!res.results?.length || results.length >= totalFound) break;
+  }
+  console.log(`[Author] ${authorId}: ${results.length}/${totalFound} eser cekildi${partial ? ' (kismi)' : ''}`);
+  return { results: results.slice(0, AUTHOR_MAX_WORKS), totalFound, quotaInfo, partial };
+}
 
 /**
  * @param {object|null} rankingWeights  Kullanicinin profil/ozel agirliklari
@@ -165,10 +213,18 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
   const startTime = performance.now();
 
   const { count } = params;
+  // Yazar aramasi: secilen kisinin OpenAlex kimligiyle (authorships.author.id).
+  // Diger kaynaklar bu kimligi tanimiyor; isimle eslestirmek "Mehmet Yilmaz"
+  // gibi bir adda baska kisilerin makalelerini karistiriyor, bu yuzden atlaniyor.
+  // Konu da yazildiysa yazarin eserleri o konuyla daraltilir; yazilmadiysa en
+  // cok atif alan eserler once gelir.
+  const authorId = typeof options.authorId === 'string' && /^A\d+$/.test(options.authorId) ? options.authorId : null;
+  const authorMode = Boolean(authorId);
   // Gosterilen (siralanip donen) makale sayisi. Kaynaklardan cekilen miktar
   // bundan BAGIMSIZ: SOURCE_FETCH_COUNT. Eskiden ikisi ayniydi; 100 sonuc
-  // gostermek her kaynaktan 100 istemek demekti.
-  const displayCount = count || 25;
+  // gostermek her kaynaktan 100 istemek demekti. Yazar aramasinda kisinin
+  // cekilen eserlerinin hepsi listelenir.
+  const displayCount = authorMode ? AUTHOR_MAX_WORKS : (count || 25);
   const sourceParams = { ...params, count: SOURCE_FETCH_COUNT };
 
   // Kaynak basina sorgu. Plan yoksa (eski cagrilar, testler) onceki davranisa
@@ -197,27 +253,17 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
     console.log('[SourceQuery] S2   :', s2Query || '(bos)');
   }
 
-  // Yazar aramasi: secilen kisinin OpenAlex kimligiyle (authorships.author.id).
-  // Diger kaynaklar bu kimligi tanimiyor; isimle eslestirmek "Mehmet Yilmaz"
-  // gibi bir adda baska kisilerin makalelerini karistiriyor, bu yuzden atlaniyor.
-  // Konu da yazildiysa yazarin eserleri o konuyla daraltilir; yazilmadiysa en
-  // cok atif alan eserler once gelir.
-  const authorId = typeof options.authorId === 'string' && /^A\d+$/.test(options.authorId) ? options.authorId : null;
-  const authorMode = Boolean(authorId);
   const skipIfAuthor = (run) => (authorMode ? Promise.resolve(SKIPPED) : run());
-  const openAlexCall = authorMode
-    ? () => searchOpenAlex(queryContext, { ...sourceParams, count: AUTHOR_FETCH_COUNT }, openAlexQuery, {
-      filter: `authorships.author.id:${authorId}`,
-      sort: (openAlexQuery || queryContext).trim() ? undefined : 'cited_by_count:desc',
-    })
-    : () => searchOpenAlex(queryContext, sourceParams, openAlexQuery);
   if (authorMode) console.log(`[Author] ${authorId} icin yalnizca OpenAlex soruluyor`);
 
   const [scopusResult, openAlexResult, coreResult, crossrefResult, s2Result, arxivResult, doajResult, europePmcResult, turkishResult, openAireResult, dataCiteResult, pubmedResult] = await Promise.allSettled([
     isScopusEnabled() && !authorMode
       ? guarded('Scopus', () => searchLiterature(scopusQuery, SOURCE_FETCH_COUNT, null, queryContext))
       : Promise.resolve(SKIPPED),
-    guarded('OpenAlex', openAlexCall),
+    // Yazar aramasi sayfali: her sayfa kendi guarded() cagrisinda (fetchAuthorWorks).
+    authorMode
+      ? fetchAuthorWorks(authorId, queryContext, sourceParams, openAlexQuery)
+      : guarded('OpenAlex', () => searchOpenAlex(queryContext, sourceParams, openAlexQuery)),
     skipIfAuthor(() => guarded('CORE', () => searchCore(queryContext, sourceParams, openAlexQuery))),
     skipIfAuthor(() => guarded('Crossref', () => searchCrossref(crossrefQuery, SOURCE_FETCH_COUNT))),
     skipIfAuthor(() => guarded('SemanticScholar', () => searchSemanticScholar(s2Query, SOURCE_FETCH_COUNT))),
@@ -569,7 +615,11 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
   // Konu disi sonuclari havuz SECILMEDEN once ele: 25 slot konu ici
   // makalelerle dolsun. (calculateAHP ayni esigi onbellekten gelen havuzda
   // da uyguluyor.)
-  const gate = relevanceGate(uniqueResults);
+  // Yazar aramasinda konu suzmesini OpenAlex yapti; baslik+ozet esigi ozeti
+  // olmayan eserleri dusuruyordu (Sancar + "circadian clock": 92 -> 65).
+  const gate = authorMode
+    ? { items: uniqueResults, level: 'none', dropped: 0 }
+    : relevanceGate(uniqueResults);
   console.log(`[Ranking] Alaka esigi: ${gate.level}, elenen ${gate.dropped}, kalan ${gate.items.length}`);
 
   console.log(`[Ranking] 3. Scoring tamamlandı. Örnek scores:`,
@@ -606,6 +656,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
     weights: rankingWeights,
     displayCount,
     translateEnabled,
+    skipRelevanceGate: authorMode,
   });
   console.log(`AHP + çeviri tamamlandı. (${rankedResults.length} sonuç)`);
   console.log(`[ResponseDebug] First 3 titles:`, rankedResults.slice(0,3).map(r => `"${(r?.titleTR || r?.title || '').slice(0,40)}"`));
@@ -671,6 +722,15 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
     // full: sorgu kelimelerinin yeterincesi geciyor; partial: tam eslesen yok,
     // en az bir kelimesi gecenler gosteriliyor; none: esik uygulanamadi.
     relevance: { level: gate.level, dropped: gate.dropped },
+    // Yazar aramasi: arayuz "652 eserin tamami" ya da "3.156 eserin en cok atif
+    // alan 1.000'i" diyebilsin; bir sayfa alinamadiysa (partial) bunu da soylesin.
+    author: authorMode ? {
+      id: authorId,
+      total: totalFromAPIs.openalex,
+      fetched: sourceBreakdown.openalex,
+      capped: totalFromAPIs.openalex > sourceBreakdown.openalex,
+      partial: Boolean(openAlexResult.value?.partial),
+    } : null,
     translation: { enabled: translateEnabled },
     sourceBreakdown,
     totalFromAPIs,
