@@ -751,7 +751,20 @@ app.post('/api/resolve/batch', resolveLimiter, async (req, res) => {
 // istemci "Daha fazla goster" ile acilan sayfanin DOI'lerini buraya gonderir.
 const MAX_RETRACTION_DOIS = 25;
 
-app.post('/api/retractions', searchLimiter, async (req, res) => {
+// Geri cekilme kontrolunun kendi siniri: "Daha fazla goster" her acilan 25 sonuc
+// icin bir istek atiyor. Aramayla ayni dakikada-15 sinirini paylasinca, yazar
+// aramasinin yuzlerce sonucunda asagi inen kullanicinin sonraki sayfasi da
+// sonraki aramasi da 429 aliyordu (8 Eki 2026, tarayici testi).
+const retractionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  keyGenerator: (req) => getAuth(req)?.userId || ipKeyGenerator(req.ip),
+  message: { error: 'Çok fazla istek gönderildi. Lütfen 1 dakika bekleyin.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.post('/api/retractions', retractionLimiter, async (req, res) => {
   const userId = getRequestUserId(req, res);
   if (!userId) return;
   const dois = Array.isArray(req.body?.dois)
@@ -1093,7 +1106,8 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
 
     // Yeni yapıya parametreleri gönderiyoruz
     const params = { mainTopic, authorName, keywords: keywordList, count: limit };
-    const results = await searchAll(params, queryContext, finalQuery, booleanQuery, queryPlan, ranking.weights, { translate: translateEnabled, authorId });
+    // authorPage: yazar eserlerinin kacinci 200'lugu; searchAll 1..5'e sinirlar.
+    const results = await searchAll(params, queryContext, finalQuery, booleanQuery, queryPlan, ranking.weights, { translate: translateEnabled, authorId, authorPage: req.query.authorPage });
     let cacheSave = { saved: false };
     try {
       // Sadece dolu sonuçları cache'e kaydet

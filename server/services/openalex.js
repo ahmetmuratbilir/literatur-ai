@@ -87,6 +87,11 @@ export async function searchOpenAlex(queryContext, params, booleanQuery, options
   if (options.sort) urlParams.set('sort', options.sort);
   // Sayfalama: '*' ilk sayfa; yanittaki meta.next_cursor sonrakini getirir.
   if (options.cursor) urlParams.set('cursor', options.cursor);
+  // Numarali sayfa: imlecin aksine paralel istenebiliyor (yazar aramasi).
+  if (options.page) urlParams.set('page', String(options.page));
+  // Yalnizca eslemenin kullandigi alanlar. Tam eser nesnesi kaynakca listeleri,
+  // kavram agaclari vb. tasiyor: 652 eserlik bir yazarda 15 MB yerine 5 MB.
+  if (options.select) urlParams.set('select', options.select);
 
   const mailto = process.env.OPENALEX_MAIL || process.env.CONTACT_EMAIL || 'ahmet@literatureai.com';
   if (mailto) urlParams.set('mailto', mailto);

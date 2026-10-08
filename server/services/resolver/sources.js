@@ -62,7 +62,11 @@ export async function request(ctx, { source, limitKey = source, url, headers = {
   }
 }
 
-const hit = (r, n) => { r.entry.status = n > 0 ? 'hit' : 'miss'; };
+// request() ag hatasini ya da 404 disi HTTP hatasini 'error' isaretliyor; burada
+// ezilmemeli. Eziliyordu: gecici bir hata 'miss' olup "makale yok" sayiliyor,
+// pipeline.resolve() de onu 24 saat onbellege yaziyordu (yalnizca 'error'
+// iceren olumsuz sonuclari atliyor).
+const hit = (r, n) => { if (r.entry.status !== 'error') r.entry.status = n > 0 ? 'hit' : 'miss'; };
 
 // --- Eşleyiciler ----------------------------------------------------------
 

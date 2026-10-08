@@ -103,9 +103,15 @@ export function tokenSetRatio(a, b) {
  *   optimizasyonu" girdisi, 2 sözcüklü gerçek "Blokzincir Optimizasyonu"
  *   başlığıyla %100 eşleşiyordu. Girdinin anlamlı sözcüklerinin yarısından
  *   azı karşılanıyorsa benzerlik kapsamla sınırlanır.
+ * - Kaynakça satırındaki (structured) kısa başlık bir parça değil, başlığın
+ *   kendisidir: alt küme yerine tüm başlık karşılaştırılır. Tavan bu durumda
+ *   gerçek LeCun "Deep learning" (2015) künyesini 0,82'de tutuyor, aynı tavan
+ *   yanlış DOI'nin gösterdiği "Human-level control through deep reinforcement
+ *   learning" başlığına da 0,7 verip onu "aynı makale" saydırıyordu.
  */
-export function titleSimilarity(input, candidate) {
+export function titleSimilarity(input, candidate, { structured = false } = {}) {
   const words = content(input);
+  if (structured && words.length <= SHORT_INPUT_TOKENS) return ratio(fold(input), fold(candidate)) / 100;
   let sim = tokenSetRatio(words.length ? words.join(' ') : input, candidate) / 100;
   if (words.length <= SHORT_INPUT_TOKENS) return Math.min(sim, SHORT_INPUT_CAP);
   const cand = new Set(tokens(candidate));
@@ -154,7 +160,7 @@ export function yearScore(inputYear, recordYear) {
  */
 export function scoreCandidate(parsed, record) {
   const parts = {};
-  if (parsed.title) parts.title = titleSimilarity(parsed.title, record.title);
+  if (parsed.title) parts.title = titleSimilarity(parsed.title, record.title, { structured: parsed.structured });
   const surnames = parsed.authorCandidates || [];
   if (surnames.length) {
     // Yapılandırılmış satırda ilk yazar; serbest metinde adaylardan herhangi biri
@@ -210,7 +216,7 @@ export function findDiscrepancies(parsed, record) {
     out.push({ field: 'year', input: String(parsed.year), canonical: String(record.year), note: 'year_differs' });
   }
 
-  if (parsed.title && record.title && titleSimilarity(parsed.title, record.title) < 0.95) {
+  if (parsed.title && record.title && titleSimilarity(parsed.title, record.title, { structured: true }) < 0.95) {
     out.push({ field: 'title', input: parsed.title, canonical: record.title, note: 'title_differs' });
   }
 

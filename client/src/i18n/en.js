@@ -108,6 +108,8 @@ export default {
     authorAll: 'all {total} of their works',
     authorCapped: 'the {n} most cited of their {total} works',
     authorPartial: 'some pages could not be loaded, the list may be incomplete',
+    authorLoaded: '{n} of their {total} works loaded',
+    authorLoadMore: 'Load the next {n} works',
     titleLanguage: 'Titles',
     resultLanguage: 'Result language',
     langHint: 'TR translates titles into Turkish',
@@ -608,6 +610,7 @@ export default {
     sum: { found: '{n} verified', candidates: '{n} need a choice', notFound: '{n} not found', diffs: '{n} with corrections' },
     field: { volume: 'Volume', issue: 'Issue', pages: 'Pages', author: 'Author', authors: 'Authors', year: 'Year', title: 'Title', venue: 'Journal' },
     diff: {
+      doiElsewhere: 'The DOI in this reference ({doi}) points to a different paper: "{title}". Pick the right one.',
       missingCoauthors: 'Missing co-authors: {names}',
       surname: 'Surname is "{canonical}", not "{input}"',
       firstAuthor: 'First author is {canonical}, not {input}',

@@ -81,6 +81,7 @@ const ResultRow = ({ row, index, basket, onAdd, apiUrl, getToken }) => {
   const S = STATUS[status] || STATUS.error;
   const Icon = S.icon;
   const kept = match && basket.has({ doi: match.doi, title: match.title });
+  const doiElsewhere = row.discrepancies?.find((d) => d.note === 'doi_points_elsewhere');
 
   return (
     <li className="cc-row">
@@ -116,6 +117,7 @@ const ResultRow = ({ row, index, basket, onAdd, apiUrl, getToken }) => {
 
       {!match && row.status === 'candidates' && (
         <div className="cc-cands">
+          {doiElsewhere && <p className="cc-row__note">{t('verify.diff.doiElsewhere', { doi: doiElsewhere.input, title: doiElsewhere.canonical })}</p>}
           <span>{t('verify.whichOne')}</span>
           {row.candidates.slice(0, 3).map((c) => (
             <button key={c.doi || c.title} type="button" className="cc-cand" onClick={() => pick(c)}>

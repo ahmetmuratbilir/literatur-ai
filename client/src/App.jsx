@@ -55,14 +55,13 @@ import AiAnalysisPanel from './components/AiAnalysisPanel';
 import { useShare } from './hooks/useShare';
 import { useExport } from './hooks/useExport';
 
-// "Kaynakçanı doğrula" sekmesi şimdilik kapalı (5 Eki 2026): uydurma kaynağı
-// "bulunamadı" yerine başka bir makaleyle eşleştiriyor ve doğru künyelerde de
-// sık sık "hangisini kastettin?" diye soruyor. Düzelince true yapılır; sunucu
-// tarafı (/api/resolve) ve CitationChecker bileşeni yerinde duruyor.
-const VERIFY_MODE_ENABLED = false;
-// Yazar aramasi gecici olarak kapali (8 Eki 2026): canli sunucuda cok yavas
-// donuyordu; hizlandirilmis surum hazirlaniyor. Acmak icin true yap.
-const AUTHOR_MODE_ENABLED = false;
+// "Kaynakçanı doğrula" sekmesi 5 Eki 2026'da kapatılmıştı (uydurma kaynağı
+// başka makaleyle eşleştiriyordu); 8 Eki 2026'da düzeltilip açıldı. Gerçek
+// API'lerle 24 kaynaklık denetimde 24/24. Sorun çıkarsa false yap.
+const VERIFY_MODE_ENABLED = true;
+// Yazar araması 8 Eki 2026'da yavaş olduğu için kapatılmıştı; eserler artık
+// 200'lük sayfalarla geliyor (ilk yanıt ~3 sn). Sorun çıkarsa false yap.
+const AUTHOR_MODE_ENABLED = true;
 
 const RESULT_FILTERS = ['all', 'relevant', 'q1q2', 'recent', 'openaccess', 'highcitations'];
 
@@ -488,8 +487,33 @@ function App() {
   // Gosterilen sonuc sayisi bu `data` icin; yeni arama ya da yeniden siralama 25'e doner.
   const shownCount = visible.data === data ? visible.n : PAGE_SIZE;
 
+  // Yazar aramasi 200'luk sayfalarla geliyor: yuklenenler bitince sonraki sayfa
+  // istenir ve listenin sonuna eklenir (ayni eser iki sayfada gelirse bir kez).
+  const authorHasMore = Boolean(data?.author?.hasMore && lastSearchParams?.authorId);
+  const loadMoreAuthor = async () => {
+    setMoreLoading(true);
+    try {
+      const token = await getToken();
+      const res = await axios.get(`${defaultApiUrl}/api/search`, {
+        params: { ...lastSearchParams, ...rankingParams, authorPage: (data.author.page || 1) + 1 },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const key = (r) => String(r.doi || r.id || r.title || '').toLowerCase();
+      const seen = new Set(data.results.map(key));
+      const added = (res.data?.results || []).filter((r) => !seen.has(key(r)));
+      const merged = { ...data, results: [...data.results, ...added], author: res.data?.author || { ...data.author, hasMore: false } };
+      setData(merged);
+      setVisible({ data: merged, n: Math.min(shownCount + PAGE_SIZE, merged.results.length) });
+    } catch (err) {
+      pushToast({ tone: 'warn', title: err.response?.data?.error || t('search.failed') });
+    } finally {
+      setMoreLoading(false);
+    }
+  };
+
   const showMore = async () => {
     if (!data?.results) return;
+    if (shownCount >= data.results.length && authorHasMore) return loadMoreAuthor();
     const next = Math.min(shownCount + PAGE_SIZE, data.results.length);
     const page = data.results.slice(shownCount, next);
     setVisible({ data, n: next });
@@ -859,8 +883,8 @@ function App() {
                     <strong>{t('results.shown', { n: Math.min(shownCount, data.results.length), total: data.results.length })}</strong>
                     {data.relevance?.dropped > 0 && <> · {t('results.dropped', { n: data.relevance.dropped })}</>}
                     {data.author && (
-                      <> · {t(data.author.capped ? 'results.authorCapped' : 'results.authorAll', {
-                        n: Number(data.author.fetched || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US'),
+                      <> · {t(data.author.hasMore ? 'results.authorLoaded' : (data.author.capped ? 'results.authorCapped' : 'results.authorAll'), {
+                        n: Number(data.results.length || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US'),
                         total: Number(data.author.total || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US'),
                       })}{data.author.partial && <> · {t('results.authorPartial')}</>}</>
                     )}
@@ -960,11 +984,14 @@ function App() {
                   })}
                 </div>
 
-                {shownCount < data.results.length && (
+                {(shownCount < data.results.length || authorHasMore) && (
                   <div style={{ display: 'flex', justifyContent: 'center', marginTop: 'var(--space-5)' }}>
                     <button type="button" className="ui-btn ui-btn--outline" onClick={showMore} disabled={moreLoading}>
                       {moreLoading ? <Loader2 size={14} className="animate-spin" /> : <ChevronDown size={14} />}
-                      {t('results.showMore', { n: Math.min(PAGE_SIZE, data.results.length - shownCount), left: data.results.length - shownCount })}
+                      {shownCount < data.results.length
+                        ? t('results.showMore', { n: Math.min(PAGE_SIZE, data.results.length - shownCount), left: data.results.length - shownCount })
+                        // Kalan, sayfa numarasindan: liste tekrar eden eserler ayiklanmis halde, kisa kalir.
+                        : t('results.authorLoadMore', { n: Math.min(data.author.pageSize, Math.max(0, Math.min(data.author.total, data.author.max) - data.author.page * data.author.pageSize)) })}
                     </button>
                   </div>
                 )}

@@ -3,7 +3,7 @@ import { translateToEnglish } from '../../utils/translation.js';
 import { findOpenAccessCopy } from '../unpaywall.js';
 import { formatReference } from '../bibliography.js';
 import { identify, parseCitation } from './parse.js';
-import { scoreCandidate, decide, findDiscrepancies, titleSimilarity, fold, stripFiller, FOUND_THRESHOLD } from './validate.js';
+import { scoreCandidate, decide, findDiscrepancies, titleSimilarity, matchSurname, fold, stripFiller, FOUND_THRESHOLD } from './validate.js';
 import { createLimiter, withRetry } from './ratelimit.js';
 import { createCache, cacheKey } from './cache.js';
 import * as sources from './sources.js';
@@ -30,7 +30,51 @@ const AMBIGUITY_GAP = 0.05;
 // tutan ilgisiz makale ("Robust Optimization of … Poultry Farming", 2024)
 // eşiği geçiyordu.
 const MIN_TITLE_SIM = 0.6;
-const eligible = (ranked) => ranked.filter((c) => (c.parts?.title ?? 1) >= MIN_TITLE_SIM);
+// Kaynakça satırındaki yıl 1'den fazla farklı ve ilk yazar adayın ilk iki
+// yazarından biri değilse aday, benzer başlıklı BAŞKA bir makaledir: uydurma
+// "Kumar, Zhang & Patel (2022) Machine learning applications in sustainable
+// supply chain management" satırına "Sharma, Kamble, … Kumar (2020)"
+// öneriliyordu (Kumar 4. yazar). Böyle aday gösterilmez.
+// İlk yazar adayın yazarları arasında HİÇ yoksa ve başlık birebir değilse de
+// başka makaledir (yıl tutsa bile): uydurma "Johnson & Lee (2020) Deep
+// reinforcement learning for autonomous urban traffic signal control: A
+// comprehensive survey" satırına "Rasheed ve ark. (2020) Deep Reinforcement
+// Learning for Traffic Signal Control: A Review" öneriliyordu. Başlık birebir
+// tutuyorsa aday kalır: soyadı yazımı/çevirisi farklı gerçek makale olabilir.
+// Yalnız yapılandırılmış satırda: serbest metindeki yazar adayları tahmin.
+const EXACT_TITLE = 0.97;
+const contradicts = (c, parsed) => {
+  if (!parsed?.structured) return false;
+  const lead = parsed.authorCandidates?.[0];
+  if (!lead) return false;
+  if (c.parts?.author === 0 && (c.parts?.title ?? 0) < EXACT_TITLE) return true;
+  return c.parts?.year === 0 && !matchSurname(lead, (c.record?.authors || []).slice(0, 2)).matched;
+};
+const eligible = (ranked, parsed) => ranked.filter((c) => (c.parts?.title ?? 1) >= MIN_TITLE_SIM && !contradicts(c, parsed));
+// Ucuz kaynakta durmak için aday yalnızca eşiği geçmemeli: verilen yıl tam
+// tutmalı, yazar çelişmemeli. Crossref'te "Attention Is All You Need" başlıklı
+// beş adet 2025 kopyası (10.65215/…) 0,85 alıp aramayı kesiyor, asıl 2017
+// makalesini bulacak Semantic Scholar'a hiç sorulmuyordu; "… vaswani 2017"
+// serbest metninde de 2018 tarihli bir Japonca özet yazısında duruluyordu.
+const strong = (c) => Boolean(c) && c.score >= FOUND_THRESHOLD && (c.parts?.year ?? 1) === 1 && c.parts?.author !== 0;
+// Başlık, yıl ve ilk yazar aynıysa aynı eser (farklı DOI'li yayıncı/arşiv kaydı).
+const firstFamily = (r) => fold(r?.authors?.[0]?.family || r?.authors?.[0]?.literal || '');
+const sameWork = (a, b) => Boolean(a && b) && fold(a.title) === fold(b.title) && a.year === b.year && firstFamily(a) === firstFamily(b);
+const DOI_IN_TEXT_RE =/(https?:\/\/(dx\.)?doi\.org\/|doi:\s*)?10\.\d{4,9}\/\S+/gi;
+
+/**
+ * Kaynakça satırındaki DOI başka bir makaleyi mi gösteriyor? Başlık çok
+ * farklıysa ya da ilk yazar tutmuyor ve başlık da birebir değilse evet.
+ * Yazar karşılaştırılmıyordu: LeCun'un "Deep learning" künyesindeki DQN
+ * makalesinin DOI'si (Mnih ve ark.) "bulundu" sayılıyordu.
+ */
+function doiPointsElsewhere(parsed, record) {
+  if (!parsed.structured || !parsed.title || !record?.title) return false;
+  const sim = titleSimilarity(parsed.title, record.title, { structured: true });
+  const firstAuthor = parsed.authorCandidates?.[0];
+  const authorOk = !firstAuthor || !(record.authors || []).length || matchSurname(firstAuthor, record.authors).matched;
+  return sim < 0.5 || (!authorOk && sim < 0.9);
+}
 const TURKISH_RE = /[çğıöşüÇĞİÖŞÜ]|\b(ve|ile|bir|makalesi|üzerine|etkisi)\b/i;
 const BIOMED_RE = /\b(patient|clinical|cancer|tumou?r|disease|therapy|cell|protein|gene|genom|drug|covid|infection|hospital|medic|surgery|hasta|klinik|kanser|tedavi|hastal)/i;
 
@@ -151,12 +195,12 @@ export function createResolver(deps = {}) {
     const query = parsed.structured ? (rawText || parsed.title || '') : stripFiller(rawText || parsed.title || '');
     const title = parsed.structured ? (parsed.title || rawText || '') : stripFiller(parsed.title || rawText || '');
     let ranked = scoreAll(parsed, await S.crossrefBibliographic(ctx, query), pool);
-    if (ranked[0]?.score >= FOUND_THRESHOLD) return ranked;
+    if (strong(ranked[0])) return ranked;
 
     const parallel = [S.s2Match(ctx, title)];
     if (BIOMED_RE.test(query)) parallel.push(S.europePmcSearch(ctx, title));
     for (const recs of await Promise.all(parallel)) ranked = scoreAll(parsed, recs, pool);
-    if (ranked[0]?.score >= FOUND_THRESHOLD) return ranked;
+    if (strong(ranked[0])) return ranked;
 
     ranked = scoreAll(parsed, await S.openAlexSearch(ctx, title), pool);
     return ranked;
@@ -168,18 +212,31 @@ export function createResolver(deps = {}) {
    *   için 0,95 gerekir.
    * - İlk iki aday birbirine çok yakınsa ("OEE AHP makalesi") belirsizdir.
    * - Çeviriyle bulunan sonuç en fazla "adaylar"dır.
+   * - Kaynakçadaki yıl ile 1'den fazla farklıysa en fazla "adaylar"dır:
+   *   başlık + yazar tutsa da başka baskı/kopya olabilir (10.65215/… 2025).
    */
   function decideRanked(rankedAll, parsed, { translated = false } = {}) {
-    const ranked = eligible(rankedAll);
+    const ranked = eligible(rankedAll, parsed);
     const top = ranked[0];
     if (!top) return 'none';
     let decision = decide(top.score);
     if (decision !== 'found') return decision;
     const titleOnly = !parsed.structured && !(parsed.authorCandidates || []).length && !parsed.year;
-    const second = ranked[1];
     if (translated) return 'candidates';
+    if (parsed.structured && top.parts?.year === 0) return 'candidates';
+    // Serbest metinde yazar tanınmadıysa kanıt başlık + yıldır; yıl tam
+    // tutmalı. "attention is all you need vaswani 2017" 2018 tarihli bir
+    // Japonca özet yazısını (başlığında "Vaswani" geçiyor) "bulundu" sayıyordu.
+    if (!parsed.structured && parsed.year && !(parsed.authorCandidates || []).length && top.parts?.year !== 1) return 'candidates';
     if (titleOnly && top.score < 0.95) return 'candidates';
-    if (second && second.score >= FOUND_THRESHOLD && top.score - second.score < AMBIGUITY_GAP) return 'candidates';
+    // Aynı eserin ikinci DOI'si rakip değildir: Fornell & Larcker (1981)
+    // Crossref'te hem SAGE (10.1177/…) hem JSTOR (10.2307/…) DOI'siyle var,
+    // ikisi de 1,0 alıyor ve gerçek künye "belirsiz" sayılıyordu. Başlığı
+    // birebir tutan aday, birebir tutmayan rakip yüzünden de belirsiz olmaz
+    // (aynı yazarların "… : Algebra and Statistics" makalesi 0,957 alıyor).
+    const rival = ranked.slice(1).find((c) => !sameWork(top.record, c.record));
+    const exact = (c) => fold(c.record.title) === fold(parsed.title || '');
+    if (rival && rival.score >= FOUND_THRESHOLD && top.score - rival.score < AMBIGUITY_GAP && !(exact(top) && !exact(rival))) return 'candidates';
     return decision;
   }
 
@@ -243,17 +300,26 @@ export function createResolver(deps = {}) {
     let best;
     let candidates = [];
     let confidence = 0;
+    let doiMismatch = null;
 
-    if (direct) {
-      // Kimlik yetkili kaynak; ama kaynakça satırındaki DOI başka makaleyi
-      // gösteriyorsa (yazım hatası) kullanıcı bunu görmeli.
+    if (direct && doiPointsElsewhere(parsed, direct)) {
+      // Kaynakça satırındaki DOI başka makaleyi gösteriyor (yazım hatası ya da
+      // uydurma). "Bulundu" denmez: künye DOI'siz aranır, bulunan makale ve
+      // DOI'nin gösterdiği makale birlikte aday olarak sunulur.
+      status = 'candidates';
+      doiMismatch = direct;
+      const withoutDoi = String(id.text || parsed.raw || '').replace(DOI_IN_TEXT_RE, ' ').trim();
+      const ranked = eligible(await search(ctx, parsed, withoutDoi), parsed)
+        .filter((c) => c.score >= 0.5 && recordKey(c.record) !== recordKey(direct));
+      const self = scoreCandidate(parsed, direct).score;
+      // Arayüz ilk 3 adayı gösteriyor: DOI'nin makalesi de görünsün diye 2 + 1.
+      candidates = [...ranked.slice(0, 2), { record: direct, score: self }];
+      confidence = ranked[0]?.score ?? self;
+    } else if (direct) {
+      // Kimlik yetkili kaynak.
       best = direct;
       confidence = 1;
       status = 'found';
-      if (parsed.structured && parsed.title && titleSimilarity(parsed.title, direct.title) < 0.5) {
-        status = 'candidates';
-        confidence = scoreCandidate(parsed, direct).score;
-      }
     } else if (parsed.title) {
       let ranked = await search(ctx, parsed, id.url ? null : id.text);
       let decision = decideRanked(ranked, parsed);
@@ -270,7 +336,7 @@ export function createResolver(deps = {}) {
           const decisionEn = decideRanked(rankedEn, parsedEn, { translated: true });
           if (decisionEn !== 'none') {
             const merged = new Map();
-            for (const c of [...eligible(rankedEn), ...eligible(ranked)]) {
+            for (const c of [...eligible(rankedEn, parsedEn), ...eligible(ranked, parsed)]) {
               const k = recordKey(c.record);
               if (!merged.has(k) || merged.get(k).score < c.score) merged.set(k, c);
             }
@@ -279,7 +345,7 @@ export function createResolver(deps = {}) {
           }
         }
       }
-      ranked = eligible(ranked);
+      ranked = eligible(ranked, parsed);
       const top = ranked[0];
       if (decision === 'found') {
         status = 'found'; best = top.record; confidence = top.score;
@@ -300,7 +366,9 @@ export function createResolver(deps = {}) {
       const { record, oaStatus } = await canonicalize(ctx, best);
       match = toMatch(record, { oa_status: oaStatus });
       discrepancies = findDiscrepancies(parsed, record);
-      if (status === 'candidates') candidates = [{ ...match, score: confidence }];
+    }
+    if (doiMismatch) {
+      discrepancies = [{ field: 'doi', input: doiMismatch.doi || '', canonical: doiMismatch.title, note: 'doi_points_elsewhere' }];
     }
 
     return {

@@ -108,6 +108,8 @@ export default {
     authorAll: 'yazarın {total} eserinin tamamı',
     authorCapped: 'yazarın {total} eserinden en çok atıf alan {n} tanesi',
     authorPartial: 'bazı sayfalar alınamadı, liste eksik olabilir',
+    authorLoaded: 'yazarın {total} eserinden {n} tanesi yüklendi',
+    authorLoadMore: 'Sonraki {n} eseri yükle',
     titleLanguage: 'Başlıklar',
     resultLanguage: 'Sonuç dili',
     langHint: 'TR başlıkları Türkçeye çevirir',
@@ -608,6 +610,7 @@ export default {
     sum: { found: '{n} doğrulandı', candidates: '{n} seçim bekliyor', notFound: '{n} bulunamadı', diffs: '{n} düzeltme var' },
     field: { volume: 'Cilt', issue: 'Sayı', pages: 'Sayfa', author: 'Yazar', authors: 'Yazarlar', year: 'Yıl', title: 'Başlık', venue: 'Dergi' },
     diff: {
+      doiElsewhere: 'Künyedeki DOI ({doi}) başka bir makaleyi gösteriyor: "{title}". Doğru makaleyi seç.',
       missingCoauthors: 'Eksik ortak yazarlar: {names}',
       surname: 'Soyadı "{input}" değil, "{canonical}"',
       firstAuthor: 'İlk yazar {input} değil, {canonical}',
