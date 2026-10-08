@@ -60,6 +60,9 @@ import { useExport } from './hooks/useExport';
 // sık sık "hangisini kastettin?" diye soruyor. Düzelince true yapılır; sunucu
 // tarafı (/api/resolve) ve CitationChecker bileşeni yerinde duruyor.
 const VERIFY_MODE_ENABLED = false;
+// Yazar aramasi gecici olarak kapali (8 Eki 2026): canli sunucuda cok yavas
+// donuyordu; hizlandirilmis surum hazirlaniyor. Acmak icin true yap.
+const AUTHOR_MODE_ENABLED = false;
 
 const RESULT_FILTERS = ['all', 'relevant', 'q1q2', 'recent', 'openaccess', 'highcitations'];
 
@@ -581,7 +584,8 @@ function App() {
             // Yazar aramasıysa aynı kişiyle aç; değilse ekranda kalmış bir yazar seçimi
             // konu aramasına sızmasın. State güncellemesi gecikeceği için yazar
             // doğrudan geçiriliyor.
-            const author = item.authorId ? { id: item.authorId, name: item.authorName || '' } : null;
+            // Yazar modu kapaliyken gecmisteki yazar aramalari konu aramasi olarak acilir.
+            const author = AUTHOR_MODE_ENABLED && item.authorId ? { id: item.authorId, name: item.authorName || '' } : null;
             setSearchMode(author ? 'author' : 'topic');
             setSelectedAuthor(author);
             handleSearch(null, item.mainTopic || '', item.aiQuery || null, author);
@@ -669,14 +673,16 @@ function App() {
                 </div>
               ) : (
                 <form className="query-form" onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-                  <div className="ui-mode-tabs" role="tablist" aria-label={t('search.modeLabel')}>
-                    <button type="button" role="tab" className="ui-mode-tab" aria-selected={searchMode === 'topic'} onClick={() => setSearchMode('topic')}>
-                      <Search size={14} aria-hidden="true" /> {t('search.modeTopic')}
-                    </button>
-                    <button type="button" role="tab" className="ui-mode-tab" aria-selected={searchMode === 'author'} onClick={() => setSearchMode('author')}>
-                      <UserRound size={14} aria-hidden="true" /> {t('search.modeAuthor')}
-                    </button>
-                  </div>
+                  {AUTHOR_MODE_ENABLED && (
+                    <div className="ui-mode-tabs" role="tablist" aria-label={t('search.modeLabel')}>
+                      <button type="button" role="tab" className="ui-mode-tab" aria-selected={searchMode === 'topic'} onClick={() => setSearchMode('topic')}>
+                        <Search size={14} aria-hidden="true" /> {t('search.modeTopic')}
+                      </button>
+                      <button type="button" role="tab" className="ui-mode-tab" aria-selected={searchMode === 'author'} onClick={() => setSearchMode('author')}>
+                        <UserRound size={14} aria-hidden="true" /> {t('search.modeAuthor')}
+                      </button>
+                    </div>
+                  )}
 
                   {searchMode === 'author' && (
                     <AuthorPicker
