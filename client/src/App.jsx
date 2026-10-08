@@ -55,10 +55,10 @@ import AiAnalysisPanel from './components/AiAnalysisPanel';
 import { useShare } from './hooks/useShare';
 import { useExport } from './hooks/useExport';
 
-// "Kaynakçanı doğrula" sekmesi 5 Eki 2026'da kapatılmıştı (uydurma kaynağı
-// başka makaleyle eşleştiriyordu); 8 Eki 2026'da düzeltilip açıldı. Gerçek
-// API'lerle 24 kaynaklık denetimde 24/24. Sorun çıkarsa false yap.
-const VERIFY_MODE_ENABLED = true;
+// "Kaynakçanı doğrula" sekmesi şimdilik kapalı (9 Eki 2026, ürün kararı).
+// Doğruluk düzeltmeleri yerinde (8 Eki 2026, 24 kaynaklık denetimde 24/24);
+// açmak için true yap. Sunucu (/api/resolve) ve CitationChecker duruyor.
+const VERIFY_MODE_ENABLED = false;
 // Yazar araması 8 Eki 2026'da yavaş olduğu için kapatılmıştı; eserler artık
 // 200'lük sayfalarla geliyor (ilk yanıt ~3 sn). Sorun çıkarsa false yap.
 const AUTHOR_MODE_ENABLED = true;
