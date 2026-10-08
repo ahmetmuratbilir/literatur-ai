@@ -222,6 +222,17 @@ input[aria-invalid=true] { border-color: var(--warn); }
 .role[aria-pressed=true] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .consent { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; color: var(--muted); font-weight: 400; line-height: 1.45; }
 .consent input { width: 22px; height: 22px; accent-color: var(--accent); flex-shrink: 0; margin: 1px 0 0; }
+/* Site bağlantısı ve iletişim: QR'ı okutan kişi formu doldurmadan da siteye geçebilsin ve bize ulaşabilsin. */
+.sitelink { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 14px; border-radius: 999px;
+  font-size: 13px; font-weight: 700; letter-spacing: 0; color: var(--accent); background: var(--tint); border: 1px solid var(--line); text-decoration: none; white-space: nowrap; }
+.contact { display: grid; gap: 10px; padding-top: 22px; border-top: 1px solid var(--line); }
+.contact a { display: flex; align-items: center; gap: 14px; min-height: 56px; padding: 10px 14px; border-radius: var(--r-md); background: var(--tint);
+  border: 1px solid var(--line); color: var(--ink); text-decoration: none; font-weight: 600; font-size: 16px; -webkit-tap-highlight-color: transparent; }
+.contact a:active { transform: scale(0.98); }
+.contact a small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); }
+.contact .ci { width: 36px; height: 36px; border-radius: 10px; background: var(--paper); border: 1px solid var(--line); display: grid; place-items: center; color: var(--accent); flex: none; }
+.contact .ci svg { width: 18px; height: 18px; }
+.sitelink:focus-visible, .contact a:focus-visible { outline: 3px solid color-mix(in srgb, var(--violet) 55%, transparent); outline-offset: 2px; }
 .kvkk-text { font-size: 13px; color: var(--muted); }
 .kvkk-text summary { cursor: pointer; font-weight: 600; color: var(--accent); padding: 10px 0; }
 .kvkk-text p { margin: 4px 0 0; line-height: 1.5; }
@@ -257,6 +268,7 @@ input[aria-invalid=true] { border-color: var(--warn); }
     <div class="brand">
       <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><path d="M13.5 2 4 13.6h6.6L9.6 22 20 9.9h-6.7z"/></svg></span>
       Literatür AI
+      <a class="sitelink" href="https://www.literatur-ai.com/" target="_blank" rel="noopener">Siteye git <span aria-hidden="true">↗</span></a>
     </div>
     <div class="steps" aria-hidden="true"><span id="s1" class="on"></span><span id="s2"></span><span id="s3"></span></div>
     <div class="steps-l" aria-hidden="true"><b id="l1" class="on">Tanışalım</b><b id="l2">Tanıyın</b><b id="l3">Deneyin</b></div>
@@ -354,6 +366,13 @@ input[aria-invalid=true] { border-color: var(--warn); }
         <p class="err" id="e-kvkk" hidden>Devam etmek için onay kutusunu işaretleyin.</p>
       </div>
     </form>
+
+    <div class="contact" aria-labelledby="h-contact">
+      <p class="eyebrow" id="h-contact">Bize ulaşın</p>
+      <a href="tel:+905317473909"><span class="ci" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></span><span>0531 747 39 09<small>Telefon</small></span></a>
+      <a href="mailto:info@literatur-ai.com"><span class="ci" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></span><span>info@literatur-ai.com<small>E-posta</small></span></a>
+      <a href="https://www.literatur-ai.com/" target="_blank" rel="noopener"><span class="ci" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span><span>www.literatur-ai.com<small>Ürünü kendiniz deneyin</small></span></a>
+    </div>
   </section>
 
 </div>
