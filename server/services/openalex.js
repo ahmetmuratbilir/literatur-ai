@@ -218,29 +218,91 @@ export async function searchOpenAlex(queryContext, params, booleanQuery, options
  * OpenAlex yazar dizininden kısa bir aday listesi döner; arama sonra seçilen
  * kişinin kimliğiyle (authorships.author.id) yapılır, isimle değil.
  *
+ * `institutionIds` verilirse sonuç, o kurumda HİÇ bulunmuş kişilerle sınırlanır
+ * (`affiliations.institution.id`); yalnızca son kurum değil. Bu sorgu tek
+ * başına kullanılmaz, mergeInstitutionFirst ile isim sorgusunun üstüne konur.
+ *
  * @returns {Promise<Array<{id, name, orcid, worksCount, citedByCount, hIndex, institution, country, topics}>>}
  */
-export async function searchOpenAlexAuthors(name, { limit = 8 } = {}) {
+export async function searchOpenAlexAuthors(name, { limit = 8, institutionIds = [] } = {}) {
   const query = String(name ?? '').trim();
   if (query.length < 2) return [];
 
-  const apiKey = process.env.OPENALEX_API_KEY?.trim();
-  const mailto = process.env.OPENALEX_MAIL || process.env.CONTACT_EMAIL || 'ahmet@literatureai.com';
-  const urlParams = new URLSearchParams({ search: query, 'per-page': String(limit), mailto });
-  if (apiKey) urlParams.set('api_key', apiKey);
-  const url = `https://api.openalex.org/authors?${urlParams.toString()}`;
-
-  console.log('OpenAlex yazar araması:', maskUrlSecret(url));
-  const response = await fetchWithTimeout(url, {
-    method: 'GET',
-    headers: { Accept: 'application/json', 'User-Agent': `LiteratureAI/1.0 (mailto:${mailto})` },
-  });
+  const params = { search: query, 'per-page': String(limit) };
+  if (institutionIds.length > 0) params.filter = `affiliations.institution.id:${institutionIds.join('|')}`;
+  const response = await openAlexGet('/authors', params, 'OpenAlex yazar araması:');
   if (!response.ok) {
     throw new Error(response.status === 429 ? 'OpenAlex kotası doldu (429).' : `OpenAlex API Hatası (${response.status})`);
   }
   const data = await response.json();
+  return toAuthorCandidates(data.results);
+}
 
-  return (data.results || []).map((a) => {
+/**
+ * Kurum adı -> OpenAlex kurum kimlikleri ("Hacettepe" -> I66514158 …).
+ * Birkaç eşleşme döner: "Hacettepe" hem üniversiteyi hem hastanesini kapsasın.
+ */
+export async function searchOpenAlexInstitutions(name, { limit = 3 } = {}) {
+  const query = String(name ?? '').trim();
+  if (query.length < 2) return [];
+  const response = await openAlexGet('/institutions', { search: query, 'per-page': String(limit), select: 'id' });
+  if (!response.ok) throw new Error(`OpenAlex API Hatası (${response.status})`);
+  const data = await response.json();
+  return (data.results || [])
+    .map((i) => String(i.id || '').replace('https://openalex.org/', ''))
+    .filter((id) => /^I\d+$/.test(id));
+}
+
+/**
+ * Yapıştırılan ORCID iD'yi tek bir OpenAlex yazarına çözer. Tekil uç
+ * (/authors/orcid:X) kullanılır: toplu `filter=orcid:` ölçümlerde kararsız
+ * çıktı (504, 9 sn). Eşleşme yoksa null.
+ */
+export async function getOpenAlexAuthorByOrcid(orcid) {
+  const response = await openAlexGet(`/authors/orcid:${encodeURIComponent(orcid)}`, {});
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`OpenAlex API Hatası (${response.status})`);
+  return toAuthorCandidates([await response.json()])[0] || null;
+}
+
+/**
+ * Kurum bir sıralama sinyali, eleme filtresi değil (CLAUDE.md 3.10): kurum
+ * filtreli sorgunun kişileri üstte (`institutionMatch: true`), yalnız isim
+ * sorgusunun geri kalanı altta, aynı kişi bir kez. Yalnız isim sorgusunu
+ * yeniden sıralamak yetmez; aranan kişi onun ilk sayfasında hiç olmayabilir.
+ */
+export function mergeInstitutionFirst(matched = [], rest = [], limit = 12) {
+  const seen = new Set();
+  const out = [];
+  for (const [list, institutionMatch] of [[matched, true], [rest, false]]) {
+    for (const a of list) {
+      if (!a?.id || seen.has(a.id)) continue;
+      seen.add(a.id);
+      out.push({ ...a, institutionMatch });
+    }
+  }
+  return out.slice(0, limit);
+}
+
+function openAlexGet(path, params, logLabel = null) {
+  const apiKey = process.env.OPENALEX_API_KEY?.trim();
+  const mailto = process.env.OPENALEX_MAIL || process.env.CONTACT_EMAIL || 'ahmet@literatureai.com';
+  const urlParams = new URLSearchParams({ ...params, mailto });
+  if (apiKey) urlParams.set('api_key', apiKey);
+  const url = `https://api.openalex.org${path}?${urlParams.toString()}`;
+  if (logLabel) console.log(logLabel, maskUrlSecret(url));
+  return fetchWithTimeout(url, {
+    method: 'GET',
+    headers: { Accept: 'application/json', 'User-Agent': `LiteratureAI/1.0 (mailto:${mailto})` },
+  });
+}
+
+// A9999999999: ayrıştırılamamış yazarlıkları toplayan NULL kayıt.
+// A5317838346: silinmiş yazar işareti. İkisi de kullanıcıya gösterilmez.
+export const HIDDEN_AUTHOR_IDS = new Set(['A9999999999', 'A5317838346']);
+
+export function toAuthorCandidates(results) {
+  return (results || []).map((a) => {
     // Yeni API dizi (last_known_institutions), eski API tek nesne veriyordu.
     const inst = (Array.isArray(a.last_known_institutions) ? a.last_known_institutions[0] : null) || a.last_known_institution || null;
     return {
@@ -254,5 +316,5 @@ export async function searchOpenAlexAuthors(name, { limit = 8 } = {}) {
       country: inst?.country_code || null,
       topics: (a.topics || []).slice(0, 2).map((t) => t.display_name).filter(Boolean),
     };
-  }).filter((a) => /^A\d+$/.test(a.id));
+  }).filter((a) => /^A\d+$/.test(a.id) && !HIDDEN_AUTHOR_IDS.has(a.id));
 }

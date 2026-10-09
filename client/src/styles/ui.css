@@ -733,6 +733,17 @@
 
 /* ---------- Yazar seçici ---------- */
 .ui-author-picker { position: relative; }
+/* Ad ve kurum yan yana; liste ad sütununun altında açılır. */
+.ui-author-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.ui-author-name { position: relative; }
+.ui-author-inst .input { height: 52px; width: 100%; font-size: var(--fs-md); border-radius: var(--radius-md); }
+.ui-author-note-inline { margin: 0 0 4px; padding: 8px 12px; font-size: var(--fs-xs); color: var(--text-muted); background: var(--brand-primary-soft); border-radius: 8px; }
+.ui-author-inst-match { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; color: var(--brand-primary); background: var(--brand-primary-soft); border-radius: 6px; padding: 1px 6px; }
+@media (max-width: 640px) {
+  /* Alt alta: liste akışa girer, kurum kutusunun üstünü örtmez. */
+  .ui-author-row { grid-template-columns: 1fr; }
+  .ui-author-row .ui-author-list { position: static; margin-top: 6px; }
+}
 .ui-author-input { position: relative; }
 .ui-author-input .input { height: 52px; padding-left: 46px; padding-right: 44px; font-size: var(--fs-md); width: 100%; border-radius: var(--radius-md); }
 .ui-author-input__icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--slate-400); pointer-events: none; }

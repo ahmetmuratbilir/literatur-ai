@@ -6,8 +6,9 @@ import { fileURLToPath } from 'url';
 // Çeviri: Groq (translation.js) üzerinden yapılıyor — Gemini kaldırıldı
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import mongoose from 'mongoose';
-import { searchAll } from './services/search.js';
-import { searchOpenAlexAuthors } from './services/openalex.js';
+import { searchAll, guarded } from './services/search.js';
+import { searchOpenAlexAuthors, searchOpenAlexInstitutions, getOpenAlexAuthorByOrcid, mergeInstitutionFirst } from './services/openalex.js';
+import { isOrcidEnabled, parseOrcidId, fetchOrcidAffiliations, MAX_ENRICH_IDS } from './services/orcid.js';
 import { analyzeAndExpandQuery, generateConsensusSnapshot } from './services/llm.js';
 import { translateToEnglish } from './utils/translation.js';
 import SearchHistory from './models/SearchHistory.js';
@@ -861,17 +862,63 @@ app.post('/api/leads', leadLimiter, async (req, res) => {
 
 // Yazar adaylari: kullanici aramadan once dogru kisiyi kurum/ORCID ile secer,
 // arama sonra o kisinin kimligiyle yapilir (ayni adda yuzlerce yazar olabiliyor).
+// Listeyi yalnizca OpenAlex uretir (CLAUDE.md 3.10). Yapistirilan ORCID iD tek
+// kayda cozulur. Kurum siralama sinyalidir, eleme filtresi degil: kurum
+// filtreli ve filtresiz iki OpenAlex sorgusu paralel gider, eslesenler uste.
 app.get('/api/authors', searchLimiter, async (req, res) => {
   const userId = getRequestUserId(req, res);
   if (!userId) return;
   const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
   if (q.length < 2) return res.json({ authors: [] });
+  const institution = typeof req.query.inst === 'string' ? req.query.inst.trim().slice(0, 100) : '';
   try {
-    const authors = await searchOpenAlexAuthors(q);
-    return res.json({ authors });
+    const orcid = parseOrcidId(q);
+    if (orcid) {
+      const author = await getOpenAlexAuthorByOrcid(orcid);
+      return res.json({ authors: author ? [author] : [] });
+    }
+    if (institution.length < 2) return res.json({ authors: await searchOpenAlexAuthors(q) });
+
+    const byInstitution = async () => {
+      const institutionIds = await searchOpenAlexInstitutions(institution);
+      if (institutionIds.length === 0) return { status: 'not_found', authors: [] };
+      return { status: 'matched', authors: await searchOpenAlexAuthors(q, { institutionIds }) };
+    };
+    const [inst, byName] = await Promise.allSettled([byInstitution(), searchOpenAlexAuthors(q)]);
+    if (inst.status === 'rejected' && byName.status === 'rejected') throw byName.reason;
+    if (inst.status === 'rejected') console.warn('Kurum araması:', inst.reason?.message || inst.reason);
+    if (byName.status === 'rejected') console.warn('Yazar isim araması:', byName.reason?.message || byName.reason);
+
+    // Kurum bulunamazsa ya da kurum aramasi duserse isim listesi yine gelir;
+    // durum kullaniciya soylenir, sessizce kurumsuz aramaya donulmez (2.8).
+    const matched = inst.status === 'fulfilled' ? inst.value.authors : [];
+    return res.json({
+      authors: mergeInstitutionFirst(matched, byName.status === 'fulfilled' ? byName.value : []),
+      institution: {
+        status: inst.status === 'fulfilled' ? inst.value.status : 'error',
+        matched: matched.length,
+        nameSearchFailed: byName.status === 'rejected',
+      },
+    });
   } catch (error) {
     console.error('Author lookup error:', error?.message || error);
     return res.status(502).json({ error: 'Yazar listesi alinamadi' });
+  }
+});
+
+// ORCID zenginlestirmesi: listede zaten olan kisilerin kurum gecmisi. Liste
+// bunu beklemez; basarisizlik hata degil, kart rozetsiz kalir (3.10).
+app.get('/api/authors/orcid', searchLimiter, async (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) return;
+  if (!isOrcidEnabled()) return res.json({ enabled: false, affiliations: {} });
+  const ids = typeof req.query.ids === 'string' ? req.query.ids.split(',').slice(0, MAX_ENRICH_IDS) : [];
+  try {
+    const affiliations = await guarded('ORCID', () => fetchOrcidAffiliations(ids), undefined, { deadlineMs: 4500 });
+    return res.json({ enabled: true, affiliations });
+  } catch (error) {
+    console.warn('ORCID zenginlestirme:', error?.message || error);
+    return res.json({ enabled: true, affiliations: {}, failed: true });
   }
 });
 

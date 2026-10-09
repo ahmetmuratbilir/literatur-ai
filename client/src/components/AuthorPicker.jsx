@@ -4,23 +4,33 @@ import { Loader2, UserRound, X } from 'lucide-react';
 import { useI18n } from '../i18n/context.js';
 
 /**
- * Yazar seçici: ad yazılır, OpenAlex yazar dizininden adaylar listelenir,
- * kullanıcı doğru kişiyi kurum / ORCID / yayın sayısıyla seçer.
+ * Yazar seçici: ad (ya da ORCID iD) yazılır, OpenAlex yazar dizininden adaylar
+ * listelenir, kullanıcı doğru kişiyi kurum / ORCID / yayın sayısıyla seçer.
  *
  * Seçim şart, çünkü "Mehmet Yılmaz" gibi bir ad farklı üniversitelerden onlarca
  * kişiye denk geliyor; arama sonra seçilen kişinin kimliğiyle yapılır.
+ * İsteğe bağlı kurum bir sıralama sinyalidir: o kurumda hiç bulunmuş kişiler
+ * üste gelir, diğerleri listeden çıkmaz.
+ *
+ * Listeyi yalnızca OpenAlex üretir. ORCID kurum geçmişi liste geldikten sonra
+ * ayrı istekle eklenir; gelmezse kart olduğu gibi kalır (CLAUDE.md 3.10).
  * Liste klavyeyle de gezilir (yukarı/aşağı, Enter, Esc).
  */
 const MIN_CHARS = 3;
 const DEBOUNCE_MS = 400;
 
+const sameOrg = (a, b) => String(a || '').toLocaleLowerCase('tr') === String(b || '').toLocaleLowerCase('tr');
+
 export default function AuthorPicker({ apiUrl, getToken, value, onChange, disabled = false }) {
   const { t, lang } = useI18n();
   const [query, setQuery] = useState('');
+  const [institution, setInstitution] = useState('');
   // Son tamamlanan yanıt, hangi sorgu için geldiğiyle birlikte. Liste ve
   // "yükleniyor" durumu bundan türetiliyor: efekt içinde ayrıca durum
   // sıfırlamak her yazışta fazladan render demekti.
-  const [result, setResult] = useState({ q: '', authors: [], error: false });
+  const [result, setResult] = useState({ key: '', authors: [], error: false, institution: null });
+  // ORCID kurum geçmişi, hangi listeye ait olduğuyla birlikte.
+  const [enrichment, setEnrichment] = useState({ key: '', affiliations: {} });
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   // getToken her render'da yeni kimlik alabiliyor; efektin bağımlılığı olsaydı
@@ -29,9 +39,12 @@ export default function AuthorPicker({ apiUrl, getToken, value, onChange, disabl
   useEffect(() => { getTokenRef.current = getToken; }, [getToken]);
   const listId = useId();
   const inputId = useId();
+  const instId = useId();
   const fmt = (n) => Number(n || 0).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US');
 
   const q = query.trim();
+  const inst = institution.trim();
+  const key = `${q}\u0000${inst}`;
   const wantsLookup = !value && q.length >= MIN_CHARS;
 
   // Yazdıkça ara. Temizleme fonksiyonu eski isteğin geç gelen yanıtının
@@ -43,20 +56,49 @@ export default function AuthorPicker({ apiUrl, getToken, value, onChange, disabl
       try {
         const token = await getTokenRef.current();
         const { data } = await axios.get(`${apiUrl}/api/authors`, {
-          params: { q },
+          params: inst ? { q, inst } : { q },
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!cancelled) setResult({ q, authors: Array.isArray(data?.authors) ? data.authors : [], error: false });
+        if (!cancelled) {
+          setResult({
+            key,
+            authors: Array.isArray(data?.authors) ? data.authors : [],
+            error: false,
+            institution: data?.institution || null,
+          });
+        }
       } catch {
-        if (!cancelled) setResult({ q, authors: [], error: true });
+        if (!cancelled) setResult({ key, authors: [], error: true, institution: null });
       }
     }, DEBOUNCE_MS);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [q, wantsLookup, apiUrl]);
+  }, [key, q, inst, wantsLookup, apiUrl]);
 
-  const settled = wantsLookup && result.q === q;
+  // Liste geldikten sonra ORCID'i bilinen kişilerin kurum geçmişi. Hata
+  // kullanıcıya gösterilmez: zenginleştirme yoksa kart yine eksiksizdir.
+  const orcidIds = result.authors.map((a) => a.orcid).filter(Boolean).join(',');
+  useEffect(() => {
+    if (!orcidIds) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getTokenRef.current();
+        const { data } = await axios.get(`${apiUrl}/api/authors/orcid`, {
+          params: { ids: orcidIds },
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled) setEnrichment({ key: result.key, affiliations: data?.affiliations || {} });
+      } catch {
+        // Rozetsiz kart hata değil.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [orcidIds, result.key, apiUrl]);
+
+  const settled = wantsLookup && result.key === key;
   const candidates = settled ? result.authors : [];
   const status = !wantsLookup ? 'idle' : !settled ? 'loading' : result.error ? 'error' : 'done';
+  const affiliationsOf = (a) => (enrichment.key === result.key && a.orcid ? enrichment.affiliations[a.orcid] || [] : []);
 
   const pick = (author) => {
     onChange(author);
@@ -83,6 +125,15 @@ export default function AuthorPicker({ apiUrl, getToken, value, onChange, disabl
           <span>
             {[value.institution, value.worksCount != null ? t('search.authorWorks', { n: fmt(value.worksCount) }) : null]
               .filter(Boolean).join(' · ')}
+            {value.orcid && (
+              <>
+                {' · '}
+                <a className="ui-author-orcid" href={`https://orcid.org/${value.orcid}`} target="_blank" rel="noopener noreferrer"
+                  title={t('search.authorOrcidLink')}>
+                  ORCID
+                </a>
+              </>
+            )}
           </span>
         </div>
         <button type="button" className="ui-btn ui-btn--ghost ui-btn--icon" onClick={() => onChange(null)}
@@ -94,62 +145,105 @@ export default function AuthorPicker({ apiUrl, getToken, value, onChange, disabl
   }
 
   const showList = open && (status === 'done' || status === 'error');
+  const institutionNote = institutionNoteFor(result.institution, inst, t);
 
   return (
     <div className="ui-author-picker">
-      <label htmlFor={inputId} className="ui-field-label">{t('search.authorNameLabel')}</label>
-      <div className="ui-author-input">
-        <UserRound size={18} className="ui-author-input__icon" aria-hidden="true" />
-        <input
-          id={inputId}
-          type="text"
-          className="input"
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setOpen(true); setActive(-1); }}
-          onKeyDown={onKeyDown}
-          onFocus={() => candidates.length > 0 && setOpen(true)}
-          placeholder={t('search.authorPlaceholder')}
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck={false}
-          role="combobox"
-          aria-expanded={showList}
-          aria-controls={listId}
-          aria-autocomplete="list"
-          aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
-          disabled={disabled}
-        />
-        {status === 'loading' && <Loader2 size={16} className="animate-spin ui-author-input__spin" aria-label={t('search.authorSearching')} />}
+      <div className="ui-author-row">
+        <div className="ui-author-name">
+          <label htmlFor={inputId} className="ui-field-label">{t('search.authorNameLabel')}</label>
+          <div className="ui-author-input">
+            <UserRound size={18} className="ui-author-input__icon" aria-hidden="true" />
+            <input
+              id={inputId}
+              type="text"
+              className="input"
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setOpen(true); setActive(-1); }}
+              onKeyDown={onKeyDown}
+              onFocus={() => candidates.length > 0 && setOpen(true)}
+              placeholder={t('search.authorPlaceholder')}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              role="combobox"
+              aria-expanded={showList}
+              aria-controls={listId}
+              aria-autocomplete="list"
+              aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
+              disabled={disabled}
+            />
+            {status === 'loading' && <Loader2 size={16} className="animate-spin ui-author-input__spin" aria-label={t('search.authorSearching')} />}
+          </div>
+
+          {showList && (
+            <div className="ui-author-list" id={listId} role="listbox" aria-label={t('search.authorPick')}>
+              {status === 'error' && <p className="ui-author-empty">{t('search.authorLookupFailed')}</p>}
+              {status === 'done' && institutionNote && <p className="ui-author-note-inline" role="status">{institutionNote}</p>}
+              {status === 'done' && candidates.length === 0 && <p className="ui-author-empty">{t('search.authorNoMatch')}</p>}
+              {candidates.map((a, i) => {
+                const others = affiliationsOf(a).filter((o) => !sameOrg(o, a.institution)).slice(0, 2);
+                return (
+                  <button
+                    key={a.id}
+                    id={`${listId}-${i}`}
+                    type="button"
+                    role="option"
+                    aria-selected={i === active}
+                    className={`ui-author-option${i === active ? ' is-active' : ''}`}
+                    onMouseEnter={() => setActive(i)}
+                    onClick={() => pick(a)}
+                  >
+                    <span className="ui-author-option__name">{a.name}</span>
+                    <span className="ui-author-option__inst">{[a.institution, a.country].filter(Boolean).join(', ') || '—'}</span>
+                    {others.length > 0 && (
+                      <span className="ui-author-option__topics">{t('search.authorAlsoAt', { list: others.join(' · ') })}</span>
+                    )}
+                    <span className="ui-author-option__stats">
+                      {t('search.authorWorks', { n: fmt(a.worksCount) })} · {t('search.authorCites', { n: fmt(a.citedByCount) })}
+                      {a.hIndex != null && <> · h {a.hIndex}</>}
+                      {a.orcid && <span className="ui-author-orcid">ORCID</span>}
+                      {a.institutionMatch && <span className="ui-author-inst-match">{t('search.authorInstMatch')}</span>}
+                    </span>
+                    {a.topics?.length > 0 && <span className="ui-author-option__topics">{a.topics.join(' · ')}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="ui-author-inst">
+          <label htmlFor={instId} className="ui-field-label">{t('search.authorInstLabel')}</label>
+          <input
+            id={instId}
+            type="text"
+            className="input"
+            value={institution}
+            onChange={(e) => { setInstitution(e.target.value); setOpen(true); setActive(-1); }}
+            placeholder={t('search.authorInstPlaceholder')}
+            autoComplete="off"
+            spellCheck={false}
+            disabled={disabled}
+          />
+        </div>
       </div>
       <p className="ui-author-hint">{t('search.authorHint')}</p>
-
-      {showList && (
-        <div className="ui-author-list" id={listId} role="listbox" aria-label={t('search.authorPick')}>
-          {status === 'error' && <p className="ui-author-empty">{t('search.authorLookupFailed')}</p>}
-          {status === 'done' && candidates.length === 0 && <p className="ui-author-empty">{t('search.authorNoMatch')}</p>}
-          {candidates.map((a, i) => (
-            <button
-              key={a.id}
-              id={`${listId}-${i}`}
-              type="button"
-              role="option"
-              aria-selected={i === active}
-              className={`ui-author-option${i === active ? ' is-active' : ''}`}
-              onMouseEnter={() => setActive(i)}
-              onClick={() => pick(a)}
-            >
-              <span className="ui-author-option__name">{a.name}</span>
-              <span className="ui-author-option__inst">{[a.institution, a.country].filter(Boolean).join(', ') || '—'}</span>
-              <span className="ui-author-option__stats">
-                {t('search.authorWorks', { n: fmt(a.worksCount) })} · {t('search.authorCites', { n: fmt(a.citedByCount) })}
-                {a.hIndex != null && <> · h {a.hIndex}</>}
-                {a.orcid && <span className="ui-author-orcid">ORCID</span>}
-              </span>
-              {a.topics?.length > 0 && <span className="ui-author-option__topics">{a.topics.join(' · ')}</span>}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
+}
+
+/**
+ * Kurum girildiyse listenin üstündeki durum notu (CLAUDE.md 2.8, 3.10): kurum
+ * bulunamadıysa ya da kurum araması düştüyse liste yalnız isimle gelir ve bu
+ * söylenir; eşleşen kimse yoksa da söylenir. Eşleşme varsa not gerekmez,
+ * kartlardaki işaret yeterli.
+ */
+function institutionNoteFor(info, inst, t) {
+  if (!info || !inst) return null;
+  if (info.nameSearchFailed) return t('search.authorNameSearchFailed');
+  if (info.status === 'not_found') return t('search.authorInstNotFound', { inst });
+  if (info.status === 'error') return t('search.authorInstFailed');
+  if (info.matched === 0) return t('search.authorInstNoMatch', { inst });
+  return null;
 }
