@@ -628,9 +628,18 @@ aranan kişi isim sorgusunun ilk sayfasında hiç olmayabilir (ölçüldü: "Ahm
 Yılmaz" isim sorgusunun ilk 8 sonucunda Hacettepe'den kimse yoktu, kurum
 filtreli sorgu Hacettepe'deki Ahmet Yılmaz'ı buldu).
 
+Birleşik listede isim sonuçlarına **ayrılmış bir pay her zaman kalır**
+(bugün 12 kişilik listenin en az 4'ü; `AUTHOR_NAME_SLOTS`). Kurum eşleşmeleri
+listeyi doldurup isimle gelenleri tamamen dışarı itemez — yoksa sert filtre
+sıralama kılığında geri gelir. Ayrılan yer boş kalırsa eşleşenlere döner.
+
 Sert filtre istiyorsan iki koşulla: eşleşmeyenler gizlenir ama sayısı
 gösterilir ("kurum eşleşmeyen 6 kişi gizlendi"), ve tek tıkla açılır.
 Sayı gösterilmiyorsa filtre konmaz.
+
+Yazar panelinde seçilen davranış budur (2026-10-10): kurumla eşleşen varsa
+yalnız onlar görünür, altta "Kurumla eşleşmeyen N kişi gizlendi — göster"
+satırı durur. Eşleşen yoksa herkes görünür ve üstte durum notu yer alır.
 
 Girilen kurum hiçbir kayda çözülemiyorsa sessizce kurumsuz aramaya
 düşülmez: isim listesi yine gösterilir ve üstünde "'X' adında kurum

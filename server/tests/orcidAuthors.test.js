@@ -72,3 +72,19 @@ test('kurum birlestirmesi: eslesenler once, tekrar yok, kimliksiz kayit atlanir,
   assert.equal(mergeInstitutionFirst([], Array.from({ length: 20 }, (_, i) => p(`A${i}`)), 12).length, 12);
   assert.deepEqual(mergeInstitutionFirst(), []);
 });
+
+test('isim sonuclarina ayrilan pay: eslesenler listeyi doldurup isimle gelenleri disari itemiyor', () => {
+  const p = (prefix, n) => Array.from({ length: n }, (_, i) => ({ id: `${prefix}${i}`, name: `${prefix}${i}` }));
+  // 20 eslesme, 10 isim sonucu: 8 eslesen + 4 isim (pay korunur).
+  const out = mergeInstitutionFirst(p('M', 20), p('N', 10), 12, 4);
+  assert.equal(out.length, 12);
+  assert.equal(out.filter((a) => a.institutionMatch).length, 8);
+  assert.equal(out.filter((a) => !a.institutionMatch).length, 4);
+  // Isim sonucu payi doldurmuyorsa bos yer eslesenlere doner.
+  const few = mergeInstitutionFirst(p('M', 20), p('N', 1), 12, 4);
+  assert.deepEqual([few.length, few.filter((a) => a.institutionMatch).length], [12, 11]);
+  // Eslesme azsa isim sonuclari kalan yeri doldurur.
+  const many = mergeInstitutionFirst(p('M', 2), p('N', 20), 12, 4);
+  assert.deepEqual([many.length, many.filter((a) => a.institutionMatch).length], [12, 2]);
+  assert.deepEqual(many.slice(0, 2).map((a) => a.id), ['M0', 'M1'], 'eslesenler hep ustte');
+});

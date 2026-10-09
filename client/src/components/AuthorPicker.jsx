@@ -9,8 +9,8 @@ import { useI18n } from '../i18n/context.js';
  *
  * Seçim şart, çünkü "Mehmet Yılmaz" gibi bir ad farklı üniversitelerden onlarca
  * kişiye denk geliyor; arama sonra seçilen kişinin kimliğiyle yapılır.
- * İsteğe bağlı kurum bir sıralama sinyalidir: o kurumda hiç bulunmuş kişiler
- * üste gelir, diğerleri listeden çıkmaz.
+ * İsteğe bağlı kurum: o kurumda hiç bulunmuş kişiler gösterilir; diğerleri
+ * silinmez, sayısıyla gizlenir ve tek tıkla açılır.
  *
  * Listeyi yalnızca OpenAlex üretir. ORCID kurum geçmişi liste geldikten sonra
  * ayrı istekle eklenir; gelmezse kart olduğu gibi kalır (CLAUDE.md 3.10).
@@ -33,6 +33,8 @@ export default function AuthorPicker({ apiUrl, getToken, value, onChange, disabl
   const [enrichment, setEnrichment] = useState({ key: '', affiliations: {} });
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  // Gizlenen (kurumla eşleşmeyen) kişileri açtığı listenin anahtarı.
+  const [revealedKey, setRevealedKey] = useState(null);
   // getToken her render'da yeni kimlik alabiliyor; efektin bağımlılığı olsaydı
   // her render'da yeniden istek atılırdı.
   const getTokenRef = useRef(getToken);
@@ -96,7 +98,13 @@ export default function AuthorPicker({ apiUrl, getToken, value, onChange, disabl
   }, [orcidIds, result.key, apiUrl]);
 
   const settled = wantsLookup && result.key === key;
-  const candidates = settled ? result.authors : [];
+  const allCandidates = settled ? result.authors : [];
+  // Kurumla eşleşen varsa yalnız onlar görünür; diğerleri sayısıyla gizlenir
+  // ve tek tıkla açılır (CLAUDE.md 3.10). Eşleşen yoksa herkes görünür.
+  const matchedOnly = allCandidates.filter((a) => a.institutionMatch);
+  const hiding = matchedOnly.length > 0 && revealedKey !== result.key;
+  const candidates = hiding ? matchedOnly : allCandidates;
+  const hiddenCount = allCandidates.length - candidates.length;
   const status = !wantsLookup ? 'idle' : !settled ? 'loading' : result.error ? 'error' : 'done';
   const affiliationsOf = (a) => (enrichment.key === result.key && a.orcid ? enrichment.affiliations[a.orcid] || [] : []);
 
@@ -209,6 +217,11 @@ export default function AuthorPicker({ apiUrl, getToken, value, onChange, disabl
                   </button>
                 );
               })}
+              {status === 'done' && hiddenCount > 0 && (
+                <button type="button" className="ui-author-reveal" onClick={() => { setRevealedKey(result.key); setActive(-1); }}>
+                  {t('search.authorShowHidden', { n: hiddenCount })}
+                </button>
+              )}
             </div>
           )}
         </div>

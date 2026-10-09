@@ -270,18 +270,27 @@ export async function getOpenAlexAuthorByOrcid(orcid) {
  * filtreli sorgunun kişileri üstte (`institutionMatch: true`), yalnız isim
  * sorgusunun geri kalanı altta, aynı kişi bir kez. Yalnız isim sorgusunu
  * yeniden sıralamak yetmez; aranan kişi onun ilk sayfasında hiç olmayabilir.
+ *
+ * İsim sonuçlarına en az `nameSlots` yer ayrılır: eşleşenler listeyi
+ * doldurup isimle gelenleri tamamen dışarı itemez (sert filtre sıralama
+ * kılığında geri gelmesin). Ayrılan yer boş kalırsa eşleşenlere döner.
  */
-export function mergeInstitutionFirst(matched = [], rest = [], limit = 12) {
+export const AUTHOR_LIST_LIMIT = 12;
+export const AUTHOR_NAME_SLOTS = 4;
+
+export function mergeInstitutionFirst(matched = [], rest = [], limit = AUTHOR_LIST_LIMIT, nameSlots = AUTHOR_NAME_SLOTS) {
   const seen = new Set();
-  const out = [];
-  for (const [list, institutionMatch] of [[matched, true], [rest, false]]) {
-    for (const a of list) {
-      if (!a?.id || seen.has(a.id)) continue;
-      seen.add(a.id);
-      out.push({ ...a, institutionMatch });
-    }
-  }
-  return out.slice(0, limit);
+  const unique = (list, institutionMatch) => list.filter((a) => {
+    if (!a?.id || seen.has(a.id)) return false;
+    seen.add(a.id);
+    return true;
+  }).map((a) => ({ ...a, institutionMatch }));
+  const top = unique(matched, true);
+  const others = unique(rest, false);
+  const keepOthers = others.slice(0, Math.min(others.length, nameSlots, limit));
+  const keepTop = top.slice(0, limit - keepOthers.length);
+  const fill = others.slice(keepOthers.length, keepOthers.length + (limit - keepTop.length - keepOthers.length));
+  return [...keepTop, ...keepOthers, ...fill];
 }
 
 function openAlexGet(path, params, logLabel = null) {
