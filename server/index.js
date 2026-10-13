@@ -9,6 +9,7 @@ import mongoose from 'mongoose';
 import { searchAll, guarded } from './services/search.js';
 import { searchOpenAlexAuthors, searchOpenAlexInstitutions, getOpenAlexAuthorByOrcid, mergeInstitutionFirst } from './services/openalex.js';
 import { isOrcidEnabled, parseOrcidId, fetchOrcidAffiliations, MAX_ENRICH_IDS } from './services/orcid.js';
+import { generateCitedSentence } from './services/citedSentence.js';
 import { analyzeAndExpandQuery, generateConsensusSnapshot } from './services/llm.js';
 import { translateToEnglish } from './utils/translation.js';
 import SearchHistory from './models/SearchHistory.js';
@@ -1856,6 +1857,21 @@ const WRITER_RATE_LIMITER = IS_TEST_MODE
     standardHeaders: true,
     legacyHeaders: false,
   });
+
+// Tek cümle, tek pasajdan (CLAUDE.md 2.2, 3.1). Modele yalnizca pasaj gider;
+// atif bilgisini istemci kendi dogrulanmis kaydindan ekler ve cumle belgeye
+// ancak kullanici tiklayinca girer (2.9).
+app.post('/api/cited-sentence', WRITER_RATE_LIMITER, requireWriterSubscription, async (req, res) => {
+  const passage = typeof req.body?.passage === 'string' ? req.body.passage : '';
+  const topic = typeof req.body?.topic === 'string' ? req.body.topic : '';
+  try {
+    const result = await generateCitedSentence({ passage, topic });
+    return res.json(result);
+  } catch (error) {
+    console.error('Cited sentence error:', error?.message || error);
+    return res.status(502).json({ error: 'Cumle uretilemedi' });
+  }
+});
 
 app.post('/api/writer/generate', WRITER_RATE_LIMITER, requireWriterSubscription, async (req, res) => {
   const userId = getWriterUserId(req);

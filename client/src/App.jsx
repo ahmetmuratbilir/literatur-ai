@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
 const MotionDiv = motion.div;
@@ -51,6 +51,11 @@ import { flyToBasket } from './utils/flyToBasket';
 import Toasts from './components/Toasts';
 import WriterDock from './components/WriterDock';
 import CitationChecker from './components/CitationChecker';
+import AuthorPanel from './components/AuthorPanel';
+// Çalışma alanı editörüyle birlikte geliyor; sekmeye ilk girişte yüklenir,
+// sonra bağlı kalır (belge ve ayarlar kaybolmasın).
+const Workspace = lazy(() => import('./components/workspace/Workspace'));
+import { mergeAuthorPage, applyRetractions } from './utils/authorResults';
 import AiAnalysisPanel from './components/AiAnalysisPanel';
 import { useShare } from './hooks/useShare';
 import { useExport } from './hooks/useExport';
@@ -62,6 +67,17 @@ const VERIFY_MODE_ENABLED = false;
 // Yazar araması 8 Eki 2026'da yavaş olduğu için kapatılmıştı; eserler artık
 // 200'lük sayfalarla geliyor (ilk yanıt ~3 sn). Sorun çıkarsa false yap.
 const AUTHOR_MODE_ENABLED = true;
+// Yazar paneli (CLAUDE.md WO-002): yazar araması arama kartından çıkıp kendi
+// sekmesine taşınır. false iken yazar araması eskisi gibi arama kartında.
+const AUTHOR_PANEL_ENABLED = true;
+// Çalışma alanı (WO-003): araştırma ve yazım tek ekranda — şerit araç çubuğu,
+// cetvel, sayfa ayarlı belge ve sağ panel. Henüz model çağrısı yok.
+const WORKSPACE_ENABLED = true;
+// Eski "AI Yazar" paneli kapalı (13 Eki 2026, ürün kararı): literatür bölümünü
+// yapay zekâya yazdırmak kapsam dışı (CLAUDE.md 2.2). Yerine çalışma alanı
+// açılıyor; üretim yalnız tek pasajdan tek cümle olarak, kullanıcı tıklayınca.
+// Kod ve /api/writer/generate yerinde; bayrak true yapılırsa geri gelir.
+const AI_WRITER_PANEL_ENABLED = false;
 
 const RESULT_FILTERS = ['all', 'relevant', 'q1q2', 'recent', 'openaccess', 'highcitations'];
 
@@ -145,6 +161,12 @@ function App() {
   const [moreLoading, setMoreLoading] = useState(false);
   // Ana ekran: literatür arama ya da kaynakça doğrulama
   const [mode, setMode] = useState('search');
+  // Geçmişten açılan yazar araması için panele iletilen istek.
+  const [authorPanelRequest, setAuthorPanelRequest] = useState(null);
+  // Çalışma alanı bir kez açıldıktan sonra bağlı kalır: sekme değişince
+  // belge silinmesin, ama hiç açılmadıysa paketi de yüklenmesin.
+  const workspaceOpened = useRef(false);
+  if (mode === 'workspace') workspaceOpened.current = true;
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -232,7 +254,7 @@ function App() {
       // Cmd+J / Ctrl+J -> Yazar Panelini aç/kapat
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
         e.preventDefault();
-        setShowWriterPanel(prev => !prev);
+        if (AI_WRITER_PANEL_ENABLED) setShowWriterPanel(prev => !prev);
       }
 
       // Esc -> Modalları / Çekmeceleri kapat
@@ -482,7 +504,10 @@ function App() {
     }
   };
 
-  const openWriter = () => setShowWriterPanel(true);
+  const openWriter = () => {
+    if (AI_WRITER_PANEL_ENABLED) { setShowWriterPanel(true); return; }
+    setMode('workspace');
+  };
 
   // Gosterilen sonuc sayisi bu `data` icin; yeni arama ya da yeniden siralama 25'e doner.
   const shownCount = visible.data === data ? visible.n : PAGE_SIZE;
@@ -498,10 +523,7 @@ function App() {
         params: { ...lastSearchParams, ...rankingParams, authorPage: (data.author.page || 1) + 1 },
         headers: { Authorization: `Bearer ${token}` },
       });
-      const key = (r) => String(r.doi || r.id || r.title || '').toLowerCase();
-      const seen = new Set(data.results.map(key));
-      const added = (res.data?.results || []).filter((r) => !seen.has(key(r)));
-      const merged = { ...data, results: [...data.results, ...added], author: res.data?.author || { ...data.author, hasMore: false } };
+      const merged = mergeAuthorPage(data, res.data);
       setData(merged);
       setVisible({ data: merged, n: Math.min(shownCount + PAGE_SIZE, merged.results.length) });
     } catch (err) {
@@ -522,19 +544,48 @@ function App() {
     if (dois.length === 0) return;
     setMoreLoading(true);
     try {
-      const token = await getToken();
-      const res = await axios.post(`${defaultApiUrl}/api/retractions`, { dois }, { headers: { Authorization: `Bearer ${token}` } });
-      const found = res.data?.results || {};
-      const norm = (d) => String(d || '').trim().toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, '');
-      const updated = { ...data, results: data.results.map((r) => (found[norm(r.doi)] && !r.retraction ? { ...r, retraction: found[norm(r.doi)] } : r)) };
-      setData(updated);
-      setVisible({ data: updated, n: next });
-    } catch (err) {
-      console.warn('Retraction check failed', err);
+      const found = await checkRetractions(dois);
+      if (found) {
+        const updated = applyRetractions(data, found);
+        setData(updated);
+        setVisible({ data: updated, n: next });
+      }
     } finally {
       setMoreLoading(false);
     }
   };
+
+  // Açılan sayfanın geri çekme kontrolü; konu araması ve yazar paneli ortak kullanır.
+  // Hata aramayı bozmaz: null döner, kartlar işaretsiz kalır.
+  const checkRetractions = async (dois) => {
+    try {
+      const token = await getToken();
+      const res = await axios.post(`${defaultApiUrl}/api/retractions`, { dois }, { headers: { Authorization: `Bearer ${token}` } });
+      return res.data?.results || {};
+    } catch (err) {
+      console.warn('Retraction check failed', err);
+      return null;
+    }
+  };
+
+  // Eser kartı: sepet, favori, PDF ve okuyucu bağlantılarıyla. Konu araması ve
+  // yazar paneli aynı kartı çizer. "Benzerini bul" her zaman konu araması açar.
+  const renderPaper = (item, idx, source) => (
+    <ResultCard
+      key={item.doi || item.url || item.title || idx}
+      item={item}
+      rank={idx + 1}
+      appliedWeights={source.methodology?.appliedWeights}
+      oaEnabled={Boolean(source.features?.unpaywall)}
+      onFindPdf={findFreePdf}
+      onFavorite={handleFavorite}
+      isFavorited={isPaperFavorited(item)}
+      isSelected={basket.has(item)}
+      onToggleSelect={(el) => handleToggleBasket(item, el)}
+      onOpenReader={setActiveReaderPaper}
+      onFindSimilar={(paper) => { setMode('search'); handleSearch(null, paper.title); }}
+    />
+  );
 
   // YOK Tez programla sorgu kabul etmiyor (formu kendi betigiyle tamamliyor);
   // sorguyu panoya kopyalayip arama sayfasini yeni sekmede aciyoruz.
@@ -547,6 +598,26 @@ function App() {
     window.open('https://tez.yok.gov.tr/UlusalTezMerkezi/tarama.jsp', '_blank', 'noopener');
     pushToast({ tone: 'success', title: t('yok.opened'), text: copied ? t('yok.copied', { q: query }) : t('yok.typeIt') });
   };
+
+  // Sekme çubuğu hem arama kabında hem çalışma alanında çiziliyor; ikisi aynı
+  // anda görünmüyor, seçili sekme tek `mode` durumundan geliyor.
+  const modeTabs = (VERIFY_MODE_ENABLED || AUTHOR_PANEL_ENABLED) && !isShared ? (
+    <div className="ui-modes" role="tablist" aria-label={t('modes.label')}>
+      <button type="button" role="tab" aria-selected={mode === 'search'} className="ui-modes__tab" onClick={() => setMode('search')}>
+        <Search size={15} /> {t('modes.search')}
+      </button>
+      {AUTHOR_PANEL_ENABLED && (
+        <button type="button" role="tab" aria-selected={mode === 'author'} className="ui-modes__tab" onClick={() => setMode('author')}>
+          <UserRound size={15} /> {t('modes.author')}
+        </button>
+      )}
+      {VERIFY_MODE_ENABLED && (
+        <button type="button" role="tab" aria-selected={mode === 'verify'} className="ui-modes__tab" onClick={() => setMode('verify')}>
+          <ListChecks size={15} /> {t('modes.verify')}
+        </button>
+      )}
+    </div>
+  ) : null;
 
   // Yalnızca geliştirmede: Clerk kapalıyken tanıtım sayfası hiç görünmediği
   // için ?landing ile önizlenebilir.
@@ -603,6 +674,12 @@ function App() {
           deviceId={deviceId}
           apiUrl={defaultApiUrl}
           onSelectHistory={(item) => {
+            // Yazar araması yazar panelinde açılır; konu kartına dokunmaz.
+            if (AUTHOR_PANEL_ENABLED && item.authorId) {
+              setMode('author');
+              setAuthorPanelRequest({ author: { id: item.authorId, name: item.authorName || '' }, topic: item.mainTopic || '', at: Date.now() });
+              return;
+            }
             setMainTopic(item.mainTopic || '');
             setKeywords(item.keywords || []);
             // Yazar aramasıysa aynı kişiyle aç; değilse ekranda kalmış bir yazar seçimi
@@ -635,7 +712,7 @@ function App() {
 
         <main className="app-main" style={{
           marginLeft: isMobile ? '0px' : (sidebarOpen ? '280px' : '72px'),
-          marginRight: (!isMobile && showWriterPanel)
+          marginRight: (!isMobile && AI_WRITER_PANEL_ENABLED && showWriterPanel)
             // AI Yazar ayarları 420px'lik panelde; sonuçlar yanında görünür kalır.
             ? '420px'
             : '0px',
@@ -649,7 +726,16 @@ function App() {
             onOpenSystem={() => setShowAdmin(true)}
           />
 
+          {WORKSPACE_ENABLED && !isShared && workspaceOpened.current && (
+            <div style={{ padding: isMobile ? '1rem 0.75rem 2rem' : '1.5rem 1.5rem 2rem' }} hidden={mode !== 'workspace'}>
+              <Suspense fallback={null}>
+                <Workspace basket={basket} tabs={modeTabs} apiUrl={defaultApiUrl} getToken={getToken} hidden={mode !== 'workspace'} />
+              </Suspense>
+            </div>
+          )}
+
           <div className="query-workspace" style={{
+            display: WORKSPACE_ENABLED && mode === 'workspace' && !isShared ? 'none' : undefined,
             maxWidth: '1000px',
             margin: '0 auto',
             // Alt boşluk: seçim çubuğu sabit olduğu için son kartı örtmesin.
@@ -665,18 +751,21 @@ function App() {
               </header>
             )}
 
-            {VERIFY_MODE_ENABLED && !isShared && (
-              <div className="ui-modes" role="tablist" aria-label={t('modes.label')}>
-                <button type="button" role="tab" aria-selected={mode === 'search'} className="ui-modes__tab" onClick={() => setMode('search')}>
-                  <Search size={15} /> {t('modes.search')}
-                </button>
-                <button type="button" role="tab" aria-selected={mode === 'verify'} className="ui-modes__tab" onClick={() => setMode('verify')}>
-                  <ListChecks size={15} /> {t('modes.verify')}
-                </button>
-              </div>
+            {modeTabs}
+
+            {/* Panel sekme değişince silinmez, gizlenir: kendi listesini korur. */}
+            {AUTHOR_PANEL_ENABLED && !isShared && (
+              <AuthorPanel
+                apiUrl={defaultApiUrl}
+                getToken={getToken}
+                request={authorPanelRequest}
+                renderPaper={renderPaper}
+                checkRetractions={checkRetractions}
+                hidden={mode !== 'author'}
+              />
             )}
 
-            {VERIFY_MODE_ENABLED && mode === 'verify' && !isShared ? (
+            {AUTHOR_PANEL_ENABLED && mode === 'author' && !isShared ? null : VERIFY_MODE_ENABLED && mode === 'verify' && !isShared ? (
               <CitationChecker
                 apiUrl={defaultApiUrl}
                 getToken={getToken}
@@ -697,7 +786,7 @@ function App() {
                 </div>
               ) : (
                 <form className="query-form" onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-                  {AUTHOR_MODE_ENABLED && (
+                  {AUTHOR_MODE_ENABLED && !AUTHOR_PANEL_ENABLED && (
                     <div className="ui-mode-tabs" role="tablist" aria-label={t('search.modeLabel')}>
                       <button type="button" role="tab" className="ui-mode-tab" aria-selected={searchMode === 'topic'} onClick={() => setSearchMode('topic')}>
                         <Search size={14} aria-hidden="true" /> {t('search.modeTopic')}
@@ -962,26 +1051,7 @@ function App() {
                 </div>
 
                 <div id="results-container" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--space-3)' }}>
-                  {filterResults(data.results, resultFilter, selectedYear).slice(0, shownCount).map((item, idx) => {
-                    const isFavorited = isPaperFavorited(item);
-                    const inBasket = basket.has(item);
-                    return (
-                      <ResultCard
-                        key={item.doi || item.url || item.title || idx}
-                        item={item}
-                        rank={idx + 1}
-                        appliedWeights={data.methodology?.appliedWeights}
-                        oaEnabled={Boolean(data.features?.unpaywall)}
-                        onFindPdf={findFreePdf}
-                        onFavorite={handleFavorite}
-                        isFavorited={isFavorited}
-                        isSelected={inBasket}
-                        onToggleSelect={(el) => handleToggleBasket(item, el)}
-                        onOpenReader={setActiveReaderPaper}
-                        onFindSimilar={(paper) => handleSearch(null, paper.title)}
-                      />
-                    );
-                  })}
+                  {filterResults(data.results, resultFilter, selectedYear).slice(0, shownCount).map((item, idx) => renderPaper(item, idx, data))}
                 </div>
 
                 {(shownCount < data.results.length || authorHasMore) && (
@@ -1049,7 +1119,7 @@ function App() {
       </AuthedOnly>
 
       <AnimatePresence>
-        {showWriterPanel && (
+        {AI_WRITER_PANEL_ENABLED && showWriterPanel && (
           <WriterPanel
             key="writer-panel"
             papers={basket.papers}

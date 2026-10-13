@@ -1,0 +1,313 @@
+/* Yazar yüzeyi — docs/design/tasarim-yonu.md
+   §7: renk kanıt içindir. Arayüz nötr gri, tek vurgu yalnızca birincil
+   eylemde. Kanıt renkleri (yeşil/amber/kırmızı) bu dosyada HİÇ kullanılmıyor;
+   kanıt paneli gelene kadar o palete dokunulmaz.
+   §8: web fontu yok, sistem yığınları. */
+
+.wx {
+  --wx-ink: #191c1e;
+  --wx-muted: #5c5c76;
+  --wx-faint: #767586;
+  --wx-line: #e1e2e4;
+  --wx-line-soft: #edeef0;
+  --wx-surface: #ffffff;
+  --wx-desk: #f1f3f7;
+  --wx-accent: #4648d4;
+  --wx-accent-soft: #ececfb;
+  /* Kanıt değil, kaydın durumu (§7): nötr aile */
+  --wx-pending: #767586;
+  --wx-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --wx-serif: Charter, Georgia, Cambria, "Times New Roman", serif;
+
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 64px);
+  font-family: var(--wx-ui);
+  color: var(--wx-ink);
+}
+
+.wx[hidden] { display: none; }
+
+/* --- §9 İlk on dakika --- */
+.wx-start {
+  max-width: 640px;
+  margin: 48px auto;
+  padding: 0 16px;
+  text-align: center;
+}
+.wx-start h2 { margin: 0 0 8px; font-size: 22px; font-weight: 700; }
+.wx-start > p { margin: 0 0 28px; color: var(--wx-muted); font-size: 15px; line-height: 1.6; }
+.wx-start__ways { display: grid; gap: 10px; }
+
+.wx-way {
+  display: grid;
+  gap: 3px;
+  padding: 14px 16px;
+  text-align: left;
+  border: 1px solid var(--wx-line);
+  border-radius: 10px;
+  background: var(--wx-surface);
+  font: inherit;
+  cursor: pointer;
+}
+.wx-way:hover { border-color: var(--wx-accent); }
+.wx-way strong { font-size: 14px; }
+.wx-way small { color: var(--wx-muted); font-size: 12.5px; line-height: 1.5; }
+.wx-way--main { border-color: var(--wx-accent); background: var(--wx-accent-soft); }
+
+/* --- §3 Üç bölge --- */
+.wx-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 360px;
+  border: 1px solid var(--wx-line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--wx-surface);
+}
+
+/* --- Gezgin --- */
+.wx-nav { display: flex; flex-direction: column; border-right: 1px solid var(--wx-line); min-width: 0; }
+.wx-nav__tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--wx-line); }
+.wx-nav__tabs button {
+  padding: 10px 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--wx-muted);
+  font: inherit; font-size: 12.5px; font-weight: 600;
+  cursor: pointer;
+}
+.wx-nav__tabs button[aria-selected="true"] { color: var(--wx-ink); border-bottom-color: var(--wx-ink); }
+.wx-count {
+  display: inline-block; min-width: 18px; padding: 0 5px;
+  border-radius: 99px; background: var(--wx-line-soft);
+  font-size: 11px; font-weight: 700;
+}
+.wx-nav__body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px; display: grid; gap: 2px; align-content: start; }
+
+.wx-tree {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 7px; border-radius: 6px;
+  font-size: 13px; cursor: pointer;
+}
+.wx-tree:hover { background: var(--wx-line-soft); }
+.wx-tree span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wx-tree--l2 { padding-left: 18px; font-size: 12.5px; }
+.wx-tree--l3 { padding-left: 30px; font-size: 12px; color: var(--wx-muted); }
+
+.wx-src {
+  display: grid; gap: 2px;
+  padding: 8px; border: 0; border-radius: 6px;
+  background: transparent; text-align: left; font: inherit; cursor: pointer;
+}
+.wx-src:hover { background: var(--wx-line-soft); }
+.wx-src.is-on { background: var(--wx-accent-soft); }
+.wx-src strong { font-size: 12.5px; font-weight: 600; line-height: 1.4; }
+.wx-src small { color: var(--wx-muted); font-size: 11.5px; }
+
+.wx-muted { margin: 4px; color: var(--wx-muted); font-size: 12.5px; line-height: 1.5; }
+
+/* --- Belge sütunu --- */
+.wx-main { display: flex; flex-direction: column; min-width: 0; }
+
+/* §13: 12–16 düğme, Word'le yarışılmaz */
+.wx-ribbon {
+  display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--wx-line);
+}
+.wx-tool {
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border: 1px solid transparent; border-radius: 6px;
+  background: transparent; color: var(--wx-ink); cursor: pointer;
+}
+.wx-tool:hover { background: var(--wx-line-soft); }
+.wx-divider { width: 1px; height: 18px; margin: 0 5px; background: var(--wx-line); }
+.wx-ribbon__end { margin-left: auto; display: flex; align-items: center; gap: 5px; }
+
+.wx-sel {
+  height: 30px; padding: 0 6px;
+  border: 1px solid var(--wx-line); border-radius: 6px;
+  background: var(--wx-surface); color: var(--wx-ink);
+  font: inherit; font-size: 12.5px;
+}
+.wx-btn {
+  height: 30px; display: inline-flex; align-items: center; gap: 5px; padding: 0 10px;
+  border: 1px solid var(--wx-line); border-radius: 6px;
+  background: var(--wx-surface); color: var(--wx-ink);
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.wx-btn:hover { border-color: var(--wx-accent); color: var(--wx-accent); }
+.wx-tool:focus-visible, .wx-btn:focus-visible, .wx-sel:focus-visible,
+.wx-src:focus-visible, .wx-way:focus-visible {
+  outline: 2px solid var(--wx-accent); outline-offset: 1px;
+}
+
+/* §6 özet satırı */
+.wx-summary {
+  margin: 0; padding: 7px 12px;
+  border-bottom: 1px solid var(--wx-line);
+  background: #fafbfc;
+  color: var(--wx-muted); font-size: 12px; line-height: 1.5;
+}
+.wx-summary__note { display: block; color: var(--wx-faint); font-size: 11.5px; }
+
+/* --- Masa ve sayfa (§6 ölçüleri) --- */
+.wx-desk { flex: 1; min-height: 0; overflow: auto; padding: 24px 16px 48px; background: var(--wx-desk); }
+
+.wx-title {
+  display: block;
+  width: min(68ch, 100%);
+  margin: 0 auto 10px;
+  padding: 8px 10px;
+  border: 1px dashed transparent; border-radius: 6px;
+  background: transparent;
+  color: var(--wx-ink);
+  font-family: var(--wx-serif); font-size: 22px; font-weight: 700;
+}
+.wx-title:hover { border-color: var(--wx-line); }
+.wx-title:focus { outline: none; border-color: var(--wx-accent); background: var(--wx-surface); }
+
+.wx-page {
+  width: min(68ch, 100%);
+  min-height: 60vh;
+  margin: 0 auto;
+  padding: 48px 56px;
+  background: var(--wx-surface);
+  border: 1px solid #dbe2ea;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .07), 0 14px 36px -30px rgba(15, 23, 42, .4);
+  font-family: var(--wx-serif);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--wx-ink);
+  outline: none;
+}
+
+/* Akademik gelenek: paragraf arası boşluk değil, girinti (§6) */
+.wx-page > p { margin: 0; text-indent: 1.25em; }
+.wx-page > p:first-of-type, .wx-page > h1 + p, .wx-page > h2 + p, .wx-page > h3 + p { text-indent: 0; }
+.wx-page h1 { margin: 0 0 .5em; font-size: 1.55em; font-weight: 700; line-height: 1.25; }
+.wx-page h2 { margin: 1.4em 0 .4em; font-size: 1.28em; font-weight: 700; }
+.wx-page h3 { margin: 1.2em 0 .35em; font-size: 1.1em; font-weight: 600; }
+.wx-page ul, .wx-page ol { margin: .6em 0; padding-left: 1.6em; }
+.wx-page blockquote {
+  margin: .8em 0; padding: .2em 0 .2em 1em;
+  border-left: 2px solid var(--wx-line);
+  color: var(--wx-muted); text-indent: 0;
+}
+
+/* §6 durum işaretleri: 3px dikey çubuk, yalnız gereken bloklarda.
+   Kanıt rengi KULLANILMIYOR — bunlar kayıt durumu, karar değil. */
+.wx-page > [data-mark] { position: relative; }
+.wx-page > [data-mark]::before {
+  content: "";
+  position: absolute;
+  left: -18px; top: .35em; bottom: .35em;
+  width: 3px; border-radius: 2px;
+  opacity: .55;
+}
+.wx-page > [data-mark="uncited"]::before { background: var(--wx-pending); }
+.wx-page > [data-mark="cited"]::before { background: var(--wx-pending); opacity: .25; }
+.wx-page:focus-within > [data-mark]::before { opacity: .75; }
+
+/* --- Durum çubuğu (§12 üç kayıt durumu) --- */
+.wx-status {
+  display: flex; align-items: center; gap: 12px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--wx-line);
+  background: #fafbfc;
+  color: var(--wx-muted); font-size: 12px; font-weight: 600;
+}
+.wx-status__spacer { flex: 1; }
+.wx-save::before { content: "● "; }
+.wx-save--local { color: var(--wx-muted); }
+.wx-save--dirty { color: var(--wx-faint); }
+.wx-save--none { color: var(--wx-ink); font-weight: 700; }
+
+/* --- Bağlam paneli --- */
+.wx-side { display: flex; flex-direction: column; border-left: 1px solid var(--wx-line); background: #fbfcfe; min-width: 0; }
+.wx-side__head { padding: 10px 12px; border-bottom: 1px solid var(--wx-line); font-size: 12.5px; font-weight: 700; }
+.wx-side__body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; display: grid; gap: 10px; align-content: start; }
+
+.wx-notice {
+  padding: 10px 12px;
+  border: 1px dashed var(--wx-line);
+  border-radius: 8px;
+  background: var(--wx-surface);
+}
+.wx-notice strong { display: block; font-size: 12.5px; margin-bottom: 4px; }
+.wx-notice p { margin: 0; color: var(--wx-muted); font-size: 12px; line-height: 1.55; }
+
+.wx-card {
+  display: grid; gap: 7px;
+  padding: 11px 12px;
+  border: 1px solid var(--wx-line); border-radius: 10px;
+  background: var(--wx-surface);
+}
+.wx-card h4 { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; line-height: 1.4; }
+.wx-card > small { color: var(--wx-muted); font-size: 11.5px; }
+.wx-card--lib p { margin: 0; color: var(--wx-muted); font-size: 12px; line-height: 1.55; }
+
+.wx-passage {
+  padding: 8px 10px;
+  border-left: 2px solid var(--wx-line);
+  background: #fafbfc;
+  color: var(--wx-muted);
+  font-size: 12px; line-height: 1.6;
+  max-height: 150px; overflow-y: auto;
+}
+
+.wx-draft { display: grid; gap: 7px; padding-top: 8px; border-top: 1px dashed var(--wx-line); }
+.wx-draft p { margin: 0; font-size: 13px; line-height: 1.6; }
+
+.wx-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.wx-acts button {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 10px;
+  border: 1px solid var(--wx-accent); border-radius: 7px;
+  background: var(--wx-accent-soft); color: var(--wx-accent);
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.wx-acts button:hover:not(:disabled) { background: var(--wx-accent); color: #fff; }
+.wx-acts button:disabled { opacity: .5; cursor: not-allowed; }
+.wx-acts button.ghost { border-color: var(--wx-line); background: var(--wx-surface); color: var(--wx-muted); }
+.wx-acts button.ghost:hover { border-color: var(--wx-accent); color: var(--wx-accent); background: var(--wx-surface); }
+
+.wx-warn {
+  margin: 0; padding: 6px 9px;
+  border-left: 2px dashed var(--wx-faint);
+  color: var(--wx-ink); font-size: 12px; font-weight: 600;
+}
+
+/* --- §13 Hareket: geçişler kısa, hiçbir şey zıplamaz --- */
+.wx-tool, .wx-btn, .wx-way, .wx-src, .wx-acts button { transition: background .15s ease-out, border-color .15s ease-out, color .15s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .wx-tool, .wx-btn, .wx-way, .wx-src, .wx-acts button { transition: none; }
+}
+
+/* --- Dar ekran (§3) --- */
+@media (max-width: 1280px) {
+  .wx-body { grid-template-columns: 260px minmax(0, 1fr); }
+  .wx-side { display: none; }
+}
+@media (max-width: 1024px) {
+  .wx-body { grid-template-columns: minmax(0, 1fr); }
+  .wx-nav { display: none; }
+  .wx-desk { padding: 14px 8px 32px; }
+  .wx-page { padding: 28px 22px; font-size: 16px; }
+}
+
+/* --- Yazdırma: yalnız sayfa --- */
+@media print {
+  body * { visibility: hidden; }
+  .wx-page, .wx-page * { visibility: visible; }
+  .wx-page {
+    position: absolute; inset: 0;
+    width: auto; min-height: 0;
+    padding: 0; border: 0; box-shadow: none;
+  }
+  .wx-page > [data-mark]::before { display: none; }
+}
