@@ -10,3 +10,5 @@ package - Kopya.json
 .env.bak.*
 .env.local
 .env.*.local
+# Fuar videosu (17 MB): depoya girmez, WO-001 temiz ağaç koşulunu bozmasın
+marketing/video/

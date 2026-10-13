@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<!--
+  Kullanıcının 13 Eki 2026'da gönderdiği yazar modu taslağı. Üründen bağımsız,
+  tek dosyalık bir görsel taslak: Tailwind ve Material Symbols CDN'den gelir,
+  uygulamanın kendi stil sistemiyle ilgisi yoktur. Tarayıcıda açıp bakmak için.
+  Değerlendirme: docs/design/calisma-alani.md
+-->
+<html class="h-full bg-surface-container-low" lang="tr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Literatur AI - Yazar Modu (taslak)</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-secondary-fixed": "#181930",
+            "on-secondary-container": "#60607b",
+            "surface-container-lowest": "#ffffff",
+            "on-primary-fixed": "#07006c",
+            "on-error-container": "#93000a",
+            "primary": "#4648d4",
+            "on-primary": "#ffffff",
+            "on-tertiary-fixed": "#23005c",
+            "surface-tint": "#494bd6",
+            "on-tertiary-fixed-variant": "#5516be",
+            "on-secondary-fixed-variant": "#44455d",
+            "secondary-container": "#deddfc",
+            "surface-variant": "#e1e2e4",
+            "error-container": "#ffdad6",
+            "tertiary-fixed": "#e9ddff",
+            "primary-fixed": "#e1e0ff",
+            "secondary-fixed": "#e1e0ff",
+            "on-error": "#ffffff",
+            "on-secondary": "#ffffff",
+            "background": "#f8f9fb",
+            "primary-fixed-dim": "#c0c1ff",
+            "surface-container-low": "#f3f4f6",
+            "on-surface": "#191c1e",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "surface-dim": "#d9dadc",
+            "error": "#ba1a1a",
+            "tertiary-container": "#8455ef",
+            "surface-bright": "#f8f9fb",
+            "tertiary": "#6b38d4",
+            "surface": "#f8f9fb",
+            "on-surface-variant": "#464554",
+            "on-primary-container": "#fffbff",
+            "inverse-on-surface": "#f0f1f3",
+            "surface-container-high": "#e7e8ea",
+            "tertiary-fixed-dim": "#d0bcff",
+            "primary-container": "#6063ee",
+            "inverse-surface": "#2e3132",
+            "surface-container-highest": "#e1e2e4",
+            "on-background": "#191c1e",
+            "surface-container": "#edeef0",
+            "on-tertiary": "#ffffff",
+            "secondary-fixed-dim": "#c5c4e2",
+            "outline": "#767586",
+            "inverse-primary": "#c0c1ff",
+            "secondary": "#5c5c76",
+            "on-tertiary-container": "#fffbff",
+            "outline-variant": "#c7c4d7"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "margin": "1.5rem",
+            "space-sm": "0.5rem",
+            "space-xs": "0.25rem",
+            "gutter-lg": "1.5rem",
+            "space-lg": "1.25rem",
+            "margin-lg": "2.5rem",
+            "space-md": "0.875rem",
+            "gutter": "1rem",
+            "margin-sm": "1rem",
+            "space-xl": "2rem"
+          },
+          "fontFamily": {
+            "label-md": ["Plus Jakarta Sans"],
+            "label-sm": ["Plus Jakarta Sans"],
+            "headline-lg": ["Space Grotesk"],
+            "headline-xl": ["Space Grotesk"],
+            "body-md": ["Plus Jakarta Sans"],
+            "body-lg": ["Plus Jakarta Sans"],
+            "body-sm": ["Plus Jakarta Sans"],
+            "headline-md": ["Space Grotesk"],
+            "headline-sm": ["Space Grotesk"],
+            "code-sm": ["JetBrains Mono"]
+          },
+          "fontSize": {
+            "label-md": ["0.875rem", { "lineHeight": "1.25rem", "fontWeight": "500" }],
+            "label-sm": ["0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "headline-lg": ["1.75rem", { "lineHeight": "2.25rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-xl": ["2.25rem", { "lineHeight": "2.75rem", "letterSpacing": "-0.03em", "fontWeight": "700" }],
+            "body-md": ["0.9375rem", { "lineHeight": "1.5rem", "fontWeight": "400" }],
+            "body-lg": ["1.0625rem", { "lineHeight": "1.75rem", "fontWeight": "400" }],
+            "body-sm": ["0.8125rem", { "lineHeight": "1.25rem", "fontWeight": "400" }],
+            "headline-md": ["1.375rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "fontWeight": "600" }],
+            "code-sm": ["0.75rem", { "lineHeight": "1rem", "fontWeight": "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 1.25rem;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #c7c4d7;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #767586;
+    }
+    .paper-shadow {
+      box-shadow: 0 4px 25px -2px rgba(15, 16, 38, 0.07), 0 1px 4px rgba(0, 0, 0, 0.04);
+    }
+  </style>
+</head>
+<body class="h-full overflow-hidden text-on-surface bg-surface-container-low font-body-md antialiased select-none">
+<!-- SİSTEM GÖVDESİ -->
+<div class="flex h-full w-full">
+<!-- 1. SOL GLOBAL DİK DOCK RAYI (Shared Component: SideNavBar) -->
+<aside class="fixed left-0 top-0 h-screen w-16 flex flex-col justify-between z-40 bg-on-secondary-fixed border-r border-outline-variant/20 py-3.5 items-center">
+<!-- Üst Logo & Eylemler -->
+<div class="flex flex-col items-center gap-4 w-full">
+<!-- Logo -->
+<a class="relative flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-tr from-primary to-tertiary shadow-md group" href="#" title="Literatur AI - Yazar Modu">
+<span class="material-symbols-outlined text-surface-container-lowest text-2xl" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<span class="sr-only">Literatur AI Logo Icon</span>
+</a>
+<!-- Hızlı Oluştur FAB / Buton -->
+<button class="w-10 h-10 rounded-lg bg-surface-container-lowest/10 hover:bg-surface-container-lowest/20 text-surface-container-lowest flex items-center justify-center transition-all duration-150" title="Yeni Ekle">
+<span class="material-symbols-outlined text-xl">add</span>
+</button>
+<div class="w-8 h-px bg-outline-variant/20 my-1"></div>
+<!-- Navigasyon Sekmeleri -->
+<nav class="flex flex-col items-center gap-2.5 w-full">
+<!-- Sekme 1: Yazar (AKTİF EŞLEŞME: Yazar Modu) -->
+<a class="relative flex items-center justify-center w-10 h-10 rounded-lg bg-primary text-on-primary shadow-sm transition-all duration-150" href="#" title="Yazar">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">edit_note</span>
+<span class="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-5 bg-tertiary-fixed rounded-l-full"></span>
+</a>
+<!-- Sekme 2: Literatür -->
+<a class="flex items-center justify-center w-10 h-10 rounded-lg text-secondary-fixed-dim hover:text-surface-container-lowest hover:bg-secondary/30 transition-all duration-150" href="#" title="Literatür">
+<span class="material-symbols-outlined text-xl">menu_book</span>
+</a>
+<!-- Sekme 3: Notlar -->
+<a class="flex items-center justify-center w-10 h-10 rounded-lg text-secondary-fixed-dim hover:text-surface-container-lowest hover:bg-secondary/30 transition-all duration-150" href="#" title="Notlar">
+<span class="material-symbols-outlined text-xl">sticky_note_2</span>
+</a>
+<!-- Sekme 4: Çizimler -->
+<a class="flex items-center justify-center w-10 h-10 rounded-lg text-secondary-fixed-dim hover:text-surface-container-lowest hover:bg-secondary/30 transition-all duration-150" href="#" title="Çizimler">
+<span class="material-symbols-outlined text-xl">schema</span>
+</a>
+<!-- Sekme 5: Ayarlar -->
+<a class="flex items-center justify-center w-10 h-10 rounded-lg text-secondary-fixed-dim hover:text-surface-container-lowest hover:bg-secondary/30 transition-all duration-150" href="#" title="Ayarlar">
+<span class="material-symbols-outlined text-xl">settings</span>
+</a>
+</nav>
+</div>
+<!-- Alt Araçlar & Profil -->
+<div class="flex flex-col items-center gap-3 w-full">
+<a class="flex items-center justify-center w-10 h-10 rounded-lg text-secondary-fixed-dim hover:text-surface-container-lowest hover:bg-secondary/30 transition-all duration-150" href="#" title="Yardım">
+<span class="material-symbols-outlined text-xl">help_outline</span>
+</a>
+<!-- Profil İkonu -->
+<a class="relative flex items-center justify-center w-9 h-9 rounded-full ring-2 ring-primary/60 hover:ring-primary overflow-hidden transition-all" href="#" title="Prof. Dr. Araştırmacı Profili">
+<span class="material-symbols-outlined text-surface-container-lowest text-2xl">account_circle</span>
+</a>
+</div>
+</aside>
+<!-- 2. SOL İÇ PANEL: BELGE GEZGİNİ & KAYNAKLAR (240px) -->
+<div class="ml-16 w-60 h-screen flex-shrink-0 bg-surface-container-lowest border-r border-surface-container-high flex flex-col z-20">
+<!-- Panel Başlığı -->
+<div class="p-3.5 border-b border-surface-container-high flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg">account_tree</span>
+<span class="font-headline-sm text-label-md font-semibold text-on-surface">Belge Gezgini</span>
+</div>
+<button class="p-1 rounded text-on-surface-variant hover:bg-surface-container-low transition-colors" title="Paneli Katla">
+<span class="material-symbols-outlined text-sm">dock_to_left</span>
+</button>
+</div>
+<!-- Sekmeler -->
+<div class="grid grid-cols-4 p-1.5 bg-surface-container border-b border-surface-container-high text-center">
+<button class="py-1 text-code-sm font-label-sm font-semibold rounded bg-surface-container-lowest text-primary shadow-xs">Başlık</button>
+<button class="py-1 text-code-sm font-label-sm text-on-surface-variant hover:text-on-surface">Notlar</button>
+<button class="py-1 text-code-sm font-label-sm text-on-surface-variant hover:text-on-surface">Kaynak</button>
+<button class="py-1 text-code-sm font-label-sm text-on-surface-variant hover:text-on-surface">Şekil</button>
+</div>
+<!-- Arama Mini Kutusu -->
+<div class="p-2 border-b border-surface-container-high">
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-2 text-outline text-sm">search</span>
+<input class="w-full pl-7 pr-2 py-1 text-label-sm rounded-lg border-surface-container-high bg-surface-container-low placeholder:text-outline focus:border-primary focus:ring-1 focus:ring-primary text-on-surface" placeholder="Başlık ya da anahtar ara..." type="text"/>
+</div>
+</div>
+<!-- Hiyerarşik Ağaç -->
+<div class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-0.5 font-label-sm text-on-surface">
+<div class="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-surface-container-low text-on-surface cursor-pointer group">
+<span class="material-symbols-outlined text-xs text-outline group-hover:text-primary">expand_more</span>
+<span class="truncate">1. Giriş</span>
+</div>
+<!-- 2. Bölüm (Aktif) -->
+<div class="rounded-md bg-secondary-container/40 text-primary font-semibold">
+<div class="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer">
+<span class="material-symbols-outlined text-xs text-primary">expand_more</span>
+<span class="truncate">2. Literatür Taraması</span>
+<span class="ml-auto w-1.5 h-1.5 rounded-full bg-primary"></span>
+</div>
+<!-- Alt başlıklar -->
+<div class="pl-4 pr-1 pb-1 space-y-0.5">
+<div class="flex items-center gap-1.5 px-2 py-1 rounded bg-surface-container-lowest text-primary shadow-xs cursor-pointer border-l-2 border-primary">
+<span class="material-symbols-outlined text-xs">subdirectory_arrow_right</span>
+<span class="truncate text-xs font-medium">2.1 Modüler Pasif Güvenlik</span>
+</div>
+<div class="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-surface-container-lowest/80 text-on-surface-variant cursor-pointer text-xs">
+<span class="material-symbols-outlined text-xs text-outline">subdirectory_arrow_right</span>
+<span class="truncate">2.2 Isıl Dolaşım Dinamikleri</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-surface-container-low text-on-surface cursor-pointer group">
+<span class="material-symbols-outlined text-xs text-outline group-hover:text-primary">chevron_right</span>
+<span class="truncate">3. Metodoloji &amp; Sayısal Model</span>
+</div>
+<div class="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-surface-container-low text-on-surface cursor-pointer group">
+<span class="material-symbols-outlined text-xs text-outline group-hover:text-primary">chevron_right</span>
+<span class="truncate">4. Bulgular ve Tartışma</span>
+</div>
+<div class="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-surface-container-low text-on-surface cursor-pointer group">
+<span class="material-symbols-outlined text-xs text-outline group-hover:text-primary">chevron_right</span>
+<span class="truncate">5. Sonuç &amp; Gelecek Çalışmalar</span>
+</div>
+<div class="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-surface-container-low text-on-surface cursor-pointer group">
+<span class="material-symbols-outlined text-xs text-outline group-hover:text-primary">link</span>
+<span class="truncate">6. Kaynakça (APA 7th)</span>
+<span class="ml-auto text-xs px-1.5 py-0.2 rounded bg-surface-container text-outline">28</span>
+</div>
+<!-- İstatistik Çubuğu -->
+<div class="mt-6 p-2.5 rounded-lg bg-surface-container-low border border-surface-container-high text-xs space-y-1.5">
+<div class="flex justify-between text-on-surface-variant font-medium">
+<span>Hedef Sayfa: 12 / 16</span>
+<span class="text-primary font-semibold">%75</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 75%"></div>
+</div>
+<div class="flex items-center justify-between text-outline pt-1 text-[11px]">
+<span>Okuma Süresi: ~18 dk</span>
+<span>Atıf: 34 adet</span>
+</div>
+</div>
+</div>
+<!-- Alt Doküman Ekle Hızlı Aksiyon -->
+<div class="p-2.5 border-t border-surface-container-high bg-surface-container-lowest">
+<button class="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-dashed border-outline-variant text-primary hover:bg-primary-fixed/20 text-label-sm font-medium transition-colors">
+<span class="material-symbols-outlined text-base">add_circle</span>
+<span>Bölüm Ekle</span>
+</button>
+</div>
+</div>
+<!-- 3. ÇALIŞMA ALANI MERKEZ VE ÜST DİREKSİYON -->
+<div class="flex-1 flex flex-col h-screen overflow-hidden">
+<!-- A. ÜST BAR (TopNavBar Adaptasyonu) -->
+<header class="w-full bg-surface-container-lowest border-b border-surface-container-high px-4 py-2 flex flex-col gap-1.5 z-30 shadow-xs flex-shrink-0">
+<!-- Üst Satır: Dosya Adı, Kayıt Durumu & Aksiyonlar -->
+<div class="flex items-center justify-between">
+<!-- Sol: Belge Adı & Durum -->
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1;">description</span>
+<span class="font-headline-sm text-body-md font-semibold text-on-surface tracking-tight">Küçük Modüler Reaktörlerde Pasif Soğutma Sistemleri_v3.docx</span>
+<button class="p-1 text-outline hover:text-on-surface rounded hover:bg-surface-container-low" title="Yeniden Adlandır">
+<span class="material-symbols-outlined text-sm">edit</span>
+</button>
+</div>
+<div class="h-4 w-px bg-surface-container-high"></div>
+<div class="flex items-center gap-1.5 text-xs text-outline">
+<span class="material-symbols-outlined text-green-600 text-sm">cloud_done</span>
+<span class="font-label-sm text-on-surface-variant">2 dk önce buluta kaydedildi</span>
+</div>
+<!-- Geri Al / Yinele -->
+<div class="flex items-center gap-0.5 ml-2">
+<button class="p-1 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface" title="Geri Al (Ctrl+Z)">
+<span class="material-symbols-outlined text-base">undo</span>
+</button>
+<button class="p-1 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface" title="Yinele (Ctrl+Y)">
+<span class="material-symbols-outlined text-base">redo</span>
+</button>
+<button class="p-1 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface" title="Sürüm Geçmişi">
+<span class="material-symbols-outlined text-base">history</span>
+</button>
+</div>
+</div>
+<!-- Sağ: Aksiyonlar & Dışa Aktar -->
+<div class="flex items-center gap-2">
+<!-- Menü Öğeleri (Metin Linkleri) -->
+<div class="hidden lg:flex items-center gap-3 mr-2 font-label-md text-xs text-on-surface-variant">
+<span class="hover:text-primary cursor-pointer">Dosya</span>
+<span class="hover:text-primary cursor-pointer">Düzenle</span>
+<span class="hover:text-primary cursor-pointer">Görünüm</span>
+<span class="hover:text-primary cursor-pointer">Ekle</span>
+<span class="hover:text-primary cursor-pointer">Biçim</span>
+<span class="hover:text-primary cursor-pointer">Araçlar</span>
+</div>
+<div class="h-4 w-px bg-surface-container-high hidden lg:block"></div>
+<button class="px-3 py-1.5 rounded-lg border border-surface-container-high bg-surface-container-lowest text-on-surface hover:bg-surface-container-low text-label-sm font-semibold flex items-center gap-1.5 transition-colors shadow-xs">
+<span class="material-symbols-outlined text-base">share</span>
+<span>Paylaş</span>
+</button>
+<!-- Dışa Aktar Butonu (Dropdown) -->
+<div class="relative group">
+<button class="px-3.5 py-1.5 rounded-lg bg-primary text-on-primary hover:bg-primary/90 text-label-sm font-semibold flex items-center gap-1.5 shadow-sm transition-all">
+<span class="material-symbols-outlined text-base">file_download</span>
+<span>Dışa Aktar</span>
+<span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+<!-- Hover Menu Simülasyonu -->
+<div class="absolute right-0 top-full mt-1 w-44 bg-surface-container-lowest rounded-xl shadow-xl border border-surface-container-high p-1 hidden group-hover:block z-50">
+<a class="flex items-center gap-2 px-3 py-2 text-xs text-on-surface rounded-lg hover:bg-surface-container-low" href="#">
+<span class="material-symbols-outlined text-sm text-primary">description</span> Word (.docx)
+                </a>
+<a class="flex items-center gap-2 px-3 py-2 text-xs text-on-surface rounded-lg hover:bg-surface-container-low" href="#">
+<span class="material-symbols-outlined text-sm text-red-500">picture_as_pdf</span> PDF (.pdf)
+                </a>
+<a class="flex items-center gap-2 px-3 py-2 text-xs text-on-surface rounded-lg hover:bg-surface-container-low" href="#">
+<span class="material-symbols-outlined text-sm text-blue-600">code</span> LaTeX (.tex)
+                </a>
+<a class="flex items-center gap-2 px-3 py-2 text-xs text-on-surface rounded-lg hover:bg-surface-container-low" href="#">
+<span class="material-symbols-outlined text-sm text-green-600">table_view</span> Excel Matrisi (.xlsx)
+                </a>
+</div>
+</div>
+<button class="p-1.5 text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-low" title="Odaklanma / Tam Ekran Modu">
+<span class="material-symbols-outlined text-lg">fullscreen</span>
+</button>
+</div>
+</div>
+<!-- B. WORD BENZERİ RIBBON ARAÇ ÇUBUĞU (Biçimlendirme Araç Şeridi) -->
+<div class="w-full pt-1.5 border-t border-surface-container-high flex flex-wrap items-center justify-between gap-1 text-on-surface text-xs">
+<!-- Grup 1: Stil Seçici & Tipografi -->
+<div class="flex items-center gap-1.5 bg-surface-container-low/60 p-1 rounded-lg">
+<select class="text-xs bg-surface-container-lowest border border-surface-container-high rounded px-2 py-1 font-label-md font-medium text-on-surface focus:ring-1 focus:ring-primary">
+<option>Normal Metin</option>
+<option>Başlık 1 (H1)</option>
+<option selected="">Başlık 2 (H2)</option>
+<option>Başlık 3 (H3)</option>
+<option>Akademik Alıntı (Quote)</option>
+</select>
+<select class="text-xs bg-surface-container-lowest border border-surface-container-high rounded px-2 py-1 font-headline-sm font-medium text-on-surface focus:ring-1 focus:ring-primary">
+<option>Space Grotesk</option>
+<option selected="">Plus Jakarta Sans</option>
+<option>Times New Roman</option>
+<option>JetBrains Mono</option>
+</select>
+<select class="text-xs bg-surface-container-lowest border border-surface-container-high rounded px-1.5 py-1 font-code-sm text-on-surface focus:ring-1 focus:ring-primary">
+<option>10 pt</option>
+<option selected="">11 pt</option>
+<option>12 pt</option>
+<option>14 pt</option>
+</select>
+</div>
+<div class="h-4 w-px bg-surface-container-high"></div>
+<!-- Grup 2: Temel Biçimlendirme & Renkler -->
+<div class="flex items-center gap-0.5">
+<button class="p-1.5 rounded hover:bg-surface-container text-on-surface font-bold hover:text-primary transition-colors" title="Kalın (Ctrl+B)">
+<span class="material-symbols-outlined text-base">format_bold</span>
+</button>
+<button class="p-1.5 rounded bg-secondary-container/50 text-primary font-bold transition-colors" title="İtalik (Ctrl+I)">
+<span class="material-symbols-outlined text-base">format_italic</span>
+</button>
+<button class="p-1.5 rounded hover:bg-surface-container text-on-surface transition-colors" title="Altı Çizili (Ctrl+U)">
+<span class="material-symbols-outlined text-base">format_underlined</span>
+</button>
+<button class="p-1.5 rounded hover:bg-surface-container text-on-surface transition-colors" title="Üstü Çizili">
+<span class="material-symbols-outlined text-base">format_strikethrough</span>
+</button>
+<button class="p-1 rounded text-[11px] font-bold text-on-surface hover:bg-surface-container" title="Üst Simge">X²</button>
+<button class="p-1 rounded text-[11px] font-bold text-on-surface hover:bg-surface-container" title="Alt Simge">X₂</button>
+<!-- Renk & Vurgulayıcı -->
+<div class="h-4 w-px bg-surface-container-high mx-1"></div>
+<button class="flex items-center p-1 rounded hover:bg-surface-container text-on-surface" title="Metin Rengi">
+<span class="material-symbols-outlined text-base text-primary">format_color_text</span>
+</button>
+<button class="flex items-center p-1 rounded hover:bg-surface-container text-amber-500" title="Vurgulama Rengi">
+<span class="material-symbols-outlined text-base">border_color</span>
+</button>
+</div>
+<div class="h-4 w-px bg-surface-container-high"></div>
+<!-- Grup 3: Hizalama & Aralık & Listeler -->
+<div class="flex items-center gap-0.5">
+<button class="p-1.5 rounded bg-surface-container text-primary" title="Sola Yasla">
+<span class="material-symbols-outlined text-base">format_align_left</span>
+</button>
+<button class="p-1.5 rounded hover:bg-surface-container text-on-surface-variant" title="Ortala">
+<span class="material-symbols-outlined text-base">format_align_center</span>
+</button>
+<button class="p-1.5 rounded hover:bg-surface-container text-on-surface-variant" title="Sağa Yasla">
+<span class="material-symbols-outlined text-base">format_align_right</span>
+</button>
+<button class="p-1.5 rounded hover:bg-surface-container text-on-surface-variant" title="İki Yana Yasla">
+<span class="material-symbols-outlined text-base">format_align_justify</span>
+</button>
+<div class="flex items-center ml-1">
+<button class="p-1.5 rounded hover:bg-surface-container text-on-surface-variant" title="Madde İşaretleri">
+<span class="material-symbols-outlined text-base">format_list_bulleted</span>
+</button>
+<button class="p-1.5 rounded hover:bg-surface-container text-on-surface-variant" title="Numaralandırma">
+<span class="material-symbols-outlined text-base">format_list_numbered</span>
+</button>
+</div>
+</div>
+<div class="h-4 w-px bg-surface-container-high"></div>
+<!-- Grup 4: Akademik Ekleme Araçları -->
+<div class="flex items-center gap-1">
+<button class="px-2 py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center gap-1 font-label-sm" title="Tablo Ekle">
+<span class="material-symbols-outlined text-sm text-primary">table_chart</span>
+<span class="hidden xl:inline">Tablo</span>
+</button>
+<button class="px-2 py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center gap-1 font-label-sm" title="Denklem (LaTeX ∑)">
+<span class="material-symbols-outlined text-sm text-tertiary">functions</span>
+<span class="hidden xl:inline">LaTeX</span>
+</button>
+<button class="px-2 py-1 rounded bg-secondary-container/50 hover:bg-secondary-container text-primary flex items-center gap-1 font-label-sm font-semibold" title="Atıf Ekle (APA/IEEE)">
+<span class="material-symbols-outlined text-sm">format_quote</span>
+<span class="hidden xl:inline">Atıf Yap</span>
+</button>
+<button class="px-2 py-1 rounded bg-primary-fixed hover:bg-primary-fixed-dim text-on-primary-fixed flex items-center gap-1 font-label-sm font-semibold" title="Napkin AI Şekil/Diyagram Üret">
+<span class="material-symbols-outlined text-sm text-primary">auto_fix_high</span>
+<span class="hidden xl:inline">Şekil Üret</span>
+</button>
+</div>
+<div class="h-4 w-px bg-surface-container-high"></div>
+<!-- Grup 5: Araçlar & Kelime Sayacı -->
+<div class="flex items-center gap-2 text-on-surface-variant font-label-sm">
+<button class="p-1 rounded hover:bg-surface-container" title="Bul ve Değiştir">
+<span class="material-symbols-outlined text-base">find_replace</span>
+</button>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-outline text-[11px] font-mono">
+              4,820 sözcük
+            </span>
+</div>
+</div>
+</header>
+<!-- C. ORTA METİN DÜNYASI VE SAĞ AI ASİSTAN KOMBİNASYONU -->
+<div class="flex-1 flex overflow-hidden relative">
+<!-- 1. ORTA ALAN: A4 DOKÜMAN ÇALIŞMA MASASI -->
+<main class="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-10 flex flex-col items-center bg-[#f1f3f7]">
+<!-- Yatay Cetvel İndikatörü (A4 Genişliğinde) -->
+<div class="w-full max-w-[820px] mb-2 flex items-center justify-between px-2 text-[10px] font-mono text-outline select-none">
+<span>0 cm</span>
+<span>2.5 cm</span>
+<span>| | | | |</span>
+<span>10 cm</span>
+<span>| | | | |</span>
+<span>18 cm</span>
+<span>21.0 cm (A4)</span>
+</div>
+<!-- A4 BEYAZ DOKÜMAN SAYFASI (Kağıt Yüzeyi) -->
+<div class="w-full max-w-[820px] bg-surface-container-lowest paper-shadow rounded border border-surface-container-high p-12 lg:p-16 min-h-[1180px] relative transition-shadow">
+<!-- Doküman Sayfa Numarası (Üst Başlık) -->
+<div class="flex justify-between items-center text-outline text-code-sm border-b border-surface-container-high pb-3 mb-8">
+<span>JOURNAL OF ADVANCED NUCLEAR SYSTEMS • CİLT 14, SAYI 2</span>
+<span>Sayfa 4 / 12</span>
+</div>
+<!-- Makale Başlığı -->
+<h1 class="font-headline-lg text-headline-md lg:text-headline-lg font-bold text-on-surface tracking-tight leading-tight mb-3">
+              Küçük Modüler Reaktörlerde (SMR) Pasif Güvenlik ve Doğal Isıl Dolaşım Sistemlerinin Karşılaştırmalı Analizi
+            </h1>
+<!-- Yazar Bilgisi -->
+<div class="flex items-center gap-3 text-on-surface-variant text-label-md mb-8">
+<span class="font-semibold text-primary">Dr. A. Yılmaz</span>
+<span class="w-1 h-1 rounded-full bg-outline"></span>
+<span>Enerji Sistemleri Mühendisliği Araştırma Enstitüsü</span>
+<span class="w-1 h-1 rounded-full bg-outline"></span>
+<span class="text-xs px-2 py-0.5 rounded bg-tertiary-fixed text-on-tertiary-fixed font-mono font-semibold">PEER-REVIEW DRAFT</span>
+</div>
+<!-- 1. Giriş Metni -->
+<div class="space-y-4 text-on-surface text-body-md leading-relaxed text-justify">
+<h2 class="font-headline-sm text-headline-sm font-bold text-on-surface border-b border-surface-container-high pb-1 pt-2">
+                2. Literatür Taraması ve Kuramsal Çerçeve
+              </h2>
+<p>
+                Küçük Modüler Reaktörlerin (SMR) ticarileşme ve lisanslama süreçlerinde en kritik avantajı, harici elektrik gücüne ihtiyaç duymadan nükleer fisyon sonrası kalan artık ısıyı uzaklaştırabilen <span class="font-medium text-primary">pasif güvenlik sistemleridir</span> <span class="text-primary font-semibold hover:underline cursor-pointer">[IAEA, 2022]</span>. Geleneksel basınçlı su reaktörlerinde (PWR) yer alan zorlanmış konveksiyon pompalarının devre dışı kalması halinde, yerçekimi, kaldırma kuvveti ve yoğunluk farkına dayalı çalışan doğal ısıl dolaşım devreleri kritik bir güvenlik tamponu teşkil etmektedir <span class="text-primary font-semibold hover:underline cursor-pointer">[Yılmaz et al., 2023]</span>.
+              </p>
+<!-- SEÇİLİ PARAGRAF (Mor AI Vurgulu ve Yüzen Eylem Balonu İle) -->
+<div class="relative my-4 p-3 rounded-lg bg-secondary-container/25 border-l-4 border-primary">
+<!-- Napkin / AI Yüzen Araç Çubuğu -->
+<div class="absolute -top-4 right-4 bg-on-secondary-fixed text-surface-container-lowest rounded-full shadow-lg px-3 py-1 flex items-center gap-2 z-10 text-xs animate-bounce">
+<span class="material-symbols-outlined text-sm text-tertiary-fixed" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span class="font-semibold text-tertiary-fixed">AI ile Yeniden Yaz</span>
+<span class="text-surface-container-highest/40">|</span>
+<span class="font-medium hover:text-primary-fixed cursor-pointer flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">schema</span> Görselleştir
+                  </span>
+</div>
+<p class="text-on-secondary-fixed font-normal leading-relaxed">
+                  "Isıl dolaşım dinamikleri, reaktör kalbi ile buhar üreteci arasındaki dikey kot farkı ve sürtünme basınç kayıplarının bir fonksiyonudur. Düşük basınçlı rejimlerde akış kararsızlıkları (density wave oscillations) doğal sirkülasyon verimini düşürerek çekirdek güvenliğini sınırlandırabilir. Bu nedenle simülasyon modellerinde tek fazlı ve iki fazlı rejim geçişleri kesin doğrulukla modellenmelidir."
+                </p>
+<div class="text-[11px] text-primary font-mono mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">info</span> 46 kelime seçildi • Sağ panelde 3 alternatif hazır
+                </div>
+</div>
+<p>
+                Literatürde mevcut çalışmaların büyük kısmı tekil kanal geometrilerine odaklanmış olup, entegre reaktör kabı mimarisine sahip kompakt tasarımlardaki 3-boyutlu girdap etkilerini ihmal etmiştir. Bu boşluğu gidermek amacıyla Tablo 1'de güncel SMR tasarımlarının pasif dolaşım kabiliyetleri karşılaştırılmıştır.
+              </p>
+</div>
+<!-- EXCEL BENZERİ İNTERAKTİF AKADEMİK LİTERATÜR MATRİS TABLOSU -->
+<div class="my-6">
+<div class="flex items-center justify-between mb-2">
+<span class="font-headline-sm text-xs font-bold uppercase tracking-wider text-on-surface">
+                  Tablo 1: Küçük Modüler Reaktör Tasarımlarında Pasif Soğutma Sistemleri Karşılaştırması
+                </span>
+<div class="flex items-center gap-1 text-[11px] text-outline">
+<span class="material-symbols-outlined text-xs">table_view</span>
+<span>Excel Grid Görünümü</span>
+</div>
+</div>
+<!-- Izgara Tablo -->
+<div class="overflow-x-auto border border-outline-variant/60 rounded-lg shadow-2xs">
+<table class="w-full text-left text-xs border-collapse">
+<thead>
+<tr class="bg-surface-container text-on-surface font-semibold border-b border-outline-variant">
+<th class="p-2.5 border-r border-outline-variant/40 w-36">Yazar &amp; Yıl</th>
+<th class="p-2.5 border-r border-outline-variant/40 w-32">İncelenen Reaktör</th>
+<th class="p-2.5 border-r border-outline-variant/40 w-28">Yöntem</th>
+<th class="p-2.5 border-r border-outline-variant/40 w-36">Pasif Akış Verimi</th>
+<th class="p-2.5">Sınırlılıklar / Araştırma Boşluğu</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/30 font-body-sm text-on-surface-variant bg-surface-container-lowest">
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="p-2.5 border-r border-outline-variant/40 font-medium text-on-surface">Chen et al. (2021)</td>
+<td class="p-2.5 border-r border-outline-variant/40">NuScale (50 MWe)</td>
+<td class="p-2.5 border-r border-outline-variant/40"><span class="px-1.5 py-0.5 rounded bg-surface-container font-mono text-[10px]">RELAP5/3D</span></td>
+<td class="p-2.5 border-r border-outline-variant/40 text-emerald-700 font-semibold">%94.2 (Tek Faz)</td>
+<td class="p-2.5 text-[11px]">Düşük basınçlı geçiş rejimleri modellenmedi.</td>
+</tr>
+<tr class="hover:bg-surface-container-low/60 transition-colors bg-secondary-container/10">
+<td class="p-2.5 border-r border-outline-variant/40 font-medium text-on-surface">Santoso &amp; Lee (2022)</td>
+<td class="p-2.5 border-r border-outline-variant/40">SMART (100 MWe)</td>
+<td class="p-2.5 border-r border-outline-variant/40"><span class="px-1.5 py-0.5 rounded bg-surface-container font-mono text-[10px]">CFD OpenFOAM</span></td>
+<td class="p-2.5 border-r border-outline-variant/40 text-emerald-700 font-semibold">%88.5 (İki Faz)</td>
+<td class="p-2.5 text-[11px]">Yoğuşma havuzu ısıl tabakalaşması ihmal edildi.</td>
+</tr>
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="p-2.5 border-r border-outline-variant/40 font-medium text-on-surface">Demirtaş (2023)</td>
+<td class="p-2.5 border-r border-outline-variant/40">BWRX-300</td>
+<td class="p-2.5 border-r border-outline-variant/40"><span class="px-1.5 py-0.5 rounded bg-surface-container font-mono text-[10px]">Deneysel Döngü</span></td>
+<td class="p-2.5 border-r border-outline-variant/40 text-amber-700 font-semibold">%81.0 (Doğal Sirk.)</td>
+<td class="p-2.5 text-[11px]">Ölçeklendirme katsayısı (1:15) tam prototipi yansıtmıyor.</td>
+</tr>
+<tr class="hover:bg-surface-container-low/60 transition-colors bg-primary-fixed/10">
+<td class="p-2.5 border-r border-outline-variant/40 font-medium text-primary">Bu Çalışma (2024)</td>
+<td class="p-2.5 border-r border-outline-variant/40 font-medium text-on-surface">Entegre SMR-V</td>
+<td class="p-2.5 border-r border-outline-variant/40"><span class="px-1.5 py-0.5 rounded bg-primary-fixed text-primary font-mono text-[10px]">Hibrit RELAP/CFD</span></td>
+<td class="p-2.5 border-r border-outline-variant/40 text-primary font-bold">%96.8 (Optimum Kot)</td>
+<td class="p-2.5 text-[11px] text-on-surface">3-B asimetrik girdap kayıpları dahil edildi.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- NAPKIN AI TARZI ÜRETİLEN VEKTÖREL AKIŞ DİYAGRAMI -->
+<div class="my-8 p-4 rounded-xl border border-secondary-container bg-surface-container-low/50">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-tertiary-fixed text-on-tertiary-fixed text-[11px] font-mono font-bold uppercase tracking-wider">
+                    Napkin AI Çizim Motoru
+                  </span>
+<span class="text-xs text-outline">Vektörel SVG Çıktısı</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="p-1 rounded text-outline hover:text-primary hover:bg-surface-container-lowest" title="Diyagramı Düzenle">
+<span class="material-symbols-outlined text-sm">edit</span>
+</button>
+<button class="p-1 rounded text-outline hover:text-primary hover:bg-surface-container-lowest" title="SVG İndir">
+<span class="material-symbols-outlined text-sm">download</span>
+</button>
+</div>
+</div>
+<!-- Akış Blokları -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-2.5 items-center py-4 px-2 bg-surface-container-lowest rounded-lg border border-surface-container-high shadow-xs">
+<!-- Blok 1 -->
+<div class="p-3 rounded-lg bg-surface-container border border-outline-variant/40 text-center relative group hover:border-primary transition-colors">
+<span class="material-symbols-outlined text-amber-600 text-2xl mb-1">local_fire_department</span>
+<div class="font-headline-sm text-xs font-bold text-on-surface">1. Reaktör Çekirdeği</div>
+<div class="text-[10px] text-outline mt-0.5">Artık Isı Üretimi (Q_decay)</div>
+</div>
+<!-- Ok 1 -->
+<div class="hidden md:flex justify-center text-primary">
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-mono text-outline font-semibold">Yoğunluk Düşüşü</span>
+<span class="material-symbols-outlined text-lg">trending_flat</span>
+</div>
+</div>
+<!-- Blok 2 -->
+<div class="p-3 rounded-lg bg-secondary-container/40 border border-primary/30 text-center relative group hover:border-primary transition-colors">
+<span class="material-symbols-outlined text-primary text-2xl mb-1">sync</span>
+<div class="font-headline-sm text-xs font-bold text-primary">2. Doğal Dolaşım</div>
+<div class="text-[10px] text-on-secondary-container mt-0.5">Yerçekimi &amp; Termosifon</div>
+</div>
+<!-- Ok 2 -->
+<div class="hidden md:flex justify-center text-primary">
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-mono text-outline font-semibold">Isı Transferi</span>
+<span class="material-symbols-outlined text-lg">trending_flat</span>
+</div>
+</div>
+<!-- Blok 3 -->
+<div class="p-3 rounded-lg bg-surface-container border border-outline-variant/40 text-center relative group hover:border-primary transition-colors">
+<span class="material-symbols-outlined text-blue-600 text-2xl mb-1">heat_pump</span>
+<div class="font-headline-sm text-xs font-bold text-on-surface">3. Isı Değiştirici</div>
+<div class="text-[10px] text-outline mt-0.5">Buhar Jeneratörü / PRHR</div>
+</div>
+<!-- Ok 3 -->
+<div class="hidden md:flex justify-center text-primary">
+<div class="flex flex-col items-center">
+<span class="text-[9px] font-mono text-outline font-semibold">Son Tahliye</span>
+<span class="material-symbols-outlined text-lg">trending_flat</span>
+</div>
+</div>
+<!-- Blok 4 -->
+<div class="p-3 rounded-lg bg-surface-container border border-outline-variant/40 text-center relative group hover:border-primary transition-colors">
+<span class="material-symbols-outlined text-teal-600 text-2xl mb-1">water</span>
+<div class="font-headline-sm text-xs font-bold text-on-surface">4. Isı Yutağı (Sink)</div>
+<div class="text-[10px] text-outline mt-0.5">Atmosfer &amp; Soğutma Havuzu</div>
+</div>
+</div>
+<!-- Akademik Şekil Altyazısı -->
+<p class="text-center font-label-sm text-xs text-on-surface-variant mt-3 italic">
+<span class="font-semibold text-on-surface not-italic">Şekil 1:</span> SMR Tasarımlarında Kapalı Çevrim Pasif Artık Isı Güvenlik Döngüsü ve Isıl Akış Gradyanları.
+              </p>
+</div>
+<!-- Devam Eden Metin -->
+<p class="text-on-surface text-body-md leading-relaxed text-justify mt-4">
+              Yukarıdaki döngüsel modelden anlaşılacağı üzere, birinci basamakta gerçekleşen termal genleşme sonucunda hafifleyen soğutucu akışkan, basınç dengesini koruyarak yukarı tırmanmakta; soğuk su sütununun ağırlığı ile çekirdeğe geri beslenmektedir.
+            </p>
+<!-- Sayfa Sonu Zarif Sayfa Ayracı -->
+<div class="pt-10 flex justify-center text-outline">
+<span class="text-xs font-mono tracking-widest">• • • [BÖLÜM 2 SONU] • • •</span>
+</div>
+</div>
+<!-- Alt Boşluk -->
+<div class="h-16"></div>
+</main>
+<!-- 2. SAĞ PANEL: YAPAY ZEKÂ YAZIM & ARAŞTIRMA ASİSTANI (340px) -->
+<aside class="w-[340px] flex-shrink-0 h-full bg-surface-container-lowest border-l border-surface-container-high flex flex-col z-20 shadow-xs">
+<!-- Üst Başlık & Sekmeler -->
+<div class="p-3 border-b border-surface-container-high">
+<div class="flex items-center justify-between mb-2.5">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1;">psychology</span>
+<span class="font-headline-sm text-sm font-bold text-on-surface">Literatur Araştırma AI</span>
+</div>
+<span class="text-[10px] px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-bold">GPT-4o Akademik</span>
+</div>
+<!-- 4 Ana Sekme -->
+<div class="grid grid-cols-4 gap-1 p-1 bg-surface-container rounded-lg text-center text-xs font-label-sm">
+<button class="py-1.5 rounded-md bg-surface-container-lowest text-primary font-bold shadow-xs">
+                AI Yazar
+              </button>
+<button class="py-1.5 rounded-md text-on-surface-variant hover:text-on-surface font-medium">
+                Görsel
+              </button>
+<button class="py-1.5 rounded-md text-on-surface-variant hover:text-on-surface font-medium">
+                Araştır
+              </button>
+<button class="py-1.5 rounded-md text-on-surface-variant hover:text-on-surface font-medium">
+                Denetle
+              </button>
+</div>
+</div>
+<!-- Asistan Gövdesi (Kaydırılabilir) -->
+<div class="flex-1 overflow-y-auto custom-scrollbar p-3.5 space-y-4">
+<!-- Hızlı Aksiyon Butonları -->
+<div>
+<label class="block text-[11px] font-bold uppercase tracking-wider text-outline mb-2">Hızlı Eylemler (Seçili Metin)</label>
+<div class="grid grid-cols-2 gap-1.5">
+<button class="p-2 rounded-lg bg-surface-container-low hover:bg-primary-fixed/40 border border-surface-container-high text-left text-xs font-medium text-on-surface flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-sm text-primary">translate</span>
+<span class="truncate">Akademik Dille Yaz</span>
+</button>
+<button class="p-2 rounded-lg bg-surface-container-low hover:bg-primary-fixed/40 border border-surface-container-high text-left text-xs font-medium text-on-surface flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-sm text-tertiary">unfold_more</span>
+<span class="truncate">Paragrafı Genişlet</span>
+</button>
+<button class="p-2 rounded-lg bg-surface-container-low hover:bg-primary-fixed/40 border border-surface-container-high text-left text-xs font-medium text-on-surface flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-sm text-emerald-600">compress</span>
+<span class="truncate">Özet Çıkar</span>
+</button>
+<button class="p-2 rounded-lg bg-surface-container-low hover:bg-primary-fixed/40 border border-surface-container-high text-left text-xs font-medium text-on-surface flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-sm text-amber-600">balance</span>
+<span class="truncate">Karşıt Görüş Ekle</span>
+</button>
+</div>
+</div>
+<!-- AI Öneri Kartı (Parafraz & Karşılaştırma) -->
+<div class="rounded-xl border border-primary/30 bg-primary-fixed/15 p-3.5 space-y-3">
+<div class="flex items-center justify-between">
+<span class="text-xs font-bold text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">magic_button</span>
+                  Akademik Parafraz Önerisi
+                </span>
+<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">%98 Doğruluk</span>
+</div>
+<!-- Karşılaştırma Kutusu -->
+<div class="space-y-2 text-xs">
+<div class="p-2 rounded bg-surface-container-lowest border border-outline-variant/30 text-on-surface-variant line-through text-[11px] opacity-75">
+                  "Isıl dolaşım dinamikleri, reaktör kalbi ile buhar üreteci arasındaki dikey kot farkı..."
+                </div>
+<div class="p-2.5 rounded-lg bg-surface-container-lowest border border-primary/40 text-on-surface font-medium shadow-xs leading-relaxed">
+                  "Doğal sirkülasyon termohidroliği, çekirdek-buhar jeneratörü düşey kot farkı ve hidrolik sürtünme faktörlerince yönetilmektedir. Düşük basınç rejiminde gözlemlenen yoğunluk dalgası salınımları (DWO) pasif ısı tahliye verimini kısıtladığından, çok fazlı nümerik çözümleme zorunludur."
+                </div>
+</div>
+<!-- İşlem Butonları -->
+<div class="flex items-center gap-1.5 pt-1">
+<button class="flex-1 py-1.5 px-2 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-primary/90 flex items-center justify-center gap-1 shadow-xs transition-colors">
+<span class="material-symbols-outlined text-sm">check</span>
+<span>Metni Değiştir</span>
+</button>
+<button class="py-1.5 px-2 rounded-lg border border-surface-container-high bg-surface-container-lowest text-on-surface text-xs font-medium hover:bg-surface-container transition-colors">
+                  Ekle
+                </button>
+<button class="p-1.5 rounded-lg border border-surface-container-high bg-surface-container-lowest text-outline hover:text-on-surface" title="Öneriyi Kopyala">
+<span class="material-symbols-outlined text-sm">content_copy</span>
+</button>
+</div>
+</div>
+<!-- Görselleştirme Önizleme Bölümü (Napkin AI Entegrasyonu) -->
+<div class="rounded-xl border border-surface-container-high bg-surface-container-low p-3 space-y-2.5">
+<div class="flex items-center justify-between">
+<span class="text-xs font-bold text-on-surface flex items-center gap-1">
+<span class="material-symbols-outlined text-sm text-tertiary">hub</span>
+                  Metinden 3 Görsel Alternatifi
+                </span>
+<span class="text-[10px] text-outline">Napkin Engine</span>
+</div>
+<!-- Alternatif Seçim Kartları -->
+<div class="space-y-1.5">
+<!-- Alternatif 1: Seçili -->
+<div class="p-2 rounded-lg bg-surface-container-lowest border-2 border-primary flex items-center justify-between cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-base">linear_scale</span>
+<div>
+<div class="text-xs font-semibold text-on-surface">Doğrusal Süreç Akışı</div>
+<div class="text-[10px] text-outline">4 Adımlı Yatay Blok Şema</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary text-sm">radio_button_checked</span>
+</div>
+<!-- Alternatif 2 -->
+<div class="p-2 rounded-lg bg-surface-container-lowest border border-surface-container-high hover:border-outline flex items-center justify-between cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant text-base">cycle</span>
+<div>
+<div class="text-xs font-medium text-on-surface">Dairesel Geri Bildirim Döngüsü</div>
+<div class="text-[10px] text-outline">Termal Sirkülasyon Loop'u</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline text-sm">radio_button_unchecked</span>
+</div>
+<!-- Alternatif 3 -->
+<div class="p-2 rounded-lg bg-surface-container-lowest border border-surface-container-high hover:border-outline flex items-center justify-between cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant text-base">grid_view</span>
+<div>
+<div class="text-xs font-medium text-on-surface">Matris Karşılaştırma Grafiği</div>
+<div class="text-[10px] text-outline">Kot Farkı vs. Debi Dengesi</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline text-sm">radio_button_unchecked</span>
+</div>
+</div>
+<!-- Aksiyonlar -->
+<div class="flex items-center gap-2 pt-1">
+<button class="flex-1 py-1 px-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-xs font-medium text-on-surface flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-sm">add_to_photos</span>
+<span>Belgeye Ekle</span>
+</button>
+<button class="py-1 px-2 rounded-lg border border-surface-container-high text-xs font-medium text-on-surface hover:bg-surface-container">
+                  SVG İndir
+                </button>
+</div>
+</div>
+<!-- Kaynak Tarama Bildirimi -->
+<div class="p-2.5 rounded-lg border border-dashed border-outline-variant/80 bg-surface-container-lowest flex items-start gap-2 text-xs">
+<span class="material-symbols-outlined text-primary text-base mt-0.5">travel_explore</span>
+<div class="space-y-0.5">
+<div class="font-semibold text-on-surface">İlgili 2 Yeni Q1 Kaynak Bulundu</div>
+<div class="text-[11px] text-outline">Nuclear Engineering &amp; Design (2024) dergisinden makalenize uygun atıf önerisi.</div>
+<button class="text-[11px] text-primary font-bold hover:underline pt-0.5">Kaynakçaya Ekle (+)</button>
+</div>
+</div>
+</div>
+<!-- Alt Giriş Çubuğu (Prompt ile AI Yazar'a Talimat Ver) -->
+<div class="p-3 border-t border-surface-container-high bg-surface-container-lowest">
+<label class="block text-[11px] font-bold text-on-surface-variant mb-1">AI Asistanına Talimat Ver:</label>
+<div class="relative">
+<textarea class="w-full text-xs p-2.5 pr-9 rounded-xl border border-surface-container-high bg-surface-container-low focus:border-primary focus:ring-1 focus:ring-primary placeholder:text-outline text-on-surface resize-none" placeholder="Örn: Bu bölümü Q1 dergi formatına uyarla ve 2 yeni kaynak ilişkilendir..." rows="2"></textarea>
+<button class="absolute right-2 bottom-2.5 p-1 rounded-lg bg-primary text-on-primary hover:bg-primary/90 shadow-xs" title="Talimatı Gönder">
+<span class="material-symbols-outlined text-base">send</span>
+</button>
+</div>
+<div class="flex items-center justify-between mt-2 text-[10px] text-outline">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">tune</span>
+                Sertlik: Akademik / Tarafsız
+              </span>
+<span>Kalan Kredi: 14,200</span>
+</div>
+</div>
+</aside>
+</div>
+</div>
+</div>
+</body></html>

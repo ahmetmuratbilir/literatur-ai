@@ -2,6 +2,8 @@
 
 Bu dosya projenin tek kaynağıdır: çalışma kuralları, ürün tüzüğü, mühendislik
 standartları, değerlendirme protokolü ve iş emri sistemi. Repo köküne konur.
+Her oturumda yüklendiği için yalnızca her işte gereken kurallar burada durur;
+iş emirleri, araç dizini ve tasarım belgeleri ayrı dosyalardadır.
 
 **İçindekiler**
 
@@ -10,11 +12,21 @@ standartları, değerlendirme protokolü ve iş emri sistemi. Repo köküne konu
 3. [Mühendislik standartları](#3-mühendislik-standartları) — kod yazmadan önce
 4. [Değerlendirme protokolü](#4-değerlendirme-protokolü) — kalite iddiasından önce
 5. [İş emri sistemi](#5-iş-emri-sistemi) — nasıl çalışıyoruz
-6. [WO-001: Salt okunur denetim](#6-wo-001--salt-okunur-teknik-ve-ürün-denetimi) — ilk görev
-7. [Araç ve repo dizini](#7-araç-ve-repo-dizini) — sıfırdan yazma
 
 Bölüm 1 her görevde geçerlidir. Bölüm 2–4 ilgili iş yapılırken okunur. Bölüm 5
-ve 6 çalışma düzenini tanımlar.
+çalışma düzenini tanımlar.
+
+**Ayrı belgeler**
+
+| Belge | Ne zaman okunur |
+| --- | --- |
+| `docs/work-orders/README.md` | İş emirleri listesi, kuralları ve istisnaları |
+| `docs/work-orders/WO-00X-<ad>.md` | Sana verilen iş emri |
+| `docs/work-orders/_TEMPLATE.md` | Yeni iş emri yazarken |
+| `docs/tools.md` | İş emrine başlamadan önce: hazır araç varsa sıfırdan yazılmaz |
+| `docs/sources.md` | Kaynak durum matrisi (2.7) |
+| `docs/design/atif-dogrulamali-yazim-motoru.md` | Yazım motoru tasarımı: iddia–kanıt modeli, PR1–PR10 prompt'ları, döngüler, arayüz, eklenti kararı |
+| `docs/design/calisma-alani.md` | Tek panel çalışma alanı: araştırma + yazım, anlama araçları, belge biçimi |
 
 ---
 
@@ -27,7 +39,8 @@ ve 6 çalışma düzenini tanımlar.
 | Ürün yönü, kaynak politikası, öncelik sorusu | Bölüm 2 |
 | Kod yazma, mimari, döngü, önbellek, güvenlik | Bölüm 3 |
 | Kalite iddiası, metrik, test kümesi | Bölüm 4 |
-| Sana verilen görev | İlgili iş emri (Bölüm 5–6) |
+| Sana verilen görev | İlgili iş emri dosyası (Bölüm 5) |
+| Yeni araç veya kütüphane düşünüyorsan | `docs/tools.md` |
 
 Bu bölümleri okumadan mimari karar verme.
 
@@ -53,6 +66,24 @@ Bu bölümleri okumadan mimari karar verme.
 
 6. **Geri dönüşü zor işlemden önce onay al.** Şema göçü, veri silme, toplu
    yeniden yazım, bağımlılık yükseltme, dağıtım. Onayı iş emri vermiyorsa sor.
+
+## İş emri yokken
+
+Kullanıcı iş emri vermeden doğrudan bir şey isterse kapsam, o mesajdaki
+istektir. Kural 1 yine geçerlidir: istek dışında bir dosyaya dokunmadan önce
+sor. Raporda değişen dosyaların tam listesi verilir. İş birden fazla oturuma
+yayılacaksa önce iş emri taslağı yazılır.
+
+## Yayın: main'e push canlıya çıkmaktır
+
+`main`'e yapılan her push, Vercel (istemci) ve Render (sunucu) üzerinde
+otomatik yayın başlatır. Bu yüzden:
+
+- Push yalnızca kullanıcının açık komutuyla yapılır.
+- Öncesinde `git fetch` (main'e başka geliştirici de push ediyor), sunucuda
+  `npm test`, istemcide `npm run lint` ve `npm run build`.
+- Kullanıcının yerelde elle denemediği arayüz değişikliği main'e alınmaz.
+- Geri dönüş yolu push'tan önce yazılır (`git revert <commit>`).
 
 ## Her görevin sonunda
 
@@ -107,6 +138,15 @@ kaynak pasajına bağlayan ve bu bağı kayıt altına alan bir araçtır.
 
 Bu sınırın dışına çıkan her özellik — serbest paragraf üretimi, "bölümü benim
 için yaz", kaynaksız taslak — kapsam dışıdır.
+
+**Uygulandı (13 Eki 2026).** Bölüm üreten eski "AI Yazar" paneli kapatıldı
+(`AI_WRITER_PANEL_ENABLED=false`); kodu ve `/api/writer/generate` yerinde
+duruyor. Yerine çalışma alanında tek pasajdan tek cümle üretimi var:
+`POST /api/cited-sentence` (`server/services/citedSentence.js`, prompt `PR2.v1`).
+Model yalnız pasajı görür, atıf dizgesi istemcide doğrulanmış kayıttan kurulur
+(`client/src/components/workspace/citation.js`), cümle belgeye ancak "Metne
+ekle" ile girer. Pasaj bugün makale özeti; tam metin değil ve bu arayüzde
+söylenir (2.8).
 
 Dil: arayüzde ve pazarlamada "yazdırma" kelimesi kullanılmaz. Hedef kitle bu
 kelimeye tepki veriyor ve kelime ürünün yaptığı şeyi de yanlış anlatıyor.
@@ -216,10 +256,10 @@ Bugün ürün gelir üretmiyor, tanıtım ve prototip aşamasında. Dolayısıyl
 | Günlük kota | Kayıtlı istemci 100.000 okuma/gün (Client ID başına); kayıtsız 25.000/gün (IP başına) |
 | Kimlik bilgisi | Kişi başına tek set; paylaşılamaz, devredilemez |
 
-**Yapılacak:** `docs/sources.md` içine ORCID satırı açılır ve "gelir
-modeline geçişte kapat" maddesi ticarileşme kontrol listesine yazılır. Bu
-bir hatırlatma değil, çıkış koşuludur — fiyatlandırma sayfası yayına
-girmeden önce ORCID bayrağı kapanmış olmalı.
+**Yapıldı (2026-10-10):** `docs/sources.md` içinde ORCID satırı ve "gelir
+modeline geçişte kapat" maddesiyle ticarileşme kontrol listesi var. Bu bir
+hatırlatma değil, çıkış koşuludur — fiyatlandırma sayfası yayına girmeden
+önce ORCID bayrağı kapanmış olmalı.
 
 ### Kademe 2 — yalnızca harvest / yerel indeks
 
@@ -286,10 +326,11 @@ olmadan sıralama ayarlamak, iyileştiğini kanıtlayamayacağın karmaşıklık
 
 ## 2.11 Panel bağımsızlığı: tek giriş, tek kimlik kaynağı
 
-Ürün birden çok panelden oluşuyor: literatür arama, yazar paneli, kanıt
-paneli, analiz. **Her panel kendi başına bir giriş noktasıdır.** Kullanıcı
-yazar panelini kullanmak için önce arama yapmak zorunda değildir ve yazar
-paneli arama sonuçlarına bağlı çalışmaz.
+Ürün birden çok panelden oluşuyor: literatür arama, araştırmacı paneli,
+çalışma alanı (belge + kanıt paneli), analiz. **Her panel kendi başına bir
+giriş noktasıdır.** Kullanıcı araştırmacı panelini kullanmak için önce arama
+yapmak zorunda değildir ve araştırmacı paneli arama sonuçlarına bağlı
+çalışmaz. Terimler 2.13'te.
 
 Bunun teknik karşılığı bir kural: **her panelin tek bir kimlik kaynağı olur.**
 
@@ -319,12 +360,47 @@ Her öneri şu dört soruyu geçmek zorunda:
 
 Dördüncü sorunun cevabı "pek bir şey" ise özellik yazılmaz.
 
+## 2.13 Terimler
+
+"Yazar paneli" adı hem araştırmacı aramasını hem yazım panelini anlatınca
+gerçek bir karışıklık çıktı (2026-10-11). Arayüzde, kodda ve belgelerde şu
+adlar kullanılır:
+
+| Terim | Anlamı | Kodda |
+| --- | --- | --- |
+| Araştırmacı paneli | Bir kişiyi (OpenAlex yazarını) bulup yayınlarını listeleyen panel; sekme adı "Araştırmacı ara" | `AuthorPanel.jsx`, `AuthorPicker.jsx` |
+| Çalışma alanı | Araştırma ve yazımın tek panelde yapıldığı yer: solda belge, sağda kanıt ve araç paneli | Henüz yok — hedef (`docs/design/calisma-alani.md`) |
+| Yazım paneli | Bugünkü sağdan açılan "AI Yazar"; çalışma alanı gelince onun yerini alır | `WriterPanel.jsx`, `WriterDock.jsx` |
+| Sepet | Kullanıcının seçtiği makaleler; paneller arasında ortak | `useBasket` |
+| İddia, kanıt, pasaj | 2.4–2.5'teki anlamlarıyla | Henüz model yok — hedef |
+
+Arayüz metninde "Yazar modu" / "Yazar paneli" gibi iki anlama gelen adlar
+kullanılmaz. Bugün kalanlar (`client/src/i18n/tr.js`: "Yazar modunu aç",
+"Yazar modunda onlarla yazabilir…") çalışma alanı iş emriyle düzeltilir.
+
 ---
 
 # 3. Mühendislik standartları
 
 Kod yazmadan önce okunur. Burada yazan kural, bir iş emri açıkça aksini
 söylemedikçe geçerlidir.
+
+**Hedef ile bugün ayrı tutulur.** Bu bölümün bir kısmı hedef mimariyi
+tanımlar, bugünkü kodu değil; bir kuralın burada yazması kodda karşılığı
+olduğunu göstermez (kural 2). Bugünkü envanter WO-001'de çıkarılır. O zamana
+kadar doğrulanmış eksikler (2026-10-13):
+
+- `Claim` / `Evidence` veri modeli yok (`server/models/` altında yok) —
+  3.3'teki "Claim kaydında tutulur" ve 3.6 hedeftir.
+- PR1–PR10 prompt'ları ve çıktı alanları (`quoted_span`, `scope_gap` …)
+  kodda yok — 3.4'teki sürümleme ve doğrulama kararı önbelleği hedeftir.
+- Kalıcı kuyruk yok; hız sınırlama dağınık (ör.
+  `server/services/resolver/ratelimit.js`) ve bir kaynak kesici var
+  (`server/services/sourceBreaker.js`) — 3.5'in "tek kova + kalıcı kuyruk"
+  hali hedeftir.
+- `eval/` klasörü yok — Bölüm 4 ve 3.8'deki enjeksiyon testi hedeftir.
+
+Hedef bir kuralı koda geçiren iş, bu listeyi günceller.
 
 ## 3.1 Atıf verisi mimariyle korunur, promptla değil
 
@@ -393,8 +469,10 @@ sonucu hiçbir şey iddia etmeyen cümledir. Üç önlem:
 
 ## 3.4 Prompt disiplini ve önbellek
 
-Prompt'lar kodda sabittir, sürümlüdür (`P3.v4`) ve elle düzenlenmez. Tek bir
+Prompt'lar kodda sabittir, sürümlüdür (`PR3.v4` gibi) ve elle düzenlenmez. Tek bir
 boşluk değişikliği tüm kullanıcıların önbellek önekini ıskalatır.
+Prompt kimlikleri `PR1`–`PR10`'dur (tasarım belgesinde P1–P10); `PR` öneki,
+yol haritası aşamaları P0–P4 ile karışmasın diye kullanılır.
 
 Her prompt üç bloktan oluşur ve bu sıra bozulmaz:
 
@@ -449,7 +527,7 @@ sha256(
   work_id           +
   model_id          +
   model_version     +
-  prompt_version    +   # P3.v4 — aynı model, farklı prompt, farklı karar
+  prompt_version    +   # PR3.v4 — aynı model, farklı prompt, farklı karar
   schema_version    +   # çıktı şeması değişirse kararın anlamı değişir
   pipeline_version      # ön eleme veya eşik değiştiyse
 )
@@ -566,7 +644,7 @@ Bu kayıtlar olmadan maliyet iddiası yapılmaz.
 
 ## 3.10 Yazar çözümleme
 
-2.11'in yazar paneline uygulanmış hali. Bu bölüm bir mimari kararı kayda
+2.11'in araştırmacı paneline uygulanmış hali. Bu bölüm bir mimari kararı kayda
 geçiriyor; aksini yapan kod iş emri olmadan yazılmaz.
 
 ### Tek kimlik kaynağı: OpenAlex
@@ -602,13 +680,12 @@ kullanılmaz. Başka bir yerde `filter=` ile çok değerli bir sorgu kuracaksan
 aynı kararsızlığı bekle ve zaman aşımı koy.
 
 **ORCID'in kendi API'si bu kuralın dışındadır.** Orada toplu sorgu
-serbesttir ve tercih edilir: ORCID'in limiti 12 istek/sn olduğu için sekiz
-kişi için sekiz istek atmak, tek istek atmaktan hem yavaş hem gereksiz
-yüklüdür. Daha önemlisi günlük kota: kayıtsız istemcinin kotası IP başına
-25.000 okuma, ve liste başına sekiz istek bu kotayı sekiz kat hızlı tüketir.
-Tek istek başarısız olursa o turdaki zenginleştirmenin tamamı düşer —
-zenginleştirme zaten listeyi bekletmediği ve düşmesi hata sayılmadığı için
-bu kabul edilebilir.
+serbesttir ve tercih edilir. İki sebep, ikincisi daha önemli: hız limiti
+12 istek/sn olduğu için sekiz kişiye sekiz istek atmak gereksiz yüklüdür,
+ve günlük kota kayıtsız istemcide IP başına 25.000 okumadır — her listeye
+sekiz istek atmak bu kotayı sekiz kat hızlı bitirir. Tek istek başarısız
+olursa o turdaki zenginleştirmenin tamamı düşer — zenginleştirme zaten
+listeyi bekletmediği ve düşmesi hata sayılmadığı için bu kabul edilebilir.
 
 ### Kurum bir sıralama sinyalidir, eleme filtresi değil
 
@@ -620,31 +697,40 @@ geçmişi eksiksiz değil. Bir kişinin OpenAlex kaydında o kurum yazmıyor diy
 o kişi yanlış kişi değildir — kaydı eksik olabilir. Sert filtre, doğru kişiyi
 sessizce eleyebilir ve kullanıcı bunu fark etmez. Bu 2.8 ihlalidir.
 
-Sıralama, kurum filtreli ve filtresiz **iki OpenAlex sorgusunun birleşimiyle**
-yapılır: filtreli sorgunun kişileri üstte, filtresiz sorgunun geri kalanı
-altta, aynı kişi bir kez. İki sorgu paralel gider ve aynı kaynağa gittiği
-için 2.11'e aykırı değildir. Yalnız ilk sayfayı yeniden sıralamak yetmez:
-aranan kişi isim sorgusunun ilk sayfasında hiç olmayabilir (ölçüldü: "Ahmet
-Yılmaz" isim sorgusunun ilk 8 sonucunda Hacettepe'den kimse yoktu, kurum
-filtreli sorgu Hacettepe'deki Ahmet Yılmaz'ı buldu).
+**Yalnızca yeniden sıralamak yetmez.** OpenAlex isimle aramada en alakalı
+ilk sayfayı döndürür; aranan kişi o sayfada yoksa onu yeniden sıralamak
+hiçbir şey değiştirmez. Ölçümde tam olarak bu oldu: "Ahmet Yılmaz"
+sorgusunun ilk 8 sonucunda Hacettepe'den kimse yoktu, kurum filtresiyle
+gelen kişi (`A5101599296`) o 8'in içinde değildi.
 
-Birleşik listede isim sonuçlarına **ayrılmış bir pay her zaman kalır**
-(bugün 12 kişilik listenin en az 4'ü; `AUTHOR_NAME_SLOTS`). Kurum eşleşmeleri
-listeyi doldurup isimle gelenleri tamamen dışarı itemez — yoksa sert filtre
-sıralama kılığında geri gelir. Ayrılan yer boş kalırsa eşleşenlere döner.
+**Kural:** liste, kurum filtreli ve filtresiz iki OpenAlex sorgusunun
+birleşimidir. İkisi paralel gider, filtreli sonuçlar üste konur, filtresiz
+olanlar altta kalır, aynı kişi iki kez gösterilmez. İki istek de aynı kaynağa
+gittiği için 2.11 bozulmaz ve paralel gittikleri için süre neredeyse
+değişmez.
 
-Sert filtre istiyorsan iki koşulla: eşleşmeyenler gizlenir ama sayısı
-gösterilir ("kurum eşleşmeyen 6 kişi gizlendi"), ve tek tıkla açılır.
-Sayı gösterilmiyorsa filtre konmaz.
+**Kırpma, filtreyi arka kapıdan geri getirmez.** Liste bir üst sınıra
+kırpılıyorsa, kurum eşleşmeleri o sınırı doldurup isimle gelen kişileri
+tamamen dışarı itemez. İsim sonuçlarına ayrılmış bir pay her zaman kalır;
+aksi halde sert filtre, sıralama kılığında geri gelir. Bugünkü değerler
+`server/services/openalex.js` içinde: liste 12 kişi (`AUTHOR_LIST_LIMIT`),
+isim payı en az 4 (`AUTHOR_NAME_SLOTS`). Ayrılan yer boş kalırsa eşleşenlere
+döner.
 
-Yazar panelinde seçilen davranış budur (2026-10-10): kurumla eşleşen varsa
-yalnız onlar görünür, altta "Kurumla eşleşmeyen N kişi gizlendi — göster"
-satırı durur. Eşleşen yoksa herkes görünür ve üstte durum notu yer alır.
+**Gizleme yalnızca iki koşulla.** Eşleşmeyenler ekranda katlanabilir, ama
+yalnızca sayıları gösterilirse ("Kurumla eşleşmeyen 8 kişi gizlendi —
+göster") ve tek tıkla açılırlarsa. Katlanan kişi listeden çıkmış sayılmaz:
+listede durur, bir tıkla görünür. Sayı gösterilmiyorsa gizleme yapılmaz.
 
-Girilen kurum hiçbir kayda çözülemiyorsa sessizce kurumsuz aramaya
-düşülmez: isim listesi yine gösterilir ve üstünde "'X' adında kurum
-bulunamadı, yalnızca isimle listelendi" notu durur. Kurum araması
-hata verirse de aynı şekilde not düşülür.
+Araştırmacı panelinde seçilen davranış budur (kullanıcı kararı 2026-10-10,
+canlıda `1377c5e`): kurumla eşleşen varsa yalnız onlar görünür, altta
+gizlenenlerin sayısı ve "göster" satırı durur. Eşleşen yoksa herkes görünür
+ve üstte durum notu yer alır.
+
+Girilen kurum hiçbir kayda çözülemiyorsa boş liste dönülmez: isim listesi
+gösterilir, üstüne "'X' adında kurum bulunamadı, sadece isimle listelendi"
+notu konur. Kurum araması hata verirse de aynı şekilde not düşülür. Sessiz
+geçiş de yok, boş ekran da yok.
 
 ### Çözülmemiş yazar kaydı
 
@@ -669,6 +755,32 @@ gösterilir, kullanıcı doğrular. Sistem "bu kesinlikle o kişi" demez.
 - Her prompt veya model değişikliğinde Bölüm 4 regresyon seti çalıştırılır.
 - Mimari belirsizse tahmin yürütülmez; ilgili kod ve dokümantasyon okunur.
 
+## 3.12 Özellik bayrakları
+
+Neyin açık olduğu buradan izlenir. İstemci bayrakları derleme anında
+sabitlenir: canlıda değiştirmek yeni yayın ister. Sunucu bayrakları ortam
+değişkenidir: Render panelinden değişir, servis yeniden başlar. Canlıdaki
+gerçek değerler bu tabloda tutulmaz, panelden okunur.
+
+| Bayrak | Nerede | Kod varsayılanı | Ne açar |
+| --- | --- | --- | --- |
+| `VERIFY_MODE_ENABLED` | `client/src/App.jsx` (sabit) | `false` | "Kaynakçanı doğrula" sekmesi |
+| `AUTHOR_MODE_ENABLED` | `client/src/App.jsx` (sabit) | `true` | Yazar araması (panel bayrağı kapalıyken arama kartında sekme) |
+| `AUTHOR_PANEL_ENABLED` | `client/src/App.jsx` (sabit) | `true` — yalnız `wo-002-yazar-paneli` dalında | Araştırmacı paneli sekmesi (WO-002) |
+| `WORKSPACE_ENABLED` | `client/src/App.jsx` (sabit) | `true` — yalnız aynı dalda | Çalışma alanı sekmesi (WO-003) |
+| `AI_WRITER_PANEL_ENABLED` | `client/src/App.jsx` (sabit) | `false` (13 Eki 2026 ürün kararı) | Eski "AI Yazar" paneli: bölüm üreten akış. Kapalıyken "AI Yazar" düğmesi çalışma alanını açar |
+| `ORCID_ENABLED` | sunucu ortamı | `false` | ORCID kurum geçmişi; gelir başlarsa kapatılır (2.7) |
+| `SCOPUS_ENABLED` | sunucu ortamı | `false` | Scopus kaynağı (2.7 Kademe 3) |
+| `WRITER_POSTCHECK_ENABLED` | sunucu ortamı | `false` | Yazım panelinde üretim sonrası kontrol |
+| `WRITER_CITATION_CHECK_ENABLED` | sunucu ortamı | `false` | Yazım panelinde atıf kontrolü |
+| `WRITER_QUALITY_CHECK_ENABLED` | sunucu ortamı | `false` | Yazım panelinde kalite kontrolü |
+| `WRITER_REVISION_COACH_ENABLED` | sunucu ortamı | `false` | Yazım panelinde revizyon koçu |
+| `ALLOW_E2E_TEST_AUTH` | sunucu ortamı | kapalı | Geliştirmede `test-token` kabul edilir; `NODE_ENV=production` iken kod reddeder |
+
+`server/.env.example` bazı `WRITER_*` değerlerini `true` gösterir; kodun
+varsayılanı `false`'tur (`server/config/writerFlags.js`). Yeni bayrak ekleyen
+iş bu tabloyu günceller.
+
 ---
 
 # 4. Değerlendirme protokolü
@@ -676,6 +788,10 @@ gösterilir, kullanıcı doğrular. Sistem "bu kesinlikle o kişi" demez.
 Bu bölüm olmadan "ölç", "test et" ve "kaliteyi artır" talimatlarının hiçbiri
 anlam taşımaz. Etiketli veri olmadan hesaplanan metrik, sayı görünümünde bir
 tahmindir.
+
+**Bugün:** bu bölümdeki kümelerin hiçbiri yok (`eval/` klasörü yok,
+2026-10-13). Kümeler hazır olana kadar 4.1 geçerlidir: kalite iddiası
+yapılmaz; prompt veya model değişikliği raporda "ölçülmedi" notuyla yer alır.
 
 ## 4.1 Temel kural
 
@@ -834,405 +950,19 @@ Sayısallaştırılamayan şeye sahte sayı üretmek, hiç ölçmemekten kötüd
 
 # 5. İş emri sistemi
 
-Her geliştirme oturumu tek bir iş emriyle çalışır. Oturum başlarken ajana
+Her geliştirme oturumu tek bir iş emriyle çalışır. İş emirleri
+`docs/work-orders/` altında, her biri ayrı dosyadadır. Oturum başlarken ajana
 verilecek mesaj şudur:
 
 ```
-CLAUDE.md içindeki WO-00X iş emrini oku ve uygula.
+docs/work-orders/WO-00X-<ad>.md dosyasını oku ve uygula.
 Kapsam dışına çıkma.
 ```
 
-## 5.1 Neden tek iş emri
-
-Üç sebep:
-
-1. **Kapsam kontrolü.** Ajan "bunu da düzelteyim" diyemez; iş emrinin dosya
-   listesi dışına çıkamaz.
-2. **Çıkar çatışması yok.** Bir özelliği geliştiren oturum, o özelliğin değer
-   yaratıp yaratmadığını değerlendirmez. Önceliklendirme ayrı bir konuşmadır,
-   çünkü kendi yazdığı şeyi savunmayan bir değerlendirme ancak böyle çıkar.
-3. **Geri alınabilirlik.** Bir iş emri = bir dal = bir commit grubu. Ters
-   giderse tek hamlede geri alınır.
-
-## 5.2 Adlandırma ve yaşam döngüsü
-
-`WO-<sıra>-<kısa-ad>` — örnek: `WO-004-arxiv-fix`
-
-Sıra numarası asla yeniden kullanılmaz; iptal edilen iş emri `Durum: İptal`
-notuyla yerinde kalır.
-
-```
-Taslak → Hazır → Çalışıyor → Bitti
-```
-
-- **Taslak:** kapsam veya kabul kriterleri henüz net değil, ajana verilmez
-- **Hazır:** ajana verilebilir
-- **Çalışıyor:** bir oturum üzerinde çalışıyor
-- **Bitti:** kabul kriterleri karşılandı, bitiş raporu dolduruldu
-
-## 5.3 Mevcut iş emirleri
-
-| No | Başlık | Aşama | Durum |
-| --- | --- | --- | --- |
-| WO-001 | Salt okunur teknik ve ürün denetimi | P0 | Hazır |
-
-Denetim bittikten sonra WO-002 ve sonrası, denetim raporundaki kritik sorun
-listesinden türetilir. Önceden yazılmaz — neyin bozuk olduğunu bilmeden iş
-emri yazmak, tahmine kapsam vermektir.
-
-## 5.4 Yeni iş emri şablonu
-
-Üç bölüm boş bırakılamaz: **dokunulabilecek dosyalar** (boşsa ajan her yere
-dokunur), **kabul kriterleri** (ölçülemez madde yazılmaz — "iyileştirildi"
-değil, "şu test geçiyor"), **geri alma** (nasıl dönüleceği bilinmeyen iş
-başlatılmaz).
-
-```markdown
-# WO-XXX — <Kısa başlık>
-
-| Alan | Değer |
-| --- | --- |
-| Durum | Taslak / Hazır / Çalışıyor / Bitti |
-| Kapsam | Salt okunur / Tek dosya / Tek modül / Çapraz |
-| Dosya değişikliği | Yasak / İzinli (liste aşağıda) |
-| Tahmini süre | |
-| Ön koşul | Hangi iş emri bitmeden başlamaz |
-| Yol haritası aşaması | P0 / P1 / P2 / P3 / P4 |
-
-## Problem
-Ne bozuk veya ne eksik. Denetim raporundan geliyorsa kanıtı (dosya:satır)
-buraya kopyala.
-
-## Neden şimdi
-Bu iş emri neden bu sırada? Hangi şeyi mümkün kılıyor veya hangi riski
-kapatıyor.
-
-## Kapsam
-### Dahil
-- …
-### Hariç
-- …
-Kapsam dışında bir sorun görülürse düzeltilmez, rapora yazılır.
-
-## Dokunulabilecek dosyalar
-Bu listede olmayan dosya değiştirilmez. Liste yetersizse iş durur ve sorulur.
-- `path/to/file.ts`
-
-## Yaklaşım
-Nasıl yapılacağı. Birden fazla yol varsa seçileni ve nedenini yaz; ajanın
-kendi başına mimari seçmesi beklenmiyor.
-
-## Kabul kriterleri
-Her madde ya geçer ya geçmez — "iyileştirildi" gibi ölçülemez ifade yok.
-- [ ] …
-- [ ] İlgili testler yazıldı ve geçti
-- [ ] Bölüm 4 regresyon seti çalıştırıldı, metrik düşmedi
-- [ ] Bölüm 3 ihlali yok
-
-## Test planı
-| Test | Nasıl çalıştırılır | Beklenen |
-| --- | --- | --- |
-Elle kontrol gerekiyorsa adım adım yaz.
-
-## Ölçüm
-Etkisi neyle ölçülecek? Ölçülemiyorsa "ölçülmeyecek" yaz ve gerekçesini
-belirt — boş bırakma.
-| Metrik | Öncesi | Sonrası hedefi |
-| --- | --- | --- |
-
-## Geri alma
-Bir şey ters giderse nasıl dönülür. Tek commit mi, feature flag mi,
-migration geri alınabilir mi.
-
-## Riskler
-| Risk | Olasılık | Etki | Önlem |
-| --- | --- | --- | --- |
-
-## Onay gereken noktalar
-Ajanın durup sorması gereken anlar. Boşsa "yok" yaz.
-
-## Bitiş raporu
-Ajan tarafından doldurulur.
-- Değişen dosyalar:
-- Teknik kararlar ve gerekçeleri:
-- Çalıştırılan testler ve gerçek çıktıları:
-- Ölçülen etki:
-- Bilinen eksikler:
-- Sonraki adım:
-- **Durum:** READY / NEEDS ATTENTION / BLOCKED
-```
-
----
-
-# 6. WO-001 — Salt okunur teknik ve ürün denetimi
-
-| Alan | Değer |
-| --- | --- |
-| Durum | Hazır, çalıştırılabilir |
-| Kapsam | Salt okunur |
-| Dosya değişikliği | **Yasak** |
-| Tahmini süre | 1–2 oturum |
-| Ön koşul | Yok |
-| Yol haritası aşaması | P0 |
-
-## 6.1 Talimat
-
-> Bu dosyanın 1., 2. ve 3. bölümlerini oku. Ardından bu iş emrini uygula.
->
-> **Bu görevde hiçbir dosyayı oluşturma veya değiştirme.** Kod yazma, refactor
-> yapma, bağımlılık ekleme. Yalnızca oku, salt okunur komutlar çalıştır, ölç
-> ve raporla.
->
-> **Rapor sohbet çıktısı olarak verilir.** Dosya oluşturulmaz —
-> `docs/audit/AUDIT-001.md` dahil. Raporu okuduktan sonra onay verirsem
-> dosyaya yazarsın.
->
-> Rapordan hemen önce `git status --porcelain` çalıştır ve çıktısını raporun
-> başına koy. Boş olmalı. Boş değilse neyin değiştiğini açıkla ve nedenini
-> raporla.
-
-## 6.2 Ne incelenecek
-
-### A. Gerçek durum envanteri
-
-Her madde için **dosya yolu ve satır numarası** ver. Kanıtsız iddia kabul
-edilmez.
-
-- Frontend ve backend yığını, mimari, dizin düzeni
-- Veritabanı şeması ve veri modelleri
-- Kimlik doğrulama ve yetkilendirme
-- Hangi AI sağlayıcıları ve modeller, nerede çağrılıyor
-- Hangi akademik API'ler gerçekten entegre, hangileri yalnızca adı geçiyor
-- Arama ve sıralama akışı: hangi sinyaller, hangi sırayla
-- Gömme ve vektör araması var mı, varsa nerede
-- RAG hattı var mı, hangi adımlardan oluşuyor
-- Promptlar nerede duruyor, sürümlü mü, yapılandırılmış çıktı var mı
-- Önbellek ve arka plan işleri
-- Loglama, hata yönetimi, maliyet takibi
-- Test altyapısı: var mı, çalışıyor mu, kapsamı ne
-- UI bileşenleri ve tasarım sistemi
-- Kullanılmayan, tekrarlanan veya ölü kod
-
-### B. İki listeye ayır
-
-1. **Gerçekten çalışan özellikler** — kodda var, çağrılıyor, denendi
-2. **Var görünen ama çalışmayan özellikler** — yazılmış ama bağlanmamış,
-   hata veriyor, veya hiç çağrılmıyor
-
-Bu ayrım raporun en değerli kısmı. Fuar sunumunda neyin gösterilebileceğini
-bu belirler.
-
-### C. AHP'nin gerçek durumu
-
-Ayrı bir başlık altında:
-
-- AHP kodda uygulanmış mı, yoksa planlanmış mı?
-- Uygulanmışsa kriterler neler, ağırlıklar nerede tanımlı?
-- Ağırlıklar kullanıcıya açık mı, sabit mi?
-- Sıralama gerçekten AHP'den mi geçiyor, yoksa başka bir skor mu kullanılıyor?
-- Tutarlılık oranı hesaplanıyor mu?
-
-### D. Kaynak entegrasyonlarının sağlığı
-
-Her entegre API için:
-
-- Gerçekten istek atıyor mu, yoksa kodu yazılmış ama devre dışı mı?
-- Hız limiti yönetimi var mı?
-- Hata durumunda ne oluyor — sessizce boş mu dönüyor?
-- Anahtar nerede saklanıyor?
-- Sonuçlar önbelleğe alınıyor mu?
-
-**arXiv'den veri gelip gelmediğini özellikle kontrol et.** Bilinen bir sorun
-olabilir.
-
-### E. Doğrulanmamış varsayımlar
-
-Kodda veya dokümantasyonda yer alan, doğrulanmamış her lisans / limit / maliyet
-varsayımını listele. Örnek: bir API'nin ücretsiz kabul edilmesi, ticari
-kullanıma uygun sayılması, limitinin yeterli varsayılması.
-
-### F. Güvenlik taraması
-
-- Frontend'e sızmış anahtar var mı?
-- Prompt enjeksiyonu yüzeyi: dış metinler prompta nasıl giriyor?
-- Yetkilendirme kontrolleri endpoint bazında var mı?
-- Hassas veri loglanıyor mu?
-
-### G. Tüzük kurallarının kod karşılığı
-
-Bu dosyadaki bir kuralın yazılı olması, kodun ona uyduğunu kanıtlamaz. Bölüm
-2 ve 3'teki şu kuralların her biri için **kodda karşılığı var mı, yok mu**
-diye bak ve kanıt göster:
-
-| Kural | Nerede yazıyor | Kodda ne aranacak |
-| --- | --- | --- |
-| Atıf verisi modelden gelmiyor | 3.1 | Prompt'a giren alanlar — DOI, yazar, yıl prompt gövdesine giriyor mu? Kaynakça hangi kayıttan üretiliyor? |
-| Pasaj birebir saklanıyor | 3.2 | `passage` alanı bir model çağrısından geçiyor mu? |
-| Döngülerin tavanı var | 3.3 | Yeniden deneme döngülerinde sayaç var mı, yoksa `while` mi? |
-| Önbellek anahtarı sürümlü | 3.4 | Anahtarda prompt ve şema sürümü var mı? |
-| Geçersizleştirme çalışıyor | 3.4 | Sürüm değişince eski kayıt gerçekten düşüyor mu? Geri çekme ve pasaj değişikliği kararı geçersizleştiriyor mu? |
-| **Model yetki yalıtımı** | 3.8 | Pasajı işleyen çağrının araç, yazma veya ağ erişimi gerçekten kapalı mı — yoksa yalnızca promptta mı yazıyor? |
-| Çıktı şemayla doğrulanıyor | 3.8 | Şema doğrulaması var mı, yoksa serbest metin mi kabul ediliyor? |
-| İddia–kanıt bağı kuruluyor | 2.5 | Her üretilen cümlenin bir pasaj kaydıyla ilişkisi var mı? |
-| Beş kanıt sınıfı ayrı | 2.4 | `partial`, `contradicts` ve `no_evidence` gerçekten ayrı mı, yoksa ikili mi (destekliyor / desteklemiyor)? |
-| Belgeye otomatik girmiyor | 2.9 | Üretilen metin kullanıcı onayı olmadan belgeye yazılabiliyor mu? |
-
-Bu tabloyu raporda olduğu gibi doldur: her satıra **var / yok / kısmen** ve
-dosya:satır kanıtı. En değerli çıktı bu tablo olacak — bundan sonraki iş
-emirleri buradan türeyecek.
-
-**Yetki yalıtımı maddesini özellikle sert kontrol et.** Beş katmanlı
-savunmanın en kritik katmanı budur ve kolayca "yazıldı ama uygulanmadı"
-durumunda olabilir.
-
-### H. Fuar demosu riskleri
-
-Ayrı bir liste: fuar sunumunda bozulabilecek, yanlış sonuç üretebilecek veya
-doğrulanmamış bir API'ye bağımlı olan özellikler. Her biri için: gösterilirse
-ne olur, gösterilmezse ne kaybedilir.
-
-## 6.3 Çıktı formatı
-
-Rapor şu sırayla:
-
-1. **Yönetici özeti** — en fazla 10 cümle. Sistem ne durumda, en büyük risk ne.
-2. **Gerçek durum envanteri** — A bölümü, dosya kanıtlarıyla
-3. **Çalışan / çalışmayan özellik listesi** — B bölümü, tablo halinde
-4. **En kritik 10 sorun** — etki × aciliyet sırasıyla. Her biri için: sorun,
-   kanıt (dosya:satır), etki, önerilen çözüm, tahmini efor, risk
-5. **AHP durumu** — C bölümü
-6. **Kaynak entegrasyonları tablosu** — D bölümü
-7. **Doğrulanmamış varsayımlar** — E bölümü
-8. **Güvenlik bulguları** — F bölümü
-9. **Mevcut mimari ile hedef mimari farkı** — Bölüm 2 ve 3 ile karşılaştır, en
-   büyük üç sapmayı adlandır
-10. **Tüzük–kod uyum tablosu** — G bölümü, olduğu gibi doldurulmuş
-11. **Fuar demosu riskleri** — H bölümü
-12. **Önerilen tek sonraki iş emri** — rapordaki en kritik sorunu çözecek olan.
-    Üç öneri değil, bir tane: kapsamı, kabul kriteri ve test planıyla
-
-Raporu verdikten sonra **dur ve onay bekle.** Kendi önerdiğin iş emrini
-uygulamaya geçme.
-
-## 6.4 Kabul kriterleri
-
-- [ ] Hiçbir dosya oluşturulmadı veya değiştirilmedi; `git status --porcelain`
-      çıktısı boş ve raporun başında yer alıyor
-- [ ] Envanterdeki her iddia dosya yolu ile desteklendi
-- [ ] Çalışan / çalışmayan ayrımı yapıldı
-- [ ] Mevcut testler çalıştırıldı ve gerçek çıktıları raporlandı; çalışmıyorsa
-      sebebi yazıldı
-- [ ] AHP'nin gerçek durumu netleştirildi
-- [ ] arXiv entegrasyonunun durumu kesin olarak belirlendi
-- [ ] Her kritik sorun için somut kanıt verildi
-- [ ] Tüzük–kod uyum tablosu (G) her satırı dolu, kanıtlı
-- [ ] Model yetki yalıtımının gerçekten uygulanıp uygulanmadığı kesinleşti
-- [ ] Fuar demosu riskleri ayrı listelendi
-- [ ] Doğrulanmamış varsayımlar açıkça işaretlendi
-- [ ] Tek bir sonraki iş emri önerildi ve uygulanmadı
-- [ ] Rapor sonunda durum etiketi var
-
-## 6.5 Bu görevde yasak olanlar
-
-- Dosya oluşturma, değiştirme, silme — rapor dosyası dahil
-- Bağımlılık ekleme veya yükseltme
-- Veritabanı şemasına dokunma
-- Refactor önerisini uygulamaya geçirme
-- "Şunu da düzelttim" demek
-
-Kapsam dışında bir sorun görürsen raporla, dokunma.
-
----
-
-# 7. Araç ve repo dizini
-
-Bir iş emrine başlamadan önce buraya bak. Burada karşılığı olan bir şeyi
-sıfırdan yazmak, iş emri açıkça gerekçelendirmediği sürece kabul edilmez.
-
-**Lisans uyarısı:** aşağıdaki notlar yön göstericidir, hukuki görüş değildir.
-Ticari aşamaya geçerken her birinin lisansı yeniden okunur. Özellikle AGPL
-lisanslı projeler bir SaaS'ta kaynak açma yükümlülüğü doğurabilir.
-
-## 7.1 Kaynak istemcileri
-
-| Paket | Kaynak | Not |
-| --- | --- | --- |
-| `pyalex` | OpenAlex | Ters çevrilmiş abstract'ı düz metne çeviriyor, cursor sayfalama hazır |
-| `habanero` | Crossref | Tüm rotalar, bibtex eklentisi |
-| `semanticscholar` | Semantic Scholar | Resmi olmayan ama bakımlı istemci |
-| `arxiv.py` | arXiv | Atom XML ayrıştırmasını yapıyor; 3 sn kuralını yine sen uygula |
-| `unpywall` | Unpaywall | DOI → açık erişim PDF linki |
-| `PyOrcid` | ORCID | Hız limiti ve kotayı sen yöneteceksin (2.7) |
-| `sickle` / `pyoai` | OAI-PMH | DergiPark ve ULAKBİM HARMAN harvest'i |
-
-## 7.2 Kaynak sağlığı
-
-| Paket | İş |
-| --- | --- |
-| `rwcheck` | DOI, PMID ve `.bib` dosyalarını Retraction Watch'a karşı kontrol; veriyi yerel SQLite'a alıp 24 saatte bir tazeliyor — 3.4'teki "geri çekme önbelleğe alınmaz" kuralının hazır uygulaması |
-| `retractguard` | OpenAlex-doğal geri çekme bekçisi; her bayrak kaynağını, kanıt linkini ve tarihini taşıyor |
-| DOAJ API | Dergi doğrulama, yağmacı dergi kontrolü |
-
-## 7.3 Tam metin ve pasaj
-
-| Araç | İş |
-| --- | --- |
-| GROBID | Bilimsel PDF → TEI XML, bölüm ayrıştırma. Üretime hazır, Docker ile |
-| `docling` | Kullanıcının yüklediği karışık dosyalar (PDF, DOCX, PPTX) → yapılandırılmış markdown |
-| PyMuPDF | Pasajın sayfadaki konumunu işaretlemek için |
-| Semantic Scholar snippet search | Hazır pasaj altyapısı — kendi indeksini kurmadan başla |
-
-`marker`: lisansı ticari kullanımda kısıtlı olabilir, kullanmadan önce oku.
-GROBID + docling zaten yetiyor.
-
-## 7.4 Doğrulama çekirdeği
-
-| Kaynak | İş |
-| --- | --- |
-| `allenai/scifact` | Bilimsel iddia doğrulamanın referans veri kümesi — E2'yi buna karşı kalibre et |
-| `allenai/scicite` | Atıf niyeti sınıflandırması (`background` / `method` / `result`), her örnekte bölüm adı var. Bölüm uygunluğunu promptla değil bununla çöz |
-| `GooTec/citation-guard` | Atıf sadakati ölçüm protokolü, MIT, tek GPU veya CPU |
-| DeBERTa tabanlı NLI modelleri | Doğrulama öncesi ucuz ön eleme (3.7) |
-| `Beverly621/ClaimTrellis` | İddia → kaynak → pasaj → yargı → denetim izi akışı; mimarimizin en yakın akrabası, okumaya değer |
-
-## 7.5 LLM altyapısı
-
-| Paket | İş |
-| --- | --- |
-| `litellm` | Çok sağlayıcılı tek arayüz, yedekleme, harcama takibi — 3.7'deki "tek sağlayıcıya bağımlı olma" kuralının altyapısı |
-| `instructor` | Pydantic ile şema zorlama ve otomatik yeniden deneme — 3.8'in dördüncü katmanı |
-| `langfuse` | İzleme, maliyet, prompt sürüm yönetimi — 3.4 ve 3.9'un altyapısı |
-| `promptfoo` | Prompt regresyon testi — Bölüm 4.6 bununla otomatikleşir |
-
-`GPTCache` (anlamsal önbellek): **doğrulama adımında kullanılmaz** (3.4).
-Sorgu genişletmede kullanılabilir.
-
-## 7.6 Çıktı ve dışa aktarma
-
-| Araç | İş |
-| --- | --- |
-| `citation-style-language/styles` | 10.000'i aşkın hazır atıf stili — APA, IEEE, Vancouver, dergi bazlı. Atıf stilini elle yazma |
-| `citeproc-js` | CSL stilleriyle atıf ve kaynakça üretimi, tarayıcıda |
-| `citation-js` | BibTeX, RIS, CSL-JSON dönüşümü |
-| `pandoc` | Markdown → DOCX, PDF, LaTeX |
-| `zotero/translation-server` | URL veya DOI'den referans çıkarma |
-
-## 7.7 Türkçe katman
-
-| Kaynak | İş |
-| --- | --- |
-| `q1-crafter-mcp` | TR Dizin, DergiPark (OAI-PMH) ve YÖK Tez Merkezi'ni destekleyen MCP sunucusu; DOI + bulanık başlık ile iki aşamalı tekilleştirme, Türkçe karakterli APA 7. Tekilleştirme mantığını incele |
-| BGE-M3 / multilingual-e5 | Türkçe–İngilizce çapraz pasaj araması için gömme; A/B karşılaştır |
-| `stefan-it/turkish-bert` | Türkçe küçük görevler için ince ayar tabanı |
-
-## 7.8 Arayüz
-
-| Paket | İş |
-| --- | --- |
-| TipTap (ProseMirror) | Cümleye `claim_id` çapası gömmek için özel düğüm tanımlanabilen düzenleyici |
-| React Flow (`xyflow`) | Kavram haritası, düğüm-kenar grafiği |
-| `pingouin` / `statsmodels` | Analiz paneli motoru, APA biçiminde çıktı |
-| `pyodide` | Analizi tarayıcıda çalıştırma — kullanıcı verisi sunucuya hiç gitmez |
-
-`jamovi` / `JASP`: AGPL. Arayüz fikrine bakmak serbest, kod almadan önce
-hukuki görüş al.
+- Kurallar, yaşam döngüsü (Taslak → Hazır → Çalışıyor → Bitti), mevcut iş
+  emirleri ve istisnalar: `docs/work-orders/README.md`.
+- Yeni iş emri `docs/work-orders/_TEMPLATE.md` kopyalanarak yazılır. Üç bölüm
+  boş bırakılamaz: dokunulabilecek dosyalar, kabul kriterleri, geri alma.
+- Bir iş emri = bir dal = bir commit grubu. Ters giderse tek hamlede geri
+  alınır.
+- Taslak durumundaki iş emri uygulanmaz; Hazır'a geçişi kullanıcı onaylar.

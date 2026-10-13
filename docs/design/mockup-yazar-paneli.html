@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Yazar Paneli — tasarım taslağı</title>
+<!--
+  docs/design/yazar-paneli.md belgesinin görsel karşılığı. Tek dosya, bağımlılık
+  yok; CSS değişkenleri uygulamanın kendi düzeniyle aynı mantıkta. Sekmeler ve
+  çekmeceler gerçekten çalışır, veriler örnektir.
+-->
+<style>
+  :root {
+    --brand: #4648d4;
+    --brand-soft: #ececfb;
+    --brand-dark: #181930;
+    --ink: #191c1e;
+    --muted: #5c5c76;
+    --line: #e1e2e4;
+    --line-soft: #edeef0;
+    --bg: #f1f3f7;
+    --card: #ffffff;
+    --ok: #15803d;
+    --partial: #b45309;
+    --none: #94a3b8;
+    --bad: #b91c1c;
+    --radius: 8px;
+    --row: 30px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
+    font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+  }
+  button, select, input { font: inherit; color: inherit; }
+  .shell { display: flex; height: 100vh; }
+
+  /* --- A: sol ray --- */
+  .rail {
+    width: 56px; flex: none;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 10px 0;
+    background: var(--brand-dark);
+  }
+  .rail__logo {
+    width: 36px; height: 36px; margin-bottom: 6px;
+    display: grid; place-items: center;
+    border-radius: 10px; background: linear-gradient(135deg, var(--brand), #6b38d4);
+    color: #fff; font-weight: 800;
+  }
+  .rail button {
+    position: relative;
+    width: 38px; height: 38px;
+    display: grid; place-items: center;
+    border: 0; border-radius: 9px;
+    background: transparent; color: #c5c4e2;
+    cursor: pointer; font-size: 17px;
+  }
+  .rail button:hover { background: rgba(255,255,255,.12); color: #fff; }
+  .rail button[aria-current="true"] { background: var(--brand); color: #fff; }
+  .rail button[aria-current="true"]::after {
+    content: ""; position: absolute; right: -9px; top: 50%;
+    width: 3px; height: 18px; margin-top: -9px;
+    border-radius: 3px 0 0 3px; background: #d0bcff;
+  }
+  .rail__spacer { flex: 1; }
+
+  /* --- B: belge gezgini --- */
+  .nav {
+    width: 260px; flex: none;
+    display: flex; flex-direction: column;
+    background: var(--card);
+    border-right: 1px solid var(--line);
+  }
+  .nav__head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-bottom: 1px solid var(--line-soft);
+    font-weight: 700; font-size: 13px;
+  }
+  .nav__tabs { display: grid; grid-template-columns: repeat(4, 1fr); padding: 6px; gap: 3px; background: var(--line-soft); }
+  .nav__tabs button {
+    padding: 5px 2px; border: 0; border-radius: 6px;
+    background: transparent; color: var(--muted);
+    font-size: 11px; font-weight: 700; cursor: pointer;
+  }
+  .nav__tabs button[aria-selected="true"] { background: var(--card); color: var(--brand); }
+  .nav__search { padding: 8px; border-bottom: 1px solid var(--line-soft); }
+  .nav__search input { width: 100%; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
+  .nav__body { flex: 1; overflow-y: auto; padding: 6px; }
+
+  .tree-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px; border-radius: 6px;
+    font-size: 13px; cursor: pointer;
+  }
+  .tree-item:hover { background: var(--line-soft); }
+  .tree-item.is-active { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
+  .tree-item--sub { margin-left: 16px; font-size: 12px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .dot--ok { background: var(--ok); }
+  .dot--partial { background: var(--partial); }
+  .dot--none { background: var(--none); }
+  .dot--bad { background: var(--bad); }
+  .tree-item .count { margin-left: auto; font-size: 11px; color: var(--muted); font-weight: 600; }
+
+  .src-item { display: grid; gap: 2px; padding: 7px 8px; border-radius: 6px; cursor: pointer; }
+  .src-item:hover { background: var(--line-soft); }
+  .src-item strong { font-size: 12px; font-weight: 700; }
+  .src-item small { font-size: 11px; color: var(--muted); }
+  .tag { display: inline-block; padding: 0 5px; border-radius: 4px; font-size: 10px; font-weight: 800; }
+  .tag--used { background: #dcfce7; color: var(--ok); }
+  .tag--unused { background: var(--line-soft); color: var(--muted); }
+  .tag--bad { background: #fee2e2; color: var(--bad); }
+
+  .nav__stats { margin: 10px 6px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: #fafbfc; font-size: 11px; }
+  .bar { height: 6px; margin: 6px 0; border-radius: 99px; background: var(--line); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 72%; background: var(--brand); }
+  .nav__stats .row { display: flex; justify-content: space-between; color: var(--muted); font-weight: 600; }
+  .nav__foot { padding: 8px; border-top: 1px solid var(--line-soft); }
+  .btn-dashed { width: 100%; padding: 7px; border: 1px dashed var(--line); border-radius: var(--radius); background: transparent; color: var(--brand); font-size: 12px; font-weight: 700; cursor: pointer; }
+
+  /* --- C: merkez --- */
+  .center { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  .filebar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 12px; background: var(--card); border-bottom: 1px solid var(--line);
+  }
+  .back {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px;
+    background: var(--card); font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .back:hover { border-color: var(--brand); color: var(--brand); }
+  .filebar__name { font-weight: 700; font-size: 13px; }
+  .filebar__save { font-size: 11px; color: var(--ok); font-weight: 600; }
+  .filebar__menu { display: flex; gap: 12px; margin-left: 14px; font-size: 12px; color: var(--muted); }
+  .filebar__menu span { cursor: pointer; }
+  .filebar__menu span:hover { color: var(--brand); }
+  .filebar__right { margin-left: auto; display: flex; align-items: center; gap: 7px; }
+  .btn { padding: 5px 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--card); font-size: 12px; font-weight: 700; cursor: pointer; }
+  .btn:hover { border-color: var(--brand); color: var(--brand); }
+  .btn--primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .btn--primary:hover { color: #fff; opacity: .92; }
+
+  .ribbon-tabs { display: flex; gap: 2px; padding: 0 12px; background: var(--card); border-bottom: 1px solid var(--line-soft); }
+  .ribbon-tabs button {
+    padding: 7px 14px; border: 0; border-bottom: 2px solid transparent;
+    background: transparent; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .ribbon-tabs button[aria-selected="true"] { color: var(--brand); border-bottom-color: var(--brand); }
+
+  .ribbon { display: none; flex-wrap: wrap; align-items: center; gap: 3px; padding: 6px 12px; background: var(--card); border-bottom: 1px solid var(--line); }
+  .ribbon.is-on { display: flex; }
+  .grp { display: flex; align-items: center; gap: 2px; padding-right: 9px; margin-right: 5px; border-right: 1px solid var(--line-soft); }
+  .grp:last-child { border: 0; }
+  .grp--end { margin-left: auto; border: 0; }
+  .tool {
+    min-width: var(--row); height: var(--row); padding: 0 6px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    border: 1px solid transparent; border-radius: 6px;
+    background: transparent; font-size: 13px; cursor: pointer; white-space: nowrap;
+  }
+  .tool:hover { background: var(--brand-soft); }
+  .tool.is-on { background: var(--brand-soft); border-color: var(--brand); color: var(--brand); }
+  .tool small { font-size: 11px; font-weight: 700; }
+  .sel { height: var(--row); padding: 0 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); font-size: 12px; }
+
+  /* cetvel */
+  .ruler { height: 26px; display: flex; justify-content: center; background: var(--line-soft); border-bottom: 1px solid var(--line); }
+  .ruler__in { position: relative; width: 760px; height: 100%; background: var(--card); border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+  .ruler__margin { position: absolute; top: 0; bottom: 0; width: 86px; background: #dfe3e9; }
+  .ruler__margin--r { right: 0; }
+  .ruler__tick { position: absolute; top: 5px; font-size: 9px; font-weight: 700; color: var(--muted); border-left: 1px solid #94a3b8; padding-left: 2px; line-height: 1; }
+  .ruler__minor { position: absolute; top: 15px; height: 5px; border-left: 1px solid #b6bdc7; }
+  .ruler__handle { position: absolute; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; cursor: ew-resize; }
+  .ruler__handle--first { top: 1px; border-top: 7px solid var(--brand); }
+  .ruler__handle--hang { bottom: 1px; border-bottom: 7px solid var(--brand); }
+
+  /* masa ve sayfa */
+  .desk { flex: 1; overflow: auto; padding: 22px 16px 40px; background: var(--bg); }
+  .page {
+    width: 760px; min-height: 980px; margin: 0 auto;
+    padding: 56px 86px; background: var(--card);
+    border: 1px solid #dbe2ea;
+    box-shadow: 0 1px 3px rgba(15,23,42,.1), 0 14px 36px -28px rgba(15,23,42,.5);
+    font-family: "Times New Roman", Georgia, serif; font-size: 15px; line-height: 1.75;
+  }
+  .page h1 { margin: 0 0 6px; font-size: 24px; line-height: 1.25; }
+  .page h2 { margin: 24px 0 8px; font-size: 18px; padding-bottom: 4px; border-bottom: 1px solid var(--line-soft); }
+  .page .byline { margin: 0 0 22px; font-size: 12px; color: var(--muted); font-family: "Segoe UI", sans-serif; }
+  .sent { position: relative; display: block; margin: 0 0 12px; padding-left: 14px; }
+  .sent::before { content: ""; position: absolute; left: 0; top: 9px; width: 7px; height: 7px; border-radius: 50%; }
+  .sent--ok::before { background: var(--ok); }
+  .sent--partial::before { background: var(--partial); }
+  .sent--none::before { background: var(--none); }
+  .sent--bad::before { background: var(--bad); }
+  .cite { color: var(--brand); font-weight: 600; cursor: pointer; }
+  .sent--sel { background: var(--brand-soft); border-radius: 6px; padding: 8px 8px 8px 16px; }
+
+  .float {
+    position: absolute; top: -16px; right: 8px; z-index: 5;
+    display: flex; align-items: center; gap: 2px;
+    padding: 3px; border-radius: 99px;
+    background: var(--brand-dark); box-shadow: 0 6px 18px -6px rgba(0,0,0,.45);
+    font-family: "Segoe UI", sans-serif;
+  }
+  .float button { padding: 4px 9px; border: 0; border-radius: 99px; background: transparent; color: #e1e0ff; font-size: 11px; font-weight: 700; cursor: pointer; }
+  .float button:hover { background: rgba(255,255,255,.16); color: #fff; }
+
+  .figure { margin: 20px 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: #fafbfc; font-family: "Segoe UI", sans-serif; }
+  .figure__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 11px; color: var(--muted); font-weight: 700; }
+  .flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 6px; align-items: center; }
+  .flow__box { padding: 10px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); text-align: center; font-size: 11px; font-weight: 700; }
+  .flow__arrow { color: var(--brand); text-align: center; font-size: 15px; }
+  .figure__cap { margin: 10px 0 0; font-size: 11px; text-align: center; color: var(--muted); }
+
+  table.lit { width: 100%; border-collapse: collapse; margin: 18px 0; font-family: "Segoe UI", sans-serif; font-size: 11.5px; }
+  table.lit th, table.lit td { padding: 6px 8px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+  table.lit th { background: var(--line-soft); font-weight: 800; }
+
+  /* E: durum çubuğu */
+  .status { display: flex; align-items: center; gap: 14px; padding: 5px 12px; background: var(--card); border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); font-weight: 600; }
+  .status .sp { flex: 1; }
+  .status b { color: var(--partial); }
+
+  /* --- D: sağ panel --- */
+  .side { width: 340px; flex: none; display: flex; flex-direction: column; background: var(--card); border-left: 1px solid var(--line); }
+  .side__tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 6px; background: var(--line-soft); }
+  .side__tabs button { padding: 6px 2px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer; }
+  .side__tabs button[aria-selected="true"] { background: var(--card); color: var(--brand); }
+  .side__body { flex: 1; overflow-y: auto; padding: 12px; display: grid; gap: 10px; align-content: start; }
+  .panel { display: none; }
+  .panel.is-on { display: grid; gap: 10px; }
+
+  .card { padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); display: grid; gap: 7px; }
+  .card--ev { border-left: 3px solid var(--ok); }
+  .card--warn { border-left: 3px solid var(--partial); }
+  .card h4 { margin: 0; font-size: 12.5px; }
+  .card p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.55; }
+  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 800; }
+  .pill--ok { background: #dcfce7; color: var(--ok); }
+  .pill--partial { background: #fef3c7; color: var(--partial); }
+  .pill--bad { background: #fee2e2; color: var(--bad); }
+  .passage { padding: 8px 10px; border-left: 2px solid var(--line); background: #fafbfc; font-size: 11.5px; color: var(--muted); line-height: 1.6; }
+  .passage mark { background: #fde68a; color: var(--ink); }
+  .act { display: flex; gap: 6px; flex-wrap: wrap; }
+  .act button { padding: 5px 10px; border: 1px solid var(--brand); border-radius: 7px; background: var(--brand-soft); color: var(--brand); font-size: 11px; font-weight: 700; cursor: pointer; }
+  .act button:hover { background: var(--brand); color: #fff; }
+  .act button.ghost { border-color: var(--line); background: var(--card); color: var(--muted); }
+  .hint { margin: 0; font-size: 11px; color: var(--muted); }
+  .tpl { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-size: 12px; }
+  .tpl:hover { border-color: var(--brand); background: var(--brand-soft); }
+  .tpl.is-on { border-color: var(--brand); background: var(--brand-soft); font-weight: 700; }
+  .tpl i { font-style: normal; font-size: 16px; }
+
+  /* analiz çekmecesi */
+  .drawer {
+    position: fixed; left: 56px; right: 0; bottom: 0; height: 56%;
+    display: none; flex-direction: column;
+    background: var(--card); border-top: 2px solid var(--brand);
+    box-shadow: 0 -12px 40px -22px rgba(15,23,42,.5); z-index: 40;
+  }
+  .drawer.is-on { display: flex; }
+  .drawer__head { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--line); }
+  .drawer__head strong { font-size: 13px; }
+  .drawer__tabs { display: flex; gap: 2px; margin-left: 10px; }
+  .drawer__tabs button { padding: 5px 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
+  .drawer__tabs button[aria-selected="true"] { color: var(--brand); border-bottom-color: var(--brand); }
+  .drawer__body { flex: 1; overflow: auto; padding: 14px; display: grid; grid-template-columns: 240px 1fr 300px; gap: 14px; }
+  .dpanel { border: 1px solid var(--line); border-radius: 10px; padding: 11px; display: grid; gap: 8px; align-content: start; }
+  .dpanel h4 { margin: 0; font-size: 12px; }
+  .dpanel label { font-size: 11px; color: var(--muted); font-weight: 700; display: grid; gap: 3px; }
+  .grid-mini { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .grid-mini th, .grid-mini td { border: 1px solid var(--line); padding: 3px 6px; text-align: left; }
+  .grid-mini th { background: var(--line-soft); }
+  .apa { padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fafbfc; font-size: 12px; line-height: 1.6; }
+  .apa em { font-style: italic; }
+  .assume { font-size: 11px; color: var(--muted); display: grid; gap: 3px; }
+  .chartbox { height: 130px; border: 1px dashed var(--line); border-radius: 8px; display: grid; place-items: center; color: var(--none); font-size: 11px; }
+
+  .note { padding: 8px 10px; border: 1px dashed var(--line); border-radius: 8px; font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- A: sol ray -->
+  <nav class="rail" aria-label="Ana gezinme">
+    <div class="rail__logo">⚡</div>
+    <button aria-current="true" title="Yazar">✎</button>
+    <button title="Literatür (araştırmaya dön)" onclick="alert('Araştırma sayfasına döner; sonuçlar ve filtreler korunur.')">📖</button>
+    <button title="Koleksiyonlar">🗂</button>
+    <button title="Notlar">📝</button>
+    <button title="Analizler" onclick="toggleDrawer(true)">📊</button>
+    <div class="rail__spacer"></div>
+    <button title="Ayarlar">⚙</button>
+    <button title="Yardım">?</button>
+    <button title="Profil">👤</button>
+  </nav>
+
+  <!-- B: belge gezgini -->
+  <aside class="nav" aria-label="Belge gezgini">
+    <div class="nav__head"><span>Belge gezgini</span><span style="color:var(--muted);cursor:pointer" title="Paneli katla">⟨</span></div>
+    <div class="nav__tabs" role="tablist">
+      <button role="tab" aria-selected="true" onclick="navTab('sections',this)">Bölümler</button>
+      <button role="tab" aria-selected="false" onclick="navTab('sources',this)">Kaynak</button>
+      <button role="tab" aria-selected="false" onclick="navTab('figures',this)">Şekil</button>
+      <button role="tab" aria-selected="false" onclick="navTab('notes',this)">Not</button>
+    </div>
+    <div class="nav__search"><input placeholder="Başlık ya da kaynak ara…" /></div>
+
+    <div class="nav__body">
+      <div id="nav-sections">
+        <div class="tree-item"><span class="dot dot--ok"></span>1. Giriş<span class="count">820</span></div>
+        <div class="tree-item is-active"><span class="dot dot--partial"></span>2. Literatür Taraması<span class="count">1.240</span></div>
+        <div class="tree-item tree-item--sub is-active"><span class="dot dot--ok"></span>2.1 Pasif Güvenlik<span class="count">610</span></div>
+        <div class="tree-item tree-item--sub"><span class="dot dot--none"></span>2.2 Isıl Dolaşım<span class="count">0</span></div>
+        <div class="tree-item"><span class="dot dot--none"></span>3. Yöntem<span class="count">0</span></div>
+        <div class="tree-item"><span class="dot dot--none"></span>4. Bulgular<span class="count">0</span></div>
+        <div class="tree-item"><span class="dot dot--bad"></span>5. Tartışma<span class="count">180</span></div>
+        <div class="tree-item"><span class="dot dot--none"></span>6. Sonuç<span class="count">0</span></div>
+        <div class="tree-item"><span class="dot dot--ok"></span>Kaynakça<span class="count">28</span></div>
+
+        <div class="nav__stats">
+          <div class="row"><span>Hedef: 12 / 16 sayfa</span><span style="color:var(--brand)">%72</span></div>
+          <div class="bar"><i></i></div>
+          <div class="row"><span>Okuma ~18 dk</span><span>Atıf 28</span></div>
+          <div class="row" style="margin-top:4px"><span>Kaynaksız cümle</span><span style="color:var(--partial)">3 / 14</span></div>
+        </div>
+      </div>
+
+      <div id="nav-sources" hidden>
+        <div class="src-item"><strong>Chen et al. (2021)</strong><small>NuScale pasif dolaşım · RELAP5</small><span><span class="tag tag--used">kullanıldı 2×</span></span></div>
+        <div class="src-item"><strong>Santoso &amp; Lee (2022)</strong><small>SMART · CFD OpenFOAM</small><span><span class="tag tag--used">kullanıldı 1×</span></span></div>
+        <div class="src-item"><strong>Demirtaş (2023)</strong><small>BWRX-300 · deneysel döngü</small><span><span class="tag tag--unused">kullanılmadı</span></span></div>
+        <div class="src-item"><strong>Kowalski (2019)</strong><small>Termosifon kararsızlığı</small><span><span class="tag tag--bad">geri çekilmiş</span></span></div>
+        <p class="hint" style="padding:8px">6 kaynak hiç kullanılmadı.</p>
+      </div>
+
+      <div id="nav-figures" hidden>
+        <div class="src-item"><strong>Tablo 1</strong><small>SMR pasif soğutma karşılaştırması · 4 kaynaktan</small></div>
+        <div class="src-item"><strong>Şekil 1</strong><small>Pasif artık ısı döngüsü · kavram haritası</small></div>
+        <div class="src-item"><strong>Şekil 2</strong><small>Kutu grafiği · bağımsız t testi</small></div>
+      </div>
+
+      <div id="nav-notes" hidden>
+        <div class="src-item"><strong>Danışman notu</strong><small>2.2'de iki fazlı rejimi mutlaka aç</small></div>
+        <div class="src-item"><strong>Kendi notum</strong><small>Demirtaş'ın ölçek katsayısı tartışmaya girsin</small></div>
+      </div>
+    </div>
+
+    <div class="nav__foot"><button class="btn-dashed">+ Bölüm ekle</button></div>
+  </aside>
+
+  <!-- C: merkez -->
+  <div class="center">
+
+    <div class="filebar">
+      <button class="back" onclick="alert('Araştırma sayfası aynen açılır: sonuçlar, filtreler ve kaydırma yerinde.')">← Literatüre dön</button>
+      <span class="filebar__name">📄 SMR Pasif Soğutma Sistemleri</span>
+      <span class="filebar__save">✓ 14:32'de kaydedildi</span>
+      <span style="color:var(--muted);cursor:pointer" title="Geri al">↶</span>
+      <span style="color:var(--muted);cursor:pointer" title="Yinele">↷</span>
+      <span style="color:var(--muted);cursor:pointer" title="Sürüm geçmişi">🕘</span>
+      <div class="filebar__menu"><span>Dosya</span><span>Düzenle</span><span>Ekle</span><span>Biçim</span><span>Araçlar</span></div>
+      <div class="filebar__right">
+        <button class="btn" title="Bul ve değiştir">🔍</button>
+        <button class="btn">Paylaş</button>
+        <button class="btn btn--primary">⬇ Dışa aktar ▾</button>
+        <button class="btn" title="Odak kipi">⛶</button>
+      </div>
+    </div>
+
+    <div class="ribbon-tabs" role="tablist">
+      <button role="tab" aria-selected="true" onclick="ribTab('home',this)">Giriş</button>
+      <button role="tab" aria-selected="false" onclick="ribTab('insert',this)">Ekle</button>
+      <button role="tab" aria-selected="false" onclick="ribTab('layout',this)">Düzen</button>
+      <button role="tab" aria-selected="false" onclick="ribTab('refs',this)">Başvurular</button>
+      <button role="tab" aria-selected="false" onclick="ribTab('review',this)">Gözden geçir</button>
+    </div>
+
+    <div class="ribbon is-on" id="rib-home">
+      <div class="grp">
+        <button class="tool" title="Yapıştır (düz metin)">📋</button>
+        <button class="tool" title="Biçim fırçası">🖌</button>
+      </div>
+      <div class="grp">
+        <select class="sel" style="width:132px"><option>Times New Roman</option><option>Georgia</option><option>Cambria</option><option>Arial</option></select>
+        <select class="sel" style="width:56px"><option>12</option><option>11</option><option>14</option></select>
+        <button class="tool" title="Punto büyüt">A⁺</button>
+        <button class="tool" title="Punto küçült">A⁻</button>
+        <button class="tool" title="Kalın"><b>B</b></button>
+        <button class="tool is-on" title="İtalik"><i>I</i></button>
+        <button class="tool" title="Altı çizili"><u>U</u></button>
+        <button class="tool" title="Üstü çizili"><s>S</s></button>
+        <button class="tool" title="Üst simge">x²</button>
+        <button class="tool" title="Alt simge">x₂</button>
+        <button class="tool" title="Metin rengi" style="border-bottom:3px solid var(--brand)">A</button>
+        <button class="tool" title="Vurgulayıcı" style="border-bottom:3px solid #fde68a">🖍</button>
+        <button class="tool" title="Biçimi temizle">⌫</button>
+      </div>
+      <div class="grp">
+        <select class="sel" style="width:118px"><option>Gövde metni</option><option>Başlık 1</option><option selected>Başlık 2</option><option>Başlık 3</option><option>Alıntı</option><option>Şekil altyazısı</option></select>
+        <button class="tool is-on" title="Sola hizala">⬅</button>
+        <button class="tool" title="Ortala">↔</button>
+        <button class="tool" title="Sağa hizala">➡</button>
+        <button class="tool" title="İki yana yasla">☰</button>
+        <button class="tool" title="Madde listesi">•≡</button>
+        <button class="tool" title="Numaralı liste">1≡</button>
+        <button class="tool" title="Girinti azalt">⇤</button>
+        <button class="tool" title="Girinti artır">⇥</button>
+        <select class="sel" style="width:62px" title="Satır aralığı"><option>1,5</option><option>1</option><option>2</option></select>
+      </div>
+    </div>
+
+    <div class="ribbon" id="rib-insert">
+      <div class="grp">
+        <button class="tool" title="Tablo ekle">▦ <small>Tablo</small></button>
+        <button class="tool" title="Seçili kaynaklardan literatür matrisi">🧮 <small>Literatür matrisi</small></button>
+        <button class="tool" title="Görsel">🖼 <small>Görsel</small></button>
+        <button class="tool" title="Diyagram (Anla sekmesinden)">🕸 <small>Diyagram</small></button>
+        <button class="tool" title="Analiz sonucundan grafik">📈 <small>Grafik</small></button>
+      </div>
+      <div class="grp">
+        <button class="tool" title="LaTeX denklemi">∑ <small>Denklem</small></button>
+        <button class="tool" title="Sembol">Ω</button>
+        <button class="tool" title="Metin içi atıf">❝ <small>Atıf</small></button>
+        <button class="tool" title="Dipnot">¹ <small>Dipnot</small></button>
+        <button class="tool" title="Çapraz başvuru">🔗 <small>Çapraz başvuru</small></button>
+      </div>
+      <div class="grp">
+        <button class="tool" title="Sayfa sonu">⤓ <small>Sayfa sonu</small></button>
+        <button class="tool" title="Üst/alt bilgi">▭ <small>Üst bilgi</small></button>
+        <button class="tool" title="İçindekiler">≡ <small>İçindekiler</small></button>
+      </div>
+    </div>
+
+    <div class="ribbon" id="rib-layout">
+      <div class="grp">
+        <select class="sel"><option>A4</option><option>Letter</option><option>A5</option></select>
+        <select class="sel"><option>Dikey</option><option>Yatay</option></select>
+        <select class="sel"><option>Normal kenar (2,5 cm)</option><option>Dar (1,27)</option><option>Geniş (3,8)</option></select>
+        <select class="sel"><option>Tek sütun</option><option>İki sütun</option></select>
+      </div>
+      <div class="grp">
+        <button class="tool" title="Satır numaraları">№ <small>Satır no</small></button>
+        <button class="tool" title="Filigran">💧 <small>Filigran</small></button>
+      </div>
+    </div>
+
+    <div class="ribbon" id="rib-refs">
+      <div class="grp">
+        <select class="sel" style="width:120px"><option>APA 7</option><option>IEEE</option><option>Vancouver</option><option>Chicago</option><option>MLA</option></select>
+        <button class="tool" title="Kaynakçayı güncelle">≣ <small>Kaynakça</small></button>
+        <button class="tool" title="Kaynakça denetimi">✔ <small>Kaynakça denetimi</small></button>
+        <button class="tool" title="Blok alıntı">❞ <small>Alıntı</small></button>
+      </div>
+    </div>
+
+    <div class="ribbon" id="rib-review">
+      <div class="grp">
+        <button class="tool" title="Yazım denetimi">abc <small>Yazım</small></button>
+        <button class="tool" title="Kaynaksız cümle taraması">⚪ <small>Kaynaksız cümleler</small></button>
+        <button class="tool" title="Hakem gözüyle">⚖ <small>Hakem ne der</small></button>
+        <button class="tool" title="Okunabilirlik">📏 <small>Okunabilirlik</small></button>
+        <button class="tool" title="Yorumlar">💬 <small>Yorum</small></button>
+        <button class="tool" title="Sürüm karşılaştır">⇄ <small>Karşılaştır</small></button>
+      </div>
+    </div>
+
+    <!-- cetvel -->
+    <div class="ruler" aria-hidden="true">
+      <div class="ruler__in" id="ruler">
+        <div class="ruler__margin"></div>
+        <div class="ruler__margin ruler__margin--r"></div>
+        <div class="ruler__handle ruler__handle--first" style="left:82px" title="İlk satır girintisi"></div>
+        <div class="ruler__handle ruler__handle--hang" style="left:82px" title="Asılı girinti"></div>
+      </div>
+    </div>
+
+    <!-- sayfa -->
+    <div class="desk">
+      <div class="page">
+        <h1>Küçük Modüler Reaktörlerde Pasif Güvenlik ve Doğal Isıl Dolaşım</h1>
+        <p class="byline">A. Yılmaz · Enerji Sistemleri Mühendisliği · TASLAK</p>
+
+        <h2>2. Literatür Taraması</h2>
+
+        <span class="sent sent--ok">Küçük modüler reaktörlerin lisanslama süreçlerinde en kritik avantajı, harici güce ihtiyaç duymadan artık ısıyı uzaklaştırabilen pasif güvenlik sistemleridir <span class="cite">(IAEA, 2022)</span>.</span>
+
+        <span class="sent sent--ok">Zorlanmış dolaşım pompaları devre dışı kaldığında, yoğunluk farkına dayalı doğal dolaşım devreleri bir güvenlik tamponu oluşturmaktadır <span class="cite">(Chen vd., 2021)</span>.</span>
+
+        <div style="position:relative">
+          <div class="float">
+            <button title="Biçim">Aa</button>
+            <button title="Bu cümleyi kanıta karşı kontrol et">Doğrula</button>
+            <button title="En güçlü hakem itirazı">Hakem ne der</button>
+            <button title="Diyagrama çevir">Görselleştir</button>
+            <button title="Not ekle">Not</button>
+          </div>
+          <span class="sent sent--partial sent--sel">Düşük basınçlı rejimlerde yoğunluk dalgası salınımları doğal dolaşım verimini düşürmekte ve çekirdek güvenliğini sınırlandırmaktadır <span class="cite">(Santoso &amp; Lee, 2022)</span>.</span>
+        </div>
+
+        <span class="sent sent--none">Bu nedenle simülasyon modellerinde tek fazlı ve iki fazlı rejim geçişleri kesin doğrulukla modellenmelidir.</span>
+
+        <table class="lit">
+          <thead><tr><th>Yazar &amp; Yıl</th><th>Reaktör</th><th>Yöntem</th><th>Verim</th><th>Sınırlılık</th></tr></thead>
+          <tbody>
+            <tr><td>Chen vd. (2021)</td><td>NuScale</td><td>RELAP5/3D</td><td>%94,2</td><td>Geçiş rejimleri modellenmedi</td></tr>
+            <tr><td>Santoso &amp; Lee (2022)</td><td>SMART</td><td>CFD</td><td>%88,5</td><td>Isıl tabakalaşma ihmal edildi</td></tr>
+            <tr><td>Demirtaş (2023)</td><td>BWRX-300</td><td>Deneysel</td><td>%81,0</td><td>Ölçek 1:15</td></tr>
+          </tbody>
+        </table>
+        <p class="figure__cap" style="text-align:left"><b>Tablo 1.</b> Pasif soğutma sistemlerinin karşılaştırması. Her hücre bir kaynak pasajına bağlıdır.</p>
+
+        <div class="figure">
+          <div class="figure__head"><span>KAVRAM HARİTASI · Anla sekmesinden eklendi</span><span>✎ düzenle · ⬇ SVG</span></div>
+          <div class="flow">
+            <div class="flow__box">Reaktör çekirdeği<br><span style="font-weight:500;color:var(--muted)">artık ısı</span></div>
+            <div class="flow__arrow">→</div>
+            <div class="flow__box" style="border-color:var(--brand);background:var(--brand-soft);color:var(--brand)">Doğal dolaşım<br><span style="font-weight:500">termosifon</span></div>
+            <div class="flow__arrow">→</div>
+            <div class="flow__box">Isı yutağı<br><span style="font-weight:500;color:var(--muted)">havuz</span></div>
+          </div>
+          <p class="figure__cap"><b>Şekil 1.</b> Pasif artık ısı döngüsü.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="status">
+      <span>Sayfa 4 / 12</span><span>4.820 kelime</span><span>14 cümle</span>
+      <span>Kaynaksız: <b>3</b></span><span>Atıf: 28</span><span>~18 dk</span>
+      <span class="sp"></span>
+      <span>✓ Kaydedildi</span><span>Türkçe</span><span>− 100% +</span>
+    </div>
+  </div>
+
+  <!-- D: sağ panel -->
+  <aside class="side" aria-label="Yardımcı panel">
+    <div class="side__tabs" role="tablist">
+      <button role="tab" aria-selected="false" onclick="sideTab('src',this)">Kaynak</button>
+      <button role="tab" aria-selected="true" onclick="sideTab('ev',this)">Kanıt</button>
+      <button role="tab" aria-selected="false" onclick="sideTab('learn',this)">Anla</button>
+      <button role="tab" aria-selected="false" onclick="sideTab('an',this)">Analiz</button>
+      <button role="tab" aria-selected="false" onclick="sideTab('tpl',this)">Şablon</button>
+    </div>
+
+    <div class="side__body">
+
+      <!-- Kanıt -->
+      <div class="panel is-on" id="p-ev">
+        <p class="hint">İmlecin bulunduğu cümlenin kanıtı.</p>
+        <div class="card card--warn">
+          <span class="pill pill--partial">● Kısmi destek</span>
+          <h4>Santoso &amp; Lee (2022)</h4>
+          <div class="passage">“Under low-pressure regimes, <mark>density wave oscillations reduced natural circulation efficiency by up to 11%</mark> in the scaled SMART test loop.”</div>
+          <p><b>Kapsam farkı:</b> iddia genel, pasaj tek bir ölçekli deney döngüsüne ait.</p>
+          <div class="act">
+            <button>Metne ekle</button>
+            <button class="ghost">Hakem ne der</button>
+            <button class="ghost">Başka kanıt ara</button>
+          </div>
+        </div>
+        <div class="card card--ev">
+          <span class="pill pill--ok">● Destekliyor</span>
+          <h4>Chen vd. (2021)</h4>
+          <div class="passage">“<mark>Passive decay heat removal was maintained for 72 hours without AC power</mark> in the NuScale integral model.”</div>
+          <div class="act"><button>Metne ekle</button><button class="ghost">Pasajın tamamı</button></div>
+        </div>
+        <div class="card">
+          <span class="pill pill--bad">● Geri çekilmiş kaynak</span>
+          <h4>Kowalski (2019)</h4>
+          <p>Bu kaynak Retraction Watch'ta geri çekilmiş görünüyor; 5. bölümde atıfı var.</p>
+          <div class="act"><button class="ghost">Atıfı bul</button></div>
+        </div>
+      </div>
+
+      <!-- Kaynak -->
+      <div class="panel" id="p-src">
+        <div class="card">
+          <h4>Chen, L., Park, J. (2021)</h4>
+          <p>Passive decay heat removal in integral SMR designs · <i>Nuclear Engineering and Design</i> · 142 atıf · Açık erişim · DOAJ ✓</p>
+          <div class="act">
+            <button>❝ Atıflı cümle üret</button>
+            <button class="ghost">Metin içi atıf</button>
+            <button class="ghost">PDF</button>
+            <button class="ghost">Not ekle</button>
+          </div>
+        </div>
+        <div class="card">
+          <h4>Üretilen cümle <span class="pill pill--ok">pasaja bağlı</span></h4>
+          <p style="color:var(--ink)">Bütünleşik küçük modüler reaktör tasarımlarında artık ısının elektrik gücü olmadan uzaklaştırılabildiği gösterilmiştir <b class="cite">(Chen vd., 2021)</b>.</p>
+          <div class="passage">Kaynak pasajı: “Passive decay heat removal was maintained for 72 hours without AC power…”</div>
+          <p style="font-size:11px">Pasaj makalenin özetinden; tam metin okunmadı.</p>
+          <div class="act"><button>Metne ekle</button><button class="ghost">Yeniden üret</button></div>
+        </div>
+        <p class="hint">100 kaynağa kadar sepette tutulur. Seçilmeyen kaynak üretime gönderilmez.</p>
+      </div>
+
+      <!-- Anla -->
+      <div class="panel" id="p-learn">
+        <p class="hint">Seçili metin: 46 kelime. Üç şablon hazır.</p>
+        <div class="tpl is-on"><i>🕸</i><div><b>Kavram haritası</b><br><small style="color:var(--muted)">6 kavram, 5 ilişki</small></div></div>
+        <div class="tpl"><i>➡</i><div><b>Akış şeması</b><br><small style="color:var(--muted)">4 adımlı süreç</small></div></div>
+        <div class="tpl"><i>▦</i><div><b>Karşılaştırma matrisi</b><br><small style="color:var(--muted)">3 makale × 5 boyut</small></div></div>
+        <div class="act"><button>Belgeye ekle</button><button class="ghost">Düzenle</button><button class="ghost">SVG indir</button></div>
+
+        <div class="card">
+          <h4>Kendi cümlenle anlat</h4>
+          <p>Bu bölümü kendi cümlelerinle yaz; her cümleni kaynak pasajlarına karşı kontrol edeyim.</p>
+          <div class="act"><button>Başla</button></div>
+        </div>
+        <div class="card">
+          <h4>Hatırlama kartları</h4>
+          <p>Seçili pasajlardan 8 soru–cevap kartı. Cevaplar birebir pasajdır.</p>
+          <div class="act"><button class="ghost">Kartları oluştur</button></div>
+        </div>
+      </div>
+
+      <!-- Analiz -->
+      <div class="panel" id="p-an">
+        <div class="card">
+          <h4>Son analiz</h4>
+          <p>Bağımsız örneklem t testi · Grup A (n=25) / Grup B (n=25)</p>
+          <div class="apa">İki grup arasında anlamlı fark bulunmuştur, <em>t</em>(48) = 2,41, <em>p</em> = ,020, <em>d</em> = 0,68.</div>
+          <div class="act"><button>Cümleyi ekle</button><button class="ghost">Tabloyu ekle</button><button class="ghost">Grafiği ekle</button></div>
+        </div>
+        <div class="act"><button onclick="toggleDrawer(true)">Tam paneli aç</button></div>
+        <p class="hint">Veri tarayıcıdan çıkmaz; hesap cihazında yapılır.</p>
+      </div>
+
+      <!-- Şablon -->
+      <div class="panel" id="p-tpl">
+        <p class="hint">Aktif şablon: <b>Araştırma makalesi (IMRaD)</b></p>
+        <div class="card">
+          <h4>2. Literatür Taraması — rehber</h4>
+          <p>Alandaki mevcut bilgiyi ve <b>boşluğu</b> göster. Derleme makalesi uygundur; ampirik iddia için birincil kaynak gerekir. Hedef: 1.200–1.600 kelime.</p>
+        </div>
+        <p class="hint">Şablon değiştir:</p>
+        <div class="tpl is-on"><i>📄</i> Araştırma makalesi (IMRaD)</div>
+        <div class="tpl"><i>🎓</i> Tez (YÖK biçimi)</div>
+        <div class="tpl"><i>📚</i> Derleme makalesi</div>
+        <div class="tpl"><i>🔎</i> Sistematik derleme (PRISMA)</div>
+        <div class="tpl"><i>🧪</i> Proje önerisi (TÜBİTAK)</div>
+        <div class="tpl"><i>🗣</i> Konferans bildirisi</div>
+      </div>
+
+    </div>
+  </aside>
+</div>
+
+<!-- Analiz çekmecesi -->
+<div class="drawer" id="drawer">
+  <div class="drawer__head">
+    <strong>📊 Analiz</strong>
+    <div class="drawer__tabs">
+      <button aria-selected="false">Veri</button>
+      <button aria-selected="false">Değişkenler</button>
+      <button aria-selected="true">Yöntem ve sonuç</button>
+      <button aria-selected="false">Geçmiş</button>
+    </div>
+    <span style="margin-left:auto"></span>
+    <button class="btn" onclick="toggleDrawer(false)">Kapat</button>
+  </div>
+
+  <div class="drawer__body">
+    <div class="dpanel">
+      <h4>Yöntem</h4>
+      <label>Aile
+        <select class="sel"><option>İki grup karşılaştırma</option><option>Çok grup (ANOVA)</option><option>İlişki</option><option>Kategorik</option><option>Regresyon</option><option>Güvenilirlik</option></select>
+      </label>
+      <label>Test
+        <select class="sel"><option selected>Bağımsız örneklem t testi</option><option>Welch t</option><option>Mann–Whitney U</option><option>Eşleştirilmiş t</option></select>
+      </label>
+      <label>Bağımlı değişken
+        <select class="sel"><option>Pasif akış verimi</option></select>
+      </label>
+      <label>Gruplama değişkeni
+        <select class="sel"><option>Tasarım tipi</option></select>
+      </label>
+      <div class="note">Hangi testi kullanacağına emin değilsen <b>karar ağacı</b> aday testleri ve gerekçelerini listeler — tek bir test önermez. Kararı sen verirsin.</div>
+      <button class="btn btn--primary">Hesapla</button>
+    </div>
+
+    <div class="dpanel">
+      <h4>Veri</h4>
+      <table class="grid-mini">
+        <thead><tr><th>#</th><th>Tasarım</th><th>Verim</th><th>Kot farkı</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Entegre</td><td>94,2</td><td>8,4</td></tr>
+          <tr><td>2</td><td>Döngülü</td><td>88,5</td><td>6,1</td></tr>
+          <tr><td>3</td><td>Entegre</td><td>96,8</td><td>9,2</td></tr>
+          <tr><td>4</td><td>Döngülü</td><td>81,0</td><td>5,3</td></tr>
+          <tr><td>…</td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <div class="act"><button class="ghost">Excel'den yapıştır</button><button class="ghost">CSV yükle</button><button class="ghost">Belgedeki tablodan al</button></div>
+    </div>
+
+    <div class="dpanel">
+      <h4>Sonuç</h4>
+      <div class="assume">
+        <div>✓ Shapiro–Wilk: <b>p = ,214</b> → normallik sağlanıyor</div>
+        <div>✓ Levene: <b>p = ,402</b> → varyanslar homojen</div>
+        <div style="color:var(--partial)">! n = 25 — güç analizi önerilir</div>
+      </div>
+      <div class="apa">Entegre tasarımların pasif akış verimi (<em>M</em> = 95,5; <em>SS</em> = 1,8), döngülü tasarımlardan (<em>M</em> = 84,8; <em>SS</em> = 5,3) anlamlı biçimde yüksektir, <em>t</em>(48) = 2,41, <em>p</em> = ,020, <em>d</em> = 0,68.</div>
+      <div class="chartbox">Kutu grafiği önizlemesi</div>
+      <div class="act">
+        <button>Cümleyi ekle</button>
+        <button class="ghost">APA tablosu ekle</button>
+        <button class="ghost">Grafiği ekle</button>
+        <button class="ghost">Yöntem metni</button>
+      </div>
+      <p class="hint">Eklenen her öğe imlecin bulunduğu yere girer ve denetim izine kaydedilir.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  function swap(ids, on, el) {
+    ids.forEach((id) => { document.getElementById(id).hidden = true; });
+    document.getElementById(on).hidden = false;
+    [...el.parentElement.children].forEach((b) => b.setAttribute('aria-selected', String(b === el)));
+  }
+  function navTab(name, el) {
+    swap(['nav-sections', 'nav-sources', 'nav-figures', 'nav-notes'], 'nav-' + name, el);
+  }
+  function ribTab(name, el) {
+    ['home', 'insert', 'layout', 'refs', 'review'].forEach((k) => document.getElementById('rib-' + k).classList.toggle('is-on', k === name));
+    [...el.parentElement.children].forEach((b) => b.setAttribute('aria-selected', String(b === el)));
+  }
+  function sideTab(name, el) {
+    ['src', 'ev', 'learn', 'an', 'tpl'].forEach((k) => document.getElementById('p-' + k).classList.toggle('is-on', k === name));
+    [...el.parentElement.children].forEach((b) => b.setAttribute('aria-selected', String(b === el)));
+  }
+  function toggleDrawer(on) { document.getElementById('drawer').classList.toggle('is-on', on); }
+
+  // Cetvel çizgileri: her cm rakam, her 0,5 cm kısa çizgi. 760 px ≈ 21 cm (A4).
+  (function ruler() {
+    const el = document.getElementById('ruler');
+    const pxPerCm = 760 / 21;
+    for (let i = 0; i <= 21; i += 1) {
+      const t = document.createElement('span');
+      t.className = 'ruler__tick';
+      t.style.left = (i * pxPerCm) + 'px';
+      t.textContent = i;
+      el.appendChild(t);
+      if (i < 21) {
+        const m = document.createElement('span');
+        m.className = 'ruler__minor';
+        m.style.left = ((i + 0.5) * pxPerCm) + 'px';
+        el.appendChild(m);
+      }
+    }
+  })();
+</script>
+</body>
+</html>
