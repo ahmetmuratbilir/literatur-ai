@@ -9,16 +9,22 @@
 /** Metin içi atıf işareti: (Yılmaz, 2021), (Chen & Wang, 2021), [14] */
 const CITATION = /\([^)]*\b(1[5-9]|20)\d{2}\b[^)]*\)|\[\d+(?:\s*[,-]\s*\d+)*\]/;
 
+// Türkçe harfler sadeleştirilir: kullanıcı "bölümde" de yazabilir "bolumde"
+// de. Aynı tutarsızlık ORCID aramasında da çıkmıştı (CLAUDE.md 3.10).
+const TR_FOLD = { ı: 'i', İ: 'i', ş: 's', Ş: 's', ğ: 'g', Ğ: 'g', ü: 'u', Ü: 'u', ö: 'o', Ö: 'o', ç: 'c', Ç: 'c' };
+const fold = (s) => String(s).replace(/[ıİşŞğĞüÜöÖçÇ]/g, (c) => TR_FOLD[c]).toLocaleLowerCase('en');
+
 // Bölüm geçişi ve kendi çalışmasını anlatan kalıplar: kaynak gerektirmez.
+// Kalıplar sadeleştirilmiş yazılır, girdi de sadeleştirilerek karşılaştırılır.
 const TRANSITION = new RegExp([
-  '^bu (bölümde|çalışmada|tezde|makalede|kısımda|başlık altında)',
+  '^bu (bolumde|calismada|tezde|makalede|kisimda|baslik altinda)',
   '^(ilk|son) olarak',
-  '^(aşağıda|yukarıda|izleyen|takip eden)',
-  '^(şekil|tablo|çizelge|denklem|ek)\\s*\\d',
-  '^(bkz|örneğin|ayrıca bkz)',
+  '^(asagida|yukarida|izleyen|takip eden)',
+  '^(sekil|tablo|cizelge|denklem|ek)\\s*\\d',
+  '^(bkz|ornegin|ayrica bkz)',
   '^in this (section|study|paper|chapter)',
   '^(figure|table|equation)\\s*\\d',
-].join('|'), 'i');
+].join('|'));
 
 export const MARK = {
   cited: 'cited',
@@ -34,9 +40,11 @@ export function classifySentence(text) {
   if (s.length < 2) return { mark: MARK.notClaim, reason: 'empty' };
   if (CITATION.test(s)) return { mark: MARK.cited, reason: 'citation' };
   if (s.endsWith('?')) return { mark: MARK.notClaim, reason: 'question' };
+  // Geçiş kontrolü uzunluktan önce: "Şekil 2 akışı göstermektedir" dört
+  // kelimedir, ama kullanıcıya "kısa" değil "şekil göndermesi" demek gerekir.
+  if (TRANSITION.test(fold(s))) return { mark: MARK.notClaim, reason: 'transition' };
   // Kısa cümle genelde başlık, etiket veya bağlaç; iddia taşımaz.
   if (words.length < 5) return { mark: MARK.notClaim, reason: 'short' };
-  if (TRANSITION.test(s)) return { mark: MARK.notClaim, reason: 'transition' };
 
   // Kalanlar: iddia olabilir de olmayabilir de. 1. kademe karar veremez.
   return { mark: MARK.uncited, reason: 'undetermined' };

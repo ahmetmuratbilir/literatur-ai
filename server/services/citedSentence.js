@@ -60,6 +60,23 @@ export function inspectSentence(sentence) {
   return { ok: true, reason: '' };
 }
 
+/**
+ * İstek gövdesi. Blok sırası önbellek için sabit: statik talimat → yarı
+ * statik konu → pasaj (CLAUDE.md 3.4). Sağlayıcıya özel alanlar en sonda
+ * yayılır; DeepSeek'te thinking kapatılmazsa içerik boş döner (bkz. f95dd7a).
+ */
+export function buildRequestBody(provider, passage, topic = '') {
+  const user = `${topic ? `KULLANICININ KONUSU: ${String(topic).slice(0, 200)}\n\n` : ''}KAYNAK PASAJI:\n${wrapPassage(passage)}`;
+  return {
+    model: provider.model,
+    messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: user }],
+    temperature: 0.2,
+    max_tokens: 300,
+    response_format: { type: 'json_object' },
+    ...(provider.body || {}),
+  };
+}
+
 export async function generateCitedSentence({ passage, topic = '' }) {
   const clean = String(passage || '').trim();
   if (clean.length < 80) {
@@ -70,19 +87,10 @@ export async function generateCitedSentence({ passage, topic = '' }) {
   const provider = resolveChatProvider({ profile: 'quality' });
   if (!provider) throw new Error('Yapilandirilmis bir sohbet saglayicisi yok (AI_PROVIDERS).');
 
-  // Blok sırası önbellek için sabit: statik talimat → yarı statik konu → pasaj (3.4).
-  const user = `${topic ? `KULLANICININ KONUSU: ${String(topic).slice(0, 200)}\n\n` : ''}KAYNAK PASAJI:\n${wrapPassage(clean)}`;
-
   const response = await fetch(provider.url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${provider.key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: provider.model,
-      messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: user }],
-      temperature: 0.2,
-      max_tokens: 300,
-      response_format: { type: 'json_object' },
-    }),
+    body: JSON.stringify(buildRequestBody(provider, clean, topic)),
   });
   if (!response.ok) throw new Error(`AI saglayicisi hatasi (${response.status})`);
 
