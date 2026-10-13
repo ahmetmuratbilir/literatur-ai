@@ -45,6 +45,7 @@ Taslak → Hazır → Çalışıyor → Bitti
 
 | No | Başlık | Aşama | Durum |
 | --- | --- | --- | --- |
+| WO-000 | Kurtarma ve doğrulama: yerel işi dala alıp push et | P0 öncesi | **Bitti** (13.10.2026, `wo-design-recovery`) |
 | [WO-001](WO-001-denetim.md) | Salt okunur teknik ve ürün denetimi | P0 | Hazır |
 | [WO-002](WO-002-arastirmaci-paneli.md) | Araştırmacı paneli: arama kartından ayrı panel | P1 | Çalışıyor — istisna |
 | [WO-003](WO-003-calisma-alani-iskeleti.md) | Çalışma alanı iskeleti: belge editörü ve sayfa ayarları | P1 | Taslak — istisna |
@@ -52,6 +53,11 @@ Taslak → Hazır → Çalışıyor → Bitti
 Denetim bittikten sonra WO-002 ve sonrası, denetim raporundaki kritik sorun
 listesinden türetilir. Önceden yazılmaz — neyin bozuk olduğunu bilmeden iş
 emri yazmak, tahmine kapsam vermektir.
+
+**Numara çakışması — karar bekliyor.** 13.10.2026 tarihli mimari fark
+analizi WO-002'yi "belge yüzeyi + TipTap + çapa", WO-003'ü "kanıt paneli"
+olarak tanımlıyor. Bu numaralar burada başka işlere verilmiş. Numara yeniden
+kullanılmayacağı için o iki iş WO-004 ve WO-005 olmalı; onay bekliyor.
 
 **İstisnalar.** WO-002 (2026-10-10) ve WO-003 (2026-10-13) kullanıcı kararıyla
 denetimden önce açıldı. İstisna her zaman iş emrinin "Ön koşul" satırına
