@@ -1026,6 +1026,23 @@ button.wx-stat[aria-pressed="true"] { background: var(--wx-hover); color: var(--
 .wx-resume > svg { flex: none; color: var(--wx-muted); }
 .wx-resume > span { flex: 1; min-width: 0; }
 
+/* Sekmeler arası kilit ve depolama uyarısı (WO-011): kalıcı şerit, kapatılmaz. */
+.wx-sync {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px 7px 14px;
+  border-bottom: 1px solid var(--wx-line);
+  font-size: 12.5px;
+}
+.wx-sync > svg { flex: none; }
+.wx-sync > span { flex: 1; min-width: 0; }
+.wx-sync--lock { background: var(--wx-accent-soft); color: var(--wx-ink); }
+.wx-sync--lock > svg { color: var(--wx-accent); }
+.wx-sync--down { background: #fff7e6; border-bottom-color: #f5d48f; color: #7a4b00; }
+.wx-sync--down > svg { color: #b45309; }
+.wx-page[contenteditable="false"] { cursor: default; }
+
 .wx-scrim { display: none; }
 
 /* ---------- Kaynak dosyasından aktarma (Zotero / Mendeley) ---------- */

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   INDEX_KEY, LEGACY_KEY, createDraft, deleteDraft, duplicateDraft, loadIndex, readDraft,
   renameDraft, restoreDraft, setActive, wordsOf, writeDraft,
+  LOCK_TTL, lockHolder, lockKey, readLock, releaseLock, saveConflictCopy, saveDraft, writeLock,
 } from '../src/components/workspace/drafts.js';
 
 /** Bellek içi localStorage taklidi. */
@@ -108,4 +109,72 @@ test('bozuk dizin bos sayilir, cokmez', () => {
 test('kelime sayimi etiketleri ve varliklari saymaz', () => {
   assert.equal(wordsOf('<h1>Giriş</h1><p>Bir&nbsp;iki <b>üç</b></p>'), 4);
   assert.equal(wordsOf(''), 0);
+});
+
+// --- Sekmeler arası (WO-011 Faz 1 ek) ---
+
+test('surum denetimli kayit: ayni surumden yazar, araya yazilmissa yazmaz', () => {
+  const storage = memoryStorage();
+  const id = createDraft(storage, { html: '<p>Ortak</p>', title: 'T' }, clock());
+  // İki sekme de rev 0'dan (eski kayıt) başlar.
+  const a = saveDraft(storage, id, { html: '<p>Ortak AAA</p>', title: 'T' }, { baseRev: 0 });
+  assert.equal(a.rev, 1);
+  const b = saveDraft(storage, id, { html: '<p>Ortak BBB</p>', title: 'T' }, { baseRev: 0 });
+  assert.equal(b.conflict, true);
+  assert.equal(b.stored.html, '<p>Ortak AAA</p>');
+  assert.equal(readDraft(storage, id).html, '<p>Ortak AAA</p>', 'A ezilmedi');
+  const a2 = saveDraft(storage, id, { html: '<p>Ortak AAA 2</p>', title: 'T' }, { baseRev: 1 });
+  assert.equal(a2.rev, 2);
+});
+
+test('baska sekmede silinen taslak kaydedilirse metin kaybolmaz', () => {
+  const storage = memoryStorage();
+  const id = createDraft(storage, { html: '<p>x</p>', title: 'Silinen' }, clock());
+  deleteDraft(storage, id);
+  const res = saveDraft(storage, id, { html: '<p>x y</p>', title: 'Silinen' }, { baseRev: 3 });
+  assert.equal(res.rev, 4);
+  assert.equal(readDraft(storage, id).html, '<p>x y</p>');
+  assert.ok(loadIndex(storage).items.some((d) => d.id === id));
+});
+
+test('cakisma kopyasi ayri taslak olur, etkin taslak degismez', () => {
+  const storage = memoryStorage();
+  const id = createDraft(storage, { html: '<p>a</p>', title: 'Tez' }, clock());
+  const copyId = saveConflictCopy(storage, id, { html: '<p>benim</p>', title: 'Tez' }, clock());
+  assert.notEqual(copyId, id);
+  assert.equal(readDraft(storage, copyId).title, 'Tez (çakışma kopyası)');
+  assert.equal(readDraft(storage, copyId).html, '<p>benim</p>');
+  assert.equal(loadIndex(storage).activeId, id);
+});
+
+test('kilit: sahibi, baskasi, suresi dolmus; yalniz sahibi birakir', () => {
+  const storage = memoryStorage();
+  writeLock(storage, 'd1', 'tabA', 1000);
+  const lock = readLock(storage, 'd1');
+  assert.equal(lockHolder(lock, 'tabA', 2000), 'self');
+  assert.equal(lockHolder(lock, 'tabB', 2000), 'other');
+  assert.equal(lockHolder(lock, 'tabB', 1000 + LOCK_TTL), 'none');
+  assert.equal(lockHolder(null, 'tabB', 0), 'none');
+  releaseLock(storage, 'd1', 'tabB');
+  assert.ok(readLock(storage, 'd1'), 'başkasının kilidi bırakılmaz');
+  releaseLock(storage, 'd1', 'tabA');
+  assert.equal(readLock(storage, 'd1'), null);
+});
+
+test('yeniden adlandirma surumu artirir', () => {
+  const storage = memoryStorage();
+  const id = createDraft(storage, { html: '<p>a</p>', title: 'Eski' }, clock());
+  saveDraft(storage, id, { html: '<p>a</p>', title: 'Eski' }, { baseRev: 0 });
+  renameDraft(storage, id, 'Yeni');
+  assert.equal(readDraft(storage, id).rev, 2);
+  // Eski sürümden yazan sekme yeni adı ezmez.
+  assert.equal(saveDraft(storage, id, { html: '<p>a</p>', title: 'Eski' }, { baseRev: 1 }).conflict, true);
+});
+
+test('silinen taslagin kilidi de silinir', () => {
+  const storage = memoryStorage();
+  const id = createDraft(storage, { html: '<p>a</p>' }, clock());
+  writeLock(storage, id, 'tabA');
+  deleteDraft(storage, id);
+  assert.equal(storage.getItem(lockKey(id)), null);
 });
