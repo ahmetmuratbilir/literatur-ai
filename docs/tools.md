@@ -88,8 +88,46 @@ Sorgu genişletmede kullanılabilir.
 | --- | --- |
 | TipTap (ProseMirror) | Cümleye `claim_id` çapası gömmek için özel düğüm tanımlanabilen düzenleyici |
 | React Flow (`xyflow`) | Kavram haritası, düğüm-kenar grafiği |
-| `pingouin` / `statsmodels` | Analiz paneli motoru, APA biçiminde çıktı |
+| `pingouin` / `statsmodels` | APA çıktılı istatistik. **`pingouin` GPL-3.0** — aşağıdaki uyarıya bak |
 | `pyodide` | Analizi tarayıcıda çalıştırma — kullanıcı verisi sunucuya hiç gitmez |
 
 `jamovi` / `JASP`: AGPL. Arayüz fikrine bakmak serbest, kod almadan önce
 hukuki görüş al.
+
+**`pingouin` + `pyodide` birlikte kullanılmaz.** `pingouin` GPL-3.0
+(doğrulandı 2026-10-14: GitHub ve PyPI `GPL-3.0`, Fedora paketi
+`GPL-3.0-only`). Sunucuda GPL kütüphane çalıştırmak genelde dağıtım
+sayılmaz; ama `pyodide` ile tarayıcıya göndermek **dağıtımdır** ve copyleft
+o noktada devreye girer. Ücretli katmana giden bir üründe bu şimdiden
+bilinmeli. Hukuki görüş değil, doğrulanması gereken bir not.
+
+Bu yüzden WO-006 istatistiği kendi JS kodumuzda yazıyor ve yayımlanmış
+kütüphanenin yalnız **sayılarıyla** çapraz doğruluyor — AHP'de uygulanan
+kalıbın aynısı (`server/tests/ahpCrossValidation.test.js`).
+
+### Değerlendirilmiş, bugün alınmayanlar
+
+Hiçbiri kurulmadı; henüz var olmayan özellikler için aday olarak duruyor.
+Kurulum tüzük 1. bölüm 6. kural gereği ayrı onay ister.
+
+| Aday | Ne için | Not |
+| --- | --- | --- |
+| `@excalidraw/excalidraw` (MIT) | Araştırma haritası: içerikten ilk taslağı üretip kullanıcıya sürükletmek | `convertToExcalidrawElements` iskelet API'si kendi dokümanında hâlâ beta |
+| `cytoscape` (MIT) | Atıf ağı. OpenCitations verisiyle yüzlerce düğüm olur; React Flow elle dizilen 20–50 düğüm için | React Flow de kurulu değil, ikisi de aday |
+| `prosemirror-docx` (MIT) | WO-004 sonrası dışa aktarma | v0.1.x. Başlık numaralandırma kendi dokümanında "yapılacak"; **YÖK tezinde numaralı başlık zorunlu** — bu eksik WO-004'ün kabul kriterini etkiler |
+| `docxtemplater` | Üniversitenin kendi `.dotx` şablonunu doldurmak | Çekirdek açık, modüllerinin çoğu ücretli |
+| `tldraw` | Beyaz tahta | **MIT değil.** Varsayılan filigran; kaldırmak Business License istiyor |
+
+`mermaid`: bağımlılık olarak eklenmez. GitHub markdown'da ` ```mermaid `
+bloğunu kendisi çiziyor — geliştirici dokümanlarındaki akış şemaları ASCII
+yerine böyle yazılır, kurulum ve bakım maliyeti sıfır. Araştırma haritası
+için yanlış: sabit resim üretir, kullanıcı kutuyu sürükleyemez.
+
+`kroki`, `markmap`, `mingrammer/diagrams`, `scikit-criteria`, `python-docx`,
+`PuLP`, `manubot` değerlendirildi ve alınmadı (2026-10-14). Sebepleri
+sırayla: kendi sunucusunu ister ve kullanıcı içeriğini dışarı yollar;
+düzenlenebilir graf değil; bulut altyapı şeması çiziyor ve Python; AHP'si
+yok ve bizimki zaten çapraz doğrulanmış; `docx` zaten kurulu ve kullanılıyor;
+projede optimizasyon problemi yok; hedef kullanıcı YÖK'e Word teslim ediyor.
+`manubot`'un atıf anahtarı → CSL-JSON getirme ve tekilleştirme hattı yine de
+okumaya değer.

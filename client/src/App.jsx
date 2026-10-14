@@ -59,6 +59,16 @@ import { mergeAuthorPage, applyRetractions } from './utils/authorResults';
 import AiAnalysisPanel from './components/AiAnalysisPanel';
 import { useShare } from './hooks/useShare';
 import { useExport } from './hooks/useExport';
+import AppShell from './shell/AppShell.jsx';
+import { useHashRoute } from './shell/useHashRoute.js';
+import { useLibraryData } from './shell/useLibraryData.js';
+import {
+  closeSession, modeForRoute, openSession, routeForMode, sessionForRoute,
+} from './shell/routes.js';
+import Home from './modules/Home.jsx';
+import Sources from './modules/Sources.jsx';
+// Denetim yalnız açılınca yüklenir: kuralları ve listesi ilk ekranda gerekmiyor.
+const Audit = lazy(() => import('./modules/Audit.jsx'));
 
 // "Kaynakçanı doğrula" sekmesi şimdilik kapalı (9 Eki 2026, ürün kararı).
 // Doğruluk düzeltmeleri yerinde (8 Eki 2026, 24 kaynaklık denetimde 24/24);
@@ -78,6 +88,11 @@ const WORKSPACE_ENABLED = true;
 // açılıyor; üretim yalnız tek pasajdan tek cümle olarak, kullanıcı tıklayınca.
 // Kod ve /api/writer/generate yerinde; bayrak true yapılırsa geri gelir.
 const AI_WRITER_PANEL_ENABLED = false;
+// Uygulama kabuğu (WO-010): ray · üst çubuk · çalışma sekmeleri · modüller
+// (Alanım, Yazım, Kaynaklar, Denetim). false iken bugünkü arayüz aynen döner:
+// mor kenar çubuğu, sekmeler, yüzen yazar modu düğmesi, tam ekran yazım.
+// Paylaşılan bağlantı (?s=) her zaman eski düzende açılır (WO-010 K6).
+const APP_SHELL_ENABLED = true;
 
 const RESULT_FILTERS = ['all', 'relevant', 'q1q2', 'recent', 'openaccess', 'highcitations'];
 
@@ -161,12 +176,30 @@ function App() {
   const [moreLoading, setMoreLoading] = useState(false);
   // Ana ekran: literatür arama ya da kaynakça doğrulama
   const [mode, setMode] = useState('search');
+  // Kabuk (WO-010): ekran `mode` yerine adresten okunur. Paylaşılan bağlantı
+  // ilk render'dan itibaren eski düzende kalsın diye eşzamanlı okunuyor.
+  const [isSharedLink] = useState(() => new URLSearchParams(window.location.search).has('s'));
+  const shellActive = APP_SHELL_ENABLED && !isSharedLink;
+  const [route, navigate] = useHashRoute(shellActive);
+  const currentMode = shellActive ? modeForRoute(route) : mode;
+  // Açık çalışma sekmeleri (WO-010 K8) ve odak modu.
+  const [sessions, setSessions] = useState([]);
+  const [focus, setFocus] = useState(false);
+  // Belgenin özeti (Denetim okur) ve belgeye verilen komutlar ("Metinde göster").
+  const [docSnapshot, setDocSnapshot] = useState(null);
+  const workspaceApi = useRef(null);
+  const pendingDocAction = useRef(null);
   // Geçmişten açılan yazar araması için panele iletilen istek.
   const [authorPanelRequest, setAuthorPanelRequest] = useState(null);
   // Çalışma alanı bir kez açıldıktan sonra bağlı kalır: sekme değişince
-  // belge silinmesin, ama hiç açılmadıysa paketi de yüklenmesin.
+  // belge silinmesin, ama hiç açılmadıysa paketi de yüklenmesin. Denetim
+  // belgenin özetinden çalıştığı için o da çalışma alanını yükler.
   const workspaceOpened = useRef(false);
-  if (mode === 'workspace') workspaceOpened.current = true;
+  if (currentMode === 'workspace' || (shellActive && route.module === 'audit')) workspaceOpened.current = true;
+  const [auditOpened, setAuditOpened] = useState(false);
+  if (shellActive && route.module === 'audit' && !auditOpened) setAuditOpened(true);
+  // Çalışma alanı tam ekran açılır; çıkınca kullanıcı geldiği ekrana döner.
+  const modeBeforeWorkspace = useRef('search');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -195,6 +228,9 @@ function App() {
   const { setCollections, fetchCollections, handleFavorite, isPaperFavorited } = useCollections({ getToken, userId });
   // Kaynak sepeti: aramalar arasında kalır; yeni arama onu silmez.
   const basket = useBasket({ getToken, userId });
+  // Geçmiş, favoriler, analizler: kabukta Alanım ve Kaynaklar'da. Eski
+  // düzende kenar çubuğu kendisi okuyor; ikisi birden istek atmasın.
+  const library = useLibraryData({ deviceId: shellActive ? deviceId : '', apiUrl: defaultApiUrl, getToken });
   // Sağ üst bildirimler (kaynak durumu, "liste dolu" vb.)
   const [toasts, setToasts] = useState([]);
   const dismissToast = useCallback((id) => setToasts((list) => list.filter((x) => x.id !== id)), []);
@@ -241,14 +277,11 @@ function App() {
       const tag = document.activeElement?.tagName?.toLowerCase();
       const isInput = tag === 'input' || tag === 'textarea' || document.activeElement?.isContentEditable;
 
-      // Cmd+K / Ctrl+K veya input dışındayken '/' -> Arama kutusuna odaklan
+      // Cmd+K / Ctrl+K veya input dışındayken '/' -> Arama kutusuna odaklan.
+      // Kabukta arama başka bir modüldeyse önce oraya gidilir.
       if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') || (!isInput && e.key === '/')) {
         e.preventDefault();
-        const searchInput = document.getElementById('topic-input');
-        if (searchInput) {
-          searchInput.focus();
-          searchInput.select();
-        }
+        focusSearchRef.current?.();
       }
 
       // Cmd+J / Ctrl+J -> Yazar Panelini aç/kapat
@@ -269,6 +302,60 @@ function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setShowShareModal]);
+
+  // Arama kutusuna odaklanma: kısayol ve üst çubuktaki arama düğmesi aynı yolu kullanır.
+  const focusSearchRef = useRef(null);
+  useEffect(() => {
+    focusSearchRef.current = () => {
+      const focusInput = () => {
+        const input = document.getElementById('topic-input');
+        if (input) {
+          input.focus();
+          input.select();
+        }
+      };
+      if (shellActive && !(route.module === 'sources' && route.tab === 'search')) {
+        navigate({ module: 'sources', tab: 'search' });
+        window.setTimeout(focusInput, 60);
+      } else {
+        focusInput();
+      }
+    };
+  });
+
+  // --- Kabuk (WO-010) -----------------------------------------------------
+  // Görülen her oturum sekme şeridine eklenir.
+  useEffect(() => {
+    if (shellActive) setSessions((s) => openSession(s, sessionForRoute(route)));
+  }, [shellActive, route]);
+
+  // Odak modu yalnız Yazım'da; başka modüle geçince kalkar.
+  useEffect(() => {
+    if (route.module !== 'write') setFocus(false);
+  }, [route.module]);
+
+  // "Metinde göster", "Teslim önizlemesi", "Yazdır": önce Yazım görünür olur,
+  // sonra komut çalışır (gizli belgede kaydırma ve yazdırma işlemez). Yazım
+  // paketi ilk kez yükleniyorsa API birkaç kare sonra hazır olur; en fazla
+  // ~1 sn beklenir, hazır olmazsa komut sessizce düşer (belge yerinde).
+  useEffect(() => {
+    if (!shellActive || route.module !== 'write' || !pendingDocAction.current) return undefined;
+    let frame = 0;
+    let tries = 0;
+    const run = () => {
+      tries += 1;
+      if (workspaceApi.current && tries > 1) {
+        const action = pendingDocAction.current;
+        pendingDocAction.current = null;
+        action?.(workspaceApi.current);
+        return;
+      }
+      if (tries < 60) frame = requestAnimationFrame(run);
+      else pendingDocAction.current = null;
+    };
+    frame = requestAnimationFrame(run);
+    return () => cancelAnimationFrame(frame);
+  }, [shellActive, route]);
 
 
 
@@ -506,7 +593,77 @@ function App() {
 
   const openWriter = () => {
     if (AI_WRITER_PANEL_ENABLED) { setShowWriterPanel(true); return; }
+    if (shellActive) { navigate({ module: 'write' }); return; }
+    if (mode !== 'workspace') modeBeforeWorkspace.current = mode;
     setMode('workspace');
+  };
+
+  /** Eski `setMode` çağrılarının kabuktaki karşılığı: adres değişir. */
+  const switchMode = (next) => {
+    if (shellActive) navigate(routeForMode(next));
+    else setMode(next);
+  };
+
+  /** Yazım'ı açıp belgede bir komut çalıştırır (WO-010 geçiş tablosu). */
+  const openInDocument = (action) => {
+    pendingDocAction.current = action;
+    navigate({ module: 'write' });
+  };
+
+  /** Geçmişten bir arama: kabukta Alanım'dan, eski düzende kenar çubuğundan. */
+  const selectHistory = (item) => {
+    // Yazar araması yazar panelinde açılır; konu kartına dokunmaz.
+    if (AUTHOR_PANEL_ENABLED && item.authorId) {
+      switchMode('author');
+      setAuthorPanelRequest({ author: { id: item.authorId, name: item.authorName || '' }, topic: item.mainTopic || '', at: Date.now() });
+      return;
+    }
+    if (shellActive) navigate({ module: 'sources', tab: 'search' });
+    setMainTopic(item.mainTopic || '');
+    setKeywords(item.keywords || []);
+    // Yazar aramasıysa aynı kişiyle aç; değilse ekranda kalmış bir yazar seçimi
+    // konu aramasına sızmasın. State güncellemesi gecikeceği için yazar
+    // doğrudan geçiriliyor.
+    // Yazar modu kapaliyken gecmisteki yazar aramalari konu aramasi olarak acilir.
+    const author = AUTHOR_MODE_ENABLED && item.authorId ? { id: item.authorId, name: item.authorName || '' } : null;
+    setSearchMode(author ? 'author' : 'topic');
+    setSelectedAuthor(author);
+    handleSearch(null, item.mainTopic || '', item.aiQuery || null, author);
+  };
+
+  const deleteHistoryEntry = async (id) => {
+    const token = await getToken();
+    await axios.delete(`${defaultApiUrl}/api/history/entry/${id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    window.dispatchEvent(new CustomEvent('refreshHistory'));
+  };
+
+  /** Sonuçları temizler; arama kutusu boşalır. Sepet ve geçmiş yerinde kalır. */
+  const newSearch = () => {
+    setData(null);
+    setMainTopic('');
+    setKeywords([]);
+    setAiAnalysis(null);
+    setIsShared(false);
+    setError(null);
+  };
+
+  const closeSessionTab = (session) => {
+    const { tabs, next } = closeSession(sessions, session, sessionForRoute(route));
+    setSessions(tabs);
+    // Arama sekmesini kapatmak sonuçları temizler (WO-010 geçiş tablosu);
+    // diğer sekmeler yalnız kapanır, belge ve paneller yerinde durur.
+    if (session === 'search') newSearch();
+    if (next) navigate(next);
+  };
+
+  const sessionLabel = (session) => {
+    if (session === 'search') {
+      return data && mainTopic.trim() ? t('appShell.tab.searchTopic', { q: mainTopic.trim() }) : t('appShell.tab.search');
+    }
+    if (session === 'draft') return docSnapshot?.title?.trim() || t('appShell.tab.draft');
+    return t(`appShell.tab.${session}`);
   };
 
   // Gosterilen sonuc sayisi bu `data` icin; yeni arama ya da yeniden siralama 25'e doner.
@@ -583,7 +740,7 @@ function App() {
       isSelected={basket.has(item)}
       onToggleSelect={(el) => handleToggleBasket(item, el)}
       onOpenReader={setActiveReaderPaper}
-      onFindSimilar={(paper) => { setMode('search'); handleSearch(null, paper.title); }}
+      onFindSimilar={(paper) => { switchMode('search'); handleSearch(null, paper.title); }}
     />
   );
 
@@ -619,160 +776,21 @@ function App() {
     </div>
   ) : null;
 
-  // Yalnızca geliştirmede: Clerk kapalıyken tanıtım sayfası hiç görünmediği
-  // için ?landing ile önizlenebilir.
-  if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('landing')) {
-    return <LandingPage landingTheme={landingTheme} setLandingTheme={setLandingTheme} />;
-  }
-
-  return (
-    <>
-      <AnonOnly>
-        <LandingPage
-          landingTheme={landingTheme}
-          activeLandingTab={activeLandingTab}
-          setActiveLandingTab={setActiveLandingTab}
-          setLandingTheme={setLandingTheme}
-          isMobile={isMobile}
-        />
-      </AnonOnly>
-
-      <AuthedOnly>
-        {showAdmin && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={t('shell.systemStatus')}
-            onClick={(e) => { if (e.target === e.currentTarget) setShowAdmin(false); }}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 100,
-              background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(3px)',
-              overflowY: 'auto', padding: '24px 16px',
-            }}
-          >
-            <div style={{
-              maxWidth: '920px', margin: '0 auto', background: 'var(--bg-main)',
-              borderRadius: 'var(--radius-lg)', padding: '22px 24px',
-              boxShadow: 'var(--shadow-lg)',
-            }}>
-              <AdminPanel getToken={getToken} onClose={() => setShowAdmin(false)} />
-            </div>
-          </div>
-        )}
-
-        <ShareModal
-          show={showShareModal}
-          onClose={() => setShowShareModal(false)}
-          shareUrl={shareUrl}
-          copied={copied}
-          onCopy={copyToClipboard}
-        />
-
-        <HistorySidebar
-          isOpen={sidebarOpen}
-          setIsOpen={setSidebarOpen}
-          deviceId={deviceId}
-          apiUrl={defaultApiUrl}
-          onSelectHistory={(item) => {
-            // Yazar araması yazar panelinde açılır; konu kartına dokunmaz.
-            if (AUTHOR_PANEL_ENABLED && item.authorId) {
-              setMode('author');
-              setAuthorPanelRequest({ author: { id: item.authorId, name: item.authorName || '' }, topic: item.mainTopic || '', at: Date.now() });
-              return;
-            }
-            setMainTopic(item.mainTopic || '');
-            setKeywords(item.keywords || []);
-            // Yazar aramasıysa aynı kişiyle aç; değilse ekranda kalmış bir yazar seçimi
-            // konu aramasına sızmasın. State güncellemesi gecikeceği için yazar
-            // doğrudan geçiriliyor.
-            // Yazar modu kapaliyken gecmisteki yazar aramalari konu aramasi olarak acilir.
-            const author = AUTHOR_MODE_ENABLED && item.authorId ? { id: item.authorId, name: item.authorName || '' } : null;
-            setSearchMode(author ? 'author' : 'topic');
-            setSelectedAuthor(author);
-            handleSearch(null, item.mainTopic || '', item.aiQuery || null, author);
-          }}
-          onDeleteHistoryEntry={async (id) => {
-            const token = await getToken();
-            await axios.delete(`${defaultApiUrl}/api/history/entry/${id}`, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            window.dispatchEvent(new CustomEvent('refreshHistory'));
-          }}
-          basket={basket}
-          onOpenWriter={openWriter}
-          onNewSearch={() => {
-            setData(null);
-            setMainTopic('');
-            setKeywords([]);
-            setAiAnalysis(null);
-            setIsShared(false);
-            setError(null);
-          }}
-        />
-
-        <main className="app-main" style={{
-          marginLeft: isMobile ? '0px' : (sidebarOpen ? '280px' : '72px'),
-          marginRight: (!isMobile && AI_WRITER_PANEL_ENABLED && showWriterPanel)
-            // AI Yazar ayarları 420px'lik panelde; sonuçlar yanında görünür kalır.
-            ? '420px'
-            : '0px',
-          transition: 'margin 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          minHeight: '100vh',
-        }}>
-          <AppTopBar
-            isMobile={isMobile}
-            onOpenMenu={() => setSidebarOpen(true)}
-            isAdmin={isAdmin}
-            onOpenSystem={() => setShowAdmin(true)}
-          />
-
-          {WORKSPACE_ENABLED && !isShared && workspaceOpened.current && (
-            <div style={{ padding: isMobile ? '1rem 0.75rem 2rem' : '1.5rem 1.5rem 2rem' }} hidden={mode !== 'workspace'}>
-              <Suspense fallback={null}>
-                <Workspace basket={basket} tabs={modeTabs} apiUrl={defaultApiUrl} getToken={getToken} hidden={mode !== 'workspace'} />
-              </Suspense>
-            </div>
-          )}
-
-          <div className="query-workspace" style={{
-            display: WORKSPACE_ENABLED && mode === 'workspace' && !isShared ? 'none' : undefined,
-            maxWidth: '1000px',
-            margin: '0 auto',
-            // Alt boşluk: seçim çubuğu sabit olduğu için son kartı örtmesin.
-            padding: isMobile ? '1.25rem 1rem 6rem' : (isTablet ? '2rem 1.5rem 6rem' : '2.5rem 2rem 6rem'),
-          }}>
-
-            {!isShared && (
-              <header className="ui-page-head">
-                <h1 className="ui-page-head__logo">
-                  <span className="ui-brand-mark ui-brand-mark--lg" aria-hidden="true"><Zap size={26} fill="currentColor" /></span>
-                  {t('shell.brand')}
-                </h1>
-              </header>
-            )}
-
-            {modeTabs}
-
-            {/* Panel sekme değişince silinmez, gizlenir: kendi listesini korur. */}
-            {AUTHOR_PANEL_ENABLED && !isShared && (
+  // Arama içeriği ve Araştırmacı paneli iki düzende de aynı düğümden çizilir
+  // (WO-010): durum burada; kabuk ve eski düzen yalnız nereye koyacağını seçer.
+  const authorPanelNode = AUTHOR_PANEL_ENABLED && !isShared ? (
               <AuthorPanel
                 apiUrl={defaultApiUrl}
                 getToken={getToken}
                 request={authorPanelRequest}
                 renderPaper={renderPaper}
                 checkRetractions={checkRetractions}
-                hidden={mode !== 'author'}
+                hidden={currentMode !== 'author'}
               />
-            )}
+  ) : null;
 
-            {AUTHOR_PANEL_ENABLED && mode === 'author' && !isShared ? null : VERIFY_MODE_ENABLED && mode === 'verify' && !isShared ? (
-              <CitationChecker
-                apiUrl={defaultApiUrl}
-                getToken={getToken}
-                basket={basket}
-                onAdd={handleToggleBasket}
-              />
-            ) : (<>
+  const searchContent = (
+    <>
             <section className="ui-panel query-panel" style={{ marginBottom: 'var(--space-6)' }}>
               {isShared ? (
                 <div style={{ textAlign: 'center', padding: '0.5rem' }}>
@@ -1090,7 +1108,213 @@ function App() {
                 </div>
               </MotionDiv>
             )}
-            </>)}
+    </>
+  );
+
+  // Yalnızca geliştirmede: Clerk kapalıyken tanıtım sayfası hiç görünmediği
+  // için ?landing ile önizlenebilir.
+  if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('landing')) {
+    return <LandingPage landingTheme={landingTheme} setLandingTheme={setLandingTheme} />;
+  }
+
+  return (
+    <>
+      <AnonOnly>
+        <LandingPage
+          landingTheme={landingTheme}
+          activeLandingTab={activeLandingTab}
+          setActiveLandingTab={setActiveLandingTab}
+          setLandingTheme={setLandingTheme}
+          isMobile={isMobile}
+        />
+      </AnonOnly>
+
+      <AuthedOnly>
+        {showAdmin && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('shell.systemStatus')}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowAdmin(false); }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 100,
+              background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(3px)',
+              overflowY: 'auto', padding: '24px 16px',
+            }}
+          >
+            <div style={{
+              maxWidth: '920px', margin: '0 auto', background: 'var(--bg-main)',
+              borderRadius: 'var(--radius-lg)', padding: '22px 24px',
+              boxShadow: 'var(--shadow-lg)',
+            }}>
+              <AdminPanel getToken={getToken} onClose={() => setShowAdmin(false)} />
+            </div>
+          </div>
+        )}
+
+        <ShareModal
+          show={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          shareUrl={shareUrl}
+          copied={copied}
+          onCopy={copyToClipboard}
+        />
+
+        {shellActive ? (
+          <AppShell
+            route={route}
+            navigate={navigate}
+            sessions={sessions}
+            sessionLabel={sessionLabel}
+            onCloseSession={closeSessionTab}
+            basketCount={basket.papers.length}
+            focus={focus}
+            onExitFocus={() => setFocus(false)}
+            isAdmin={isAdmin}
+            onOpenSystem={() => setShowAdmin(true)}
+            onSearch={() => focusSearchRef.current?.()}
+          >
+            <section className="la-module" hidden={route.module !== 'home'} data-module="home">
+              <Home
+                active={route.module === 'home'}
+                library={library}
+                basket={basket}
+                onOpenDraft={() => navigate({ module: 'write' })}
+                onSelectHistory={selectHistory}
+                onDeleteHistory={deleteHistoryEntry}
+                onNewSearch={() => { newSearch(); focusSearchRef.current?.(); }}
+                onOpenBasket={() => navigate({ module: 'sources', tab: 'basket' })}
+              />
+            </section>
+
+            <section className="la-module" hidden={route.module !== 'sources'} data-module="sources">
+              <Sources
+                tab={route.tab || 'search'}
+                navigate={navigate}
+                searchView={searchContent}
+                authorView={authorPanelNode}
+                authorEnabled={AUTHOR_PANEL_ENABLED}
+                basket={basket}
+                favorites={library.favorites}
+                onRemoveFavorite={library.removeFavorite}
+                onWrite={openWriter}
+                onImport={() => openInDocument((api) => api.openImport())}
+              />
+            </section>
+
+            <section className="la-module la-module--fill" hidden={route.module !== 'write'} data-module="write">
+              {WORKSPACE_ENABLED && workspaceOpened.current && (
+                <Suspense fallback={null}>
+                  <Workspace
+                    basket={basket}
+                    apiUrl={defaultApiUrl}
+                    getToken={getToken}
+                    hidden={route.module !== 'write'}
+                    embedded
+                    apiRef={workspaceApi}
+                    onSnapshot={setDocSnapshot}
+                    onFindSources={() => navigate({ module: 'sources', tab: 'search' })}
+                    focus={focus}
+                    onToggleFocus={() => setFocus((f) => !f)}
+                  />
+                </Suspense>
+              )}
+            </section>
+
+            {auditOpened && (
+              <section className="la-module" hidden={route.module !== 'audit'} data-module="audit">
+                <Suspense fallback={null}>
+                  <Audit
+                    active={route.module === 'audit'}
+                    snapshot={docSnapshot}
+                    basket={basket}
+                    apiUrl={defaultApiUrl}
+                    getToken={getToken}
+                    onReveal={(key) => openInDocument((api) => api.goToSentenceKey(key))}
+                    onRevealSection={(index) => openInDocument((api) => api.goToSection(index))}
+                    onPreview={() => openInDocument((api) => api.setView('submit'))}
+                    onPrint={() => openInDocument((api) => api.print())}
+                    onExportWord={() => workspaceApi.current?.exportWord()}
+                    onOpenBibliography={() => openInDocument((api) => api.openBibliography())}
+                    onOpenSources={() => navigate({ module: 'sources', tab: 'basket' })}
+                  />
+                </Suspense>
+              </section>
+            )}
+          </AppShell>
+        ) : (<>
+        <HistorySidebar
+          isOpen={sidebarOpen}
+          setIsOpen={setSidebarOpen}
+          deviceId={deviceId}
+          apiUrl={defaultApiUrl}
+          onSelectHistory={selectHistory}
+          onDeleteHistoryEntry={deleteHistoryEntry}
+          basket={basket}
+          onOpenWriter={openWriter}
+          onNewSearch={newSearch}
+        />
+
+        <main className="app-main" style={{
+          marginLeft: isMobile ? '0px' : (sidebarOpen ? '280px' : '72px'),
+          marginRight: (!isMobile && AI_WRITER_PANEL_ENABLED && showWriterPanel)
+            // AI Yazar ayarları 420px'lik panelde; sonuçlar yanında görünür kalır.
+            ? '420px'
+            : '0px',
+          transition: 'margin 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          minHeight: '100vh',
+        }}>
+          <AppTopBar
+            isMobile={isMobile}
+            onOpenMenu={() => setSidebarOpen(true)}
+            isAdmin={isAdmin}
+            onOpenSystem={() => setShowAdmin(true)}
+          />
+
+          {/* Tam ekran, ayrı bir yüzey: kenar çubuğu ve üst çubuk görünmez.
+              Bileşen kendini document.body'ye çizer; burada yalnız bağlı kalır. */}
+          {WORKSPACE_ENABLED && !isShared && workspaceOpened.current && (
+            <Suspense fallback={null}>
+              <Workspace
+                basket={basket}
+                apiUrl={defaultApiUrl}
+                getToken={getToken}
+                hidden={mode !== 'workspace'}
+                onExit={() => setMode(modeBeforeWorkspace.current)}
+              />
+            </Suspense>
+          )}
+
+          <div className="query-workspace" style={{
+            display: WORKSPACE_ENABLED && mode === 'workspace' && !isShared ? 'none' : undefined,
+            maxWidth: '1000px',
+            margin: '0 auto',
+            // Alt boşluk: seçim çubuğu sabit olduğu için son kartı örtmesin.
+            padding: isMobile ? '1.25rem 1rem 6rem' : (isTablet ? '2rem 1.5rem 6rem' : '2.5rem 2rem 6rem'),
+          }}>
+
+            {!isShared && (
+              <header className="ui-page-head">
+                <h1 className="ui-page-head__logo">
+                  <span className="ui-brand-mark ui-brand-mark--lg" aria-hidden="true"><Zap size={26} fill="currentColor" /></span>
+                  {t('shell.brand')}
+                </h1>
+              </header>
+            )}
+
+            {modeTabs}
+
+            {/* Panel sekme değişince silinmez, gizlenir: kendi listesini korur. */}
+            {authorPanelNode}
+
+            {AUTHOR_PANEL_ENABLED && mode === 'author' && !isShared ? null : VERIFY_MODE_ENABLED && mode === 'verify' && !isShared ? (
+              <CitationChecker
+                apiUrl={defaultApiUrl}
+                getToken={getToken}
+                basket={basket}
+                onAdd={handleToggleBasket}
+              />
+            ) : searchContent}
 
           </div>
         </main>
@@ -1115,6 +1339,7 @@ function App() {
             />
           )}
         </AnimatePresence>
+        </>)}
         <Toasts toasts={toasts} onDismiss={dismissToast} />
       </AuthedOnly>
 
@@ -1146,6 +1371,7 @@ function App() {
         onToggleSelect={(paper) => handleToggleBasket(paper)}
         onFindSimilar={(paper) => {
           setActiveReaderPaper(null);
+          if (shellActive) navigate({ module: 'sources', tab: 'search' });
           setMainTopic(paper.title);
           handleSearch(null, paper.title);
         }}

@@ -23,6 +23,9 @@ export const FONTS = [
 
 export const FONT_SIZES = [9, 10, 11, 12, 14, 16, 18, 24];
 
+// Kurum yönergelerinde geçen değerler: tek, 1,15, 1,5 (çoğu tez), çift.
+export const LINE_HEIGHTS = [1, 1.15, 1.5, 2];
+
 export const DEFAULT_SETUP = {
   size: 'a4',
   landscape: false,
