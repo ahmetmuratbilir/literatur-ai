@@ -28,6 +28,17 @@ const Toast = ({ toast, onDismiss }) => {
       <div className="ui-toast__body">
         <strong>{toast.title}</strong>
         {toast.text && <span>{toast.text}</span>}
+        {/* İsteğe bağlı eylem (ör. taslak silindi → "Geri al"); tıklayınca bildirim kapanır. */}
+        {toast.action && (
+          <button
+            type="button"
+            className="ui-toast__action"
+            onClick={() => { toast.action.onClick(); onDismiss(toast.id); }}
+            data-action="toast-action"
+          >
+            {toast.action.label}
+          </button>
+        )}
       </div>
       <button type="button" className="ui-toast__close" onClick={() => onDismiss(toast.id)} aria-label={t('common.close')}>
         <X size={14} />

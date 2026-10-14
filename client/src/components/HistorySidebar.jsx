@@ -1,13 +1,15 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 const MotionAside = motion.aside;
 const MotionDiv = motion.div;
 import {
-  History, Trash2, PlusCircle, Zap, Star, ChevronRight, ChevronLeft, FileSearch, BookmarkCheck, PenLine, Download
+  Trash2, PlusCircle, Zap, Star, ChevronRight, ChevronLeft, BookmarkCheck, PenLine, Download, FolderOpen,
+  FileText, Pencil, Copy, AlertTriangle
 } from 'lucide-react';
 import { toBibTeX, toRIS, downloadText } from '../utils/citationExport.js';
 import { AppUserButton, useAppAuth, useAppUser } from '../auth/clerkBridge.js';
 import { useI18n } from '../i18n/context.js';
+import { readDraft } from './workspace/drafts.js';
 
 // Sunucudaki favoriler koleksiyonunun adı (veri anahtarı; kullanıcıya
 // gösterilen etiket sözlükten gelir).
@@ -39,10 +41,47 @@ const SidebarItem = ({ icon, label, isOpen, active, onClick, badge, basketTarget
 const sectionLabel = { fontSize: '0.6875rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '6px' };
 const iconBtn = { background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: '4px', borderRadius: '6px', display: 'flex', flexShrink: 0 };
 
-const HistorySidebar = ({ isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, onDeleteHistoryEntry, onNewSearch, basket, onOpenWriter }) => {
-  const { t } = useI18n();
+// Çalışmalarım'daki taslak satırının küçük işlem düğmesi.
+const draftBtn = { ...iconBtn, color: '#94a3b8' };
+
+/** Taslağın DOCX yedeği; yazar modu açılmadan, kayıtlı HTML'den üretilir. */
+async function backupDraft(draft, fallbackTitle) {
+  const data = readDraft(window.localStorage, draft.id);
+  if (!data) return false;
+  const root = document.createElement('div');
+  root.innerHTML = data.html || '';
+  const { exportDocx } = await import('./workspace/exportDocument.js');
+  const setup = { size: 'a4', landscape: false, font: 'Times New Roman', fontSize: 12, ...(data.setup || {}) };
+  await exportDocx({ root, setup, title: data.title || fallbackTitle });
+  return true;
+}
+
+// Eski adresler ve dış çağrılar için sekme adları (WO-011).
+const TAB_ALIASES = { works: 'works', history: 'works', analyses: 'works', basket: 'basket', favorites: 'favorites' };
+
+const HistorySidebar = ({
+  isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, onDeleteHistoryEntry, onNewSearch, basket, onOpenWriter,
+  drafts = [], activeDraftId = null, onOpenDraft, onNewDraft, onRenameDraft, onDuplicateDraft, onDeleteDraft,
+}) => {
+  const { t, lang } = useI18n();
+  const locale = lang === 'tr' ? 'tr-TR' : 'en-US';
   const [history, setHistory] = useState([]);
-  const [activeTab, setActiveTab] = useState('history');
+  const [activeTab, setActiveTab] = useState('works');
+  const [backupFailed, setBackupFailed] = useState(null);
+  // Sepeti temizlemek iki adımlı: 30 makale tek yanlış tıklamayla gitmesin.
+  const [clearArmed, setClearArmed] = useState(false);
+  const clearTimer = useRef(null);
+  useEffect(() => () => clearTimeout(clearTimer.current), []);
+  const clearBasket = () => {
+    clearTimeout(clearTimer.current);
+    if (!clearArmed) {
+      setClearArmed(true);
+      clearTimer.current = setTimeout(() => setClearArmed(false), 3000);
+      return;
+    }
+    setClearArmed(false);
+    basket.clear();
+  };
   const [collections, setCollections] = useState([]);
   const [analyses, setAnalyses] = useState([]);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -68,9 +107,32 @@ const HistorySidebar = ({ isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, 
   // Alttaki sepet çubuğu bu olayla sepet sekmesini açar.
   useEffect(() => {
     const openBasket = () => { setActiveTab('basket'); setIsOpen(true); };
+    // Eski adresler (#/alanim, #/kaynaklar/sepet …) bu olayla sekme açar.
+    const openNamed = (e) => {
+      const tab = TAB_ALIASES[e.detail];
+      if (tab) { setActiveTab(tab); setIsOpen(true); }
+    };
     window.addEventListener('openBasket', openBasket);
-    return () => window.removeEventListener('openBasket', openBasket);
+    window.addEventListener('openSidebarTab', openNamed);
+    return () => {
+      window.removeEventListener('openBasket', openBasket);
+      window.removeEventListener('openSidebarTab', openNamed);
+    };
   }, [setIsOpen]);
+
+  const savedText = (when) => (when
+    ? new Date(when).toLocaleString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : '—');
+
+  const runBackup = async (draft) => {
+    setBackupFailed(null);
+    try {
+      if (!(await backupDraft(draft, t('workspace.untitled')))) setBackupFailed(draft.id);
+    } catch (e) {
+      console.error('DOCX yedeği alınamadı', e);
+      setBackupFailed(draft.id);
+    }
+  };
 
   const exportBasket = (format) => {
     const papers = basket?.papers || [];
@@ -155,18 +217,64 @@ const HistorySidebar = ({ isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, 
 
         {/* Sekmeler */}
         <nav style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <SidebarItem icon={<History size={18} />} label={t('sidebar.history')} isOpen={isOpen} active={activeTab === 'history'} onClick={() => openTab('history')} badge={history.length || null} />
+          <SidebarItem icon={<FolderOpen size={18} />} label={t('sidebar.works')} isOpen={isOpen} active={activeTab === 'works'} onClick={() => openTab('works')} badge={drafts.length || null} />
           <SidebarItem icon={<Star size={18} />} label={t('sidebar.favorites')} isOpen={isOpen} active={activeTab === 'favorites'} onClick={() => openTab('favorites')} badge={favorites?.papers?.length || null} />
           <SidebarItem icon={<BookmarkCheck size={18} />} label={t('basket.title')} isOpen={isOpen} active={activeTab === 'basket'} onClick={() => openTab('basket')} badge={basketPapers.length ? `${basketPapers.length}/${basketLimit}` : null} basketTarget />
-          <SidebarItem icon={<FileSearch size={18} />} label={t('sidebar.analyses')} isOpen={isOpen} active={activeTab === 'analyses'} onClick={() => openTab('analyses')} badge={analyses.length || null} />
         </nav>
 
         {/* İçerik */}
         <div style={{ flex: 1, overflowY: 'auto', padding: isOpen ? '20px 16px' : '20px 0' }}>
           {isOpen && (
             <AnimatePresence mode="wait">
-              {activeTab === 'history' && (
-                <MotionDiv key="history" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {activeTab === 'works' && (
+                <MotionDiv key="works" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }} data-testid="sidebar-works">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={sectionLabel}>{t('sidebar.drafts')}</span>
+                    <button type="button" onClick={() => { onNewDraft?.(); closeOnMobile(); }} data-action="draft-new"
+                      style={{ background: 'rgba(99,102,241,0.15)', border: 'none', color: '#a5b4fc', borderRadius: '6px', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <PlusCircle size={12} /> {t('sidebar.newDraft')}
+                    </button>
+                  </div>
+                  {drafts.length === 0 ? emptyBox(t('sidebar.noDrafts')) : drafts.map((d) => {
+                    const current = d.id === activeDraftId;
+                    const name = d.title || t('workspace.untitled');
+                    return (
+                      <div key={d.id} data-draft-id={d.id}
+                        style={{ padding: '8px 10px', borderRadius: '8px', background: current ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.03)', border: `1px solid ${current ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.05)'}` }}>
+                        <button type="button" onClick={() => { onOpenDraft?.(d.id); closeOnMobile(); }} data-action="draft-open" title={t('sidebar.openDraft')}
+                          style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: '8px', background: 'transparent', border: 'none', padding: 0, textAlign: 'left', color: '#e2e8f0', fontFamily: 'inherit', cursor: 'pointer' }}>
+                          <FileText size={14} style={{ flexShrink: 0, marginTop: '2px', color: '#a5b4fc' }} />
+                          <span style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {name}{current && <small style={{ marginLeft: '6px', color: '#a5b4fc', fontWeight: 600 }}>· {t('sidebar.activeDraft')}</small>}
+                            </span>
+                            <span style={{ display: 'block', fontSize: '0.66rem', color: '#64748b', marginTop: '2px' }}>
+                              {t('sidebar.draftMeta', { n: (d.words || 0).toLocaleString(locale), when: savedText(d.savedAt) })}
+                            </span>
+                            {d.section && (
+                              <span style={{ display: 'block', fontSize: '0.66rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {t('sidebar.draftSection', { name: d.section })}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                        <div role="group" aria-label={t('sidebar.draftActions')} style={{ display: 'flex', justifyContent: 'flex-end', gap: '2px', marginTop: '4px' }}>
+                          <button type="button" style={draftBtn} onClick={() => onRenameDraft?.(d.id)} title={t('sidebar.renameDraft')} aria-label={t('sidebar.renameDraft')} data-action="draft-rename"><Pencil size={12} /></button>
+                          <button type="button" style={draftBtn} onClick={() => onDuplicateDraft?.(d.id)} title={t('sidebar.duplicateDraft')} aria-label={t('sidebar.duplicateDraft')} data-action="draft-duplicate"><Copy size={12} /></button>
+                          <button type="button" style={draftBtn} onClick={() => runBackup(d)} title={t('sidebar.backup')} aria-label={t('sidebar.backup')} data-action="draft-backup"><Download size={12} /></button>
+                          <button type="button" style={{ ...draftBtn, color: '#fb7185' }} onClick={() => onDeleteDraft?.(d.id)} title={t('sidebar.deleteDraft')} aria-label={t('sidebar.deleteDraft')} data-action="draft-delete"><Trash2 size={12} /></button>
+                        </div>
+                        {backupFailed === d.id && <span role="alert" style={{ display: 'block', fontSize: '0.66rem', color: '#fb7185' }}>{t('sidebar.backupFailed')}</span>}
+                      </div>
+                    );
+                  })}
+                  {drafts.length > 0 && (
+                    <p data-testid="drafts-local-warn" style={{ margin: '4px 0 0', display: 'flex', gap: '6px', alignItems: 'flex-start', fontSize: '0.66rem', color: '#f59e0b', lineHeight: 1.45, padding: '0 6px' }}>
+                      <AlertTriangle size={12} style={{ flexShrink: 0, marginTop: '2px' }} /> {t('sidebar.localWarn')}
+                    </p>
+                  )}
+
+                  <div style={{ height: '14px' }} />
                   <span style={{ ...sectionLabel, marginBottom: '4px' }}>{t('sidebar.recent')}</span>
                   {history.length === 0 ? emptyBox(t('sidebar.historyEmpty')) : history.slice(0, 40).map((item) => {
                     const displayTitle = item.mainTopic || item.aiQuery || (Array.isArray(item.keywords) && item.keywords.length > 0 ? item.keywords.join(', ') : t('sidebar.untitledSearch'));
@@ -189,6 +297,20 @@ const HistorySidebar = ({ isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, 
                       </div>
                     );
                   })}
+
+                  <div style={{ height: '14px' }} />
+                  <span style={sectionLabel}>{t('sidebar.aiAnalyses')}</span>
+                  {analyses.length === 0 ? emptyBox(t('sidebar.analysesEmpty')) : analyses.slice(0, 30).map((a) => (
+                    <div key={a._id} style={{ padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.topic}</div>
+                      {a.explanation && <div style={{ fontSize: '0.72rem', color: '#64748b', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', marginBottom: '6px' }}>{a.explanation}</div>}
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                        {(a.queries || []).slice(0, 3).map((q, qi) => (
+                          <span key={qi} style={{ fontSize: '0.62rem', background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>%{q.relevanceScore}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </MotionDiv>
               )}
 
@@ -225,37 +347,20 @@ const HistorySidebar = ({ isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, 
                         <PenLine size={14} /> {t('basket.write')}
                       </button>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                        {[['bib', 'BibTeX'], ['ris', 'RIS']].map(([fmt, label]) => (
-                          <button key={fmt} type="button" onClick={() => exportBasket(fmt)} title={t('basket.exportHint')}
+                        {[['bib', 'BibTeX', 'basket-bibtex'], ['ris', 'RIS', 'basket-ris']].map(([fmt, label, action]) => (
+                          <button key={fmt} type="button" onClick={() => exportBasket(fmt)} title={t('basket.exportHint')} data-action={action}
                             style={{ height: '32px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#cbd5e1', fontSize: '0.72rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
                             <Download size={12} /> {label}
                           </button>
                         ))}
                       </div>
-                      <button type="button" onClick={() => basket.clear()}
-                        style={{ background: 'transparent', border: '1px dashed rgba(244, 63, 94, 0.3)', color: '#fb7185', borderRadius: '6px', padding: '5px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                        {t('basket.clear')}
+                      <button type="button" onClick={clearBasket} data-action="basket-clear"
+                        style={{ background: clearArmed ? 'rgba(244, 63, 94, 0.15)' : 'transparent', border: '1px dashed rgba(244, 63, 94, 0.3)', color: '#fb7185', borderRadius: '6px', padding: '5px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {clearArmed ? t('basket.clearConfirm') : t('basket.clear')}
                       </button>
                     </>
                   )}
                   {basket?.offline && <span style={{ fontSize: '0.66rem', color: '#f59e0b', paddingLeft: '6px' }}>{t('basket.offline')}</span>}
-                </MotionDiv>
-              )}
-
-              {activeTab === 'analyses' && (
-                <MotionDiv key="analyses" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <span style={sectionLabel}>{t('sidebar.aiAnalyses')}</span>
-                  {analyses.length === 0 ? emptyBox(t('sidebar.analysesEmpty')) : analyses.slice(0, 30).map((a) => (
-                    <div key={a._id} style={{ padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.topic}</div>
-                      {a.explanation && <div style={{ fontSize: '0.72rem', color: '#64748b', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', marginBottom: '6px' }}>{a.explanation}</div>}
-                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                        {(a.queries || []).slice(0, 3).map((q, qi) => (
-                          <span key={qi} style={{ fontSize: '0.62rem', background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>%{q.relevanceScore}</span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
                 </MotionDiv>
               )}
 

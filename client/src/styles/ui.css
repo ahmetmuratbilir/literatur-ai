@@ -533,6 +533,20 @@
   cursor: pointer;
 }
 .ui-toast__close:hover { background: var(--bg-subtle); color: var(--text-main); }
+.ui-toast__action {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  background: var(--bg-subtle);
+  color: var(--text-main);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.ui-toast__action:hover { border-color: var(--text-muted); }
 
 @media (max-width: 600px) {
   .ui-writer-dock-wrap {

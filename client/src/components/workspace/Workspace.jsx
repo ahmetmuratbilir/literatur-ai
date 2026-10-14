@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   AlignCenter, AlignJustify, AlignLeft, ArrowLeft, Bold, Check, ChevronDown, ChevronLeft, ChevronRight,
-  Download, FileText, History, Info, Italic, LayoutTemplate, Library, List, ListChecks, ListOrdered, ListTree, Maximize2, Minimize2,
+  Download, FileText, History, Info, Italic, LayoutTemplate, Library, List, ListChecks, ListOrdered, ListTree,
   PanelRightClose, PanelRightOpen, Plus, Printer, Quote, Redo2, RefreshCw, RotateCcw, Search, SlidersHorizontal,
   Underline, Undo2, Upload, X,
 } from 'lucide-react';
@@ -14,8 +14,10 @@ import {
 import {
   MARK, OVERRIDE, applyOverride, classifySentence, sentenceKey, splitSentences, summarize,
 } from './claimDetection.js';
-import { TEMPLATES, templateHtml, templateWords } from './templates.js';
-import { buildOutline } from './outline.js';
+import { FORMATS, TEMPLATES, planFormatChange, templateHtml, templateWords } from './templates.js';
+import FormatPicker from './FormatPicker.jsx';
+import { readDraft, writeDraft } from './drafts.js';
+import { buildOutline, countWords } from './outline.js';
 import { inlineCitation, referenceLine } from './citation.js';
 import { isReferencesHeading, matchSources } from './references.js';
 import { SUPPORT_SHAPES, isSettled, locateSpan, refusalKey, supportLabel } from './evidence.js';
@@ -40,7 +42,6 @@ import { SUPPORT_SHAPES, isSettled, locateSpan, refusalKey, supportLabel } from 
  * - 2. ve 3. kademe sınıflandırma: sunucuda yerel model yok.
  * Arayüz bu sınırları kullanıcıya yazar, sessizce geçmez (CLAUDE.md 2.8).
  */
-const STORAGE_KEY = 'literatur-ai:workspace:v2';
 const SAVE_DELAY = 800;
 const FLASH_MS = 1600;
 const WIDE = '(min-width: 1281px)';
@@ -55,11 +56,10 @@ const MM_TO_PX = 96 / 25.4;
 const normDoi = (doi) => String(doi || '').trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '').toLowerCase();
 const MEDIUM = '(min-width: 1025px)';
 
-/** Depolama kapalıysa (gizli sekme, engellenmiş çerez) sessizce boş döner. */
-function readSaved() {
+/** Taslağın kayıtlı hali. Depolama kapalıysa (gizli sekme, engellenmiş çerez) boş döner. */
+function readSaved(draftId) {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return readDraft(window.localStorage, draftId);
   } catch {
     return null;
   }
@@ -176,15 +176,17 @@ function Popover({ open, onClose, label, wide = false, children }) {
  * @param embedded  Uygulama kabuğunun içinde (WO-010): portal yok, tam ekran yok.
  * @param apiRef    Kabuğun belgeye verdiği komutlar (Denetim → "Metinde göster").
  * @param onSnapshot Belgenin özetini kabuğa bildirir; Denetim bu özetten çalışır.
- * @param onFindSources "Kaynak bul": Kaynaklar modülüne götürür.
- * @param onToggleFocus Odak modu (ray ve sekmeler gizlenir).
+ * @param onFindSources "Kaynak bul": araştırma moduna döner (WO-011).
  */
 export default function Workspace({
   basket, apiUrl, getToken, hidden = false, onExit,
-  embedded = false, apiRef = null, onSnapshot = null, onFindSources = null, focus = false, onToggleFocus = null,
+  embedded = false, apiRef = null, onSnapshot = null, onFindSources = null,
+  draftId = null, onSaved = null,
 }) {
   const { t, lang } = useI18n();
-  const saved = useMemo(() => readSaved(), []);
+  // Taslak değişince bileşen yeniden kurulur (App `key={draftId}`); okuma bir kez.
+  const saved = useMemo(() => readSaved(draftId), [draftId]);
+  const [format, setFormat] = useState(() => saved?.format || null);
   const [setup, setSetup] = useState(() => ({ ...DEFAULT_SETUP, ...(saved?.setup || {}) }));
   const [view, setView] = useState(() => (saved?.view === 'submit' ? 'submit' : 'draft'));
   const [title, setTitle] = useState(() => saved?.title || '');
@@ -219,6 +221,8 @@ export default function Workspace({
   const [activeSource, setActiveSource] = useState(null);
   // Zotero / Mendeley dosyasından aktarma: dosya okunur, kullanıcı seçer (2.9).
   const [imp, setImp] = useState(null);
+  // Biçim değiştirme penceresi açık mı.
+  const [fmtOpen, setFmtOpen] = useState(false);
   // Seçimin üstündeki küçük araç çubuğu: masadaki konumu, yoksa null.
   const [selBar, setSelBar] = useState(null);
   // Teslim görünümü ölçeği: 'fit' sayfayı masaya sığdırır, 'actual' gerçek boyut.
@@ -504,43 +508,96 @@ export default function Workspace({
     return () => observer.disconnect();
   }, []);
 
+  // --- Kayıt (WO-011 Faz 1) ---------------------------------------------
+  // Eskiden kayıt bir efektin zamanlayıcısına bağlıydı ve ara sıra hiç
+  // çalışmıyordu (temel çizgi testi B4: 12 koşuda 1, 10 koşuda 3 kez metin
+  // 12 sn boyunca kaydedilmedi). Şimdi: değişiklik anında zamanlayıcı kurulur,
+  // zamanlayıcı en son kayıt fonksiyonunu ref'ten okur; sayfa gizlenince,
+  // kapanırken ve mod değişirken bekleyen kayıt hemen yazılır.
+  const dirtyRef = useRef(false);
+  const saveTimerRef = useRef(null);
+  const persistRef = useRef(() => {});
+
   const persist = useCallback(() => {
+    clearTimeout(saveTimerRef.current);
+    if (!draftId) return;
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      const meta = writeDraft(window.localStorage, draftId, {
         html: serialize(pageRef.current),
         title,
+        format,
         setup,
         view,
         overrides: overridesRef.current,
         lastSection: currentSectionRef.current,
         savedAt: Date.now(),
+        words: countWords(pageRef.current?.textContent || ''),
         bibFormat,
         bibScope,
         bibTexts: lastBibRef.current,
         zoom: zoomMode,
-      }));
+      });
+      dirtyRef.current = false;
       setSaveState({ kind: 'local', at: new Date() });
+      onSaved?.(meta);
     } catch {
+      // Depolama kapalı ya da dolu: değişiklik bellekte kalır, kullanıcıya söylenir.
       setSaveState({ kind: 'failed', at: null });
     }
-  }, [setup, title, view, bibFormat, bibScope, zoomMode]);
+  }, [draftId, title, format, setup, view, bibFormat, bibScope, zoomMode, onSaved]);
+
+  useEffect(() => { persistRef.current = persist; }, [persist]);
+
+  /** Bekleyen değişiklik varsa hemen yazar. */
+  const flush = useCallback(() => {
+    if (dirtyRef.current) persistRef.current();
+  }, []);
 
   const markDirty = useCallback(() => {
+    dirtyRef.current = true;
     setSaveState((s) => (s.kind === 'dirty' ? s : { kind: 'dirty', at: null }));
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => persistRef.current(), SAVE_DELAY);
   }, []);
+
+  // Sekme gizlenirken ya da sayfa kapanırken bekleyen kayıt kaybolmasın.
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') flush(); };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onHide);
+      clearTimeout(saveTimerRef.current);
+    };
+  }, [flush]);
+
+  // Mod değişimi (WO-011): araştırmaya geçerken belge kapanmaz, gizlenir.
+  // Gizlenirken bekleyen kayıt yazılır, kaydırma konumu saklanır; geri
+  // gelince kaydırma ve imleç yerine konur.
+  const scrollRef = useRef(0);
+  useLayoutEffect(() => {
+    const desk = deskRef.current;
+    if (hidden) {
+      flush();
+      return;
+    }
+    if (desk && scrollRef.current) desk.scrollTop = scrollRef.current;
+    const range = lastRangeRef.current;
+    const el = pageRef.current;
+    if (range && el && el.contains(range.startContainer)) {
+      el.focus({ preventScroll: true });
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  }, [hidden, flush]);
 
   const onInput = () => {
     markDirty();
     scan();
     setResume(null);
   };
-
-  // Yazdıkça kaydet; her tuşta değil, kısa bir duraklamadan sonra.
-  useEffect(() => {
-    if (saveState.kind !== 'dirty') return undefined;
-    const timer = setTimeout(() => persist(), SAVE_DELAY);
-    return () => clearTimeout(timer);
-  }, [saveState.kind, persist]);
 
   const exec = (command, value = null) => {
     pageRef.current?.focus();
@@ -563,6 +620,57 @@ export default function Workspace({
     setSetup((s) => ({ ...s, ...patch }));
     setView('submit');
     markDirty();
+  };
+
+  /** Biçim değişimi planı: FormatPicker kaç bölüm ekleneceğini gösterir. */
+  const planFor = useCallback((templateId) => planFormatChange(
+    outline.headings, TEMPLATES.find((x) => x.id === templateId), t, isReferencesHeading,
+  ), [outline.headings, t]);
+
+  /**
+   * Biçimi değiştirir (WO-011 Faz 1). Metin silinmez: eksik bölümler şablon
+   * sırasındaki yerlerine eklenir; boş ve yeni biçimde olmayan bölümler ancak
+   * kullanıcı onaylarsa kaldırılır. Sayfa ayarları ve atıf stili de değişir.
+   */
+  const applyFormat = ({ formatId, templateId, bibFormat: nextStyle, setup: nextSetup }) => {
+    const el = pageRef.current;
+    const template = TEMPLATES.find((x) => x.id === templateId);
+    setFmtOpen(false);
+    if (!el || !template) return;
+    const plan = planFor(templateId);
+    const key = (s) => String(s || '').trim().toLocaleLowerCase('tr');
+    const named = template.sections.map((s) => ({ ...s, name: t(`workspace.section.${s.key}`) }));
+    const byName = new Map([...el.querySelectorAll('h1, h2, h3')].map((h) => [key(h.textContent), h]));
+
+    for (const section of plan.add) {
+      const at = named.findIndex((s) => s.key === section.key);
+      const next = named.slice(at + 1).map((s) => byName.get(key(s.name))).find(Boolean);
+      const nodes = [...document.createRange().createContextualFragment(templateHtml({ sections: [section] }, t)).childNodes];
+      for (const node of nodes) (next ? next.before(node) : el.appendChild(node));
+      if (nodes[0]) byName.set(key(section.name), nodes[0]);
+    }
+
+    if (plan.removable.length) {
+      const names = plan.removable.map((h) => h.text).join(', ');
+      if (window.confirm(t('workspace.format.removeAsk', { n: plan.removable.length, names }))) {
+        for (const h of plan.removable) {
+          const heading = byName.get(key(h.text));
+          if (!heading) continue;
+          const level = Number(heading.tagName[1]);
+          // Yalnız boş paragraflar gider; metin taşıyan blok kalırsa bölüm silinmez.
+          const run = [];
+          for (let n = heading.nextElementSibling; n && !(/^H[1-3]$/.test(n.tagName) && Number(n.tagName[1]) <= level); n = n.nextElementSibling) run.push(n);
+          if (run.some((n) => n.textContent.trim())) continue;
+          run.forEach((n) => n.remove());
+          heading.remove();
+        }
+      }
+    }
+
+    setSetup((s) => ({ ...s, ...nextSetup }));
+    setBibFormat(nextStyle);
+    setFormat(formatId);
+    onInput();
   };
 
   /** Şablon belgeyi değiştirir; metin varsa önce sorar (§8, CLAUDE.md 2.9). */
@@ -877,6 +985,7 @@ export default function Workspace({
       exportWord,
       print: printDocument,
       openImport,
+      flush,
       openBibliography: () => {
         setReview(null);
         setSideView('bib');
@@ -1269,12 +1378,30 @@ export default function Workspace({
             placeholder={t('workspace.titlePlaceholder')}
             aria-label={t('workspace.title')}
           />
+          {/* Biçim etiketi (WO-011): atıf stili · sayfa boyutu; tıklayınca biçim değişir.
+              Kayıt durumundan önce durur: kayıt yazısı genişleyince düğme kaymasın
+              (odak kaybı kaydı tetikliyor, kayan düğmede tıklama boşa gidiyordu). */}
+          <button
+            type="button"
+            className="wx-fmtlabel"
+            onClick={() => setFmtOpen(true)}
+            title={t('workspace.format.labelHint')}
+            data-action="write-format"
+          >
+            {t('workspace.format.label', { style: bibFormat, size: PAGE_SIZES[setup.size]?.label || setup.size })}
+          </button>
           {save && (
             <span
               className={`wx-save wx-save--${saveState.kind}`}
               title={saveState.kind === 'local' ? t('workspace.saveLocalHint') : undefined}
+              role={saveState.kind === 'failed' ? 'alert' : undefined}
             >
               <span aria-hidden="true">{save.icon}</span> {save.text}
+              {saveState.kind === 'failed' && (
+                <button type="button" className="wx-save__retry" onClick={() => persistRef.current()} data-action="write-save-retry">
+                  {t('workspace.saveRetry')}
+                </button>
+              )}
             </span>
           )}
           <span className="wx-top__spacer" />
@@ -1319,20 +1446,6 @@ export default function Workspace({
               </button>
             </Popover>
           </div>
-
-          {onToggleFocus && (
-            <button
-              type="button"
-              className="wx-icon"
-              aria-pressed={focus}
-              onClick={onToggleFocus}
-              data-action="write-focus"
-              title={focus ? t('appShell.focusExit') : t('appShell.focus')}
-              aria-label={focus ? t('appShell.focusExit') : t('appShell.focus')}
-            >
-              {focus ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
-            </button>
-          )}
 
           <button
             type="button"
@@ -1538,7 +1651,11 @@ export default function Workspace({
               ref={deskRef}
               className={`wx-desk wx-desk--${view}`}
               style={{ ...pageStyle(setup), '--wx-zoom': zoomScale }}
-              onScroll={() => { if (selBar) setSelBar(null); }}
+              onScroll={(e) => {
+                // Gizlenince (display:none) kaydırma sıfırlanır; son konum burada tutulur.
+                if (!hidden) scrollRef.current = e.currentTarget.scrollTop;
+                if (selBar) setSelBar(null);
+              }}
             >
               {/* Seçim araç çubuğu (WO-010 1.4): fare ile basınca seçim kaybolmasın. */}
               {selBar && (
@@ -1569,7 +1686,7 @@ export default function Workspace({
                   aria-multiline="true"
                   aria-label={t('workspace.document')}
                   onInput={onInput}
-                  onBlur={() => { if (saveState.kind === 'dirty') persist(); }}
+                  onBlur={flush}
                 />
                 {/* §8: boş sayfa bir sonraki hamleyi söyler; şablon zorunlu değil. */}
                 {isEmpty && (
@@ -1820,6 +1937,15 @@ export default function Workspace({
       </div>
 
       {importView}
+      {fmtOpen && (
+        <FormatPicker
+          mode="change"
+          initial={{ formatId: FORMATS.some((f) => f.id === format) ? format : 'article', bibFormat, title }}
+          planFor={planFor}
+          onCancel={() => setFmtOpen(false)}
+          onConfirm={applyFormat}
+        />
+      )}
       {/* Dosya seçici: aktarma penceresi açılınca kullanılır, görünmez durur. */}
       <input
         ref={fileRef}

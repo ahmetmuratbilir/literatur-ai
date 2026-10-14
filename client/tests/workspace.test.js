@@ -235,7 +235,7 @@ test('IMRaD ve tez sablonlari bolum agacini kuruyor', () => {
   assert.equal((imrad.match(/<h2[ >]/g) || []).length, 7);
 
   const thesis = templateHtml(TEMPLATES.find((x) => x.id === 'thesis'), t);
-  assert.equal((thesis.match(/<h1[ >]/g) || []).length, 12);
+  assert.equal((thesis.match(/<h1[ >]/g) || []).length, 19); // WO-011: iç kapak, onay, etik, Abstract, tablo/şekil listeleri, kısaltmalar, ÖZGEÇMİŞ eklendi
   // Hedefi olmayan bolume hedef uydurulmaz.
   assert.match(thesis, /<h1>references<\/h1>/);
 });
