@@ -82,7 +82,9 @@ test('B3 dışa aktarma: BibTeX, RIS ve DOCX dosyaları üretilip kaydediliyor',
   }, [BASKET_KEY, DRAFT_KEY, PAPERS.map((p) => ({ ...p, creator: p.authors }))]);
   await onlySearchMocked(page);
 
+  // Eski adres (WO-010) kenar çubuğunun Sepet sekmesine yönlenir (WO-011).
   await page.goto('/#/kaynaklar/sepet');
+  await expect(page).toHaveURL(/\/$/);
   const save = async (trigger, name) => {
     const [download] = await Promise.all([page.waitForEvent('download'), trigger()]);
     const target = path.join(OUT, name);
@@ -92,7 +94,7 @@ test('B3 dışa aktarma: BibTeX, RIS ve DOCX dosyaları üretilip kaydediliyor',
   expect(await save(() => page.locator('[data-action="basket-bibtex"]').click(), 'sepet.bib')).toBeGreaterThan(100);
   expect(await save(() => page.locator('[data-action="basket-ris"]').click(), 'sepet.ris')).toBeGreaterThan(100);
 
-  await page.goto('/#/yazim');
+  await page.goto('/#/yazar');
   await expect(page.locator('.wx-page')).toContainText('Doğal dolaşım kararlıdır');
   await page.getByRole('button', { name: /Dışa aktar/ }).first().click();
   expect(await save(() => page.getByRole('button', { name: /Word/ }).first().click(), 'taslak.docx')).toBeGreaterThan(1000);
@@ -100,7 +102,9 @@ test('B3 dışa aktarma: BibTeX, RIS ve DOCX dosyaları üretilip kaydediliyor',
 
 test('B4 taslak: yaz, kaydet, yeniden yükle, geri aç', async ({ page }) => {
   await onlySearchMocked(page);
-  await page.goto('/#/yazim');
+  await page.goto('/#/yazar');
+  // WO-011: taslak yokken önce biçim sorulur; varsayılan biçimle başlanır.
+  await page.locator('[data-action="format-confirm"]').click();
   const doc = page.locator('.wx-page');
   await page.locator('.wx-top__title').fill('Kalıcılık denemesi');
   await doc.click();

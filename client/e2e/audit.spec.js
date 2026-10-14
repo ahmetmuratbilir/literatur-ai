@@ -35,6 +35,13 @@ test.beforeEach(async ({ page }) => {
   await seedDraft(page, DOC, 'Denetim taslağı');
 });
 
+// WO-011 Faz 1 Denetim sayfasını kaldırdı; işlevi Faz 3'te yazar modunun sağ
+// panelindeki Kontrol sekmesine ve "Teslime hazırla" akışına taşınıyor. Bu
+// testler o fazda yeni yere göre yeniden yazılır. Kuralların kendisi
+// (src/audit/audit.js) birim testleriyle sınanmaya devam ediyor; dürüstlük
+// taraması e2e/mode.spec.js'e taşındı.
+test.fixme(true, 'WO-011 Faz 3: Denetim → Kontrol sekmesi');
+
 const item = (page, rule) => page.locator(`.au-item[data-rule="${rule}"]`);
 
 test('belgedeki sorunlar önem sırasıyla listelenir, sayılar üstte', async ({ page }) => {

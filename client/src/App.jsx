@@ -59,16 +59,11 @@ import { mergeAuthorPage, applyRetractions } from './utils/authorResults';
 import AiAnalysisPanel from './components/AiAnalysisPanel';
 import { useShare } from './hooks/useShare';
 import { useExport } from './hooks/useExport';
-import AppShell from './shell/AppShell.jsx';
-import { useHashRoute } from './shell/useHashRoute.js';
-import { useLibraryData } from './shell/useLibraryData.js';
-import {
-  closeSession, modeForRoute, openSession, routeForMode, sessionForRoute,
-} from './shell/routes.js';
-import Home from './modules/Home.jsx';
-import Sources from './modules/Sources.jsx';
-// Denetim yalnız açılınca yüklenir: kuralları ve listesi ilk ekranda gerekmiyor.
-const Audit = lazy(() => import('./modules/Audit.jsx'));
+import { useDrafts } from './components/workspace/useDrafts.js';
+import { TEMPLATES, templateHtml } from './components/workspace/templates.js';
+import { WRITER_HASH, canonicalHash, parseModeHash } from './modeRoutes.js';
+// Biçim seçici yalnız yazar modunda, taslak oluştururken gerekiyor.
+const FormatPicker = lazy(() => import('./components/workspace/FormatPicker.jsx'));
 
 // "Kaynakçanı doğrula" sekmesi şimdilik kapalı (9 Eki 2026, ürün kararı).
 // Doğruluk düzeltmeleri yerinde (8 Eki 2026, 24 kaynaklık denetimde 24/24);
@@ -88,11 +83,10 @@ const WORKSPACE_ENABLED = true;
 // açılıyor; üretim yalnız tek pasajdan tek cümle olarak, kullanıcı tıklayınca.
 // Kod ve /api/writer/generate yerinde; bayrak true yapılırsa geri gelir.
 const AI_WRITER_PANEL_ENABLED = false;
-// Uygulama kabuğu (WO-010): ray · üst çubuk · çalışma sekmeleri · modüller
-// (Alanım, Yazım, Kaynaklar, Denetim). false iken bugünkü arayüz aynen döner:
-// mor kenar çubuğu, sekmeler, yüzen yazar modu düğmesi, tam ekran yazım.
-// Paylaşılan bağlantı (?s=) her zaman eski düzende açılır (WO-010 K6).
-const APP_SHELL_ENABLED = true;
+// WO-010'un uygulama kabuğu (ray, sekmeler, Alanım/Kaynaklar/Denetim sayfaları)
+// kullanıcı kararıyla kaldırıldı (15.10.2026, WO-011): araştırma modu eski
+// düzeninde, yeni tasarım yalnız yazar modunda. Eski adresler modeRoutes.js'te
+// yeni yerlerine çevriliyor.
 
 const RESULT_FILTERS = ['all', 'relevant', 'q1q2', 'recent', 'openaccess', 'highcitations'];
 
@@ -176,28 +170,21 @@ function App() {
   const [moreLoading, setMoreLoading] = useState(false);
   // Ana ekran: literatür arama ya da kaynakça doğrulama
   const [mode, setMode] = useState('search');
-  // Kabuk (WO-010): ekran `mode` yerine adresten okunur. Paylaşılan bağlantı
-  // ilk render'dan itibaren eski düzende kalsın diye eşzamanlı okunuyor.
-  const [isSharedLink] = useState(() => new URLSearchParams(window.location.search).has('s'));
-  const shellActive = APP_SHELL_ENABLED && !isSharedLink;
-  const [route, navigate] = useHashRoute(shellActive);
-  const currentMode = shellActive ? modeForRoute(route) : mode;
-  // Açık çalışma sekmeleri (WO-010 K8) ve odak modu.
-  const [sessions, setSessions] = useState([]);
-  const [focus, setFocus] = useState(false);
-  // Belgenin özeti (Denetim okur) ve belgeye verilen komutlar ("Metinde göster").
-  const [docSnapshot, setDocSnapshot] = useState(null);
+  const currentMode = mode;
+  // Taslaklar (WO-011 Faz 1): Çalışmalarım listesi ve yazar modundaki belge.
+  const drafts = useDrafts();
+  // Biçim seçici açık mı (yeni taslak ya da hiç taslak yokken yazar modu).
+  const [creatingDraft, setCreatingDraft] = useState(false);
+  // Belgeye verilen komutlar (kaydet, dışa aktar …) ve yazar moduna girişte
+  // geçmişe kayıt eklenip eklenmediği (çıkışta geri tuşuyla aynı yol).
   const workspaceApi = useRef(null);
-  const pendingDocAction = useRef(null);
+  const pushedWriter = useRef(false);
   // Geçmişten açılan yazar araması için panele iletilen istek.
   const [authorPanelRequest, setAuthorPanelRequest] = useState(null);
-  // Çalışma alanı bir kez açıldıktan sonra bağlı kalır: sekme değişince
-  // belge silinmesin, ama hiç açılmadıysa paketi de yüklenmesin. Denetim
-  // belgenin özetinden çalıştığı için o da çalışma alanını yükler.
+  // Çalışma alanı bir kez açıldıktan sonra bağlı kalır: mod değişince
+  // belge silinmesin, ama hiç açılmadıysa paketi de yüklenmesin.
   const workspaceOpened = useRef(false);
-  if (currentMode === 'workspace' || (shellActive && route.module === 'audit')) workspaceOpened.current = true;
-  const [auditOpened, setAuditOpened] = useState(false);
-  if (shellActive && route.module === 'audit' && !auditOpened) setAuditOpened(true);
+  if (mode === 'workspace') workspaceOpened.current = true;
   // Çalışma alanı tam ekran açılır; çıkınca kullanıcı geldiği ekrana döner.
   const modeBeforeWorkspace = useRef('search');
   const [loading, setLoading] = useState(false);
@@ -228,9 +215,6 @@ function App() {
   const { setCollections, fetchCollections, handleFavorite, isPaperFavorited } = useCollections({ getToken, userId });
   // Kaynak sepeti: aramalar arasında kalır; yeni arama onu silmez.
   const basket = useBasket({ getToken, userId });
-  // Geçmiş, favoriler, analizler: kabukta Alanım ve Kaynaklar'da. Eski
-  // düzende kenar çubuğu kendisi okuyor; ikisi birden istek atmasın.
-  const library = useLibraryData({ deviceId: shellActive ? deviceId : '', apiUrl: defaultApiUrl, getToken });
   // Sağ üst bildirimler (kaynak durumu, "liste dolu" vb.)
   const [toasts, setToasts] = useState([]);
   const dismissToast = useCallback((id) => setToasts((list) => list.filter((x) => x.id !== id)), []);
@@ -303,59 +287,50 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setShowShareModal]);
 
-  // Arama kutusuna odaklanma: kısayol ve üst çubuktaki arama düğmesi aynı yolu kullanır.
+  // Arama kutusuna odaklanma (Ctrl+K, "/"). Yazar modunda kısayol çalışmaz:
+  // belgede yazarken arama kutusuna atlamak yazılanı bölerdi.
   const focusSearchRef = useRef(null);
   useEffect(() => {
     focusSearchRef.current = () => {
-      const focusInput = () => {
-        const input = document.getElementById('topic-input');
-        if (input) {
-          input.focus();
-          input.select();
-        }
-      };
-      if (shellActive && !(route.module === 'sources' && route.tab === 'search')) {
-        navigate({ module: 'sources', tab: 'search' });
-        window.setTimeout(focusInput, 60);
-      } else {
-        focusInput();
+      if (mode === 'workspace') return;
+      const input = document.getElementById('topic-input');
+      if (input) {
+        input.focus();
+        input.select();
       }
     };
   });
 
-  // --- Kabuk (WO-010) -----------------------------------------------------
-  // Görülen her oturum sekme şeridine eklenir.
+  // --- Mod adresi (WO-011 Faz 1) ---------------------------------------
+  // Yazar modu #/yazar; araştırma adressiz. Geri/ileri tuşu ve doğrudan açılan
+  // adres buradan moda çevrilir. WO-010'un eski adresleri düzgün hale getirilir.
   useEffect(() => {
-    if (shellActive) setSessions((s) => openSession(s, sessionForRoute(route)));
-  }, [shellActive, route]);
-
-  // Odak modu yalnız Yazım'da; başka modüle geçince kalkar.
-  useEffect(() => {
-    if (route.module !== 'write') setFocus(false);
-  }, [route.module]);
-
-  // "Metinde göster", "Teslim önizlemesi", "Yazdır": önce Yazım görünür olur,
-  // sonra komut çalışır (gizli belgede kaydırma ve yazdırma işlemez). Yazım
-  // paketi ilk kez yükleniyorsa API birkaç kare sonra hazır olur; en fazla
-  // ~1 sn beklenir, hazır olmazsa komut sessizce düşer (belge yerinde).
-  useEffect(() => {
-    if (!shellActive || route.module !== 'write' || !pendingDocAction.current) return undefined;
-    let frame = 0;
-    let tries = 0;
-    const run = () => {
-      tries += 1;
-      if (workspaceApi.current && tries > 1) {
-        const action = pendingDocAction.current;
-        pendingDocAction.current = null;
-        action?.(workspaceApi.current);
+    const apply = () => {
+      const route = parseModeHash(window.location.hash);
+      if (route.legacy || (window.location.hash && !canonicalHash(route) && route.mode === 'research')) {
+        window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${canonicalHash(route)}`);
+      }
+      if (route.mode === 'writer') {
+        setMode((m) => {
+          if (m !== 'workspace') modeBeforeWorkspace.current = m;
+          return 'workspace';
+        });
         return;
       }
-      if (tries < 60) frame = requestAnimationFrame(run);
-      else pendingDocAction.current = null;
+      pushedWriter.current = false;
+      setMode((m) => {
+        if (route.researchMode === 'author') return 'author';
+        return m === 'workspace' ? modeBeforeWorkspace.current : m;
+      });
+      if (route.sidebarTab) {
+        setSidebarOpen(true);
+        window.dispatchEvent(new CustomEvent('openSidebarTab', { detail: route.sidebarTab }));
+      }
     };
-    frame = requestAnimationFrame(run);
-    return () => cancelAnimationFrame(frame);
-  }, [shellActive, route]);
+    apply();
+    window.addEventListener('hashchange', apply);
+    return () => window.removeEventListener('hashchange', apply);
+  }, []);
 
 
 
@@ -591,26 +566,101 @@ function App() {
     }
   };
 
+  /**
+   * Yazar moduna geçer (WO-011): adres #/yazar olur, geçmişe kayıt eklenir;
+   * tarayıcının geri tuşu araştırmaya döner. Taslak yoksa biçim seçici açılır.
+   */
   const openWriter = () => {
     if (AI_WRITER_PANEL_ENABLED) { setShowWriterPanel(true); return; }
-    if (shellActive) { navigate({ module: 'write' }); return; }
-    if (mode !== 'workspace') modeBeforeWorkspace.current = mode;
-    setMode('workspace');
+    if (mode === 'workspace') return;
+    if (window.location.hash !== WRITER_HASH) {
+      pushedWriter.current = true;
+      window.location.hash = WRITER_HASH;
+    } else {
+      modeBeforeWorkspace.current = mode;
+      setMode('workspace');
+    }
   };
 
-  /** Eski `setMode` çağrılarının kabuktaki karşılığı: adres değişir. */
-  const switchMode = (next) => {
-    if (shellActive) navigate(routeForMode(next));
-    else setMode(next);
+  /** "← Araştırma": belge kapanmaz; bekleyen kayıt yazılır, mod değişir. */
+  const exitWriter = () => {
+    workspaceApi.current?.flush?.();
+    setCreatingDraft(false);
+    if (pushedWriter.current) {
+      pushedWriter.current = false;
+      window.history.back();
+      return;
+    }
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    setMode(modeBeforeWorkspace.current === 'workspace' ? 'search' : modeBeforeWorkspace.current);
   };
 
-  /** Yazım'ı açıp belgede bir komut çalıştırır (WO-010 geçiş tablosu). */
-  const openInDocument = (action) => {
-    pendingDocAction.current = action;
-    navigate({ module: 'write' });
+  const switchMode = (next) => setMode(next);
+
+  // --- Taslaklar (WO-011 Faz 1) ------------------------------------------
+  /** Taslağı açar: önce açık belgenin bekleyen kaydı yazılır. */
+  const openDraft = (id) => {
+    workspaceApi.current?.flush?.();
+    drafts.open(id);
+    setCreatingDraft(false);
+    openWriter();
   };
 
-  /** Geçmişten bir arama: kabukta Alanım'dan, eski düzende kenar çubuğundan. */
+  /** Yeni taslak: yazar modunda biçim seçici açılır. */
+  const startNewDraft = () => {
+    workspaceApi.current?.flush?.();
+    setCreatingDraft(true);
+    openWriter();
+  };
+
+  /** Biçim seçildi: taslak şablonla oluşturulur ve açılır. */
+  const createDraftFromFormat = ({ formatId, templateId, bibFormat, setup, title }) => {
+    const template = TEMPLATES.find((x) => x.id === templateId);
+    const id = drafts.create({
+      title,
+      format: formatId,
+      setup,
+      bibFormat,
+      html: templateHtml(template, t),
+      view: 'draft',
+    });
+    if (!id) {
+      pushToast({ tone: 'warn', title: t('workspace.saveNone') });
+      return;
+    }
+    setCreatingDraft(false);
+  };
+
+  const renameDraft = (id) => {
+    const current = drafts.items.find((d) => d.id === id);
+    const next = window.prompt(t('sidebar.renamePrompt'), current?.title || '');
+    if (next === null) return;
+    workspaceApi.current?.flush?.();
+    if (!drafts.rename(id, next)) pushToast({ tone: 'warn', title: t('workspace.saveNone') });
+  };
+
+  const duplicateDraft = (id) => {
+    workspaceApi.current?.flush?.();
+    if (!drafts.duplicate(id, lang === 'tr' ? ' (kopya)' : ' (copy)')) pushToast({ tone: 'warn', title: t('workspace.saveNone') });
+  };
+
+  /** Silme onaylı; ardından bildirimde "Geri al" ile aynı yerine döner. */
+  const deleteDraft = (id) => {
+    const current = drafts.items.find((d) => d.id === id);
+    const name = current?.title || t('workspace.untitled');
+    if (!window.confirm(t('sidebar.deleteConfirm', { name }))) return;
+    const snapshot = drafts.remove(id);
+    if (!snapshot) return;
+    pushToast({
+      tone: 'success',
+      title: t('sidebar.deleted'),
+      text: name,
+      action: { label: t('sidebar.undo'), onClick: () => drafts.restore(snapshot) },
+      duration: 10000,
+    });
+  };
+
+  /** Geçmişten bir arama (Çalışmalarım › Son aramalar). */
   const selectHistory = (item) => {
     // Yazar araması yazar panelinde açılır; konu kartına dokunmaz.
     if (AUTHOR_PANEL_ENABLED && item.authorId) {
@@ -618,7 +668,7 @@ function App() {
       setAuthorPanelRequest({ author: { id: item.authorId, name: item.authorName || '' }, topic: item.mainTopic || '', at: Date.now() });
       return;
     }
-    if (shellActive) navigate({ module: 'sources', tab: 'search' });
+    if (mode === 'author') setMode('search');
     setMainTopic(item.mainTopic || '');
     setKeywords(item.keywords || []);
     // Yazar aramasıysa aynı kişiyle aç; değilse ekranda kalmış bir yazar seçimi
@@ -647,23 +697,6 @@ function App() {
     setAiAnalysis(null);
     setIsShared(false);
     setError(null);
-  };
-
-  const closeSessionTab = (session) => {
-    const { tabs, next } = closeSession(sessions, session, sessionForRoute(route));
-    setSessions(tabs);
-    // Arama sekmesini kapatmak sonuçları temizler (WO-010 geçiş tablosu);
-    // diğer sekmeler yalnız kapanır, belge ve paneller yerinde durur.
-    if (session === 'search') newSearch();
-    if (next) navigate(next);
-  };
-
-  const sessionLabel = (session) => {
-    if (session === 'search') {
-      return data && mainTopic.trim() ? t('appShell.tab.searchTopic', { q: mainTopic.trim() }) : t('appShell.tab.search');
-    }
-    if (session === 'draft') return docSnapshot?.title?.trim() || t('appShell.tab.draft');
-    return t(`appShell.tab.${session}`);
   };
 
   // Gosterilen sonuc sayisi bu `data` icin; yeni arama ya da yeniden siralama 25'e doner.
@@ -1160,89 +1193,6 @@ function App() {
           onCopy={copyToClipboard}
         />
 
-        {shellActive ? (
-          <AppShell
-            route={route}
-            navigate={navigate}
-            sessions={sessions}
-            sessionLabel={sessionLabel}
-            onCloseSession={closeSessionTab}
-            basketCount={basket.papers.length}
-            focus={focus}
-            onExitFocus={() => setFocus(false)}
-            isAdmin={isAdmin}
-            onOpenSystem={() => setShowAdmin(true)}
-            onSearch={() => focusSearchRef.current?.()}
-          >
-            <section className="la-module" hidden={route.module !== 'home'} data-module="home">
-              <Home
-                active={route.module === 'home'}
-                library={library}
-                basket={basket}
-                onOpenDraft={() => navigate({ module: 'write' })}
-                onSelectHistory={selectHistory}
-                onDeleteHistory={deleteHistoryEntry}
-                onNewSearch={() => { newSearch(); focusSearchRef.current?.(); }}
-                onOpenBasket={() => navigate({ module: 'sources', tab: 'basket' })}
-              />
-            </section>
-
-            <section className="la-module" hidden={route.module !== 'sources'} data-module="sources">
-              <Sources
-                tab={route.tab || 'search'}
-                navigate={navigate}
-                searchView={searchContent}
-                authorView={authorPanelNode}
-                authorEnabled={AUTHOR_PANEL_ENABLED}
-                basket={basket}
-                favorites={library.favorites}
-                onRemoveFavorite={library.removeFavorite}
-                onWrite={openWriter}
-                onImport={() => openInDocument((api) => api.openImport())}
-              />
-            </section>
-
-            <section className="la-module la-module--fill" hidden={route.module !== 'write'} data-module="write">
-              {WORKSPACE_ENABLED && workspaceOpened.current && (
-                <Suspense fallback={null}>
-                  <Workspace
-                    basket={basket}
-                    apiUrl={defaultApiUrl}
-                    getToken={getToken}
-                    hidden={route.module !== 'write'}
-                    embedded
-                    apiRef={workspaceApi}
-                    onSnapshot={setDocSnapshot}
-                    onFindSources={() => navigate({ module: 'sources', tab: 'search' })}
-                    focus={focus}
-                    onToggleFocus={() => setFocus((f) => !f)}
-                  />
-                </Suspense>
-              )}
-            </section>
-
-            {auditOpened && (
-              <section className="la-module" hidden={route.module !== 'audit'} data-module="audit">
-                <Suspense fallback={null}>
-                  <Audit
-                    active={route.module === 'audit'}
-                    snapshot={docSnapshot}
-                    basket={basket}
-                    apiUrl={defaultApiUrl}
-                    getToken={getToken}
-                    onReveal={(key) => openInDocument((api) => api.goToSentenceKey(key))}
-                    onRevealSection={(index) => openInDocument((api) => api.goToSection(index))}
-                    onPreview={() => openInDocument((api) => api.setView('submit'))}
-                    onPrint={() => openInDocument((api) => api.print())}
-                    onExportWord={() => workspaceApi.current?.exportWord()}
-                    onOpenBibliography={() => openInDocument((api) => api.openBibliography())}
-                    onOpenSources={() => navigate({ module: 'sources', tab: 'basket' })}
-                  />
-                </Suspense>
-              </section>
-            )}
-          </AppShell>
-        ) : (<>
         <HistorySidebar
           isOpen={sidebarOpen}
           setIsOpen={setSidebarOpen}
@@ -1253,6 +1203,13 @@ function App() {
           basket={basket}
           onOpenWriter={openWriter}
           onNewSearch={newSearch}
+          drafts={drafts.items}
+          activeDraftId={drafts.index.activeId}
+          onOpenDraft={openDraft}
+          onNewDraft={startNewDraft}
+          onRenameDraft={renameDraft}
+          onDuplicateDraft={duplicateDraft}
+          onDeleteDraft={deleteDraft}
         />
 
         <main className="app-main" style={{
@@ -1273,14 +1230,30 @@ function App() {
 
           {/* Tam ekran, ayrı bir yüzey: kenar çubuğu ve üst çubuk görünmez.
               Bileşen kendini document.body'ye çizer; burada yalnız bağlı kalır. */}
-          {WORKSPACE_ENABLED && !isShared && workspaceOpened.current && (
+          {/* Her taslak kendi örneğinde açılır (key): taslak değişince belge yeniden okunur. */}
+          {WORKSPACE_ENABLED && !isShared && workspaceOpened.current && drafts.active && (
             <Suspense fallback={null}>
               <Workspace
+                key={drafts.active.id}
+                draftId={drafts.active.id}
                 basket={basket}
                 apiUrl={defaultApiUrl}
                 getToken={getToken}
-                hidden={mode !== 'workspace'}
-                onExit={() => setMode(modeBeforeWorkspace.current)}
+                hidden={mode !== 'workspace' || creatingDraft}
+                onExit={exitWriter}
+                apiRef={workspaceApi}
+                onSaved={drafts.refresh}
+                onFindSources={exitWriter}
+              />
+            </Suspense>
+          )}
+          {/* Yazar modunda taslak yoksa ya da "Yeni taslak" seçildiyse: biçim seçimi. */}
+          {WORKSPACE_ENABLED && !isShared && mode === 'workspace' && (creatingDraft || !drafts.active) && (
+            <Suspense fallback={null}>
+              <FormatPicker
+                mode="create"
+                onCancel={drafts.active ? () => setCreatingDraft(false) : exitWriter}
+                onConfirm={createDraftFromFormat}
               />
             </Suspense>
           )}
@@ -1326,11 +1299,12 @@ function App() {
             makaleler buraya uçar; tıklayınca yazar paneli sağdan açılır.
             Alt çubuk kaldırıldı: üret düğmesi orada zor bulunuyordu. */}
         <AnimatePresence>
-          {(data || basket.papers.length > 0) && !showWriterPanel && (
+          {(data || basket.papers.length > 0 || drafts.active) && !showWriterPanel && mode !== 'workspace' && (
             <WriterDock
               key="writer-dock"
               count={basket.papers.length}
               limit={basket.limit}
+              draftTitle={drafts.active ? (drafts.active.title || t('workspace.untitled')) : null}
               onOpen={openWriter}
               onClear={() => {
                 basket.clear();
@@ -1339,7 +1313,6 @@ function App() {
             />
           )}
         </AnimatePresence>
-        </>)}
         <Toasts toasts={toasts} onDismiss={dismissToast} />
       </AuthedOnly>
 
@@ -1371,7 +1344,6 @@ function App() {
         onToggleSelect={(paper) => handleToggleBasket(paper)}
         onFindSimilar={(paper) => {
           setActiveReaderPaper(null);
-          if (shellActive) navigate({ module: 'sources', tab: 'search' });
           setMainTopic(paper.title);
           handleSearch(null, paper.title);
         }}

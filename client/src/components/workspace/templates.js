@@ -8,14 +8,21 @@
 // `words` şablonun önerdiği yaklaşık uzunluktur, kural değil; dergi ve
 // kurum yönergesi önceliklidir ve arayüz bunu söyler. 0 = hedef yok.
 
+// Her şablonun ortak sayfa ayarı: A4, Times New Roman 12 pt (WO-011 Faz 1).
+// Şablon yalnız farklı olanı ezer.
+const BASE_SETUP = { size: 'a4', landscape: false, font: 'Times New Roman', fontSize: 12 };
+
 export const TEMPLATES = [
   {
     id: 'blank',
+    setup: { ...BASE_SETUP, margin: 'normal', lineHeight: 1.5 },
+    bibFormat: 'APA 7',
     sections: [],
   },
   {
     id: 'imrad',
-    setup: { margin: 'normal', lineHeight: 1.5 },
+    bibFormat: 'APA 7',
+    setup: { ...BASE_SETUP, margin: 'normal', lineHeight: 1.5 },
     sections: [
       { level: 2, key: 'summary', words: 250 },
       { level: 2, key: 'intro', words: 900 },
@@ -27,15 +34,23 @@ export const TEMPLATES = [
     ],
   },
   {
-    // YÖK yönetmeliğinin ortak iskeleti. Üniversite farkları (kenar boşluğu,
-    // punto, satır aralığı) ayar olarak kalır — tek şablon hepsine uyar.
+    // "Genel tez şablonu" (WO-011): tezlerde ortak görülen bölümler. Belirli
+    // bir enstitüye uygunluk iddiası YOK; arayüz "kendi enstitü kılavuzunla
+    // karşılaştır" der. Kenar, punto, satır aralığı ayar olarak değişir.
     id: 'thesis',
-    setup: { margin: 'wide', lineHeight: 2 },
+    bibFormat: 'APA 7',
+    setup: { ...BASE_SETUP, margin: 'wide', lineHeight: 2 },
     sections: [
       { level: 1, key: 'cover', words: 0 },
+      { level: 1, key: 'innerCover', words: 0 },
+      { level: 1, key: 'approval', words: 0 },
+      { level: 1, key: 'ethics', words: 0 },
       { level: 1, key: 'ozet', words: 300 },
       { level: 1, key: 'abstract', words: 300 },
       { level: 1, key: 'contents', words: 0 },
+      { level: 1, key: 'tableList', words: 0 },
+      { level: 1, key: 'figureList', words: 0 },
+      { level: 1, key: 'abbreviations', words: 0 },
       { level: 1, key: 'intro', words: 1500 },
       { level: 1, key: 'framework', words: 3000 },
       { level: 1, key: 'method', words: 2000 },
@@ -44,13 +59,44 @@ export const TEMPLATES = [
       { level: 1, key: 'conclusion', words: 1000 },
       { level: 1, key: 'references', words: 0 },
       { level: 1, key: 'appendix', words: 0 },
+      { level: 1, key: 'cv', words: 0 },
+    ],
+  },
+  {
+    // Anlatı derlemesi: tematik düzen. Sistematik derleme için PRISMA iskeleti ayrı.
+    id: 'review',
+    bibFormat: 'APA 7',
+    setup: { ...BASE_SETUP, margin: 'normal', lineHeight: 1.5 },
+    sections: [
+      { level: 2, key: 'summary', words: 250 },
+      { level: 2, key: 'intro', words: 800 },
+      { level: 2, key: 'reviewMethod', words: 500 },
+      { level: 2, key: 'themes', words: 3000 },
+      { level: 2, key: 'discussion', words: 1000 },
+      { level: 2, key: 'conclusion', words: 500 },
+      { level: 2, key: 'references', words: 0 },
+    ],
+  },
+  {
+    id: 'project',
+    bibFormat: 'APA 7',
+    setup: { ...BASE_SETUP, margin: 'normal', lineHeight: 1.15 },
+    sections: [
+      { level: 2, key: 'summary', words: 250 },
+      { level: 2, key: 'intro', words: 600 },
+      { level: 2, key: 'scope', words: 800 },
+      { level: 2, key: 'workplan', words: 600 },
+      { level: 2, key: 'outputs', words: 800 },
+      { level: 2, key: 'conclusion', words: 400 },
+      { level: 2, key: 'references', words: 0 },
     ],
   },
   {
     // PRISMA 2020 kontrol listesinin ANA başlıkları — 27 maddenin tamamı
     // değil. Arayüz "teslimden önce resmi listeyle karşılaştır" der.
     id: 'prisma',
-    setup: { margin: 'normal', lineHeight: 1.5 },
+    bibFormat: 'APA 7',
+    setup: { ...BASE_SETUP, margin: 'normal', lineHeight: 1.5 },
     sections: [
       { level: 2, key: 'summary', words: 300 },
       { level: 2, key: 'intro', words: 0 },
@@ -78,6 +124,40 @@ export const TEMPLATES = [
 
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
 const escape = (s) => String(s).replace(/[&<>"]/g, (c) => ESCAPES[c]);
+
+/** Biçim seçimindeki seçenekler (WO-011): sıra ve şablon eşlemesi. */
+export const FORMATS = [
+  { id: 'article', template: 'imrad' },
+  { id: 'thesis', template: 'thesis' },
+  { id: 'review', template: 'review', systematic: 'prisma' },
+  { id: 'project', template: 'project' },
+  { id: 'blank', template: 'blank' },
+];
+
+const norm = (s) => String(s || '').trim().toLocaleLowerCase('tr');
+
+/**
+ * Var olan belgeyi başka bir biçime geçirirken ne yapılacağı (WO-011 Faz 1).
+ * Metin SİLİNMEZ:
+ * - `add`: şablonda olup belgede olmayan bölümler (adına göre eşlenir).
+ * - `removable`: belgede olup şablonda olmayan VE içi boş bölümler; ancak
+ *   kullanıcı onaylarsa kaldırılır. İçinde metin olan bölüm listeye girmez.
+ * Kaynakça bölümü hiçbir zaman kaldırılabilir sayılmaz.
+ *
+ * @param {Array<{index:number, text:string, level:number, total:number}>} headings belge yapısı
+ * @param {object} template hedef şablon
+ * @param {(key:string)=>string} t çeviri
+ * @param {(text:string)=>boolean} isReferences kaynakça başlığı mı
+ */
+export function planFormatChange(headings, template, t, isReferences = () => false) {
+  const wanted = (template?.sections || []).map((s) => ({ ...s, name: t(`workspace.section.${s.key}`) }));
+  const have = new Set(headings.map((h) => norm(h.text)));
+  const wantedNames = new Set(wanted.map((s) => norm(s.name)));
+  return {
+    add: wanted.filter((s) => !have.has(norm(s.name))),
+    removable: headings.filter((h) => h.total === 0 && !wantedNames.has(norm(h.text)) && !isReferences(h.text)),
+  };
+}
 
 /** Şablondaki toplam önerilen kelime. */
 export function templateWords(template) {

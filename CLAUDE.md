@@ -769,7 +769,6 @@ gerçek değerler bu tabloda tutulmaz, panelden okunur.
 | `AUTHOR_PANEL_ENABLED` | `client/src/App.jsx` (sabit) | `true` — yalnız `wo-002-yazar-paneli` dalında | Araştırmacı paneli sekmesi (WO-002) |
 | `WORKSPACE_ENABLED` | `client/src/App.jsx` (sabit) | `true` — yalnız aynı dalda | Çalışma alanı sekmesi (WO-003) |
 | `AI_WRITER_PANEL_ENABLED` | `client/src/App.jsx` (sabit) | `false` (13 Eki 2026 ürün kararı) | Eski "AI Yazar" paneli: bölüm üreten akış. Kapalıyken "AI Yazar" düğmesi çalışma alanını açar |
-| `APP_SHELL_ENABLED` | `client/src/App.jsx` (sabit) | `true` — yalnız `wo-006-istatistik` dalında (WO-010) | Uygulama kabuğu: ray, çalışma sekmeleri, Alanım / Yazım / Kaynaklar / Denetim. `false` iken eski düzen; paylaşılan bağlantı her zaman eski düzende |
 | `ORCID_ENABLED` | sunucu ortamı | `false` | ORCID kurum geçmişi; gelir başlarsa kapatılır (2.7) |
 | `SCOPUS_ENABLED` | sunucu ortamı | `false` | Scopus kaynağı (2.7 Kademe 3) |
 | `WRITER_POSTCHECK_ENABLED` | sunucu ortamı | `false` | Yazım panelinde üretim sonrası kontrol |

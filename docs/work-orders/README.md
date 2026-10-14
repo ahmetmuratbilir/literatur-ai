@@ -55,7 +55,8 @@ Taslak → Hazır → Çalışıyor → Bitti
 | WO-007 | Analiz sekmesi: veri girişi ve belgeye ekleme | P3 | Yazılmadı |
 | WO-008 | Grafik: recharts çıktısı ve docx/PDF'e gömme | P3 | Yazılmadı |
 | [WO-009](WO-009-muhendislik-analizleri.md) | Mühendislik analizleri: belirsizlik, yayılım, Monte Carlo, regresyon | P3 | **Bitti** (14.10.2026, `wo-006-istatistik`) |
-| [WO-010](WO-010-uygulama-kabugu.md) | Uygulama kabuğu ve yeni tasarıma geçiş (Aşama 0–2) | P1 | **Bitti — kullanıcı kontrolü bekliyor** (14.10.2026, Döngü C) |
+| [WO-010](WO-010-uygulama-kabugu.md) | Uygulama kabuğu ve yeni tasarıma geçiş (Aşama 0–2) | P1 | Kabuk kararı WO-011 ile geri alındı (15.10.2026) |
+| [WO-011](WO-011-yazar-modu.md) | Yazar modu yeniden yapılandırma (şartname Faz 1 → 3 → 2) | P1 | Çalışıyor — Faz 1 bitti (15.10.2026) |
 
 Denetim bittikten sonra açılacak iş emirleri, denetim raporundaki kritik
 sorun listesinden türetilir. Önceden yazılmaz — neyin bozuk olduğunu bilmeden
