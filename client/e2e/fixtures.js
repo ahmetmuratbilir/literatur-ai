@@ -105,11 +105,15 @@ export async function mockApi(page, overrides = {}) {
   return state;
 }
 
-/** Yazım belgesini yerel depolamaya hazır koyar (Workspace.jsx anahtarı). */
-export async function seedDraft(page, html, title = 'E2E taslağı') {
-  await page.addInitScript(([h, tt]) => {
+/**
+ * Yazım belgesini yerel depolamaya hazır koyar. Eski tek belge anahtarına
+ * yazar; uygulama ilk açılışta onu taslaklara taşır (WO-011). `extra` ek
+ * alanlar içindir (ör. `{ format: 'thesis' }`).
+ */
+export async function seedDraft(page, html, title = 'E2E taslağı', extra = {}) {
+  await page.addInitScript(([h, tt, more]) => {
     if (sessionStorage.getItem('e2e-seeded')) return;
     sessionStorage.setItem('e2e-seeded', '1');
-    localStorage.setItem('literatur-ai:workspace:v2', JSON.stringify({ html: h, title: tt, savedAt: Date.now() }));
-  }, [html, title]);
+    localStorage.setItem('literatur-ai:workspace:v2', JSON.stringify({ html: h, title: tt, savedAt: Date.now(), ...more }));
+  }, [html, title, extra]);
 }

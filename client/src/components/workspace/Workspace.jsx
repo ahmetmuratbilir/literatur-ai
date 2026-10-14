@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   AlignCenter, AlignJustify, AlignLeft, ArrowLeft, Bold, Check, ChevronDown, ChevronLeft, ChevronRight,
-  Download, FileText, History, Info, Italic, LayoutTemplate, Library, List, ListChecks, ListOrdered, ListTree,
+  ClipboardCheck, Download, FileText, History, Info, Italic, LayoutTemplate, Library, List, ListChecks, ListOrdered, ListTree,
   PanelRightClose, PanelRightOpen, Plus, Printer, Quote, Redo2, RefreshCw, RotateCcw, Search, SlidersHorizontal,
   Underline, Undo2, Upload, X,
 } from 'lucide-react';
@@ -16,6 +16,10 @@ import {
 } from './claimDetection.js';
 import { FORMATS, TEMPLATES, planFormatChange, templateHtml, templateWords } from './templates.js';
 import FormatPicker from './FormatPicker.jsx';
+import CheckPanel from './CheckPanel.jsx';
+import SubmitPrep from './SubmitPrep.jsx';
+import { citedDois, runAudit } from '../../audit/audit.js';
+import { downloadText, toBibTeX, toRIS } from '../../utils/citationExport.js';
 import {
   DRAFT_PREFIX, LOCK_BEAT, lockHolder, lockKey, newId, readDraft, readLock, releaseLock, saveConflictCopy, saveDraft, writeLock,
 } from './drafts.js';
@@ -210,11 +214,12 @@ function Popover({ open, onClose, label, wide = false, children }) {
  * @param onFindSources "Kaynak bul": araştırma moduna döner (WO-011).
  * @param initialData Depolama yazılamadığında bellekteki taslak (WO-011).
  * @param onConflict  Çakışmada bu sekmenin metni kopya taslağa yazıldı.
+ * @param panelRequest `{ panel: 'check', at }` — `#/yazar/kontrol` Kontrol'ü açar.
  */
 export default function Workspace({
   basket, apiUrl, getToken, hidden = false, onExit,
   embedded = false, apiRef = null, onSnapshot = null, onFindSources = null,
-  draftId = null, onSaved = null, initialData = null, onConflict = null,
+  draftId = null, onSaved = null, initialData = null, onConflict = null, panelRequest = null,
 }) {
   const { t, lang } = useI18n();
   // Taslak değişince bileşen yeniden kurulur (App `key={draftId}`); okuma bir kez.
@@ -263,6 +268,12 @@ export default function Workspace({
   const [imp, setImp] = useState(null);
   // Biçim değiştirme penceresi açık mı.
   const [fmtOpen, setFmtOpen] = useState(false);
+  // Faz 3: "Teslime hazırla" paneli ve kenar işaretinden Kontrol'e gelen madde.
+  const [prepOpen, setPrepOpen] = useState(false);
+  const [checkFocus, setCheckFocus] = useState({ id: null, tick: 0 });
+  const [markers, setMarkers] = useState([]);
+  // Geri çekme durumu: `key` cevabın hangi isteğe ait olduğunu söyler.
+  const [retraction, setRetraction] = useState({ byDoi: null, failed: false, key: '' });
   // Seçimin üstündeki küçük araç çubuğu: masadaki konumu, yoksa null.
   const [selBar, setSelBar] = useState(null);
   // Teslim görünümü ölçeği: 'fit' sayfayı masaya sığdırır, 'actual' gerçek boyut.
@@ -432,6 +443,7 @@ export default function Workspace({
           level: Number(block.tagName[1]),
           text: block.textContent.trim(),
           target: Number(block.getAttribute('data-target')) || 0,
+          key: block.getAttribute('data-template-section') || null,
         });
         continue;
       }
@@ -1136,6 +1148,19 @@ export default function Workspace({
     setImp((s) => ({ ...s, status: 'done', added, failed }));
   };
 
+  /** Cümleyi bulur, seçer, ortalar ve bir an vurgular. Bulunamazsa false. */
+  const revealSentenceKey = (key) => {
+    const s = sentencesRef.current.find((x) => x.key === key);
+    if (!s) return false;
+    goToSentence(s.id);
+    s.block.classList.add('wx-flash');
+    window.setTimeout(() => {
+      s.block.classList.remove('wx-flash');
+      if (!s.block.getAttribute('class')) s.block.removeAttribute('class');
+    }, FLASH_MS);
+    return true;
+  };
+
   const exportWord = async () => {
     closeMenu();
     const { exportDocx } = await import('./exportDocument.js');
@@ -1153,16 +1178,12 @@ export default function Workspace({
     if (!apiRef) return;
     apiRef.current = {
       /** Cümleyi bulur, seçer ve ortalar. Bulunamazsa false. */
-      goToSentenceKey: (key) => {
-        const s = sentencesRef.current.find((x) => x.key === key);
-        if (!s) return false;
-        goToSentence(s.id);
-        s.block.classList.add('wx-flash');
-        window.setTimeout(() => {
-          s.block.classList.remove('wx-flash');
-          if (!s.block.getAttribute('class')) s.block.removeAttribute('class');
-        }, FLASH_MS);
-        return true;
+      goToSentenceKey: revealSentenceKey,
+      /** Sağ panelde Kontrol sekmesini açar (`#/yazar/kontrol`). */
+      openCheck: () => {
+        setReview(null);
+        setSideView('check');
+        openSidePanel();
       },
       goToSection,
       setView: (v) => { setView(v); markDirty(); },
@@ -1196,6 +1217,167 @@ export default function Workspace({
       papers: basket.papers,
     });
   }, [onSnapshot, title, isEmpty, saveState.kind, setup, outline, sentences, blocks, refs, match, basket.papers]);
+
+  // --- Kontrol (WO-011 Faz 3) -----------------------------------------
+  // Eski Denetim ekranının kuralları (audit/audit.js) burada yazarken canlı
+  // çalışır. Yazarken boş bölüm Bilgi; "Teslime hazırla" teslim aşamasıyla
+  // çalışır, orada zorunlu boş bölüm Uyarı olur.
+  const auditInput = useMemo(() => ({
+    sentences, blocks, outline, refs, match, papers: basket.papers, setup,
+  }), [sentences, blocks, outline, refs, match, basket.papers, setup]);
+  const checkVisible = !hidden && ((sideOpen && sideView === 'check' && !review) || prepOpen);
+
+  // Geri çekme durumu Kontrol görünürken canlı sorulur (CLAUDE.md 3.4:
+  // önbelleğe alınmaz). Cevap gelmeyen kaynak "bilinmiyor" sayılır.
+  const doiKey = citedDois(auditInput).slice(0, MAX_RETRACTION_DOIS).join('|');
+  const retractionPending = Boolean(checkVisible && doiKey && retraction.key !== doiKey);
+  useEffect(() => {
+    if (!checkVisible || !doiKey || retraction.key === doiKey) return undefined;
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const token = await getToken();
+        const { data } = await axios.post(`${apiUrl}/api/retractions`, { dois: doiKey.split('|') }, {
+          headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
+        });
+        setRetraction({ byDoi: data?.results || {}, failed: Boolean(data?.failed), key: doiKey });
+      } catch (err) {
+        if (axios.isCancel(err)) return;
+        setRetraction({ byDoi: null, failed: true, key: doiKey });
+      }
+    })();
+    return () => controller.abort();
+  }, [checkVisible, doiKey, retraction.key, apiUrl, getToken]);
+
+  const retractionOptions = retraction.key === doiKey
+    ? { retractions: retraction.byDoi, retractionFailed: retraction.failed }
+    : {};
+  const checkItems = useMemo(
+    () => runAudit(auditInput, { ...retractionOptions, stage: 'draft' }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- retractionOptions her render'da yeni nesne; içeriği retraction ve doiKey'den
+    [auditInput, retraction, doiKey],
+  );
+  const prepItems = useMemo(
+    () => (prepOpen ? runAudit(auditInput, { ...retractionOptions, stage: 'submit' }) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- yukarıdakiyle aynı
+    [prepOpen, auditInput, retraction, doiKey],
+  );
+
+  // Bölüm numaraları ("2.3"): belgedeki en üst başlık seviyesi 1 sayılır.
+  const sectionNumbers = useMemo(() => {
+    const list = outline.headings;
+    if (!list.length) return [];
+    const base = Math.min(...list.map((h) => h.level));
+    const counters = [];
+    return list.map((h) => {
+      const depth = h.level - base;
+      counters[depth] = (counters[depth] || 0) + 1;
+      counters.length = depth + 1;
+      return counters.map((n) => n || 1).join('.');
+    });
+  }, [outline.headings]);
+
+  /** Maddenin belgedeki yeri: "Bölüm 2.3 · Paragraf 3". */
+  const locateItem = useCallback((item) => {
+    const target = item.target;
+    if (target?.kind === 'section') {
+      const n = sectionNumbers[target.index];
+      return n ? t('audit.location.section', { section: n }) : null;
+    }
+    if (target?.kind !== 'sentence') return null;
+    const s = sentencesRef.current.find((x) => x.key === target.key);
+    const el = pageRef.current;
+    if (!s?.block || !el) return null;
+    let heading = -1;
+    let paragraph = 0;
+    for (const child of el.children) {
+      if (/^H[1-3]$/.test(child.tagName)) {
+        heading += 1;
+        paragraph = 0;
+        continue;
+      }
+      if (child.textContent.trim()) paragraph += 1;
+      if (child === s.block) break;
+    }
+    return heading < 0
+      ? t('audit.location.preamble', { p: paragraph })
+      : t('audit.location.paragraph', { section: sectionNumbers[heading] || heading + 1, p: paragraph });
+  }, [sectionNumbers, t]);
+
+  /** Kontrol satırındaki eylemler. */
+  const onCheckAction = (action, item) => {
+    const target = item.target;
+    if (action === 'reveal' && target?.key) revealSentenceKey(target.key);
+    else if (action === 'section' && Number.isInteger(target?.index)) goToSection(target.index);
+    else if (action === 'bib') {
+      setReview(null);
+      setSideView('bib');
+      openSidePanel();
+    } else if (action === 'sources' || action === 'addSource') {
+      setReview(null);
+      setSideView('list');
+      openSidePanel();
+    } else if (action === 'notClaim' && target?.key) setOverride(target.key, OVERRIDE.notClaim);
+  };
+
+  // `#/yazar/kontrol` (ve eski `#/denetim`) Kontrol sekmesini açar.
+  useEffect(() => {
+    if (panelRequest?.panel !== 'check') return;
+    setReview(null);
+    setSideView('check');
+    setSideOpen(true);
+  }, [panelRequest]);
+
+  // Kenar işaretleri: hata ve uyarı taşıyan cümlenin bloğunun sağ kenarında.
+  // Konum sayfanın kendi (ölçeksiz) koordinatında; Teslim görünümündeki zoom
+  // işaretleri de sayfayla birlikte ölçekler.
+  useLayoutEffect(() => {
+    const el = pageRef.current;
+    if (!el || hidden) return;
+    const byBlock = new Map();
+    for (const item of checkItems) {
+      if (item.target?.kind !== 'sentence' || item.severity === 'info') continue;
+      const s = sentencesRef.current.find((x) => x.key === item.target.key);
+      if (!s?.block?.isConnected) continue;
+      const entry = byBlock.get(s.block);
+      if (!entry) byBlock.set(s.block, { item, severity: item.severity, n: 1 });
+      else {
+        entry.n += 1;
+        if (item.severity === 'critical') entry.severity = 'critical';
+      }
+    }
+    const left = el.offsetLeft + el.offsetWidth - 16;
+    const next = [...byBlock.entries()].map(([block, entry]) => ({
+      id: entry.item.id,
+      rule: entry.item.rule,
+      title: t(`audit.rule.${entry.item.rule}.title`, {
+        ...entry.item.params,
+        kind: entry.item.params?.kind ? t(`audit.kind.${entry.item.params.kind}`) : '',
+      }) + (entry.n > 1 ? ` (+${entry.n - 1})` : ''),
+      severity: entry.severity,
+      n: entry.n,
+      top: block.offsetTop,
+      height: block.offsetHeight,
+      left,
+    }));
+    setMarkers((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+  }, [checkItems, hidden, view, setup, zoomMode, deskWidth, sideOpen, navPanel, t]);
+
+  const openMarker = (marker) => {
+    setReview(null);
+    setSideView('check');
+    openSidePanel();
+    setCheckFocus((f) => ({ id: marker.id, tick: f.tick + 1 }));
+  };
+
+  /** "Teslime hazırla" › Dışa aktar. Başarı mesajı yok: indirme tarayıcıda görünür. */
+  const exportFor = (choice) => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    if (choice === 'docx') exportWord();
+    else if (choice === 'print') printDocument();
+    else if (choice === 'bibtex' && basket.papers.length) downloadText(`literatur-ai_kaynakca_${stamp}.bib`, toBibTeX(basket.papers), 'application/x-bibtex');
+    else if (choice === 'ris' && basket.papers.length) downloadText(`literatur-ai_kaynakca_${stamp}.ris`, toRIS(basket.papers), 'application/x-research-info-systems');
+  };
 
   const toggleNav = (panel) => setNavPanel((p) => (p === panel ? null : panel));
 
@@ -1546,7 +1728,8 @@ export default function Workspace({
       {/* Yazdırmada kağıt boyutu ve kenar boşlukları ekrandakiyle aynı olsun. */}
       <style>{`@page { size: ${geometry.width}mm ${geometry.height}mm; margin: ${geometry.margin}mm; }`}</style>
 
-      <div className="wx-shell">
+      {/* "Teslime hazırla" açıkken ona yer ayrılır: belge solda görünür kalır. */}
+      <div className={`wx-shell${prepOpen ? ' wx-shell--prep' : ''}`}>
         {/* --- Üst çubuk: çıkış, belge kimliği ve belge düzeyindeki eylemler --- */}
         <header className="wx-top">
           {onExit && (
@@ -1618,6 +1801,16 @@ export default function Workspace({
               ))}
             </Popover>
           </div>
+
+          <button
+            type="button"
+            className="wx-btn"
+            aria-pressed={prepOpen}
+            onClick={() => { closeMenu(); setPrepOpen((o) => !o); }}
+            data-action="write-submit"
+          >
+            <ClipboardCheck size={15} /> <span className="wx-hide-sm">{t('audit.submit.open')}</span>
+          </button>
 
           <div className="wx-anchor">
             <button type="button" className="wx-btn wx-btn--primary" aria-expanded={menu === 'export'} onClick={() => toggleMenu('export')}>
@@ -1897,6 +2090,19 @@ export default function Workspace({
                   onInput={onInput}
                   onBlur={flush}
                 />
+                {markers.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className={`wx-marker wx-marker--${m.severity}`}
+                    style={{ top: m.top, height: m.height, left: m.left }}
+                    onClick={() => openMarker(m)}
+                    title={t('audit.check.marker', { title: m.title })}
+                    aria-label={t('audit.check.marker', { title: m.title })}
+                    data-action="check-marker"
+                    data-rule={m.rule}
+                  />
+                ))}
                 {/* §8: boş sayfa bir sonraki hamleyi söyler; şablon zorunlu değil. */}
                 {isEmpty && (
                   <div className="wx-empty">
@@ -1988,6 +2194,9 @@ export default function Workspace({
                       {t('workspace.side.sources')}{basket.papers.length > 0 ? ` · ${fmt(basket.papers.length)}` : ''}
                     </button>
                     <button type="button" aria-pressed={sideView === 'bib'} onClick={() => setSideView('bib')} data-action="side-bib">{t('workspace.bib.tab')}</button>
+                    <button type="button" aria-pressed={sideView === 'check'} onClick={() => setSideView('check')} data-action="side-check">
+                      {t('audit.check.tab')}{checkItems.length > 0 ? ` · ${fmt(checkItems.length)}` : ''}
+                    </button>
                   </div>
                 )}
                 {!review && sideView === 'source' && paper && basket.papers.length > 1 && (
@@ -2009,6 +2218,17 @@ export default function Workspace({
               <div className="wx-side__body">
                 {reviewView}
                 {!review && sideView === 'bib' && bibView}
+                {!review && sideView === 'check' && (
+                  <CheckPanel
+                    items={checkItems}
+                    locate={locateItem}
+                    onAction={onCheckAction}
+                    focusId={checkFocus.id}
+                    focusTick={checkFocus.tick}
+                    pending={retractionPending}
+                    note={t('audit.check.live')}
+                  />
+                )}
                 {!review && sideView === 'list' && (
                   <section className="wx-srclist" aria-label={t('workspace.side.sources')}>
                     <div className="wx-acts">
@@ -2146,6 +2366,25 @@ export default function Workspace({
       </div>
 
       {importView}
+      {prepOpen && (
+        <SubmitPrep
+          items={prepItems}
+          locate={locateItem}
+          onAction={(action, item) => {
+            // Sağ paneli açan eylemler paneli görünür kılmak için çekmeceyi kapatır.
+            if (['bib', 'sources', 'addSource'].includes(action)) setPrepOpen(false);
+            onCheckAction(action, item);
+          }}
+          pending={retractionPending}
+          setup={setup}
+          format={format}
+          headings={outline.headings}
+          basketCount={basket.papers.length}
+          onPreview={() => { if (view !== 'submit') { setView('submit'); markDirty(); } }}
+          onExport={exportFor}
+          onClose={() => setPrepOpen(false)}
+        />
+      )}
       {fmtOpen && (
         <FormatPicker
           mode="change"

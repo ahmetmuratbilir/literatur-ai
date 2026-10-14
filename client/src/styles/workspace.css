@@ -1043,6 +1043,168 @@ button.wx-stat[aria-pressed="true"] { background: var(--wx-hover); color: var(--
 .wx-sync--down > svg { color: #b45309; }
 .wx-page[contenteditable="false"] { cursor: default; }
 
+/* ---------- Kontrol (WO-011 Faz 3) ----------
+   Önem rengi yalnız rozette ve kenar işaretinde; bilgi ayrıca yazıyla da
+   verilir (rozet metni), yalnız renge kalmaz. */
+.wx { --wx-err: #b42318; --wx-err-soft: #fef3f2; --wx-warn: #b54708; --wx-warn-soft: #fffaeb; }
+.wx-ctl { display: grid; gap: 10px; }
+.wx-ctl__filters { display: flex; flex-wrap: wrap; gap: 4px; }
+.wx-ctl__filters button {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--wx-line);
+  border-radius: 99px;
+  background: var(--wx-surface);
+  color: var(--wx-ink-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.wx-ctl__filters button[aria-selected="true"] { border-color: var(--wx-accent); background: var(--wx-accent-soft); color: var(--wx-accent); font-weight: 600; }
+.wx-ctl__filters em { font-style: normal; font-variant-numeric: tabular-nums; opacity: .8; }
+.wx-ctl__list, .wx-ctl__sub { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.wx-ctl__sub { margin-top: 6px; }
+.wx-ctl__item, .wx-ctl__group {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--wx-line);
+  border-radius: 10px;
+  background: var(--wx-surface);
+}
+.wx-ctl__item--nested { padding: 8px 10px; border-style: dashed; background: var(--wx-chrome); }
+.wx-ctl__item.is-focused { border-color: var(--wx-accent); box-shadow: 0 0 0 2px var(--wx-accent-soft); }
+.wx-ctl__main { display: grid; gap: 4px; min-width: 0; }
+.wx-ctl__main small { color: var(--wx-muted); font-size: 12px; line-height: 1.45; }
+.wx-ctl__main blockquote { margin: 0; padding-left: 8px; border-left: 2px solid var(--wx-line); color: var(--wx-ink-2); font-family: var(--wx-serif); font-size: 13px; line-height: 1.5; }
+.wx-ctl__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--wx-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+strong.wx-ctl__title { cursor: default; }
+button.wx-ctl__title:hover { color: var(--wx-accent); }
+.wx-ctl__where { color: var(--wx-muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; }
+.wx-ctl__acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.wx-ctl__acts:empty { display: none; }
+.wx-ctl__titles { margin: 0; padding-left: 18px; color: var(--wx-ink-2); font-size: 12px; }
+.wx-ctl__badge {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.wx-ctl__badge--critical { background: var(--wx-err-soft); color: var(--wx-err); }
+.wx-ctl__badge--warning { background: var(--wx-warn-soft); color: var(--wx-warn); }
+.wx-ctl__badge--info { background: var(--wx-hover); color: var(--wx-ink-2); }
+.wx-ctl__note, .wx-ctl__empty, .wx-ctl__limits { margin: 0; }
+
+/* Kenar işareti: sorunlu bloğun sağ iç kenarında ince çubuk. */
+.wx-marker {
+  position: absolute;
+  width: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: var(--wx-warn);
+  opacity: .65;
+  cursor: pointer;
+}
+.wx-marker--critical { background: var(--wx-err); }
+.wx-marker:hover, .wx-marker:focus-visible { opacity: 1; outline: 2px solid var(--wx-accent); outline-offset: 2px; }
+@media print { .wx-marker { display: none; } }
+
+/* ---------- Teslime hazırla: sağdan açılan geniş panel ---------- */
+.wx-prep {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  width: min(520px, 100vw);
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  border-left: 1px solid var(--wx-line);
+  background: var(--wx-surface);
+  box-shadow: var(--wx-shadow-pop);
+  animation: wx-pop .12s ease-out;
+}
+.wx-prep__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--wx-line); }
+.wx-prep__head > div { display: grid; gap: 2px; }
+.wx-prep__head small { color: var(--wx-muted); font-size: 12px; }
+.wx-prep__steps { display: flex; gap: 4px; margin: 0; padding: 10px 16px; list-style: none; border-bottom: 1px solid var(--wx-line); }
+.wx-prep__steps button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--wx-muted);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.wx-prep__steps button > span {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--wx-hover);
+  font-size: 11px;
+  font-weight: 700;
+}
+.wx-prep__steps [aria-current="step"] button { background: var(--wx-accent-soft); color: var(--wx-accent); font-weight: 600; }
+.wx-prep__steps .is-done button { color: var(--wx-ink-2); }
+.wx-prep__body { overflow: auto; display: grid; align-content: start; gap: 14px; padding: 16px; }
+.wx-prep__body h3 { margin: 0 0 6px; font-size: 13px; }
+.wx-prep__status { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--wx-chrome); color: var(--wx-ink-2); font-size: 12.5px; line-height: 1.5; }
+.wx-prep__status--warn { background: var(--wx-warn-soft); color: var(--wx-warn); }
+.wx-prep__status > svg { flex: none; margin-top: 2px; }
+.wx-prep__pkg ul { display: grid; gap: 4px; margin: 0 0 6px; padding: 0; list-style: none; }
+.wx-prep__pkg li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.wx-prep__pkg li > span:first-child { flex: 1; }
+.wx-prep__pill { padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+.wx-prep__pill--present { background: #ecfdf3; color: #067647; }
+.wx-prep__pill--empty { background: var(--wx-warn-soft); color: var(--wx-warn); }
+.wx-prep__pill--missing { background: var(--wx-hover); color: var(--wx-ink-2); }
+.wx-prep__layout { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0 0 6px; font-size: 12.5px; }
+.wx-prep__layout dt { color: var(--wx-muted); }
+.wx-prep__layout dd { margin: 0; }
+.wx-prep__formats { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
+.wx-prep__formats legend { margin-bottom: 4px; font-size: 13px; font-weight: 600; }
+.wx-prep__format { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--wx-line); border-radius: 10px; cursor: pointer; }
+.wx-prep__format:has(input:checked) { border-color: var(--wx-accent); background: var(--wx-accent-soft); }
+.wx-prep__format.is-disabled { opacity: .55; cursor: not-allowed; }
+.wx-prep__format > span { display: grid; gap: 2px; }
+.wx-prep__format strong { font-size: 13px; }
+.wx-prep__format small { color: var(--wx-muted); font-size: 12px; }
+.wx-prep__foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--wx-line); }
+@media print { .wx-prep { display: none; } }
+/* Geniş ekranda panel belgeyi örtmesin: yer ayrılır, sağ panel o sırada
+   gizlenir (Kontrol zaten panelin ilk adımı). Dar ekranda üstü örter. */
+@media (min-width: 1100px) {
+  .wx-shell--prep { padding-right: min(520px, 100vw); }
+  .wx-shell--prep .wx-side { display: none; }
+}
+
 .wx-scrim { display: none; }
 
 /* ---------- Kaynak dosyasından aktarma (Zotero / Mendeley) ---------- */

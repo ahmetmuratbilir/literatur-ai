@@ -29,6 +29,8 @@ export function buildOutline(items) {
         level: item.level,
         text: item.text,
         target: item.target > 0 ? item.target : null,
+        // Şablon bölüm kimliği (WO-011): tez paketi ve isteğe bağlı bölümler.
+        key: item.key || null,
         words: 0,
         total: 0,
       };

@@ -175,6 +175,8 @@ function App() {
   const drafts = useDrafts();
   // Biçim seçici açık mı (yeni taslak ya da hiç taslak yokken yazar modu).
   const [creatingDraft, setCreatingDraft] = useState(false);
+  // Yazar modunun sağ panelinden adresle istenen sekme (WO-011 Faz 3).
+  const [writerPanel, setWriterPanel] = useState(null);
   // Belgeye verilen komutlar (kaydet, dışa aktar …) ve yazar moduna girişte
   // geçmişe kayıt eklenip eklenmediği (çıkışta geri tuşuyla aynı yol).
   const workspaceApi = useRef(null);
@@ -315,6 +317,8 @@ function App() {
           if (m !== 'workspace') modeBeforeWorkspace.current = m;
           return 'workspace';
         });
+        // `#/yazar/kontrol` (ve eski `#/denetim`): sağ panelde Kontrol açılır.
+        if (route.panel === 'check') setWriterPanel({ panel: 'check', at: Date.now() });
         return;
       }
       pushedWriter.current = false;
@@ -1258,6 +1262,7 @@ function App() {
                 onFindSources={exitWriter}
                 initialData={drafts.memoryData}
                 onConflict={onDraftConflict}
+                panelRequest={writerPanel}
               />
             </Suspense>
           )}

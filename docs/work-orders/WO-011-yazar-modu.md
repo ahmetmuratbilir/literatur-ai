@@ -2,7 +2,7 @@
 
 | Alan | Değer |
 | --- | --- |
-| Durum | Çalışıyor — "start" 15.10.2026 |
+| Durum | Çalışıyor — Faz 1 ve Faz 3 bitti; sırada Faz 2 |
 | Kaynak | Kullanıcının "Yazar Modu Yeniden Yapılandırma" şartnamesi + güvenlik/faz kapıları ekleri |
 | Dal | `wo-006-istatistik`; güvence: `b1fab98 WIP: önceki iş`, `yedek/wo-011-oncesi` |
 | Faz sırası | **1 → 3 → 2** (kullanıcı kararı). Bir faz bitmeden sonrakine geçilmez |
@@ -170,3 +170,54 @@ uyarısı gösterilir. Önce bu durumda hiç yazılamıyordu.
   kalır ("Burada düzenle" her zaman çalışır).
 - Çakışma kopyası testi, kilidi görmemiş bir sekmeyi depoya doğrudan yazarak
   taklit ediyor.
+
+### Faz 3 — 15.10.2026
+
+Denetim sayfası kalktı. Kuralları yazar modunun sağ panelinde **Kontrol**
+sekmesinde yazarken canlı çalışıyor, ayrıca **Teslime hazırla** çekmecesi var.
+`#/yazar/kontrol` ve eski `#/denetim` Kontrol'ü açar. `modules/Audit.jsx`
+silindi; kurallar `src/audit/audit.js`'te.
+
+**Şartname maddeleri:**
+
+| Madde | Durum |
+| --- | --- |
+| Eski Denetim'in tüm kuralları Kontrol'de | Çalışıyor: geri çekilmiş/endişeli kaynak, sahipsiz atıf, kaynakça yok/eksik, atıfsız iddia, sayfasız alıntı, boş bölüm, uzunluk hedefi, atıf yapılmayan kaynak, geri çekme durumu bilinmeyen |
+| Eksik bibliyografik bilgi (yeni) | Çalışıyor: yazar, yıl, başlık. Atıf yapılan kaynakta Uyarı, yalnız sepettekinde Bilgi |
+| Tablo/şekil numaralandırması (yeni) | Kısmen: yalnız "Tablo 2." / "Şekil 3:" ile başlayan başlık satırları ve metindeki "Tablo N" göndermeleri. Editörde gerçek tablo/şekil nesnesi yok |
+| Süzgeç Tümü · Hata · Uyarı · Bilgi, sayılarla | Çalışıyor ("Kritik" adı "Hata" oldu) |
+| Satır: önem · başlık · monospace konum · cümle · açıklama · eylemler | Çalışıyor: Metinde göster, Bölüme git, Kaynakçayı aç, Kaynak ekle, Kaynakları aç, İddia değil olarak işaretle |
+| Gruplama ("3 bölüm boş" → liste) | Çalışıyor |
+| Taslakta boş bölüm Bilgi, teslimde zorunlu bölüm Uyarı | Kısmen: "zorunlu" tanımı sabit liste. İsteğe bağlı sayılanlar: kısaltmalar, tablo/şekil listeleri, ekler, özgeçmiş. Kurum yönergesi bilinmiyor; arayüz söylüyor |
+| "Pasajla doğrulama yapılmadı" | Madde açıklamasında ve sınırlar notunda |
+| Kenar işareti → Kontrol'de satır | Çalışıyor: hata ve uyarı taşıyan, cümleye bağlı maddeler |
+| Satıra tıklayınca editörde doğru konum | Cümle ve bölüm maddelerinde çalışıyor. Kaynakça ve sepet maddelerinin belgede konumu yok; ilgili paneli açar |
+| Teslime hazırla: Kontrol → Önizleme → Dışa aktar | Çalışıyor. Hata varken "Yine de devam et". Önizleme belgeyi Teslim görünümüne alır; sayfa düzeni ve kurum notu görünür |
+| Dışa aktar: Word, yazdır/PDF, BibTeX, RIS | Word, BibTeX ve RIS indiriliyor (e2e). Yazdır/PDF tarayıcının yazdırma penceresini açar; e2e bu pencereyi doğrulamıyor |
+| Desteklenmeyen biçimler listede yok | Çalışıyor: dört seçenek; PDF/A ve LaTeX yok notu korunuyor |
+| Tez: teslim paketi bileşenleri | Çalışıyor: kapak, onay, etik, Özet, Abstract, içindekiler, tablo/şekil listeleri, ekler. Belgedeki başlıklardan Var / Başlık var, içi boş / Yok |
+
+**Testler:**
+
+| Test | Sonuç |
+| --- | --- |
+| İstemci birim | 143/143 |
+| audit | 19/19 (14 eski + 5 yeni) |
+| Sunucu | 417/417 |
+| Lint | temiz |
+| i18n | yalnız eski `criteria.` |
+| Build | geçiyor |
+| e2e | 46 geçti, **1 atlandı** (`screens.spec`, elle inceleme). Faz 1'de park edilen 9 Denetim testi Kontrol ve Teslime hazırla için yeniden yazıldı, `fixme` kalktı; toplam 16 test oldu |
+| audit.spec tekrar | 5 tekrar 80/80 |
+| Otomatik kayıt, B4, iki sekme tekrar | 10'ar tekrar 30/30 |
+| Temel çizgi | BibTeX ve RIS bayt bayt aynı; DOCX yalnız zaman damgası |
+
+**Bilinen sınırlar:**
+- Kontrol her tuş vuruşunda kuralları yeniden çalıştırır; çok uzun belgede
+  ölçülmedi.
+- Kenar işaretleri blok başına bir tane; aynı blokta birden çok madde
+  "(+n)" ile sayılır.
+- Teslime hazırla açıkken geniş ekranda belgeye yer ayrılır ve sağ panel
+  gizlenir. Kaynakça/kaynak eylemleri çekmeceyi kapatıp paneli açar.
+
+Faz 3 tamam; tarayıcıda deneme sonrası Faz 2'ye geçilecek.
