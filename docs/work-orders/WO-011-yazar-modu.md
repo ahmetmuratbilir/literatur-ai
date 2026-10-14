@@ -55,6 +55,15 @@ Denetim kuralları sağ panel › Kontrol'e; gruplama; taslakta boş bölüm = B
 editör kenar işaretleri; "Teslime hazırla" adımlı akış (Kontrol → Önizleme →
 Dışa aktar); tez paket bileşenleri belgedeki gerçek bölümlerden.
 
+**Faz 3'e özel kabul kriterleri (kullanıcı, 15.10.2026):**
+
+- Faz 1'de `fixme` ile park edilen 9 Denetim e2e testi (`e2e/audit.spec.js`)
+  Kontrol sekmesi için yeniden yazılmış ve geçiyor; `test.fixme` satırı
+  kaldırılmış. Atlanan e2e sayısı Faz 1 öncesindeki gibi yalnız 1
+  (`screens.spec`, elle inceleme).
+- Aynı taslak iki sekmede açıkken veri kaybı yok (Faz 1 ek testleri
+  `mode.spec` içinde, Faz 3 sonunda da geçiyor).
+
 ## Faz 2 — Görsel cila
 
 Numaralı iç içe belge yapısı, sürükle-bırak; tek satır araç çubuğu + "Daha
@@ -64,6 +73,11 @@ Kaynaklar · Asistan · Kontrol; durum çubuğu tek satır.
 ## Kapsam dışı (şartnamenin Faz 4–6'sı)
 
 Analiz çekmecesi (WO-012), matris ve şekiller (WO-013), sürüm geçmişi (WO-014).
+
+**WO-014 için not (kullanıcı, 15.10.2026):** biçim değişikliğinden önce
+otomatik sürüm alınsın. Bugün onaylanıp kaldırılan boş bölüm editörün geri al
+geçmişine girmiyor; sürüm geçmişi gelince bu, biçim değişikliğini tek adımda
+geri almanın yolu olur.
 
 ## Kabul — her faz sonunda
 
@@ -105,3 +119,54 @@ temizlemek tek tıklamaydı; iki adımlı oldu.
 (Kontrol sekmesi Faz 3). Biçim değişiminde onaylanıp kaldırılan boş bölüm
 editörün geri al geçmişine girmez (onay penceresi var). Taslaklar yalnız bu
 tarayıcıda; arayüz bunu söylüyor.
+
+Faz 1 tamam; tarayıcıda deneme sonrası Faz 3'e geçilecek.
+
+### Faz 1 ek — 15.10.2026 (kenar durumu denemesinden)
+
+Kenar durumu denemesi (Playwright, geçici) iki hata buldu, ikisi de düzeltildi:
+
+1. **Aynı taslak iki sekmede → sessiz ezme.** Önce B sekmesinin kaydı A'nın
+   yazdığını siliyordu, A'da uyarı yoktu. Şimdi:
+   - Her kayıt sürüm (`rev`) taşır. Sekme, yüklediğinden yeni bir sürüm
+     depoya yazılmışsa üzerine yazmaz (`saveDraft`).
+   - Düzenleyen sekme kilidi tutar (4 sn'de bir tazeler, 12 sn'de düşer).
+     İkinci sekme salt okunur açılır: "Bu taslak başka bir sekmede açık" +
+     "Burada düzenle". Devralınca öbür sekme bekleyen kaydını yazıp salt
+     okunur olur.
+   - Öbür sekmede daha yeni sürüm varsa ve burada kaydedilmemiş değişiklik
+     yoksa yeni içerik sessizce yüklenir. İki tarafta da kaydedilmemiş
+     değişiklik varsa bu sekmenin metni "(çakışma kopyası)" taslağı olur,
+     bildirim çıkar.
+   - Bu sekmede açık taslak artık sekmeye özel (oturum deposu). Önce bir
+     sekmede başka taslak açmak öbür sekmenin belgesini de değiştiriyordu.
+   - Yeniden adlandırma sürümü artırır; açık belge yeni adı alır, eski adla
+     üzerine yazmaz.
+2. **Biçim değişiminde başlık seviyesi.**
+   - Şablon başlıkları `data-template-section` kimliği taşır.
+   - Eklenen bölümler belgedeki seviyeye uyar (makalede tez bölümleri h2).
+   - Kaldırma yalnız kimlikli, yeni şablonda olmayan, kendi içeriği boş ve
+     alt bölümü olmayan bölümlerde önerilir; kullanıcının kendi başlıkları
+     hiç önerilmez.
+
+Ek olarak: **depolama yazılamıyorsa** taslak bellekte açılır, yazmak serbest.
+Kalıcı amber uyarı, "DOCX olarak indir" ve sayfadan çıkarken `beforeunload`
+uyarısı gösterilir. Önce bu durumda hiç yazılamıyordu.
+
+**Testler:**
+- İstemci birim 138/138 (+11: sürüm, kilit, çakışma kopyası, yeniden
+  adlandırma, biçim planı) · audit 14/14 · sunucu 417/417 · lint temiz · i18n
+  yalnız eski `criteria.` · build geçiyor (index 556,7 kB).
+- e2e 30 geçti, 10 atlandı (yeni: iki sekme, çakışma kopyası, sekmeye özel
+  taslak, biçim gidiş-dönüşü, depolama yok).
+- Yeni dört test 10'ar tekrar 40/40; otomatik kayıt ve B4 20'şer tekrar
+  40/40.
+- Temel çizgi: BibTeX ve RIS bayt bayt aynı; DOCX yalnız zaman damgası.
+
+**Bilinen sınırlar:**
+- Kilit tarayıcı içi; iki farklı tarayıcı ya da cihaz arasında koruma yok
+  (taslaklar zaten yalnız bu tarayıcıda).
+- Sekme çökerse kilit 12 sn sonra düşer; o arada öbür sekme salt okunur
+  kalır ("Burada düzenle" her zaman çalışır).
+- Çakışma kopyası testi, kilidi görmemiş bir sekmeyi depoya doğrudan yazarak
+  taklit ediyor.

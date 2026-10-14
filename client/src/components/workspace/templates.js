@@ -136,26 +136,69 @@ export const FORMATS = [
 
 const norm = (s) => String(s || '').trim().toLocaleLowerCase('tr');
 
+/** Bölüm adından şablon kimliğine (kimliği olmayan eski belgeler için). */
+function keysByName(t) {
+  const map = new Map();
+  for (const template of TEMPLATES) {
+    for (const s of template.sections) {
+      const name = norm(t(`workspace.section.${s.key}`));
+      if (!map.has(name)) map.set(name, s.key);
+    }
+  }
+  return map;
+}
+
+const clampLevel = (level) => Math.min(3, Math.max(1, level));
+
+/**
+ * Belgedeki başlık seviyesi ile şablonun seviyesi arasındaki fark. Makale
+ * bölümleri h2, tez bölümleri h1; makaleye tezden eklenen bölüm h1 olursa
+ * ardındaki makale bölümlerini kendi alt bölümü yapıyordu.
+ */
+function levelOffset(doc, sections) {
+  for (const h of doc) {
+    const match = h.key && sections.find((s) => s.key === h.key);
+    if (match) return h.level - match.level;
+  }
+  if (!doc.length || !sections.length) return 0;
+  return Math.min(...doc.map((h) => h.level)) - Math.min(...sections.map((s) => s.level));
+}
+
 /**
  * Var olan belgeyi başka bir biçime geçirirken ne yapılacağı (WO-011 Faz 1).
  * Metin SİLİNMEZ:
- * - `add`: şablonda olup belgede olmayan bölümler (adına göre eşlenir).
- * - `removable`: belgede olup şablonda olmayan VE içi boş bölümler; ancak
- *   kullanıcı onaylarsa kaldırılır. İçinde metin olan bölüm listeye girmez.
+ * - `add`: şablonda olup belgede olmayan bölümler; seviyeleri belgedeki
+ *   başlık seviyesine uydurulmuş olarak.
+ * - `removable`: şablondan gelmiş (kimliği olan), yeni şablonda olmayan,
+ *   kendi içeriği boş ve alt bölümü olmayan bölümler; ancak kullanıcı
+ *   onaylarsa kaldırılır. Kullanıcının kendi başlıkları listeye girmez.
  * Kaynakça bölümü hiçbir zaman kaldırılabilir sayılmaz.
  *
- * @param {Array<{index:number, text:string, level:number, total:number}>} headings belge yapısı
+ * Kimlik `data-template-section` özniteliğinden gelir; kimliği olmayan eski
+ * belgelerde bölüm adından çıkarılır. Enter ile bölünen başlık kimliği
+ * kopyalayabilir: aynı kimliğin yalnız ilki sayılır.
+ *
+ * @param {Array<{text:string, level:number, key?:string|null, ownEmpty:boolean, hasChildren:boolean}>} headings
  * @param {object} template hedef şablon
  * @param {(key:string)=>string} t çeviri
  * @param {(text:string)=>boolean} isReferences kaynakça başlığı mı
  */
 export function planFormatChange(headings, template, t, isReferences = () => false) {
-  const wanted = (template?.sections || []).map((s) => ({ ...s, name: t(`workspace.section.${s.key}`) }));
-  const have = new Set(headings.map((h) => norm(h.text)));
-  const wantedNames = new Set(wanted.map((s) => norm(s.name)));
+  const sections = template?.sections || [];
+  const byName = keysByName(t);
+  const seen = new Set();
+  const doc = headings.map((h) => {
+    let key = h.key || byName.get(norm(h.text)) || null;
+    if (key && seen.has(key)) key = null;
+    if (key) seen.add(key);
+    return { ...h, key };
+  });
+  const have = new Set(doc.map((h) => h.key).filter(Boolean));
+  const wanted = new Set(sections.map((s) => s.key));
+  const offset = levelOffset(doc, sections);
   return {
-    add: wanted.filter((s) => !have.has(norm(s.name))),
-    removable: headings.filter((h) => h.total === 0 && !wantedNames.has(norm(h.text)) && !isReferences(h.text)),
+    add: sections.filter((s) => !have.has(s.key)).map((s) => ({ ...s, level: clampLevel(s.level + offset) })),
+    removable: doc.filter((h) => h.key && !wanted.has(h.key) && h.ownEmpty && !h.hasChildren && !isReferences(h.text)),
   };
 }
 
@@ -165,8 +208,8 @@ export function templateWords(template) {
 }
 
 /**
- * Şablonu belge HTML'ine çevirir. Başlık önerilen uzunluğu `data-target`
- * olarak taşır; ardından gelen boş paragraf rehber satırını `data-hint`
+ * Şablonu belge HTML'ine çevirir. Başlık şablon kimliğini
+ * `data-template-section`, önerilen uzunluğu `data-target` olarak taşır; ardından gelen boş paragraf rehber satırını `data-hint`
  * olarak taşır ve kullanıcı yazınca rehber kendiliğinden kaybolur (CSS).
  * Hemen ardından alt başlık gelen üst başlığa boş paragraf konmaz.
  */
@@ -175,7 +218,7 @@ export function templateHtml(template, t) {
   if (!sections.length) return '<p><br></p>';
   return sections.map(({ level, key, words }, i) => {
     const target = words ? ` data-target="${words}"` : '';
-    const heading = `<h${level}${target}>${escape(t(`workspace.section.${key}`))}</h${level}>`;
+    const heading = `<h${level} data-template-section="${escape(key)}"${target}>${escape(t(`workspace.section.${key}`))}</h${level}>`;
     const next = sections[i + 1];
     if (next && next.level > level) return heading;
     return `${heading}<p data-hint="${escape(t(`workspace.hint.${key}`))}"><br></p>`;

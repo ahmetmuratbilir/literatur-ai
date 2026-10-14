@@ -206,6 +206,159 @@ test('otomatik kayıt odak kaybı beklemeden yazıyor', async ({ page }) => {
   await expect(doc(page)).toBeFocused();
 });
 
+// --- Faz 1 ek: iki sekme, biçim gidiş-dönüşü, depolama yok ------------------
+
+const BANNER = () => {
+  document.addEventListener('DOMContentLoaded', () => { const s = document.createElement('style'); s.textContent = '.ui-devbanner{display:none!important}'; document.head.appendChild(s); });
+};
+const storedHtml = (page) => page.evaluate((key) => {
+  const index = JSON.parse(localStorage.getItem(key) || 'null');
+  const id = sessionStorage.getItem('literatur-ai:open-draft') || index?.activeId;
+  return id ? JSON.parse(localStorage.getItem(`literatur-ai:draft:${id}`) || '{}').html || '' : '';
+}, INDEX_KEY);
+
+test('iki sekme: ikincisi salt okunur, değişiklik sessizce gelir, "Burada düzenle" düzenlemeyi devralır', async ({ page, context }) => {
+  await seedDraft(page, '<h1>Giriş</h1><p>Ortak.</p>', 'İki sekme');
+  await mockApi(page);
+  await page.goto('/#/yazar');
+  await typeInFirstParagraph(page, ' AAA');
+  await expect.poll(() => storedHtml(page)).toContain('AAA');
+
+  const b = await context.newPage();
+  await b.addInitScript(BANNER);
+  await mockApi(b);
+  await b.goto('/#/yazar');
+  await expect(b.getByTestId('draft-locked')).toBeVisible();
+  await expect(doc(b)).toHaveAttribute('contenteditable', 'false');
+  await expect(doc(b)).toContainText('Ortak. AAA');
+  await expect(page.getByTestId('draft-locked')).toHaveCount(0);
+
+  // A yazmaya devam ediyor: B'ye sessizce gelir.
+  await page.keyboard.type(' A2');
+  await expect(doc(b)).toContainText('Ortak. AAA A2');
+
+  // B devralır: A salt okunur olur, B yazar, A'ya gelir; hiçbir metin kaybolmaz.
+  await b.locator('[data-action="draft-take-over"]').click();
+  await expect(page.getByTestId('draft-locked')).toBeVisible();
+  await expect(doc(page)).toHaveAttribute('contenteditable', 'false');
+  await expect(doc(b)).toHaveAttribute('contenteditable', 'true');
+  await doc(b).locator('p').first().click();
+  await b.keyboard.press('End');
+  await b.keyboard.type(' BBB');
+  await expect(doc(page)).toContainText('Ortak. AAA A2 BBB');
+  await expect.poll(() => storedHtml(page)).toContain('Ortak. AAA A2 BBB');
+  // Çakışma olmadı: tek taslak.
+  expect((await draftsIndex(page)).items).toHaveLength(1);
+});
+
+test('iki tarafta da kaydedilmemiş değişiklik varsa hiçbiri ezilmez: çakışma kopyası', async ({ page, context }) => {
+  await seedDraft(page, '<h1>Giriş</h1><p>Ortak.</p>', 'Çakışma');
+  await mockApi(page);
+  // A'nın zamanlayıcıları durdurulur: yazdığı kaydedilmemiş (kirli) kalır.
+  await page.clock.install();
+  await page.goto('/#/yazar');
+  await expect(doc(page)).toContainText('Ortak.');
+  // Öbür sekme önce açılır: yeni sekme açılınca A gizlenir ve gizlenen sekme
+  // bekleyen kaydını yazar (tasarım gereği). A'ya dönüp yazınca A kirli kalır.
+  const b = await context.newPage();
+  await mockApi(b);
+  await b.goto('/');
+  await page.bringToFront();
+  await typeInFirstParagraph(page, ' BENİM');
+
+  // Başka bir sekme (kilidi görmemiş, ör. süresi dolmuş kilit) daha yeni sürüm yazar.
+  await b.evaluate((key) => {
+    const index = JSON.parse(localStorage.getItem(key));
+    const k = `literatur-ai:draft:${index.activeId}`;
+    const stored = JSON.parse(localStorage.getItem(k));
+    localStorage.setItem(k, JSON.stringify({ ...stored, html: '<h1>Giriş</h1><p>Ortak. ONLARIN</p>', rev: (stored.rev || 0) + 1 }));
+  }, INDEX_KEY);
+
+  // A öbür sürüme geçer; kendi metni ayrı taslakta durur.
+  await expect(doc(page)).toContainText('Ortak. ONLARIN');
+  const index = await draftsIndex(page);
+  expect(index.items).toHaveLength(2);
+  const copy = index.items.find((d) => d.title.includes('çakışma kopyası'));
+  expect(copy).toBeTruthy();
+  const copyHtml = await page.evaluate((id) => JSON.parse(localStorage.getItem(`literatur-ai:draft:${id}`)).html, copy.id);
+  expect(copyHtml).toContain('Ortak. BENİM');
+  await expect(page.locator('.ui-toast')).toContainText('Taslak başka bir sekmede de değişti');
+});
+
+test('bir sekmede başka taslak açmak öbür sekmenin belgesini değiştirmez', async ({ page, context }) => {
+  await mockApi(page);
+  await page.goto('/#/yazar');
+  await createDraft(page, 'blank', 'Birinci');
+  await doc(page).click();
+  await page.keyboard.type('Birinci metni.');
+  await expect.poll(() => storedHtml(page)).toContain('Birinci metni.');
+
+  const b = await context.newPage();
+  await b.addInitScript(BANNER);
+  await mockApi(b);
+  await b.goto('/');
+  await openWorks(b);
+  await b.locator('[data-action="draft-new"]').click();
+  await createDraft(b, 'blank', 'İkinci');
+
+  await page.bringToFront();
+  await page.waitForTimeout(500);
+  await expect(page.locator('.wx-top__title')).toHaveValue('Birinci');
+  await expect(doc(page)).toContainText('Birinci metni.');
+});
+
+test('biçim gidiş-dönüşü: Makale → Tez → Makale belge yapısını başlangıca döndürür, metin kalır', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/#/yazar');
+  await createDraft(page, 'article', 'Gidiş dönüş');
+  const intro = doc(page).locator('h2[data-template-section="intro"] + p');
+  await intro.click();
+  await page.keyboard.type('Giriş metni duruyor.');
+  const structure = () => doc(page).locator('h1, h2, h3').evaluateAll((els) => els.map((e) => `${e.tagName}|${e.dataset.templateSection || ''}|${e.textContent.trim()}`));
+  const before = await structure();
+
+  page.on('dialog', (d) => d.accept());
+  for (const f of ['thesis', 'article']) {
+    await page.locator('[data-action="write-format"]').click();
+    await page.locator(`.wx-fmt [data-action="format-${f}"]`).click();
+    await page.locator('.wx-fmt [data-action="format-confirm"]').click();
+    await expect(page.locator('.wx-fmt')).toHaveCount(0);
+    if (f === 'thesis') {
+      // Tez bölümleri makalenin seviyesine (h2) uyar; makale bölümlerini alt bölüm yapmaz.
+      await expect(doc(page).locator('h1')).toHaveCount(0);
+      await expect(doc(page).getByRole('heading', { name: 'Özgeçmiş' })).toBeVisible();
+    }
+  }
+  expect(await structure()).toEqual(before);
+  await expect(doc(page)).toContainText('Giriş metni duruyor.');
+});
+
+test('depolama yazılamıyorsa yazmak serbest: kalıcı uyarı, DOCX ve çıkış uyarısı', async ({ page }) => {
+  await page.addInitScript(() => {
+    const orig = Storage.prototype.setItem;
+    Storage.prototype.setItem = function setItem(k, v) {
+      if (this === window.localStorage && String(k).startsWith('literatur-ai:')) throw new DOMException('dolu', 'QuotaExceededError');
+      return orig.call(this, k, v);
+    };
+  });
+  await mockApi(page);
+  await page.goto('/#/yazar');
+  await createDraft(page, 'blank', 'Kayıtsız');
+  await expect(page.getByTestId('storage-warn')).toBeVisible();
+  await doc(page).click();
+  await page.keyboard.type('Kaydedilemese de yazılabiliyor.');
+  await expect(doc(page)).toContainText('Kaydedilemese de yazılabiliyor.');
+  await page.waitForTimeout(1200);
+  await expect(page.getByTestId('storage-warn')).toBeVisible();
+
+  const [download] = await Promise.all([page.waitForEvent('download'), page.locator('[data-action="storage-docx"]').click()]);
+  expect(download.suggestedFilename()).toMatch(/\.docx$/);
+
+  const dialog = new Promise((resolve) => page.once('dialog', (d) => { resolve(d.type()); d.dismiss(); }));
+  await page.close({ runBeforeUnload: true });
+  expect(await dialog).toBe('beforeunload');
+});
+
 // WO-010 kabuk testlerinden yeni yerlerine taşınanlar (Alanım ve Sepetim kalktı).
 
 test('Çalışmalarım: son arama aramayı yeniden çalıştırır, kayıt silinir', async ({ page }) => {

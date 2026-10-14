@@ -16,7 +16,9 @@ import {
 } from './claimDetection.js';
 import { FORMATS, TEMPLATES, planFormatChange, templateHtml, templateWords } from './templates.js';
 import FormatPicker from './FormatPicker.jsx';
-import { readDraft, writeDraft } from './drafts.js';
+import {
+  DRAFT_PREFIX, LOCK_BEAT, lockHolder, lockKey, newId, readDraft, readLock, releaseLock, saveConflictCopy, saveDraft, writeLock,
+} from './drafts.js';
 import { buildOutline, countWords } from './outline.js';
 import { inlineCitation, referenceLine } from './citation.js';
 import { isReferencesHeading, matchSources } from './references.js';
@@ -52,6 +54,8 @@ const MAX_RETRACTION_DOIS = 25;
 const SIDE_W = 360;
 const DESK_GUTTER = 48;
 const DRAFT_MIN_PX = 640;
+// Bu sekmenin kimliği: aynı taslağı hangi sekmenin düzenlediğini ayırır (WO-011).
+const TAB_ID = newId();
 const MM_TO_PX = 96 / 25.4;
 const normDoi = (doi) => String(doi || '').trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '').toLowerCase();
 const MEDIUM = '(min-width: 1025px)';
@@ -79,6 +83,33 @@ function mediaMatches(query) {
  */
 function sourceKey(paper, i) {
   return paper?.doi || paper?.url || paper?.title || String(i);
+}
+
+/**
+ * Biçim değişimi için belgedeki başlıklar (WO-011): şablon kimliği, seviye,
+ * kendi içeriğinin (bir sonraki başlığa kadar) boş olup olmadığı ve hemen
+ * ardından alt başlık gelip gelmediği.
+ */
+function describeHeadings(el) {
+  if (!el) return [];
+  const kids = [...el.children];
+  const out = [];
+  kids.forEach((node, i) => {
+    if (!/^H[1-3]$/.test(node.tagName)) return;
+    const level = Number(node.tagName[1]);
+    let ownEmpty = true;
+    let hasChildren = false;
+    for (let j = i + 1; j < kids.length; j += 1) {
+      const next = kids[j];
+      if (/^H[1-3]$/.test(next.tagName)) {
+        hasChildren = Number(next.tagName[1]) > level;
+        break;
+      }
+      if (next.textContent.trim() || next.querySelector('img, table')) ownEmpty = false;
+    }
+    out.push({ node, text: node.textContent.trim(), level, key: node.dataset.templateSection || null, ownEmpty, hasChildren });
+  });
+  return out;
 }
 
 /** Kaydedilecek HTML: geçici vurgu sınıfı kayda girmez. */
@@ -177,20 +208,29 @@ function Popover({ open, onClose, label, wide = false, children }) {
  * @param apiRef    Kabuğun belgeye verdiği komutlar (Denetim → "Metinde göster").
  * @param onSnapshot Belgenin özetini kabuğa bildirir; Denetim bu özetten çalışır.
  * @param onFindSources "Kaynak bul": araştırma moduna döner (WO-011).
+ * @param initialData Depolama yazılamadığında bellekteki taslak (WO-011).
+ * @param onConflict  Çakışmada bu sekmenin metni kopya taslağa yazıldı.
  */
 export default function Workspace({
   basket, apiUrl, getToken, hidden = false, onExit,
   embedded = false, apiRef = null, onSnapshot = null, onFindSources = null,
-  draftId = null, onSaved = null,
+  draftId = null, onSaved = null, initialData = null, onConflict = null,
 }) {
   const { t, lang } = useI18n();
   // Taslak değişince bileşen yeniden kurulur (App `key={draftId}`); okuma bir kez.
-  const saved = useMemo(() => readSaved(draftId), [draftId]);
+  // Bellekteki taslak yalnız ilk açılışta okunur: depolama sonradan açılıp
+  // taslak listeye geçince belge yeniden yüklenmesin (imleç kaybolmasın).
+  const initialRef = useRef(initialData);
+  const saved = useMemo(() => initialRef.current || readSaved(draftId), [draftId]);
   const [format, setFormat] = useState(() => saved?.format || null);
   const [setup, setSetup] = useState(() => ({ ...DEFAULT_SETUP, ...(saved?.setup || {}) }));
   const [view, setView] = useState(() => (saved?.view === 'submit' ? 'submit' : 'draft'));
   const [title, setTitle] = useState(() => saved?.title || '');
-  const [saveState, setSaveState] = useState(() => ({ kind: saved?.html ? 'local' : 'empty', at: null }));
+  const [saveState, setSaveState] = useState(() => ({ kind: initialRef.current ? 'failed' : (saved?.html ? 'local' : 'empty'), at: null }));
+  // Depolamaya yazılamıyor: yazmaya izin verilir, kalıcı uyarı ve çıkış uyarısı gösterilir.
+  const [storageDown, setStorageDown] = useState(Boolean(initialRef.current));
+  // Başka sekme bu taslağı düzenliyor: burada salt okunur.
+  const [readOnly, setReadOnly] = useState(false);
   const [outline, setOutline] = useState({ headings: [], words: 0 });
   const [counts, setCounts] = useState({ total: 0, cited: 0, uncited: 0, notClaim: 0 });
   const [isEmpty, setIsEmpty] = useState(false);
@@ -517,12 +557,49 @@ export default function Workspace({
   const dirtyRef = useRef(false);
   const saveTimerRef = useRef(null);
   const persistRef = useRef(() => {});
+  // Bu sekmenin yüklediği ya da son yazdığı sürüm; başkası araya yazdıysa üzerine yazılmaz.
+  const revRef = useRef(saved?.rev || 0);
+  const readOnlyRef = useRef(false);
+  const setReadOnlyBoth = useCallback((value) => {
+    readOnlyRef.current = value;
+    setReadOnly(value);
+  }, []);
+
+  /** Depodaki (başka sekmenin yazdığı) hali belgeye koyar; kaydırma yerinde kalır. */
+  const applyStored = useCallback((data) => {
+    const el = pageRef.current;
+    if (!el || !data) return;
+    el.innerHTML = data.html || '<p><br></p>';
+    setTitle(data.title || '');
+    setSetup({ ...DEFAULT_SETUP, ...(data.setup || {}) });
+    setFormat(data.format || null);
+    if (BIB_FORMATS.includes(data.bibFormat)) setBibFormat(data.bibFormat);
+    overridesRef.current = data.overrides || {};
+    lastBibRef.current = data.bibTexts || [];
+    revRef.current = data.rev || 0;
+    dirtyRef.current = false;
+    lastRangeRef.current = null;
+    setSaveState({ kind: 'local', at: new Date() });
+    scan();
+  }, [scan]);
+
+  /** Depoda daha yeni sürüm varsa ve burada kaydedilmemiş değişiklik yoksa sessizce yükler. */
+  const loadNewer = useCallback(() => {
+    if (!draftId || dirtyRef.current) return;
+    let stored = null;
+    try {
+      stored = readDraft(window.localStorage, draftId);
+    } catch {
+      return;
+    }
+    if (stored && (stored.rev || 0) > revRef.current) applyStored(stored);
+  }, [draftId, applyStored]);
 
   const persist = useCallback(() => {
     clearTimeout(saveTimerRef.current);
-    if (!draftId) return;
+    if (!draftId || readOnlyRef.current) return;
     try {
-      const meta = writeDraft(window.localStorage, draftId, {
+      const data = {
         html: serialize(pageRef.current),
         title,
         format,
@@ -536,15 +613,29 @@ export default function Workspace({
         bibScope,
         bibTexts: lastBibRef.current,
         zoom: zoomMode,
-      });
+      };
+      const result = saveDraft(window.localStorage, draftId, data, { baseRev: revRef.current });
+      if (result.conflict) {
+        // İki tarafta da kaydedilmemiş değişiklik var: hiçbiri ezilmez. Bu
+        // sekmenin metni ayrı taslak olur, belge öbür sekmenin haline geçer.
+        const copyId = saveConflictCopy(window.localStorage, draftId, data, { suffix: t('workspace.sync.conflictSuffix') });
+        applyStored(result.stored);
+        setStorageDown(false);
+        onSaved?.(null);
+        onConflict?.({ copyId, title: data.title });
+        return;
+      }
+      revRef.current = result.rev;
       dirtyRef.current = false;
+      setStorageDown(false);
       setSaveState({ kind: 'local', at: new Date() });
-      onSaved?.(meta);
+      onSaved?.(result.meta);
     } catch {
       // Depolama kapalı ya da dolu: değişiklik bellekte kalır, kullanıcıya söylenir.
+      setStorageDown(true);
       setSaveState({ kind: 'failed', at: null });
     }
-  }, [draftId, title, format, setup, view, bibFormat, bibScope, zoomMode, onSaved]);
+  }, [draftId, title, format, setup, view, bibFormat, bibScope, zoomMode, onSaved, onConflict, applyStored, t]);
 
   useEffect(() => { persistRef.current = persist; }, [persist]);
 
@@ -554,6 +645,7 @@ export default function Workspace({
   }, []);
 
   const markDirty = useCallback(() => {
+    if (readOnlyRef.current) return;
     dirtyRef.current = true;
     setSaveState((s) => (s.kind === 'dirty' ? s : { kind: 'dirty', at: null }));
     clearTimeout(saveTimerRef.current);
@@ -593,6 +685,93 @@ export default function Workspace({
     }
   }, [hidden, flush]);
 
+  // --- Sekmeler arası (WO-011 Faz 1 ek) ---------------------------------
+  // Görünür sekme taslağın kilidini alır ve tazeler; kilit başkasındaysa
+  // salt okunur açılır ("Burada düzenle" ile alabilir). Kilidi kaybeden
+  // sekme bekleyen kaydını yazar ve salt okunur olur. Gizlenen (araştırma
+  // modundaki) sekme kilidi bırakır.
+  const claimRef = useRef(() => {});
+  useEffect(() => {
+    if (hidden || !draftId || storageDown) {
+      claimRef.current = () => {};
+      return undefined;
+    }
+    const claim = () => {
+      try {
+        const storage = window.localStorage;
+        if (lockHolder(readLock(storage, draftId), TAB_ID) === 'other') {
+          if (!readOnlyRef.current) {
+            // Kaydedilmemiş değişiklik varsa önce yazılır; yoksa yeni sürüm üretilmez.
+            if (dirtyRef.current) persistRef.current();
+            setReadOnlyBoth(true);
+          }
+          return;
+        }
+        writeLock(storage, draftId, TAB_ID);
+        if (readOnlyRef.current) {
+          setReadOnlyBoth(false);
+          loadNewer();
+        }
+      } catch {
+        // Depolama yoksa kilit de yok; kayıt zaten "Kaydedilemedi" der.
+      }
+    };
+    claimRef.current = claim;
+    claim();
+    const timer = setInterval(claim, LOCK_BEAT);
+    const release = () => {
+      try { releaseLock(window.localStorage, draftId, TAB_ID); } catch { /* depolama yok */ }
+    };
+    window.addEventListener('pagehide', release);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('pagehide', release);
+      release();
+    };
+  }, [hidden, draftId, storageDown, loadNewer, setReadOnlyBoth]);
+
+  // Başka sekmenin yazdığı içerik ve kilit değişiklikleri.
+  useEffect(() => {
+    if (!draftId) return undefined;
+    const contentKey = `${DRAFT_PREFIX}${draftId}`;
+    const onStorage = (e) => {
+      if (e.key === contentKey && e.newValue) {
+        let stored = null;
+        try { stored = JSON.parse(e.newValue); } catch { return; }
+        if ((stored?.rev || 0) <= revRef.current) return;
+        // Burada da kaydedilmemiş değişiklik varsa kayıt çakışmayı görür ve kopya açar.
+        if (dirtyRef.current && !readOnlyRef.current) persistRef.current();
+        else applyStored(stored);
+      } else if (e.key === lockKey(draftId) || e.key === null) {
+        claimRef.current();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [draftId, applyStored]);
+
+  /** "Burada düzenle": kilidi alır; öbür sekme kaydını yazıp salt okunur olur. */
+  const takeOver = () => {
+    try {
+      loadNewer();
+      writeLock(window.localStorage, draftId, TAB_ID);
+      setReadOnlyBoth(false);
+    } catch {
+      setStorageDown(true);
+    }
+  };
+
+  // Depolama yazılamıyorken sayfadan çıkılırsa tarayıcı sorsun.
+  useEffect(() => {
+    if (!storageDown) return undefined;
+    const warn = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [storageDown]);
+
   const onInput = () => {
     markDirty();
     scan();
@@ -624,8 +803,8 @@ export default function Workspace({
 
   /** Biçim değişimi planı: FormatPicker kaç bölüm ekleneceğini gösterir. */
   const planFor = useCallback((templateId) => planFormatChange(
-    outline.headings, TEMPLATES.find((x) => x.id === templateId), t, isReferencesHeading,
-  ), [outline.headings, t]);
+    describeHeadings(pageRef.current), TEMPLATES.find((x) => x.id === templateId), t, isReferencesHeading,
+  ), [t]);
 
   /**
    * Biçimi değiştirir (WO-011 Faz 1). Metin silinmez: eksik bölümler şablon
@@ -638,29 +817,34 @@ export default function Workspace({
     setFmtOpen(false);
     if (!el || !template) return;
     const plan = planFor(templateId);
-    const key = (s) => String(s || '').trim().toLocaleLowerCase('tr');
-    const named = template.sections.map((s) => ({ ...s, name: t(`workspace.section.${s.key}`) }));
-    const byName = new Map([...el.querySelectorAll('h1, h2, h3')].map((h) => [key(h.textContent), h]));
+    // Bölümler kimlikle eşlenir; kimliği olmayan eski belgede adla.
+    const nodeByKey = new Map();
+    for (const h of describeHeadings(el)) {
+      const key = h.key || template.sections.find((s) => t(`workspace.section.${s.key}`).trim().toLocaleLowerCase('tr') === h.text.toLocaleLowerCase('tr'))?.key;
+      if (key && !nodeByKey.has(key)) nodeByKey.set(key, h.node);
+    }
 
     for (const section of plan.add) {
-      const at = named.findIndex((s) => s.key === section.key);
-      const next = named.slice(at + 1).map((s) => byName.get(key(s.name))).find(Boolean);
+      const at = template.sections.findIndex((s) => s.key === section.key);
+      const next = template.sections.slice(at + 1).map((s) => nodeByKey.get(s.key)).find(Boolean);
       const nodes = [...document.createRange().createContextualFragment(templateHtml({ sections: [section] }, t)).childNodes];
       for (const node of nodes) (next ? next.before(node) : el.appendChild(node));
-      if (nodes[0]) byName.set(key(section.name), nodes[0]);
+      if (nodes[0]) nodeByKey.set(section.key, nodes[0]);
     }
 
     if (plan.removable.length) {
       const names = plan.removable.map((h) => h.text).join(', ');
       if (window.confirm(t('workspace.format.removeAsk', { n: plan.removable.length, names }))) {
+        // Plan, kendi içeriği boş ve alt bölümü olmayan bölümleri seçti; yine de
+        // kaldırmadan hemen önce yeniden bakılır (arada metin yazılmış olabilir).
         for (const h of plan.removable) {
-          const heading = byName.get(key(h.text));
-          if (!heading) continue;
-          const level = Number(heading.tagName[1]);
-          // Yalnız boş paragraflar gider; metin taşıyan blok kalırsa bölüm silinmez.
+          const heading = h.node;
+          if (!heading?.isConnected) continue;
           const run = [];
-          for (let n = heading.nextElementSibling; n && !(/^H[1-3]$/.test(n.tagName) && Number(n.tagName[1]) <= level); n = n.nextElementSibling) run.push(n);
-          if (run.some((n) => n.textContent.trim())) continue;
+          for (let n = heading.nextElementSibling; n && !/^H[1-3]$/.test(n.tagName); n = n.nextElementSibling) run.push(n);
+          const next = run.length ? run[run.length - 1].nextElementSibling : heading.nextElementSibling;
+          if (run.some((n) => n.textContent.trim() || n.querySelector('img, table'))) continue;
+          if (next && /^H[1-3]$/.test(next.tagName) && Number(next.tagName[1]) > Number(heading.tagName[1])) continue;
           run.forEach((n) => n.remove());
           heading.remove();
         }
@@ -986,6 +1170,8 @@ export default function Workspace({
       print: printDocument,
       openImport,
       flush,
+      /** Depoda daha yeni sürüm varsa (ör. kenar çubuğundan yeniden adlandırma) yükler. */
+      reload: loadNewer,
       openBibliography: () => {
         setReview(null);
         setSideView('bib');
@@ -1377,6 +1563,7 @@ export default function Workspace({
             onChange={(e) => { setTitle(e.target.value); markDirty(); }}
             placeholder={t('workspace.titlePlaceholder')}
             aria-label={t('workspace.title')}
+            readOnly={readOnly}
           />
           {/* Biçim etiketi (WO-011): atıf stili · sayfa boyutu; tıklayınca biçim değişir.
               Kayıt durumundan önce durur: kayıt yazısı genişleyince düğme kaymasın
@@ -1385,6 +1572,7 @@ export default function Workspace({
             type="button"
             className="wx-fmtlabel"
             onClick={() => setFmtOpen(true)}
+            disabled={readOnly}
             title={t('workspace.format.labelHint')}
             data-action="write-format"
           >
@@ -1407,7 +1595,7 @@ export default function Workspace({
           <span className="wx-top__spacer" />
 
           <div className="wx-anchor">
-            <button type="button" className="wx-btn" aria-expanded={menu === 'template'} onClick={() => toggleMenu('template')}>
+            <button type="button" className="wx-btn" aria-expanded={menu === 'template'} onClick={() => toggleMenu('template')} disabled={readOnly}>
               <LayoutTemplate size={15} /> <span className="wx-hide-sm">{t('workspace.templates')}</span>
             </button>
             <Popover open={menu === 'template'} onClose={closeMenu} label={t('workspace.templatesTitle')} wide>
@@ -1504,7 +1692,7 @@ export default function Workspace({
 
           {/* --- Belge --- */}
           <main className="wx-main">
-            <div className="wx-ribbon" role="toolbar" aria-label={t('workspace.toolbar')}>
+            <div className="wx-ribbon" role="toolbar" aria-label={t('workspace.toolbar')} inert={readOnly || undefined}>
               <button
                 type="button"
                 className="wx-tool"
@@ -1630,6 +1818,27 @@ export default function Workspace({
               <p className="wx-note"><Info size={14} /> {t('workspace.submitNote')}</p>
             )}
 
+            {/* Sekmeler arası (WO-011): başka sekme düzenliyorsa burada salt okunur. */}
+            {readOnly && (
+              <div className="wx-sync wx-sync--lock" role="status" data-testid="draft-locked">
+                <Info size={15} />
+                <span>{t('workspace.sync.locked')}</span>
+                <button type="button" className="wx-act wx-act--sm wx-act--primary" onClick={takeOver} data-action="draft-take-over">
+                  {t('workspace.sync.editHere')}
+                </button>
+              </div>
+            )}
+            {/* Depolama yazılamıyor: yazmak serbest, kayıt yok; kalıcı uyarı ve DOCX. */}
+            {storageDown && (
+              <div className="wx-sync wx-sync--down" role="alert" data-testid="storage-warn">
+                <Info size={15} />
+                <span>{t('workspace.sync.storageDown')}</span>
+                <button type="button" className="wx-act wx-act--sm" onClick={exportWord} data-action="storage-docx">
+                  <Download size={14} /> {t('workspace.sync.downloadDocx')}
+                </button>
+              </div>
+            )}
+
             {resume && (
               <div className="wx-resume" role="status">
                 <History size={15} />
@@ -1680,7 +1889,7 @@ export default function Workspace({
                 <div
                   ref={pageRef}
                   className={`wx-page wx-page--${view}`}
-                  contentEditable
+                  contentEditable={!readOnly}
                   suppressContentEditableWarning
                   role="textbox"
                   aria-multiline="true"
@@ -1770,7 +1979,7 @@ export default function Workspace({
 
           {/* --- Bağlam paneli (§3, §4) --- */}
           {sideOpen && (
-            <aside className="wx-side" aria-label={t('workspace.contextPanel')}>
+            <aside className="wx-side" aria-label={t('workspace.contextPanel')} inert={readOnly || undefined}>
               <div className="wx-panel-head">
                 {review ? <strong>{t('workspace.contextPanel')}</strong> : (
                   <div className="wx-seg wx-seg--sm" role="group" aria-label={t('workspace.contextPanel')}>

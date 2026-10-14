@@ -113,7 +113,8 @@ export function setActive(storage, id) {
 export function renameDraft(storage, id, title) {
   const data = readDraft(storage, id);
   if (!data) return null;
-  return writeDraft(storage, id, { ...data, title: String(title || '').trim() });
+  // Sürüm artar: açık belge yeni adı görür, eski adla üzerine yazmaz.
+  return writeDraft(storage, id, { ...data, title: String(title || '').trim(), rev: (data.rev || 0) + 1 });
 }
 
 /** Kopya: aynı içerik, "(kopya)" ekli başlık; etkin olmaz. */
@@ -135,10 +136,67 @@ export function deleteDraft(storage, id) {
   if (position < 0) return null;
   const snapshot = { id, data: readDraft(storage, id), meta: index.items[position], position };
   storage.removeItem(draftKey(id));
+  storage.removeItem(lockKey(id));
   const items = index.items.filter((d) => d.id !== id);
   const activeId = index.activeId === id ? (items[0]?.id || null) : index.activeId;
   writeJson(storage, INDEX_KEY, { activeId, items });
   return snapshot;
+}
+
+// --- Sekmeler arası tutarlılık (WO-011 Faz 1 ek) ---------------------------
+// Aynı taslak iki sekmede açıkken her sekme belgenin tamamını kendi
+// belleğinden yazıyordu; son yazan öbürünü sessizce eziyordu. İki önlem:
+//   1. Sürüm: her kayıt `rev` taşır. Kaydeden sekme, yüklediği sürümden
+//      yenisi depoya yazılmışsa üzerine yazmaz (saveDraft → conflict).
+//   2. Kilit: taslağı düzenleyen sekme kilidi tutar ve tazeler; öbür
+//      sekmeler salt okunur açılır, "Burada düzenle" ile kilidi alabilir.
+
+const LOCK_PREFIX = 'literatur-ai:draft-lock:';
+export const lockKey = (id) => `${LOCK_PREFIX}${id}`;
+/** Kilit bu kadar süre tazelenmezse sahibi kapanmış sayılır. */
+export const LOCK_TTL = 12000;
+/** Sahip sekme kilidi bu aralıkla tazeler. */
+export const LOCK_BEAT = 4000;
+
+export function readLock(storage, id) {
+  return readJson(storage, lockKey(id));
+}
+
+export function writeLock(storage, id, tab, now = Date.now()) {
+  writeJson(storage, lockKey(id), { tab, at: now });
+}
+
+/** Kilit yalnız sahibi tarafından bırakılır. */
+export function releaseLock(storage, id, tab) {
+  if (readLock(storage, id)?.tab === tab) storage.removeItem(lockKey(id));
+}
+
+/** @returns {'none'|'self'|'other'} */
+export function lockHolder(lock, tab, now = Date.now()) {
+  if (!lock?.tab || now - (lock.at || 0) >= LOCK_TTL) return 'none';
+  return lock.tab === tab ? 'self' : 'other';
+}
+
+/**
+ * Sürüm denetimli kayıt. Depodaki sürüm, sekmenin yüklediği sürümle aynıysa
+ * yazar ve yeni sürümü döndürür; başka bir sekme araya yazdıysa yazmaz.
+ * Taslak başka sekmede silindiyse yazar (metin kaybolmasın).
+ * @returns {{rev: number, meta: object} | {conflict: true, stored: object}}
+ */
+export function saveDraft(storage, id, data, { baseRev = 0, now = Date.now() } = {}) {
+  const stored = readDraft(storage, id);
+  const storedRev = stored?.rev || 0;
+  if (stored && storedRev !== baseRev) return { conflict: true, stored };
+  const rev = Math.max(storedRev, baseRev) + 1;
+  const meta = writeDraft(storage, id, { ...data, rev }, { now });
+  return { rev, meta };
+}
+
+/** Çakışmada bu sekmenin metni ayrı taslak olur; etkin taslak değişmez. */
+export function saveConflictCopy(storage, id, data, { now = Date.now(), random = Math.random, suffix = ' (çakışma kopyası)' } = {}) {
+  const copyId = newId(now, random);
+  writeDraft(storage, copyId, { ...data, title: `${data.title || ''}${suffix}`.trim(), savedAt: now, rev: 1 }, { now });
+  return copyId;
 }
 
 /** Silinen taslağı aynı yerine geri koyar. */

@@ -50,24 +50,73 @@ test('her bicimin bolumlerinin iki dilde adi ve rehber satiri var', () => {
   }
 });
 
+/** Şablon HTML'inden belge başlık tanımları (Workspace'teki DOM taramasının eşi). */
+function headingsOf(html, filled = {}) {
+  return [...html.matchAll(/<h(\d)(?: data-template-section="([^"]+)")?[^>]*>([^<]+)<\/h\d>/g)].map((m, i, all) => {
+    const next = all[i + 1];
+    return {
+      text: m[3],
+      level: Number(m[1]),
+      key: m[2] || null,
+      ownEmpty: !filled[m[3]],
+      hasChildren: Boolean(next && Number(next[1]) > Number(m[1])),
+    };
+  });
+}
+
 test('bicim degisimi: eksik bolumler eklenir, metni olan bolum asla kaldirilabilir sayilmaz', () => {
+  const headings = headingsOf(templateHtml(byId('imrad'), t), { 'Öz': true, 'Yöntem': true });
+  const plan = planFormatChange(headings, byId('project'), t, isReferencesHeading);
+  assert.deepEqual(plan.add.map((s) => s.key), ['scope', 'workplan', 'outputs']);
+  // Bulgular ve Tartışma boş ve projede yok: kaldırılabilir. Yöntem dolu: asla. Kaynakça: asla.
+  assert.deepEqual(plan.removable.map((h) => h.text), ['Bulgular', 'Tartışma']);
+});
+
+test('kullanicinin kendi basligi (kimliksiz, sablon adi degil) kaldirilabilir sayilmaz', () => {
   const headings = [
-    { index: 0, text: 'Öz', level: 2, total: 120 },
-    { index: 1, text: 'Giriş', level: 2, total: 0 },
-    { index: 2, text: 'Yöntem', level: 2, total: 400 },
-    { index: 3, text: 'Bulgular', level: 2, total: 0 },
-    { index: 4, text: 'Kaynakça', level: 2, total: 0 },
+    { text: 'Benim notlarım', level: 2, key: null, ownEmpty: true, hasChildren: false },
+    { text: 'Giriş', level: 2, key: 'intro', ownEmpty: true, hasChildren: false },
   ];
   const plan = planFormatChange(headings, byId('project'), t, isReferencesHeading);
-  assert.deepEqual(plan.add.map((s) => s.key), ['scope', 'workplan', 'outputs', 'conclusion']);
-  // Bulgular boş ve proje şablonunda yok: kaldırılabilir. Yöntem dolu: asla. Kaynakça: asla.
-  assert.deepEqual(plan.removable.map((h) => h.text), ['Bulgular']);
+  assert.deepEqual(plan.removable, []);
+});
+
+test('alt bolumu olan ya da kendi metni olan sablon bolumu kaldirilmaz', () => {
+  const headings = [
+    { text: 'Bulgular', level: 2, key: 'results', ownEmpty: true, hasChildren: true },
+    { text: 'Alt', level: 3, key: null, ownEmpty: false, hasChildren: false },
+    { text: 'Tartışma', level: 2, key: 'discussion', ownEmpty: false, hasChildren: false },
+  ];
+  assert.deepEqual(planFormatChange(headings, byId('project'), t, isReferencesHeading).removable, []);
+});
+
+test('makaleden teze eklenen bolumler belgedeki seviyeye (h2) uyar', () => {
+  const plan = planFormatChange(headingsOf(templateHtml(byId('imrad'), t)), byId('thesis'), t, isReferencesHeading);
+  assert.ok(plan.add.length > 0);
+  assert.ok(plan.add.every((s) => s.level === 2), JSON.stringify(plan.add.map((s) => [s.key, s.level])));
+});
+
+test('makale -> tez -> makale gidis-donusunde plan baslangica doner', () => {
+  // Tezden sonra belgede: makale bölümleri (h2) + eklenen tez bölümleri (h2, kimlikli).
+  const thesisAdd = planFormatChange(headingsOf(templateHtml(byId('imrad'), t)), byId('thesis'), t, isReferencesHeading).add;
+  const after = [
+    ...headingsOf(templateHtml(byId('imrad'), t), { 'Giriş': true }),
+    ...thesisAdd.map((s) => ({ text: t(`workspace.section.${s.key}`), level: s.level, key: s.key, ownEmpty: true, hasChildren: false })),
+  ];
+  const back = planFormatChange(after, byId('imrad'), t, isReferencesHeading);
+  assert.deepEqual(back.add, []);
+  assert.deepEqual(back.removable.map((h) => h.key).sort(), thesisAdd.map((s) => s.key).sort());
+});
+
+test('ayni kimlik iki kez varsa yalniz ilki sayilir', () => {
+  const headings = [
+    { text: 'Bulgular', level: 2, key: 'results', ownEmpty: false, hasChildren: false },
+    { text: 'Bulgular devam', level: 2, key: 'results', ownEmpty: true, hasChildren: false },
+  ];
+  assert.deepEqual(planFormatChange(headings, byId('project'), t, isReferencesHeading).removable, []);
 });
 
 test('ayni bicime gecis hicbir sey eklemez ya da kaldirmaz', () => {
-  const html = templateHtml(byId('imrad'), t);
-  const names = [...html.matchAll(/<h\d[^>]*>([^<]+)<\/h\d>/g)].map((m) => m[1]);
-  const headings = names.map((text, index) => ({ index, text, level: 2, total: 0 }));
-  const plan = planFormatChange(headings, byId('imrad'), t, isReferencesHeading);
+  const plan = planFormatChange(headingsOf(templateHtml(byId('imrad'), t)), byId('imrad'), t, isReferencesHeading);
   assert.deepEqual(plan, { add: [], removable: [] });
 });

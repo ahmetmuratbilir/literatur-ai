@@ -231,22 +231,22 @@ test('IMRaD ve tez sablonlari bolum agacini kuruyor', () => {
   const t = (k) => k.replace('workspace.section.', '');
   const imrad = templateHtml(TEMPLATES.find((x) => x.id === 'imrad'), t);
   // Baslik onerilen uzunlugu, ardindaki bos paragraf rehber satirini tasir.
-  assert.match(imrad, /<h2 data-target="900">intro<\/h2><p data-hint="workspace\.hint\.intro"><br><\/p>/);
+  assert.match(imrad, /<h2 data-template-section="intro" data-target="900">intro<\/h2><p data-hint="workspace\.hint\.intro"><br><\/p>/);
   assert.equal((imrad.match(/<h2[ >]/g) || []).length, 7);
 
   const thesis = templateHtml(TEMPLATES.find((x) => x.id === 'thesis'), t);
   assert.equal((thesis.match(/<h1[ >]/g) || []).length, 19); // WO-011: iç kapak, onay, etik, Abstract, tablo/şekil listeleri, kısaltmalar, ÖZGEÇMİŞ eklendi
   // Hedefi olmayan bolume hedef uydurulmaz.
-  assert.match(thesis, /<h1>references<\/h1>/);
+  assert.match(thesis, /<h1 data-template-section="references">references<\/h1>/);
 });
 
 test('alt basligi olan ust basliga bos paragraf konmuyor', () => {
   const t = (k) => k.split('.').pop();
   const prisma = templateHtml(TEMPLATES.find((x) => x.id === 'prisma'), t);
   // Giris'in hemen ardindan Gerekce gelir; arada yazilacak bos satir yok.
-  assert.match(prisma, /<h2>intro<\/h2><h3 data-target="500">rationale<\/h3><p data-hint="rationale">/);
-  assert.match(prisma, /<h2>method<\/h2><h3 /);
-  assert.match(prisma, /<h2>results<\/h2><h3 /);
+  assert.match(prisma, /<h2 data-template-section="intro">intro<\/h2><h3 data-template-section="rationale" data-target="500">rationale<\/h3><p data-hint="rationale">/);
+  assert.match(prisma, /<h2 data-template-section="method">method<\/h2><h3 /);
+  assert.match(prisma, /<h2 data-template-section="results">results<\/h2><h3 /);
 });
 
 test('sablon metni HTML olarak kacisliyor', () => {

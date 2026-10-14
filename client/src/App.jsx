@@ -616,20 +616,30 @@ function App() {
   /** Biçim seçildi: taslak şablonla oluşturulur ve açılır. */
   const createDraftFromFormat = ({ formatId, templateId, bibFormat, setup, title }) => {
     const template = TEMPLATES.find((x) => x.id === templateId);
-    const id = drafts.create({
+    const data = {
       title,
       format: formatId,
       setup,
       bibFormat,
       html: templateHtml(template, t),
       view: 'draft',
-    });
-    if (!id) {
-      pushToast({ tone: 'warn', title: t('workspace.saveNone') });
-      return;
-    }
+    };
+    // Depolama yazılamıyorsa taslak bellekte açılır; yazar yüzeyi kalıcı
+    // uyarı, DOCX düğmesi ve çıkış uyarısı gösterir (WO-011).
+    if (!drafts.create(data)) drafts.createInMemory(data);
     setCreatingDraft(false);
   };
+
+  /** İki sekmede de kaydedilmemiş değişiklik vardı: bu sekmeninki kopya taslak oldu. */
+  const onDraftConflict = useCallback(({ title }) => {
+    drafts.refresh();
+    pushToast({
+      tone: 'warn',
+      title: t('workspace.sync.conflictTitle'),
+      text: t('workspace.sync.conflictText', { name: `${title || t('workspace.untitled')}${t('workspace.sync.conflictSuffix')}`.trim() }),
+      duration: 15000,
+    });
+  }, [drafts, pushToast, t]);
 
   const renameDraft = (id) => {
     const current = drafts.items.find((d) => d.id === id);
@@ -637,6 +647,8 @@ function App() {
     if (next === null) return;
     workspaceApi.current?.flush?.();
     if (!drafts.rename(id, next)) pushToast({ tone: 'warn', title: t('workspace.saveNone') });
+    // Açık belge yeni adı alsın; eski adla üzerine yazmasın.
+    else if (id === drafts.active?.id) workspaceApi.current?.reload?.();
   };
 
   const duplicateDraft = (id) => {
@@ -1204,7 +1216,7 @@ function App() {
           onOpenWriter={openWriter}
           onNewSearch={newSearch}
           drafts={drafts.items}
-          activeDraftId={drafts.index.activeId}
+          activeDraftId={drafts.active?.id || null}
           onOpenDraft={openDraft}
           onNewDraft={startNewDraft}
           onRenameDraft={renameDraft}
@@ -1244,6 +1256,8 @@ function App() {
                 apiRef={workspaceApi}
                 onSaved={drafts.refresh}
                 onFindSources={exitWriter}
+                initialData={drafts.memoryData}
+                onConflict={onDraftConflict}
               />
             </Suspense>
           )}
