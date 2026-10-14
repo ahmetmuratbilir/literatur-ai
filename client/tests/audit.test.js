@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { citedDois, countBySeverity, runAudit, SEVERITY } from '../src/audit/audit.js';
+import { citedDois, countBySeverity, groupItems, packageStatus, runAudit, SEVERITY } from '../src/audit/audit.js';
 import { matchSources } from '../src/components/workspace/references.js';
 import { MARK, sentenceKey } from '../src/components/workspace/claimDetection.js';
 
@@ -171,4 +171,72 @@ test('modul saf: ag, DOM ve depolama kullanmiyor', async () => {
   const { readFileSync } = await import('node:fs');
   const source = readFileSync(new URL('../src/audit/audit.js', import.meta.url), 'utf8');
   assert.ok(!/\b(fetch|axios|localStorage|document\.|window\.)/.test(source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')));
+});
+
+// --- WO-011 Faz 3 ---
+
+test('bos bolum: taslakta bilgi, teslimde zorunlu bolum uyari, istege bagli bolum bilgi', () => {
+  const headings = [
+    { index: 0, text: 'Giriş', key: 'intro', total: 0 },
+    { index: 1, text: 'Kısaltmalar', key: 'abbreviations', total: 0 },
+  ];
+  const draft = runAudit(snapshot({ headings }), { stage: 'draft' }).filter((i) => i.rule === 'emptySection');
+  assert.deepEqual(draft.map((i) => i.severity), ['info', 'info']);
+  const submit = runAudit(snapshot({ headings }), { stage: 'submit' }).filter((i) => i.rule === 'emptySection');
+  assert.deepEqual(submit.map((i) => [i.params.name, i.severity]), [['Giriş', 'warning'], ['Kısaltmalar', 'info']]);
+});
+
+test('kunye eksik kaynak: atif yapilansa uyari, yalniz sepettese bilgi', () => {
+  const NOYEAR = { title: 'Yılsız rapor', creator: 'Ece Kara', doi: '10.1/kara' };
+  const NOTITLE = { title: '', creator: 'Canan Akdoğan', year: 2021 };
+  const items = runAudit(snapshot({ body: 'X (Kara, t.y.). Y (Akdoğan, 2021). Z (Kaya, 2020).', papers: [NOYEAR, KAYA, NOTITLE] }));
+  const incomplete = items.filter((i) => i.rule === 'incompleteSource');
+  assert.deepEqual(incomplete.map((i) => [i.params.fields, i.severity]), [[['title'], 'warning'], [['year'], 'info']]);
+});
+
+test('tablo ve sekil numaralandirmasi: sira atlayan baslik ve basligi olmayan gonderme', () => {
+  const blocks = [
+    { tag: 'P', text: 'Tablo 1. Deney koşulları', key: 'k1' },
+    { tag: 'P', text: 'Tablo 3. Sonuçlar', key: 'k2' },
+    { tag: 'P', text: "Sonuçlar Tablo 3'te ve Şekil 2'de görülüyor; Tablo 1 de önemli.", key: 'k3' },
+    { tag: 'P', text: 'Şekil 1: Düzenek', key: 'k4' },
+  ];
+  const items = runAudit(snapshot({ blocks }));
+  const order = items.filter((i) => i.rule === 'captionOrder');
+  assert.deepEqual(order.map((i) => [i.params.kind, i.params.n, i.params.expected]), [['table', 3, 2]]);
+  const missing = items.filter((i) => i.rule === 'captionMissing');
+  assert.deepEqual(missing.map((i) => [i.params.kind, i.params.n]), [['figure', 2]]);
+  assert.deepEqual(missing[0].target, { kind: 'sentence', key: 'k3' });
+  // Düzgün numaralı belge temiz
+  const clean = runAudit(snapshot({ blocks: [blocks[0], { tag: 'P', text: 'Bkz. Tablo 1.', key: 'k5' }] }));
+  assert.ok(!rules(clean).some((r) => r.startsWith('caption')));
+});
+
+test('ayni kuraldan maddeler gruplanir, sira korunur', () => {
+  const items = runAudit(snapshot({
+    headings: [
+      { index: 0, text: 'Giriş', total: 0 }, { index: 1, text: 'Yöntem', total: 0 }, { index: 2, text: 'Bulgular', total: 0 },
+    ],
+    sentences: [{ text: 'Pasif sistemler riski azaltır.', mark: MARK.uncited }],
+  }));
+  const groups = groupItems(items);
+  const empty = groups.find((g) => g.rule === 'emptySection');
+  assert.equal(empty.items.length, 3);
+  assert.equal(groups.reduce((n, g) => n + g.items.length, 0), items.length);
+  assert.equal(new Set(groups.map((g) => g.id)).size, groups.length);
+});
+
+test('tez paketi: var, basligi var ama bos, yok', () => {
+  const names = { cover: 'Kapak', approval: 'Onay sayfası', ethics: 'Etik beyan', ozet: 'Özet', abstract: 'Abstract', contents: 'İçindekiler', tableList: 'Tablolar listesi', figureList: 'Şekiller listesi', appendix: 'Ekler' };
+  const status = packageStatus([
+    { index: 0, key: 'cover', text: 'Kapak', total: 12 },
+    { index: 1, key: null, text: 'Özet', total: 0 },
+    { index: 2, key: 'abstract', text: 'Abstract', total: 150 },
+  ], (k) => names[k]);
+  const byKey = Object.fromEntries(status.map((s) => [s.key, s.status]));
+  assert.equal(byKey.cover, 'present');
+  assert.equal(byKey.ozet, 'empty', 'kimliksiz başlık adla bulunur');
+  assert.equal(byKey.abstract, 'present');
+  assert.equal(byKey.approval, 'missing');
+  assert.equal(status.length, 9);
 });
