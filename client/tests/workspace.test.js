@@ -319,3 +319,11 @@ test('bolum agaci: baslik yoksa bos, kelimeler yine sayilir', () => {
   const out = buildOutline([{ kind: 'text', text: 'yalniz metin var' }]);
   assert.deepEqual(out, { headings: [], words: 3 });
 });
+
+test('atif araliklari: parantez ici ve anlati atfi, sepetteki karsiligi', async () => {
+  const { citationSpans } = await import('../src/components/workspace/references.js');
+  const papers = [{ creator: 'Zeynep Kaya', year: 2020 }, { creator: 'Ahmet Arslan', year: 2019 }];
+  const text = 'Kararlıdır (Kaya, 2020). Arslan (2019) gösterdi; (Yılmaz, 2023) da. Yıl 2020 tek başına atıf değil.';
+  const spans = citationSpans(text, papers).map((s) => [text.slice(s.start, s.end), s.index]);
+  assert.deepEqual(spans, [['(Kaya, 2020)', 0], ['Arslan (2019)', 1], ['(Yılmaz, 2023)', -1]]);
+});

@@ -5,7 +5,7 @@ import {
   AlignCenter, AlignJustify, AlignLeft, ArrowLeft, Bold, Check, ChevronDown, ChevronLeft, ChevronRight,
   ClipboardCheck, Download, FileText, History, Info, Italic, LayoutTemplate, Library, List, ListChecks, ListOrdered, ListTree,
   PanelRightClose, PanelRightOpen, Plus, Printer, Quote, Redo2, RefreshCw, RotateCcw, Search, SlidersHorizontal,
-  Underline, Undo2, Upload, X, MoreHorizontal, Superscript, Subscript, Highlighter, RemoveFormatting,
+  Underline, Undo2, Upload, X, MoreHorizontal, PlusSquare, Superscript, Subscript, Highlighter, RemoveFormatting,
 } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import {
@@ -26,7 +26,7 @@ import {
 } from './drafts.js';
 import { buildOutline, countWords } from './outline.js';
 import { inlineCitation, referenceLine } from './citation.js';
-import { isReferencesHeading, matchSources } from './references.js';
+import { citationSpans, isReferencesHeading, matchSources } from './references.js';
 import { SUPPORT_SHAPES, isSettled, locateSpan, refusalKey, supportLabel } from './evidence.js';
 
 /**
@@ -116,6 +116,10 @@ function describeHeadings(el) {
   });
   return out;
 }
+
+/** CSS dizesi içine güvenli metin (yazdırmadaki üst bilgi). */
+const cssString = (s) => String(s || '').replace(/[\\"]/g, (c) => `\\${c}`).replace(/[\n\r]/g, ' ').slice(0, 120);
+const cssFont = (f) => `"${String(f || 'Times New Roman').replace(/"/g, '')}", serif`;
 
 /** Kaydedilecek HTML: geçici vurgu sınıfı kayda girmez. */
 function serialize(el) {
@@ -1270,7 +1274,7 @@ export default function Workspace({
   const exportWord = async () => {
     closeMenu();
     const { exportDocx } = await import('./exportDocument.js');
-    await exportDocx({ root: pageRef.current, setup, title: title || t('workspace.untitled') });
+    await exportDocx({ root: pageRef.current, setup, title: title || t('workspace.untitled'), pageLabel: t('workspace.pageWord') });
   };
 
   const printDocument = () => {
@@ -1512,6 +1516,77 @@ export default function Workspace({
     if (desk.clientWidth < need) setNavPanel(null);
   }, [hidden, view, zoomMode, navPanel, sideOpen, setup, deskWidth]);
 
+  // Sayfa kutuları (Faz 2): Teslim görünümünde her sayfanın üst/alt kenar boşluğu.
+  const pageBoxes = useMemo(() => {
+    const el = pageRef.current;
+    if (view !== 'submit' || !el) return [];
+    const g = pageGeometry(setup);
+    const pageH = g.height * MM_TO_PX;
+    const margin = g.margin * MM_TO_PX;
+    return Array.from({ length: pageInfo.n }, (_, i) => ({
+      i,
+      left: el.offsetLeft,
+      width: el.offsetWidth,
+      headTop: el.offsetTop + i * pageH + margin * 0.45,
+      footTop: el.offsetTop + (i + 1) * pageH - margin * 0.6,
+    }));
+  }, [view, setup, pageInfo.n]);
+
+  // Metin içi atıflar (Faz 2): DOM'a dokunmadan CSS Highlight API ile renklenir;
+  // tıklayınca sepetteki kaynak sağ panelde açılır. Desteklemeyen tarayıcıda
+  // renk yok, belge aynı.
+  const citeSpansRef = useRef([]);
+  useEffect(() => {
+    const el = pageRef.current;
+    if (!el) return undefined;
+    const spans = [];
+    for (const block of el.children) {
+      if (!['P', 'DIV', 'BLOCKQUOTE', 'LI', 'UL', 'OL'].includes(block.tagName)) continue;
+      for (const span of citationSpans(block.textContent, basket.papers)) {
+        const range = rangeForOffsets(block, span.start, span.end);
+        if (range) spans.push({ range, index: span.index });
+      }
+    }
+    citeSpansRef.current = spans;
+    const registry = typeof CSS !== 'undefined' ? CSS.highlights : null;
+    if (!registry || typeof Highlight === 'undefined') return undefined;
+    registry.set('wx-cite', new Highlight(...spans.map((x) => x.range)));
+    return () => registry.delete('wx-cite');
+  }, [blocks, basket.papers]);
+
+  const openCitationAtCaret = () => {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount || !sel.isCollapsed) return;
+    const { startContainer, startOffset } = sel.getRangeAt(0);
+    const hit = citeSpansRef.current.find((x) => x.index >= 0 && x.range.isPointInRange(startContainer, startOffset));
+    if (!hit) return;
+    openSource(sourceKey(basket.papers[hit.index], hit.index));
+  };
+
+  /** Ekle › Tablo/Şekil başlığı: imlecin bloğundan sonra, sıradaki numarayla. */
+  const insertCaption = (kind) => {
+    closeMenu();
+    const el = pageRef.current;
+    if (!el) return;
+    const word = t(`audit.kind.${kind}`);
+    const n = [...el.children].filter((b) => captionOf(b.textContent)?.kind === kind).length + 1;
+    const p = document.createElement('p');
+    p.textContent = `${word} ${n}${kind === 'table' ? '.' : ':'} `;
+    const at = lastRangeRef.current && el.contains(lastRangeRef.current.startContainer)
+      ? topBlock(el, lastRangeRef.current.startContainer) : null;
+    if (at) at.after(p);
+    else el.append(p);
+    el.focus({ preventScroll: true });
+    const range = document.createRange();
+    range.selectNodeContents(p);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    p.scrollIntoView({ block: 'center' });
+    onInput();
+  };
+
   // Kaydırınca aktif bölüm: masanın üstüne en yakın geçmiş başlık (Faz 2).
   const trackFrame = useRef(0);
   const trackSection = () => {
@@ -1533,7 +1608,8 @@ export default function Workspace({
     if (!desk || !el || view !== 'submit') return;
     const pageH = pageGeometry(setup).height * MM_TO_PX;
     const scale = zoomMode === 'fit' ? Math.min(1, (deskWidth || 1) / (pageGeometry(setup).width * MM_TO_PX)) : 1;
-    const n = Math.max(1, Math.ceil(el.scrollHeight / pageH));
+    // Sayfanın en az yüksekliği bir A4; yuvarlama payı fazladan sayfa saydırmasın.
+    const n = Math.max(1, Math.ceil((el.scrollHeight - 4) / pageH));
     const i = Math.min(n, Math.floor(desk.scrollTop / (pageH * scale)) + 1);
     setPageInfo((p) => (p.i === i && p.n === n ? p : { i, n }));
   }, [view, setup, zoomMode, deskWidth]);
@@ -1884,7 +1960,11 @@ export default function Workspace({
   const surface = (
     <div className={`wx${embedded ? ' wx--embedded' : ''}`} hidden={hidden} role="region" aria-label={t('workspace.document')}>
       {/* Yazdırmada kağıt boyutu ve kenar boşlukları ekrandakiyle aynı olsun. */}
-      <style>{`@page { size: ${geometry.width}mm ${geometry.height}mm; margin: ${geometry.margin}mm; }`}</style>
+      <style>{`@page { size: ${geometry.width}mm ${geometry.height}mm; margin: ${geometry.margin}mm;${
+        setup.pageNumbers === false ? '' : ` @bottom-center { content: "${t('workspace.pageWord')} " counter(page) " / " counter(pages); font: 10pt ${cssFont(setup.font)}; }`
+      }${
+        setup.header && title ? ` @top-center { content: "${cssString(title)}"; font: 10pt ${cssFont(setup.font)}; }` : ''
+      } }`}</style>
 
       {/* "Teslime hazırla" açıkken ona yer ayrılır: belge solda görünür kalır. */}
       <div className={`wx-shell${prepOpen ? ' wx-shell--prep' : ''}`}>
@@ -1943,6 +2023,28 @@ export default function Workspace({
                   )}
                 </button>
               ))}
+            </Popover>
+          </div>
+
+          <div className="wx-anchor">
+            <button type="button" className="wx-btn" aria-expanded={menu === 'insert'} onMouseDown={(e) => e.preventDefault()} onClick={() => toggleMenu('insert')} disabled={readOnly} data-action="write-insert">
+              <PlusSquare size={15} /> <span className="wx-hide-sm">{t('workspace.insert.label')}</span> <ChevronDown size={14} />
+            </button>
+            <Popover open={menu === 'insert'} onClose={closeMenu} label={t('workspace.insert.label')}>
+              <div onMouseDown={(e) => e.preventDefault()}>
+                <button type="button" className="wx-pop__item" onClick={() => insertCaption('table')} data-action="insert-table-caption">
+                  <strong>{t('workspace.insert.tableCaption')}</strong><small>{t('workspace.insert.captionHint')}</small>
+                </button>
+                <button type="button" className="wx-pop__item" onClick={() => insertCaption('figure')} data-action="insert-figure-caption">
+                  <strong>{t('workspace.insert.figureCaption')}</strong><small>{t('workspace.insert.captionHint')}</small>
+                </button>
+                <button type="button" className="wx-pop__item" onClick={() => { closeMenu(); insertCitation(); }} data-action="insert-citation">
+                  <strong>{t('workspace.cite')}</strong><small>{paper ? inlineCitation(paper, lang) : t('workspace.citeNeedSource')}</small>
+                </button>
+                <button type="button" className="wx-pop__item" onClick={() => { closeMenu(); openImport(); }} data-action="insert-import">
+                  <strong>{t('workspace.imp.short')}</strong>
+                </button>
+              </div>
             </Popover>
           </div>
 
@@ -2187,6 +2289,14 @@ export default function Workspace({
                           {FONT_SIZES.map((s) => <option key={s} value={s}>{s} pt</option>)}
                         </select>
                       </label>
+                      <label className="wx-form__check">
+                        <input type="checkbox" checked={setup.pageNumbers !== false} onChange={(e) => updateSetup({ pageNumbers: e.target.checked })} data-action="setup-page-numbers" />
+                        <span>{t('workspace.pageNumbers')}</span>
+                      </label>
+                      <label className="wx-form__check">
+                        <input type="checkbox" checked={Boolean(setup.header)} onChange={(e) => updateSetup({ header: e.target.checked })} data-action="setup-header" />
+                        <span>{t('workspace.headerTitle')}</span>
+                      </label>
                       <label>
                         <span>{t('workspace.lineHeight')}</span>
                         <select value={setup.lineHeight} onChange={(e) => updateSetup({ lineHeight: Number(e.target.value) })}>
@@ -2286,7 +2396,19 @@ export default function Workspace({
                   aria-label={t('workspace.document')}
                   onInput={onInput}
                   onBlur={flush}
+                  onClick={openCitationAtCaret}
                 />
+                {/* Faz 2: Teslim önizlemesinde sayfa numarası ve üst bilgi (yaklaşık sayfa sınırlarına göre). */}
+                {view === 'submit' && pageBoxes.map((box) => (
+                  <div key={box.i} aria-hidden="true">
+                    {setup.header && title && <div className="wx-phead" style={{ top: box.headTop, left: box.left, width: box.width }}>{title}</div>}
+                    {setup.pageNumbers !== false && (
+                      <div className="wx-pnum" style={{ top: box.footTop, left: box.left, width: box.width }} data-testid="page-number">
+                        {t('workspace.pageOfShort', { i: fmt(box.i + 1), n: fmt(pageBoxes.length) })}
+                      </div>
+                    )}
+                  </div>
+                ))}
                 {markers.map((m) => (
                   <button
                     key={m.id}
