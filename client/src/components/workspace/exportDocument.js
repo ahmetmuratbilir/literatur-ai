@@ -13,6 +13,15 @@ const HEADINGS = { H1: HeadingLevel.HEADING_1, H2: HeadingLevel.HEADING_2, H3: H
 const ALIGN = { center: AlignmentType.CENTER, right: AlignmentType.RIGHT, justify: AlignmentType.JUSTIFIED };
 
 /** Satır içi biçimi koruyarak metin parçalarına böler. */
+/** "#ffee00" ya da "rgb(255, 238, 0)" → "FFEE00"; saydam/boş → null. */
+function toHex(value) {
+  const v = String(value || '').trim();
+  if (/^#[0-9a-f]{6}$/i.test(v)) return v.slice(1).toUpperCase();
+  const m = v.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/);
+  if (!m || (m[4] !== undefined && Number(m[4]) === 0)) return null;
+  return [m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
 function runsOf(node, inherited = {}) {
   if (node.nodeType === Node.TEXT_NODE) {
     const text = node.textContent;
@@ -42,6 +51,9 @@ function runsOf(node, inherited = {}) {
   // execCommand renkleri satır içi stille yazar; docx altı haneli hex ister.
   const color = style.color && /^#[0-9a-f]{6}$/i.test(style.color) ? style.color.slice(1) : inherited.color;
   if (color) next.color = color;
+  // Vurgu (Daha fazla › Vurgula): arka plan rengi gölgelendirme olarak geçer.
+  const bg = toHex(style.backgroundColor);
+  if (bg) next.shading = { fill: bg };
   return [...node.childNodes].flatMap((child) => runsOf(child, next));
 }
 

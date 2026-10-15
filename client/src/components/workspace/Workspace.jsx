@@ -5,7 +5,7 @@ import {
   AlignCenter, AlignJustify, AlignLeft, ArrowLeft, Bold, Check, ChevronDown, ChevronLeft, ChevronRight,
   ClipboardCheck, Download, FileText, History, Info, Italic, LayoutTemplate, Library, List, ListChecks, ListOrdered, ListTree,
   PanelRightClose, PanelRightOpen, Plus, Printer, Quote, Redo2, RefreshCw, RotateCcw, Search, SlidersHorizontal,
-  Underline, Undo2, Upload, X,
+  Underline, Undo2, Upload, X, MoreHorizontal, Superscript, Subscript, Highlighter, RemoveFormatting,
 } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import {
@@ -176,8 +176,9 @@ function formatAgo(ms, locale, now) {
 }
 
 function Tool({ icon, label, onClick }) {
+  // Basınca odak düğmeye geçmesin: seçim kaybolmaz, biçim seçili metne uygulanır.
   return (
-    <button type="button" className="wx-tool" onClick={onClick} title={label} aria-label={label}>
+    <button type="button" className="wx-tool" onMouseDown={(e) => e.preventDefault()} onClick={onClick} title={label} aria-label={label}>
       {icon}
     </button>
   );
@@ -282,6 +283,27 @@ export default function Workspace({
   const [zoomMode, setZoomMode] = useState('actual');
   const [pageInfo, setPageInfo] = useState({ i: 1, n: 1 });
   const [renamingSection, setRenamingSection] = useState(null);
+  // Araç çubuğu tek satır (Faz 2): taşıyorsa sıradaki grup "Daha fazla"ya geçer
+  // (1: yazı tipi, 2: hizalama, 3: liste, 4: düğme yazıları). Genişlik değişince
+  // baştan ölçülür. Ölçüm boyamadan önce yapılır; titreme olmaz.
+  const ribbonRef = useRef(null);
+  const [ribbonWidth, setRibbonWidth] = useState(0);
+  const [ribbonLevel, setRibbonLevel] = useState(0);
+  useEffect(() => {
+    const el = ribbonRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      setRibbonWidth(Math.round(entry.contentRect.width));
+      setRibbonLevel(0);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  useLayoutEffect(() => {
+    const el = ribbonRef.current;
+    if (el && el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1 && ribbonLevel < 4) setRibbonLevel((l) => l + 1);
+  }, [ribbonLevel, ribbonWidth]);
+  const tools = { fonts: ribbonLevel < 1, align: ribbonLevel < 2, lists: ribbonLevel < 3, labels: ribbonLevel < 4 };
   const userNavRef = useRef(false);
   const [deskWidth, setDeskWidth] = useState(0);
   const deskRef = useRef(null);
@@ -803,6 +825,13 @@ export default function Workspace({
       // Komut desteklenmiyorsa biçim uygulanmaz; belge bozulmaz.
     }
     onInput();
+  };
+
+  /** Üst/alt simge gerçek <sup>/<sub> etiketiyle: CSS kipinde span üretiyor, DOCX'e geçmiyordu. */
+  const execTag = (command) => {
+    try { document.execCommand('styleWithCSS', false, false); } catch { /* yok say */ }
+    exec(command);
+    try { document.execCommand('styleWithCSS', false, true); } catch { /* yok say */ }
   };
 
   const changeView = (next) => {
@@ -1981,7 +2010,7 @@ export default function Workspace({
 
           {/* --- Belge --- */}
           <main className="wx-main">
-            <div className="wx-ribbon" role="toolbar" aria-label={t('workspace.toolbar')} inert={readOnly || undefined}>
+            <div ref={ribbonRef} className={`wx-ribbon${tools.labels ? '' : ' wx-ribbon--compact'}`} role="toolbar" aria-label={t('workspace.toolbar')} inert={readOnly || undefined}>
               <button
                 type="button"
                 className="wx-tool"
@@ -2004,16 +2033,47 @@ export default function Workspace({
                 <option value="blockquote">{t('workspace.quote')}</option>
               </select>
               <span className="wx-divider" />
+              {/* Faz 2: belgenin yazı tipi, puntosu, satır aralığı (tüm belgeye uygulanır). Dar ekranda "Daha fazla"ya geçer. */}
+              {tools.fonts && (
+                <>
+                  <span className="wx-divider" />
+                  <select
+                  className="wx-sel"
+                  value={setup.font}
+                  onChange={(e) => updateSetup({ font: e.target.value })}
+                  aria-label={t('workspace.docFont')}
+                  title={t('workspace.docFontHint')}
+                  data-action="write-font"
+                >
+                  {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                  </select>
+                  <select className="wx-sel" value={setup.fontSize} onChange={(e) => updateSetup({ fontSize: Number(e.target.value) })} aria-label={t('workspace.fontSize')} title={t('workspace.docFontHint')}>
+                  {FONT_SIZES.map((sz) => <option key={sz} value={sz}>{sz} pt</option>)}
+                  </select>
+                  <select className="wx-sel" value={setup.lineHeight} onChange={(e) => updateSetup({ lineHeight: Number(e.target.value) })} aria-label={t('workspace.lineHeight')} title={t('workspace.lineHeight')} data-action="write-line-height">
+                  {LINE_HEIGHTS.map((l) => <option key={l} value={l}>{fmt(l)}</option>)}
+                  </select>
+                </>
+              )}
+              <span className="wx-divider" />
               <Tool icon={<Bold size={16} />} label={t('workspace.bold')} onClick={() => exec('bold')} />
               <Tool icon={<Italic size={16} />} label={t('workspace.italic')} onClick={() => exec('italic')} />
               <Tool icon={<Underline size={16} />} label={t('workspace.underline')} onClick={() => exec('underline')} />
-              <span className="wx-divider" />
-              <Tool icon={<AlignLeft size={16} />} label={t('workspace.alignLeft')} onClick={() => exec('justifyLeft')} />
-              <Tool icon={<AlignCenter size={16} />} label={t('workspace.alignCenter')} onClick={() => exec('justifyCenter')} />
-              <Tool icon={<AlignJustify size={16} />} label={t('workspace.alignJustify')} onClick={() => exec('justifyFull')} />
-              <span className="wx-divider" />
-              <Tool icon={<List size={16} />} label={t('workspace.bulletList')} onClick={() => exec('insertUnorderedList')} />
-              <Tool icon={<ListOrdered size={16} />} label={t('workspace.numberList')} onClick={() => exec('insertOrderedList')} />
+              {tools.align && (
+                <>
+                  <span className="wx-divider" />
+                  <Tool icon={<AlignLeft size={16} />} label={t('workspace.alignLeft')} onClick={() => exec('justifyLeft')} />
+                  <Tool icon={<AlignCenter size={16} />} label={t('workspace.alignCenter')} onClick={() => exec('justifyCenter')} />
+                  <Tool icon={<AlignJustify size={16} />} label={t('workspace.alignJustify')} onClick={() => exec('justifyFull')} />
+                </>
+              )}
+              {tools.lists && (
+                <>
+                  <span className="wx-divider" />
+                  <Tool icon={<List size={16} />} label={t('workspace.bulletList')} onClick={() => exec('insertUnorderedList')} />
+                  <Tool icon={<ListOrdered size={16} />} label={t('workspace.numberList')} onClick={() => exec('insertOrderedList')} />
+                </>
+              )}
               <span className="wx-divider" />
               <Tool icon={<Undo2 size={16} />} label={t('workspace.undo')} onClick={() => exec('undo')} />
               <Tool icon={<Redo2 size={16} />} label={t('workspace.redo')} onClick={() => exec('redo')} />
@@ -2031,9 +2091,44 @@ export default function Workspace({
               </button>
 
               <span className="wx-ribbon__end">
-                {/* Belgenin yazı tipi ve puntosu: tüm belgeye uygulanır, Teslim görünümünde görünür. */}
-                <select
-                  className="wx-sel wx-hide-lg"
+                <div className="wx-anchor">
+                  <button
+                    type="button"
+                    className="wx-btn wx-btn--ghost"
+                    aria-expanded={menu === 'more'}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => toggleMenu('more')}
+                    data-action="write-more"
+                    title={t('workspace.more.label')}
+                    aria-label={t('workspace.more.label')}
+                  >
+                    <MoreHorizontal size={16} />
+                  </button>
+                  <Popover open={menu === 'more'} onClose={closeMenu} label={t('workspace.more.label')}>
+                    <div className="wx-more" onMouseDown={(e) => { if (e.target.tagName !== 'SELECT' && e.target.tagName !== 'OPTION') e.preventDefault(); }}>
+                      <div className="wx-more__row">
+                        <Tool icon={<Superscript size={16} />} label={t('workspace.more.sup')} onClick={() => execTag('superscript')} />
+                        <Tool icon={<Subscript size={16} />} label={t('workspace.more.sub')} onClick={() => execTag('subscript')} />
+                        <Tool icon={<Highlighter size={16} />} label={t('workspace.more.highlight')} onClick={() => exec('hiliteColor', '#fff3a3')} />
+                        <Tool icon={<RemoveFormatting size={16} />} label={t('workspace.more.clear')} onClick={() => exec('removeFormat')} />
+                      </div>
+                      {!tools.align && (
+                        <div className="wx-more__row" data-group="align">
+                          <Tool icon={<AlignLeft size={16} />} label={t('workspace.alignLeft')} onClick={() => exec('justifyLeft')} />
+                          <Tool icon={<AlignCenter size={16} />} label={t('workspace.alignCenter')} onClick={() => exec('justifyCenter')} />
+                          <Tool icon={<AlignJustify size={16} />} label={t('workspace.alignJustify')} onClick={() => exec('justifyFull')} />
+                        </div>
+                      )}
+                      {!tools.lists && (
+                        <div className="wx-more__row" data-group="lists">
+                          <Tool icon={<List size={16} />} label={t('workspace.bulletList')} onClick={() => exec('insertUnorderedList')} />
+                          <Tool icon={<ListOrdered size={16} />} label={t('workspace.numberList')} onClick={() => exec('insertOrderedList')} />
+                        </div>
+                      )}
+                      {!tools.fonts && (
+                        <div className="wx-more__row wx-more__row--sel" data-group="fonts">
+                          <select
+                  className="wx-sel"
                   value={setup.font}
                   onChange={(e) => updateSetup({ font: e.target.value })}
                   aria-label={t('workspace.docFont')}
@@ -2041,16 +2136,18 @@ export default function Workspace({
                   data-action="write-font"
                 >
                   {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-                </select>
-                <select
-                  className="wx-sel wx-hide-lg"
-                  value={setup.fontSize}
-                  onChange={(e) => updateSetup({ fontSize: Number(e.target.value) })}
-                  aria-label={t('workspace.fontSize')}
-                  title={t('workspace.docFontHint')}
-                >
-                  {FONT_SIZES.map((s) => <option key={s} value={s}>{s} pt</option>)}
-                </select>
+                          </select>
+                          <select className="wx-sel" value={setup.fontSize} onChange={(e) => updateSetup({ fontSize: Number(e.target.value) })} aria-label={t('workspace.fontSize')} title={t('workspace.docFontHint')}>
+                  {FONT_SIZES.map((sz) => <option key={sz} value={sz}>{sz} pt</option>)}
+                          </select>
+                          <select className="wx-sel" value={setup.lineHeight} onChange={(e) => updateSetup({ lineHeight: Number(e.target.value) })} aria-label={t('workspace.lineHeight')} title={t('workspace.lineHeight')} data-action="write-line-height">
+                  {LINE_HEIGHTS.map((l) => <option key={l} value={l}>{fmt(l)}</option>)}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </Popover>
+                </div>
                 <div className="wx-anchor">
                   <button type="button" className="wx-btn wx-btn--ghost" aria-expanded={menu === 'page'} onClick={() => toggleMenu('page')}>
                     <SlidersHorizontal size={15} /> <span className="wx-hide-sm">{t('workspace.pageSettings')}</span>

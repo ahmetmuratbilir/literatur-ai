@@ -962,6 +962,7 @@ export default {
       figures: 'Tables and figures',
       figuresEmpty: 'No tables or figures yet. You can add them from the Insert menu.',
     },
+    more: { label: 'More', sup: 'Superscript', sub: 'Subscript', highlight: 'Highlight', clear: 'Clear formatting' },
     pageOf: 'Page {i} / {n} (approx.)',
     pageApprox: 'Page breaks and numbers are approximate; Word and print may break pages differently.',
     saveLocal: 'saved to this device · {time}',

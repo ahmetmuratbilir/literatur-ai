@@ -962,6 +962,7 @@ export default {
       figures: 'Tablolar ve şekiller',
       figuresEmpty: 'Henüz tablo veya şekil yok. Ekle menüsünden ekleyebilirsin.',
     },
+    more: { label: 'Daha fazla', sup: 'Üst simge', sub: 'Alt simge', highlight: 'Vurgula', clear: 'Biçimi temizle' },
     pageOf: 'Sayfa {i} / {n} (yaklaşık)',
     pageApprox: 'Sayfa sınırı ve numarası yaklaşıktır; Word ve yazdırma sonucu farklı bölebilir.',
     saveLocal: 'bu cihaza kaydedildi · {time}',
