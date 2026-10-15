@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { citedDois, countBySeverity, groupItems, packageStatus, runAudit, SEVERITY } from '../src/audit/audit.js';
+import { citedDois, countBySeverity, groupItems, marginItems, packageStatus, runAudit, SEVERITY } from '../src/audit/audit.js';
 import { matchSources } from '../src/components/workspace/references.js';
 import { MARK, sentenceKey } from '../src/components/workspace/claimDetection.js';
 
@@ -239,4 +239,15 @@ test('tez paketi: var, basligi var ama bos, yok', () => {
   assert.equal(byKey.abstract, 'present');
   assert.equal(byKey.approval, 'missing');
   assert.equal(status.length, 9);
+});
+
+test('kenar isareti yalniz hata ve uyarida, yalniz cumleye bagli maddelerde', () => {
+  const items = [
+    { id: 'a', severity: 'critical', target: { kind: 'sentence', key: 'k1' } },
+    { id: 'b', severity: 'warning', target: { kind: 'sentence', key: 'k2' } },
+    { id: 'c', severity: 'info', target: { kind: 'sentence', key: 'k3' } },
+    { id: 'd', severity: 'warning', target: { kind: 'section', index: 0 } },
+    { id: 'e', severity: 'critical', target: null },
+  ];
+  assert.deepEqual(marginItems(items).map((i) => i.id), ['a', 'b']);
 });

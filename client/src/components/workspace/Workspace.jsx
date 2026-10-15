@@ -18,7 +18,7 @@ import { FORMATS, TEMPLATES, planFormatChange, templateHtml, templateWords } fro
 import FormatPicker from './FormatPicker.jsx';
 import CheckPanel from './CheckPanel.jsx';
 import SubmitPrep from './SubmitPrep.jsx';
-import { citedDois, runAudit } from '../../audit/audit.js';
+import { citedDois, marginItems, runAudit } from '../../audit/audit.js';
 import { downloadText, toBibTeX, toRIS } from '../../utils/citationExport.js';
 import {
   DRAFT_PREFIX, LOCK_BEAT, lockHolder, lockKey, newId, readDraft, readLock, releaseLock, saveConflictCopy, saveDraft, writeLock,
@@ -1304,6 +1304,16 @@ export default function Workspace({
       : t('audit.location.paragraph', { section: sectionNumbers[heading] || heading + 1, p: paragraph });
   }, [sectionNumbers, t]);
 
+  /** "İddia değil" diye işaretlenmiş cümleler: Kontrol'de "Susturulanlar". */
+  const mutedSentences = useMemo(() => {
+    const seen = new Set();
+    return sentences.filter((s) => {
+      if (!s.overridden || s.mark !== MARK.notClaim || seen.has(s.key)) return false;
+      seen.add(s.key);
+      return true;
+    }).map((s) => ({ key: s.key, text: s.text }));
+  }, [sentences]);
+
   /** Kontrol satırındaki eylemler. */
   const onCheckAction = (action, item) => {
     const target = item.target;
@@ -1335,8 +1345,7 @@ export default function Workspace({
     const el = pageRef.current;
     if (!el || hidden) return;
     const byBlock = new Map();
-    for (const item of checkItems) {
-      if (item.target?.kind !== 'sentence' || item.severity === 'info') continue;
+    for (const item of marginItems(checkItems)) {
       const s = sentencesRef.current.find((x) => x.key === item.target.key);
       if (!s?.block?.isConnected) continue;
       const entry = byBlock.get(s.block);
@@ -2101,6 +2110,7 @@ export default function Workspace({
                     aria-label={t('audit.check.marker', { title: m.title })}
                     data-action="check-marker"
                     data-rule={m.rule}
+                    data-severity={m.severity}
                   />
                 ))}
                 {/* §8: boş sayfa bir sonraki hamleyi söyler; şablon zorunlu değil. */}
@@ -2227,6 +2237,8 @@ export default function Workspace({
                     focusTick={checkFocus.tick}
                     pending={retractionPending}
                     note={t('audit.check.live')}
+                    muted={mutedSentences}
+                    onUnmute={(key) => setOverride(key, null)}
                   />
                 )}
                 {!review && sideView === 'list' && (

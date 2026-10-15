@@ -106,11 +106,20 @@ test('"Kaynakçayı aç" Kaynakça sekmesini, "Kaynak ekle" Kaynaklar sekmesini 
   await expect(page.locator('[data-action="side-sources"]')).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('"İddia değil olarak işaretle" maddeyi kaldırır', async ({ page }) => {
+test('"İddia değil olarak işaretle" maddeyi Susturulanlar\'a taşır; "Geri aç" geri getirir', async ({ page }) => {
   await openCheck(page);
   await expect(item(page, 'uncitedClaim')).toHaveCount(1);
+  await expect(page.getByTestId('check-muted')).toHaveCount(0);
   await item(page, 'uncitedClaim').getByRole('button', { name: 'İddia değil olarak işaretle' }).click();
   await expect(item(page, 'uncitedClaim')).toHaveCount(0);
+
+  const muted = page.getByTestId('check-muted');
+  await expect(muted).toContainText('Susturulanlar (1)');
+  await muted.locator('[data-action="check-muted-toggle"]').click();
+  await expect(muted.locator('[data-muted-key]')).toContainText(CLAIM);
+  await muted.locator('[data-action="check-unmute"]').click();
+  await expect(item(page, 'uncitedClaim')).toHaveCount(1);
+  await expect(page.getByTestId('check-muted')).toHaveCount(0);
 });
 
 test('aynı türden sorunlar tek satırda toplanır, açılınca liste', async ({ page }) => {
@@ -135,6 +144,10 @@ test('kenar işareti Kontrol\'de ilgili satırı açar', async ({ page }) => {
   const marker = page.locator('[data-action="check-marker"][data-rule="uncitedClaim"]');
   await expect(marker).toBeVisible();
   await expect(page.locator('[data-action="check-marker"]')).toHaveCount(3);
+  // Kenar işareti yalnız Hata ve Uyarı'da; boş bölüm (Bilgi) işaret almaz.
+  for (const severity of await page.locator('[data-action="check-marker"]').evaluateAll((els) => els.map((e) => e.dataset.severity))) {
+    expect(['critical', 'warning']).toContain(severity);
+  }
   await marker.click();
   await expect(page.locator('[data-action="side-check"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(item(page, 'uncitedClaim')).toHaveClass(/is-focused/);
@@ -145,6 +158,8 @@ test('tablo ve şekil numaralandırması denetlenir', async ({ page }) => {
   await openCheck(page, { html, basket: [] });
   await expect(item(page, 'captionOrder')).toContainText('Tablo numarası sıra dışı: 3 (beklenen 2)');
   await expect(item(page, 'captionMissing')).toContainText('Şekil 2 metinde anılıyor, başlığı yok');
+  // Kapsam notu: neyin denetlendiği satırda yazar.
+  await expect(item(page, 'captionMissing')).toContainText('Yalnızca “Tablo N.” / “Şekil N:” ile başlayan başlıklar denetlendi');
 });
 
 test('geri çekme sorgusu cevap vermezse kaynaklar "temiz" sayılmaz', async ({ page }) => {
@@ -218,6 +233,7 @@ test('tez: teslim paketi bileşenleri belgedeki gerçek bölümlerden', async ({
   await expect(pkg.locator('[data-key="abstract"]')).toHaveAttribute('data-status', 'present');
   await expect(pkg.locator('[data-key="approval"]')).toHaveAttribute('data-status', 'missing');
   await expect(pkg.locator('[data-key="ozet"]')).toContainText('Başlık var, içi boş');
+  await expect(pkg).toContainText('genel tez şablonuna göre; kurum kılavuzunla karşılaştır');
 });
 
 test('dürüstlük taraması: Kontrol ve Teslime hazırla ekranlarında yasak kalıp yok', async ({ page }) => {

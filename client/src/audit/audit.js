@@ -253,6 +253,14 @@ export function groupItems(items) {
 }
 
 /**
+ * Editör kenarında işaret alacak maddeler: yalnız Hata ve Uyarı, yalnız
+ * cümleye bağlı olanlar. Bilgi düzeyi kenarda gürültü olur; Kontrol'de durur.
+ */
+export function marginItems(items) {
+  return items.filter((i) => i.target?.kind === 'sentence' && (i.severity === 'critical' || i.severity === 'warning'));
+}
+
+/**
  * Tez teslim paketi: her bileşen belgede var mı, başlığı var ama boş mu,
  * yok mu. Belgedeki başlıklardan hesaplanır; kimlik (`key`) yoksa ad ile.
  * @param {Array<{key?: string|null, text: string, total: number, index: number}>} headings

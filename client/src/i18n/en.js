@@ -55,8 +55,8 @@ export default {
       quoteNoPage: { title: 'Direct quote without a page number', hint: 'APA 7 needs a page for direct quotes: (Author, Year, p. 45). If the passage came from an abstract, the page may be unknown.' },
       emptySection: { title: 'Empty section: {name}', hint: 'There is a heading with no text under it. Shown as info while writing; a warning for required sections in the submission check.' },
       incompleteSource: { title: 'Incomplete details: {title}', hint: 'Missing: {fields}. The reference entry will be incomplete; check the source record.' },
-      captionOrder: { title: '{kind} number out of order: {n} (expected {expected})', hint: 'Tables and figures are numbered from 1 in the order they appear.' },
-      captionMissing: { title: '{kind} {n} is referenced but has no caption', hint: 'No caption line like “{kind} {n}. …” was found.' },
+      captionOrder: { title: '{kind} number out of order: {n} (expected {expected})', hint: 'Tables and figures are numbered from 1 in the order they appear. Only captions starting with “Table N.” / “Figure N:” were checked.' },
+      captionMissing: { title: '{kind} {n} is referenced but has no caption', hint: 'No caption line like “{kind} {n}. …” was found. Only captions starting with “Table N.” / “Figure N:” were checked.' },
       underTarget: { title: '{name}: {n} words, suggested {target}', hint: 'Less than half the length the template suggests. Journal and institution guidelines come first.' },
       overTarget: { title: '{name}: {n} words, suggested {target}', hint: 'More than one and a half times the length the template suggests. Journal and institution guidelines come first.' },
       uncitedSources: { title: '{n} sources in the basket are not cited', hint: 'They will not appear in a "cited only" reference list.' },
@@ -92,6 +92,11 @@ export default {
       show: 'Show list',
       hide: 'Hide list',
     },
+    muted: {
+      title: 'Muted ({n})',
+      hint: 'Sentences you marked as “not a claim”. Unmute to check them again.',
+      unmute: 'Unmute',
+    },
     submit: {
       open: 'Prepare for submission',
       title: 'Prepare for submission',
@@ -106,7 +111,7 @@ export default {
       previewOn: 'The document is in submission preview on the left. Page breaks and numbers are approximate.',
       package: {
         title: 'Submission package components',
-        note: 'Computed from the headings in the document; the content was not checked against an institutional template.',
+        note: 'Computed from the headings in the document. The list follows the general thesis template; compare it with your institution’s guide. Content was not checked.',
         status: { present: 'Present', empty: 'Heading only, empty', missing: 'Missing' },
         go: 'Go to section',
       },
