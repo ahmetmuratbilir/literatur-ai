@@ -261,7 +261,6 @@ export default function Workspace({
   const [navPanel, setNavPanel] = useState(() => (mediaMatches(MEDIUM) ? 'sections' : null));
   const [sideOpen, setSideOpen] = useState(() => mediaMatches(WIDE));
   const [menu, setMenu] = useState(null);
-  const [showStatNote, setShowStatNote] = useState(false);
   const [drafts, setDrafts] = useState({});
   const [activeSource, setActiveSource] = useState(null);
   // Zotero / Mendeley dosyasından aktarma: dosya okunur, kullanıcı seçer (2.9).
@@ -277,7 +276,11 @@ export default function Workspace({
   // Seçimin üstündeki küçük araç çubuğu: masadaki konumu, yoksa null.
   const [selBar, setSelBar] = useState(null);
   // Teslim görünümü ölçeği: 'fit' sayfayı masaya sığdırır, 'actual' gerçek boyut.
-  const [zoomMode, setZoomMode] = useState(() => (saved?.zoom === 'actual' ? 'actual' : 'fit'));
+  // Faz 2: Teslim görünümü %100 açılır; sayfa sığmazsa sol panel kapanır, sayfa küçülmez.
+  // Eski kayıtlardaki "sığdır" eski varsayılandı; geri yüklenmez.
+  const [zoomMode, setZoomMode] = useState('actual');
+  const [pageInfo, setPageInfo] = useState({ i: 1, n: 1 });
+  const userNavRef = useRef(false);
   const [deskWidth, setDeskWidth] = useState(0);
   const deskRef = useRef(null);
   const pageRef = useRef(null);
@@ -801,6 +804,7 @@ export default function Workspace({
   };
 
   const changeView = (next) => {
+    userNavRef.current = false;
     setView(next);
     markDirty();
   };
@@ -1388,7 +1392,33 @@ export default function Workspace({
     else if (choice === 'ris' && basket.papers.length) downloadText(`literatur-ai_kaynakca_${stamp}.ris`, toRIS(basket.papers), 'application/x-research-info-systems');
   };
 
-  const toggleNav = (panel) => setNavPanel((p) => (p === panel ? null : panel));
+  const toggleNav = (panel) => {
+    userNavRef.current = navPanel !== panel;
+    setNavPanel((p) => (p === panel ? null : panel));
+  };
+
+  // A4 %100 kuralı (Faz 2): Teslim görünümünde sayfa masaya sığmıyorsa sol
+  // panel kapanır; sayfa küçülmez. Kullanıcı paneli kendisi açtıysa dokunulmaz.
+  useLayoutEffect(() => {
+    if (hidden || view !== 'submit' || zoomMode !== 'actual' || !navPanel || userNavRef.current) return;
+    const desk = deskRef.current;
+    if (!desk) return;
+    const need = pageGeometry(setup).width * MM_TO_PX + DESK_GUTTER;
+    if (desk.clientWidth < need) setNavPanel(null);
+  }, [hidden, view, zoomMode, navPanel, sideOpen, setup, deskWidth]);
+
+  // Sayfa x / y (yaklaşık): Teslim görünümünde kağıt yüksekliğinden hesaplanır.
+  const measurePages = useCallback(() => {
+    const desk = deskRef.current;
+    const el = pageRef.current;
+    if (!desk || !el || view !== 'submit') return;
+    const pageH = pageGeometry(setup).height * MM_TO_PX;
+    const scale = zoomMode === 'fit' ? Math.min(1, (deskWidth || 1) / (pageGeometry(setup).width * MM_TO_PX)) : 1;
+    const n = Math.max(1, Math.ceil(el.scrollHeight / pageH));
+    const i = Math.min(n, Math.floor(desk.scrollTop / (pageH * scale)) + 1);
+    setPageInfo((p) => (p.i === i && p.n === n ? p : { i, n }));
+  }, [view, setup, zoomMode, deskWidth]);
+  useEffect(() => { measurePages(); }, [measurePages, outline.words]);
 
   /**
    * Sağ panel açılır. Sayfa sığmayacaksa önce belge ağacı kapanır; sayfa
@@ -1770,20 +1800,6 @@ export default function Workspace({
           >
             {t('workspace.format.label', { style: bibFormat, size: PAGE_SIZES[setup.size]?.label || setup.size })}
           </button>
-          {save && (
-            <span
-              className={`wx-save wx-save--${saveState.kind}`}
-              title={saveState.kind === 'local' ? t('workspace.saveLocalHint') : undefined}
-              role={saveState.kind === 'failed' ? 'alert' : undefined}
-            >
-              <span aria-hidden="true">{save.icon}</span> {save.text}
-              {saveState.kind === 'failed' && (
-                <button type="button" className="wx-save__retry" onClick={() => persistRef.current()} data-action="write-save-retry">
-                  {t('workspace.saveRetry')}
-                </button>
-              )}
-            </span>
-          )}
           <span className="wx-top__spacer" />
 
           <div className="wx-anchor">
@@ -2016,9 +2032,7 @@ export default function Workspace({
               </span>
             </div>
 
-            {view === 'submit' && (
-              <p className="wx-note"><Info size={14} /> {t('workspace.submitNote')}</p>
-            )}
+            {/* Faz 2: belge üstünde en fazla bir bilgi şeridi (öncelik: kilit, depolama, kaldığın yer, teslim notu). */}
 
             {/* Sekmeler arası (WO-011): başka sekme düzenliyorsa burada salt okunur. */}
             {readOnly && (
@@ -2031,7 +2045,7 @@ export default function Workspace({
               </div>
             )}
             {/* Depolama yazılamıyor: yazmak serbest, kayıt yok; kalıcı uyarı ve DOCX. */}
-            {storageDown && (
+            {!readOnly && storageDown && (
               <div className="wx-sync wx-sync--down" role="alert" data-testid="storage-warn">
                 <Info size={15} />
                 <span>{t('workspace.sync.storageDown')}</span>
@@ -2041,7 +2055,7 @@ export default function Workspace({
               </div>
             )}
 
-            {resume && (
+            {!readOnly && !storageDown && resume && (
               <div className="wx-resume" role="status">
                 <History size={15} />
                 <span>
@@ -2058,6 +2072,10 @@ export default function Workspace({
               </div>
             )}
 
+            {!readOnly && !storageDown && !resume && view === 'submit' && (
+              <p className="wx-note"><Info size={14} /> {t('workspace.submitNote')}</p>
+            )}
+
             <div
               ref={deskRef}
               className={`wx-desk wx-desk--${view}`}
@@ -2066,6 +2084,7 @@ export default function Workspace({
                 // Gizlenince (display:none) kaydırma sıfırlanır; son konum burada tutulur.
                 if (!hidden) scrollRef.current = e.currentTarget.scrollTop;
                 if (selBar) setSelBar(null);
+                measurePages();
               }}
             >
               {/* Seçim araç çubuğu (WO-010 1.4): fare ile basınca seçim kaybolmasın. */}
@@ -2131,34 +2150,28 @@ export default function Workspace({
               </div>
             </div>
 
-            {showStatNote && <p className="wx-note wx-note--stat">{t('workspace.summaryLimit')}</p>}
-            {/* §5 özet: yüzde yok, sayı var; "kanıtlı" değil "atıf işaretli". */}
+            {/* Faz 2: tek satır. Sayfa (yaklaşık) · kelime · kayıt · görünüm · ölçek.
+                Cümle/atıf sayaçları Kontrol sekmesinde. */}
             <footer className="wx-status" aria-live="polite">
-              <span>{t('workspace.stat.sentences', { n: fmt(counts.total) })}</span>
-              <span className="wx-stat wx-stat--cited">{t('workspace.stat.cited', { n: fmt(counts.cited) })}</span>
-              <button type="button" className="wx-stat wx-stat--uncited" aria-pressed={review === MARK.uncited} onClick={() => openReview(MARK.uncited)} title={t('workspace.review.open')}>
-                {t('workspace.stat.uncited', { n: fmt(counts.uncited) })}
-              </button>
-              <button type="button" className="wx-stat wx-stat--plain wx-hide-sm" aria-pressed={review === MARK.notClaim} onClick={() => openReview(MARK.notClaim)} title={t('workspace.review.open')}>
-                {t('workspace.stat.notClaim', { n: fmt(counts.notClaim) })}
-              </button>
-              <button
-                type="button"
-                className="wx-icon wx-icon--sm"
-                aria-pressed={showStatNote}
-                onClick={() => setShowStatNote((v) => !v)}
-                title={t('workspace.statInfo')}
-                aria-label={t('workspace.statInfo')}
-              >
-                <Info size={14} />
-              </button>
-              <span className="wx-status__spacer" />
-              <span>{t('workspace.stat.words', { n: fmt(outline.words) })}</span>
               {view === 'submit' && (
-                <span className="wx-hide-sm">
-                  {PAGE_SIZES[setup.size]?.label} · {t(`workspace.margin.${setup.margin}`)} · {setup.font} {setup.fontSize} pt
+                <span title={t('workspace.pageApprox')} data-testid="page-of">{t('workspace.pageOf', { i: fmt(pageInfo.i), n: fmt(pageInfo.n) })}</span>
+              )}
+              <span>{t('workspace.stat.words', { n: fmt(outline.words) })}</span>
+              {save && (
+                <span
+                  className={`wx-save wx-save--${saveState.kind}`}
+                  title={saveState.kind === 'local' ? t('workspace.saveLocalHint') : undefined}
+                  role={saveState.kind === 'failed' ? 'alert' : undefined}
+                >
+                  <span aria-hidden="true">{save.icon}</span> {save.text}
+                  {saveState.kind === 'failed' && (
+                    <button type="button" className="wx-save__retry" onClick={() => persistRef.current()} data-action="write-save-retry">
+                      {t('workspace.saveRetry')}
+                    </button>
+                  )}
                 </span>
               )}
+              <span className="wx-status__spacer" />
               {/* Görünüm ve ölçek (WO-010 1.2): Taslak · Teslim; Teslim'de sığdır / gerçek boyut. */}
               <div className="wx-seg wx-seg--sm" role="group" aria-label={t('workspace.view.label')}>
                 <button type="button" aria-pressed={view === 'draft'} onClick={() => changeView('draft')} data-action="write-view-draft">
@@ -2177,7 +2190,7 @@ export default function Workspace({
                     data-action="write-zoom-fit"
                     title={t('workspace.zoom.fitHint')}
                   >
-                    {t('workspace.zoom.fit')}{zoomMode === 'fit' && fitScale < 1 ? ` · %${Math.round(fitScale * 100)}` : ''}
+                    {t('workspace.zoom.fit')}
                   </button>
                   <button
                     type="button"
@@ -2237,6 +2250,15 @@ export default function Workspace({
                     focusTick={checkFocus.tick}
                     pending={retractionPending}
                     note={t('audit.check.live')}
+                    summary={(
+                      <p className="wx-ctl__summary" data-testid="check-summary">
+                        <span>{t('workspace.stat.sentences', { n: fmt(counts.total) })}</span>
+                        <span>{t('workspace.stat.cited', { n: fmt(counts.cited) })}</span>
+                        <button type="button" className="wx-stat wx-stat--uncited" onClick={() => openReview(MARK.uncited)}>{t('workspace.stat.uncited', { n: fmt(counts.uncited) })}</button>
+                        <button type="button" className="wx-stat wx-stat--plain" onClick={() => openReview(MARK.notClaim)}>{t('workspace.stat.notClaim', { n: fmt(counts.notClaim) })}</button>
+                        <small className="wx-muted">{t('workspace.summaryLimit')}</small>
+                      </p>
+                    )}
                     muted={mutedSentences}
                     onUnmute={(key) => setOverride(key, null)}
                   />

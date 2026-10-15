@@ -165,7 +165,10 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* clip: taşan bir çocuk (ör. dar panel başlığı) kabuğu yana kaydıramasın.
+     hidden iken odak kabuğu 98 px kaydırıyor, düzen sola kayıyordu. */
   overflow: hidden;
+  overflow: clip;
   background: var(--wx-surface);
 }
 
@@ -747,7 +750,9 @@
 .wx-status {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  /* Faz 2: tek satır; sığmayan öğe kırpılır, satır kırılmaz. */
+  flex-wrap: nowrap;
+  overflow: hidden;
   gap: 2px 14px;
   min-height: 34px;
   padding: 4px 10px 4px 14px;
@@ -1048,6 +1053,9 @@ button.wx-stat[aria-pressed="true"] { background: var(--wx-hover); color: var(--
    verilir (rozet metni), yalnız renge kalmaz. */
 .wx { --wx-err: #b42318; --wx-err-soft: #fef3f2; --wx-warn: #b54708; --wx-warn-soft: #fffaeb; }
 .wx-ctl { display: grid; gap: 10px; }
+.wx-ctl__summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0; font-size: 12px; color: var(--wx-ink-2); }
+.wx-ctl__summary small { flex-basis: 100%; }
+.wx-save--local { color: #067647; }
 .wx-ctl__filters { display: flex; flex-wrap: wrap; gap: 4px; }
 .wx-ctl__filters button {
   height: 28px;
@@ -1402,3 +1410,7 @@ button.wx-ctl__title:hover { color: var(--wx-accent); }
   /* Ekrandaki "sığdır" ölçeği kağıda geçmez. */
   .wx-desk--submit > .wx-sheet { zoom: 1 !important; }
 }
+
+/* Sağ panel başlığı 360 px'e sığmazsa alt satıra kırılır, taşmaz (Faz 2). */
+.wx-side .wx-panel-head { flex-wrap: wrap; row-gap: 6px; min-width: 0; }
+.wx-side .wx-panel-head .wx-seg { flex-wrap: wrap; min-width: 0; }

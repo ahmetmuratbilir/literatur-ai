@@ -46,7 +46,7 @@ function paramsFor(item, t, fmt) {
  * @param onUnmute  (key) — işareti kaldırır, cümle yeniden denetlenir
  */
 export default function CheckPanel({
-  items, locate, onAction, focusId = null, focusTick = 0, pending = false, note = null, muted = [], onUnmute = null,
+  items, locate, onAction, focusId = null, focusTick = 0, pending = false, note = null, muted = [], onUnmute = null, summary = null,
 }) {
   const { t, lang } = useI18n();
   const locale = lang === 'tr' ? 'tr-TR' : 'en-US';
@@ -125,6 +125,7 @@ export default function CheckPanel({
 
   return (
     <section className="wx-ctl" aria-label={t('audit.listTitle')}>
+      {summary}
       <div className="wx-ctl__filters" role="tablist" aria-label={t('audit.filter')}>
         {['all', ...SEVERITY].map((f) => (
           <button
