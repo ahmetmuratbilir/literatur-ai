@@ -2,7 +2,7 @@
 
 | Alan | Değer |
 | --- | --- |
-| Durum | Çalışıyor — Faz 1, 3 bitti; Faz 2 adım 1/5 bitti |
+| Durum | Faz 1, 3, 2 bitti — kullanıcı kontrolü bekliyor (15.10.2026) |
 | Kaynak | Kullanıcının "Yazar Modu Yeniden Yapılandırma" şartnamesi + güvenlik/faz kapıları ekleri |
 | Dal | `wo-006-istatistik`; güvence: `b1fab98 WIP: önceki iş`, `yedek/wo-011-oncesi` |
 | Faz sırası | **1 → 3 → 2** (kullanıcı kararı). Bir faz bitmeden sonrakine geçilmez |
@@ -308,3 +308,68 @@ ana değişiklik sonrası ekran görüntüsü.
    - Asistan'da orijinal/öneri karşılaştırması, Uygula/Reddet, geri alınabilir.
    - Gerçek model çağrısı yerelde Gemini/Groq anahtarlarıyla ayrıca
      denenecek; prompt kalitesi Bölüm 4 kümesi olmadığı için "ölçülmedi".
+
+### Faz 2 — bitti (15.10.2026)
+
+Adımlar ve commit'ler:
+
+| Adım | İş | Commit |
+| --- | --- | --- |
+| 1 | A4 %100, tek satır durum çubuğu, tek bilgi şeridi | `f2b904e` |
+| 2 | Numaralı belge yapısı | `587500b` |
+| 3 | Tek satır araç çubuğu + "Daha fazla" | `24eec0c` |
+| 4 | Sayfa no/üst bilgi, mor atıflar, Ekle menüsü | `2dfd103` |
+| 5 | Seçim menüsü, Kaynaklar · Asistan · Kontrol, iki AI eylemi | bu commit |
+
+Ekran görüntüleri her adımdan sonra alındı ve kullanıcıya rapor edildi.
+
+**Bitti sayılması için:**
+
+| Madde | Durum |
+| --- | --- |
+| 1440×900'de sağ panel açıkken A4 %100; sığmazsa sol panel kapanır | Çalışıyor (e2e: genişlik 793,7 px, sayfa panelin solunda) |
+| Belge yapısı gerçek başlıklardan, tıklayınca doğru yere | Çalışıyor (e2e) |
+| AI önerisi uygulanıp geri alınabiliyor; seçilmeyen metin değişmiyor | Çalışıyor (e2e, sahte sunucu cevabıyla) + gerçek uç bir canlı çağrıyla denendi |
+| Ekranda yüzde/skor/doğruluk yok | Çalışıyor (e2e taraması: iki görünüm, üç sekme) |
+| Durum çubuğu tek satır, belge üstünde en fazla bir şerit | Çalışıyor (e2e) |
+
+**AI eylemleri (kullanıcı kararı 1):**
+- **Kaynak ihtiyacını değerlendir:** yerel iddia sınıflandırıcısıyla, modelsiz.
+- **Dil ve anlatımı düzelt:** yeni uç `POST /api/language-edit`, prompt
+  `PR11.v1` (`server/services/languageEdit.js`).
+  - Atıflar modele gitmeden yer tutucuya çevrilir; dönüşte sıra ve sayı
+    tutmazsa ret.
+  - Yeni sayı, DOI veya bağlantı eklenirse ve aşırı kısalma/uzama olursa ret.
+  - Şema dışı çıktı kullanılmaz; ayraç + sonda talimat.
+  - Sunucu birim testi 6.
+  - Canlı çağrı (yerel, DeepSeek): yazım düzeltildi, atıf ve sayı korundu.
+  - Kalite Bölüm 4 kümesiyle **ölçülmedi**.
+  - PR11, tasarım belgesindeki PR1–PR10 listesine eklenmeli (belge
+    güncellenmedi).
+
+**Kısmen / uygulanmadı:**
+- **Girinti** uygulanmadı: execCommand bloğu alıntıya çeviriyor; Kontrol
+  kuralları bozulurdu.
+- **"Atıf doğrula" ve "Yorum"** devre dışı, "Yakında" yazıyor.
+- **Asistan hızlı eylemleri:** şartnamedeki "Akademik dille yaz · Argüman
+  akışı · Özetle · Genişlet" kullanıcı kararı 1 gereği yok; yalnız iki eylem
+  var.
+- **Sayfa sınırları** yaklaşık. Yazdırmada sayfa numarası Chromium @page
+  kenar kutularıyla çalışır; başka tarayıcıda görünmeyebilir.
+- **"Dil ve anlatımı düzelt"** seçimdeki biçimi (kalın vb.) düz metne çevirir.
+- **Şablon ve Dışa aktar** düğmeleri üst çubukta duruyor; şartnamenin üst
+  çubuk listesinde yoklar.
+
+**Bulunan hatalar (düzeltildi):**
+- Sağ panel başlığı taşıp kabuğu kaydırıyordu (Faz 3'ten).
+- Üst/alt simge DOCX'e geçmiyordu.
+- Araç çubuğu açılır panelleri kırpılıyordu.
+- Kısa belgede sayfa sayısı 2 çıkıyordu.
+- Seçim menüsünde düğmeler üst üste biniyordu.
+
+**Testler (son koşum):**
+- İstemci birim 145/145 · audit 20/20 · sunucu 423/423 · lint temiz ·
+  build geçiyor.
+- e2e 58 geçti, 1 atlandı.
+- Temel çizgi: BibTeX/RIS bayt bayt aynı. DOCX'te belge metni aynı, tek
+  fark yeni sayfa numarası alt bilgisi (Faz 2 özelliği).
