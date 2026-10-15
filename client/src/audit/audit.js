@@ -48,6 +48,12 @@ const CAPTION_RE = /^(tablo|table|şekil|sekil|figure|fig\.)\s*(\d+)\s*[.:–—
 const MENTION_RE = /(?<![\p{L}\p{N}])(tablo|table|şekil|sekil|figure|fig\.)\s*(\d+)(?![\p{N}])/giu;
 const captionKind = (word) => (/^(tablo|table)$/i.test(word) ? 'table' : 'figure');
 
+/** Blok bir tablo/şekil başlığı mı: { kind, n } ya da null. */
+export function captionOf(text) {
+  const m = String(text || '').match(CAPTION_RE);
+  return m ? { kind: captionKind(m[1]), n: Number(m[2]) } : null;
+}
+
 const normDoi = (doi) => String(doi || '').trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '').toLowerCase();
 
 const excerpt = (text, max = 160) => {
