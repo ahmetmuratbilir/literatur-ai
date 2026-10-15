@@ -1,5 +1,5 @@
 import {
-  AlignmentType, Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow,
+  AlignmentType, Document, Footer, Header, HeadingLevel, Packer, PageNumber, Paragraph, Table, TableCell, TableRow,
   TextRun, WidthType, convertMillimetersToTwip,
 } from 'docx';
 import { saveAs } from 'file-saver';
@@ -99,8 +99,18 @@ export function blocksToParagraphs(root) {
   return out.length > 0 ? out : [new Paragraph({ children: [] })];
 }
 
-export async function exportDocx({ root, setup, title }) {
+/**
+ * @param pageLabel  sayfa numarası öneki ("Sayfa"); `setup.pageNumbers` kapalıysa numara yok
+ */
+export async function exportDocx({ root, setup, title, pageLabel = 'Sayfa' }) {
   const g = pageGeometry(setup);
+  // Sayfa numarası ve üst bilgi (WO-011 Faz 2): ekrandaki Teslim önizlemesiyle aynı ayar.
+  const footers = setup.pageNumbers === false ? undefined : {
+    default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [`${pageLabel} `, PageNumber.CURRENT, ' / ', PageNumber.TOTAL_PAGES] })] })] }),
+  };
+  const headers = setup.header && title ? {
+    default: new Header({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: title, size: Math.max(16, (setup.fontSize - 2) * 2) })] })] }),
+  } : undefined;
   const margin = convertMillimetersToTwip(g.margin);
   const doc = new Document({
     styles: {
@@ -125,6 +135,8 @@ export async function exportDocx({ root, setup, title }) {
           margin: { top: margin, bottom: margin, left: margin, right: margin },
         },
       },
+      headers,
+      footers,
       children: blocksToParagraphs(root),
     }],
   });

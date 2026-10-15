@@ -1474,3 +1474,19 @@ button.wx-ctl__title:hover { color: var(--wx-accent); }
 .wx-ribbon--compact .wx-btn > span { display: none; }
 .wx-ribbon .wx-sel[data-action="write-font"] { max-width: 132px; }
 .wx-ribbon > *, .wx-ribbon__end > * { flex-shrink: 0; }
+
+/* ---------- A4 sayfa (Faz 2) ---------- */
+::highlight(wx-cite) { color: #6750e8; }
+.wx-pnum, .wx-phead {
+  position: absolute;
+  text-align: center;
+  color: var(--wx-faint);
+  font-family: var(--ws-font), serif;
+  font-size: 10pt;
+  pointer-events: none;
+}
+.wx-form__check { display: flex; align-items: center; gap: 8px; grid-column: 1 / -1; font-size: 12.5px; }
+@media print {
+  ::highlight(wx-cite) { color: inherit; }
+  .wx-pnum, .wx-phead { display: none !important; }
+}

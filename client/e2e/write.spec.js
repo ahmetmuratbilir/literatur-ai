@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { mockApi, seedDraft } from './fixtures.js';
+import fs from 'node:fs';
 
 /**
  * WO-010 Aşama 1 — Yazım Stüdyosu yerleşimi: belge yapısı, sağ panel
@@ -259,4 +260,38 @@ test('araç çubuğu tek satır; dar ekranda gruplar "Daha fazla"ya geçer (Faz 
   });
   await page.getByRole('button', { name: 'Alt simge' }).click();
   await expect(page.locator('.wx-page sub')).toHaveText('2');
+});
+
+test('A4 sayfa: Ekle ile numaralı tablo başlığı, Teslim\'de sayfa numarası, atıfa tıklayınca kaynak, DOCX alt bilgisi (Faz 2)', async ({ page }) => {
+  await seedDraft(page, '<h1>Bulgular</h1><p>Isı tahliyesi sürdü (Chen &amp; Wang, 2021).</p><p>Tablo 1. Koşullar</p>');
+  await mockApi(page, { basket: [SOURCE] });
+  await page.goto('/#/yazar');
+  // Ekle › Tablo başlığı: sıradaki numara
+  await page.locator('.wx-page p').first().click();
+  await page.locator('[data-action="write-insert"]').click();
+  await page.locator('[data-action="insert-table-caption"]').click();
+  await expect(page.locator('.wx-page')).toContainText('Tablo 2.');
+  await expect(outline(page).locator('[data-action="outline-caption"]')).toHaveCount(2);
+  // Atfa tıklayınca kaynak sağ panelde açılır
+  await page.locator('[data-action="side-sources"]').click();
+  const citeBox = await page.locator('.wx-page p').first().evaluate((el) => {
+    const text = el.firstChild;
+    const i = text.textContent.indexOf('(Chen');
+    const r = document.createRange();
+    r.setStart(text, i + 3);
+    r.setEnd(text, i + 4);
+    const b = r.getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+  });
+  await page.mouse.click(citeBox.x, citeBox.y);
+  await expect(page.locator('[data-action="side-evidence"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(side(page)).toContainText(SOURCE.title);
+  // Teslim önizlemesinde sayfa numarası
+  await page.locator('[data-action="write-view-submit"]').click();
+  await expect(page.getByTestId('page-number').first()).toHaveText('Sayfa 1 / 1');
+  // DOCX'te alt bilgi (sayfa numarası) bölümü var
+  await page.getByRole('button', { name: /Dışa aktar/ }).first().click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Word/ }).first().click()]);
+  const bytes = fs.readFileSync(await download.path()).toString('latin1');
+  expect(bytes).toContain('word/footer1.xml');
 });

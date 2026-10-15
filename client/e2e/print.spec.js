@@ -43,7 +43,9 @@ test('yazdırma A4 (@page) kağıda çıkar; uzun belge kırpılmadan sayfalara 
   await expect(page.locator('.wx-page')).toContainText(`Satır ${LINES}:`);
   // Kural belgede: A4 = 210 × 297 mm
   const rule = await page.evaluate(() => [...document.querySelectorAll('style')].map((n) => n.textContent).find((x) => x.includes('@page')) || '');
-  expect(rule).toMatch(/@page \{ size: 210mm 297mm; margin: [\d.]+mm; \}/);
+  expect(rule).toMatch(/@page \{ size: 210mm 297mm; margin: [\d.]+mm;/);
+  // Faz 2: sayfa numarası kağıtta da (Chromium @page kenar kutusu).
+  expect(rule).toContain('@bottom-center { content: "Sayfa " counter(page) " / " counter(pages);');
 
   const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: false });
   const { pages, boxes, lines } = pdfPages(pdf);

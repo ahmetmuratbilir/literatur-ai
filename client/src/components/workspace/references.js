@@ -83,3 +83,39 @@ export function matchSources(text, papers) {
   const uncited = list.map((_, i) => i).filter((i) => !firstAt.has(i));
   return { cited, uncited, orphans: [...new Set(orphans)] };
 }
+
+/**
+ * Metindeki atıfların yeri ve sepetteki karşılığı (WO-011 Faz 2): editörde
+ * atıfı renklendirmek ve tıklayınca kaynağı açmak için. Parantez içi
+ * atıfın tamamı ("(Kaya, 2020; Arslan, 2019)") ve anlatı atıfı
+ * ("Kaya (2020)") tek aralıktır; `index` ilk eşleşen sepet kaynağı ya da -1.
+ * @returns {Array<{ start: number, end: number, index: number }>}
+ */
+export function citationSpans(text, papers = []) {
+  const s = String(text || '');
+  const keys = (papers || []).map((p) => keyOf(firstSurname(p), p?.year));
+  const indexFor = (chunk) => {
+    for (const c of findCitations(chunk)) {
+      const i = keys.indexOf(keyOf(c.surname, c.year));
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
+  const spans = [];
+  const paren = new RegExp(`\\(([^()]*\\b${YEAR}[a-z]?[^()]*)\\)`, 'g');
+  for (let m = paren.exec(s); m; m = paren.exec(s)) {
+    if (findCitations(m[0]).length === 0) continue;
+    spans.push({ start: m.index, end: m.index + m[0].length, index: indexFor(m[0]) });
+  }
+  const narrative = new RegExp(
+    `(\\p{Lu}[\\p{L}'’-]+)(?:\\s+(?:ve|and|&)\\s+\\p{Lu}[\\p{L}'’-]+|\\s+(?:vd\\.|et al\\.))?\\s+\\((${YEAR})[a-z]?\\)`,
+    'gu',
+  );
+  for (let m = narrative.exec(s); m; m = narrative.exec(s)) {
+    const start = m.index;
+    const end = start + m[0].length;
+    if (spans.some((x) => start < x.end && end > x.start)) continue;
+    spans.push({ start, end, index: indexFor(m[0]) });
+  }
+  return spans.sort((a, b) => a.start - b.start);
+}
