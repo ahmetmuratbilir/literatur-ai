@@ -17,8 +17,9 @@ import {
 import { FORMATS, TEMPLATES, planFormatChange, templateHtml, templateWords } from './templates.js';
 import FormatPicker from './FormatPicker.jsx';
 import CheckPanel from './CheckPanel.jsx';
+import OutlineNav from './OutlineNav.jsx';
 import SubmitPrep from './SubmitPrep.jsx';
-import { citedDois, marginItems, runAudit } from '../../audit/audit.js';
+import { captionOf, citedDois, marginItems, runAudit } from '../../audit/audit.js';
 import { downloadText, toBibTeX, toRIS } from '../../utils/citationExport.js';
 import {
   DRAFT_PREFIX, LOCK_BEAT, lockHolder, lockKey, newId, readDraft, readLock, releaseLock, saveConflictCopy, saveDraft, writeLock,
@@ -280,6 +281,7 @@ export default function Workspace({
   // Eski kayıtlardaki "sığdır" eski varsayılandı; geri yüklenmez.
   const [zoomMode, setZoomMode] = useState('actual');
   const [pageInfo, setPageInfo] = useState({ i: 1, n: 1 });
+  const [renamingSection, setRenamingSection] = useState(null);
   const userNavRef = useRef(false);
   const [deskWidth, setDeskWidth] = useState(0);
   const deskRef = useRef(null);
@@ -904,6 +906,77 @@ export default function Workspace({
     if (!mediaMatches(MEDIUM)) setNavPanel(null);
   };
 
+  // --- Belge yapısı işlemleri (WO-011 Faz 2) ------------------------------
+  // Bölüm = başlık + kendisinden düşük seviyeli olmayan bir sonraki başlığa
+  // kadar her blok (alt bölümler dahil). Taşıma düğümleri taşır, metin silmez.
+  const headingNodes = () => [...(pageRef.current?.children || [])].filter((n) => /^H[1-3]$/.test(n.tagName));
+  const sectionNodes = (heading) => {
+    const level = Number(heading.tagName[1]);
+    const out = [heading];
+    for (let n = heading.nextElementSibling; n; n = n.nextElementSibling) {
+      if (/^H[1-3]$/.test(n.tagName) && Number(n.tagName[1]) <= level) break;
+      out.push(n);
+    }
+    return out;
+  };
+
+  /** Bölümü (içeriği ve alt bölümleriyle) hedef başlığın önüne taşır. */
+  const moveSection = (from, before) => {
+    const hs = headingNodes();
+    const source = hs[from];
+    const target = hs[before];
+    if (!source || !target || source === target) return;
+    const nodes = sectionNodes(source);
+    if (nodes.includes(target)) return;
+    for (const node of nodes) target.before(node);
+    setCurrentSection(-1);
+    onInput();
+  };
+
+  /** Klavye ile taşıma: aynı seviyedeki komşuyla yer değiştirir; üst bölümden çıkmaz. */
+  const stepSection = (index, dir) => {
+    const hs = headingNodes();
+    const self = hs[index];
+    if (!self) return;
+    const level = Number(self.tagName[1]);
+    if (dir < 0) {
+      for (let j = index - 1; j >= 0; j -= 1) {
+        const l = Number(hs[j].tagName[1]);
+        if (l < level) return;
+        if (l === level) { moveSection(index, j); return; }
+      }
+      return;
+    }
+    const end = sectionNodes(self);
+    const next = hs.find((h, j) => j > index && !end.includes(h));
+    if (!next || Number(next.tagName[1]) !== level) return;
+    moveSection(hs.indexOf(next), index);
+  };
+
+  const renameSection = (index, text) => {
+    const heading = headingNodes()[index];
+    if (!heading) return;
+    heading.textContent = text;
+    onInput();
+  };
+
+  /** Yeni bölüm: belgedeki üst seviyede, Kaynakça'dan önce; adı hemen düzenlenir. */
+  const addSection = () => {
+    const el = pageRef.current;
+    if (!el) return;
+    const hs = headingNodes();
+    const level = hs.length ? Math.min(...hs.map((h) => Number(h.tagName[1]))) : 1;
+    const heading = document.createElement(`h${level}`);
+    heading.textContent = t('workspace.outlineNav.newSection');
+    const para = document.createElement('p');
+    para.appendChild(document.createElement('br'));
+    const refs = hs.find((h) => isReferencesHeading(h.textContent));
+    if (refs) { refs.before(heading); refs.before(para); } else { el.append(heading, para); }
+    onInput();
+    setRenamingSection(headingNodes().indexOf(heading));
+    heading.scrollIntoView({ block: 'center' });
+  };
+
   /** Kullanıcı kararı sınıflandırıcıyı ezer; `null` otomatik karara döner. */
   const setOverride = (key, value) => {
     const next = { ...overridesRef.current };
@@ -1308,6 +1381,9 @@ export default function Workspace({
       : t('audit.location.paragraph', { section: sectionNumbers[heading] || heading + 1, p: paragraph });
   }, [sectionNumbers, t]);
 
+  /** Belge yapısının "Tablolar ve şekiller" bölümü: "Tablo N." / "Şekil N:" satırları. */
+  const captions = useMemo(() => blocks.filter((b) => captionOf(b.text)).map((b) => ({ key: b.key, text: b.text.slice(0, 80) })), [blocks]);
+
   /** "İddia değil" diye işaretlenmiş cümleler: Kontrol'de "Susturulanlar". */
   const mutedSentences = useMemo(() => {
     const seen = new Set();
@@ -1406,6 +1482,20 @@ export default function Workspace({
     const need = pageGeometry(setup).width * MM_TO_PX + DESK_GUTTER;
     if (desk.clientWidth < need) setNavPanel(null);
   }, [hidden, view, zoomMode, navPanel, sideOpen, setup, deskWidth]);
+
+  // Kaydırınca aktif bölüm: masanın üstüne en yakın geçmiş başlık (Faz 2).
+  const trackFrame = useRef(0);
+  const trackSection = () => {
+    cancelAnimationFrame(trackFrame.current);
+    trackFrame.current = requestAnimationFrame(() => {
+      const desk = deskRef.current;
+      if (!desk) return;
+      const top = desk.getBoundingClientRect().top + 80;
+      let index = -1;
+      headingNodes().forEach((h, i) => { if (h.getBoundingClientRect().top <= top) index = i; });
+      setCurrentSection((c) => (c === index ? c : Math.max(index, 0)));
+    });
+  };
 
   // Sayfa x / y (yaklaşık): Teslim görünümünde kağıt yüksekliğinden hesaplanır.
   const measurePages = useCallback(() => {
@@ -1870,42 +1960,23 @@ export default function Workspace({
           {/* --- Belge yapısı (WO-010 1.1): 240 px, araç çubuğundaki düğmeyle açılıp kapanır.
               Kaynak listesi sağ panelin "Kaynaklar" sekmesine taşındı. --- */}
           {navPanel && (
-            <aside className="wx-nav" aria-label={t('workspace.outline')}>
-              <div className="wx-panel-head">
-                <strong>{t('workspace.outline')}</strong>
-                {outline.words > 0 && (
-                  <small>{t('workspace.stat.words', { n: fmt(outline.words) })}</small>
-                )}
-                <button type="button" className="wx-icon wx-icon--sm" onClick={() => setNavPanel(null)} aria-label={t('workspace.outlineHide')} title={t('workspace.outlineHide')}>
-                  <X size={14} />
-                </button>
-              </div>
-              <div className="wx-nav__body">
-                {outline.headings.length === 0 ? (
-                  <p className="wx-muted">{t('workspace.noSections')}</p>
-                ) : outline.headings.map((h) => {
-                  const name = h.text || t('workspace.untitledSection');
-                  const pct = h.target ? Math.min(100, Math.round((h.total / h.target) * 100)) : null;
-                  return (
-                    <button
-                      key={`${h.index}-${name}`}
-                      type="button"
-                      className={`wx-tree wx-tree--l${h.level}${currentSection === h.index ? ' is-current' : ''}`}
-                      onClick={() => goToSection(h.index)}
-                      aria-label={t('workspace.goToSection', { name })}
-                    >
-                      <span className="wx-tree__name">{name}</span>
-                      {(h.total > 0 || h.target) && (
-                        <span className="wx-tree__count" title={h.target ? t('workspace.targetHint') : undefined}>
-                          {fmt(h.total)}{h.target ? <small> / {fmt(h.target)}</small> : null}
-                        </span>
-                      )}
-                      {pct !== null && <span className="wx-tree__bar" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </aside>
+            <OutlineNav
+              headings={outline.headings}
+              numbers={sectionNumbers}
+              current={currentSection}
+              words={outline.words}
+              captions={captions}
+              readOnly={readOnly}
+              onGo={goToSection}
+              onRename={renameSection}
+              onMove={moveSection}
+              onStep={stepSection}
+              onAdd={addSection}
+              onRevealCaption={revealSentenceKey}
+              onClose={() => setNavPanel(null)}
+              renaming={renamingSection}
+              setRenaming={setRenamingSection}
+            />
           )}
 
           {/* --- Belge --- */}
@@ -2085,6 +2156,7 @@ export default function Workspace({
                 if (!hidden) scrollRef.current = e.currentTarget.scrollTop;
                 if (selBar) setSelBar(null);
                 measurePages();
+                trackSection();
               }}
             >
               {/* Seçim araç çubuğu (WO-010 1.4): fare ile basınca seçim kaybolmasın. */}

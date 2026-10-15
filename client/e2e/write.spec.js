@@ -163,3 +163,65 @@ test('yeni düğmelerin envanteri', async ({ page }) => {
     await expect(page.locator(`[data-action="${id}"]`).first(), id).toBeAttached();
   }
 });
+
+// --- WO-011 Faz 2: belge yapısı ---------------------------------------------
+
+const OUTLINE_DOC = '<h1>Giriş</h1><p>Giriş metni.</p><h1>Kuram</h1><h2>Alt A</h2><p>A metni.</p><h2>Alt B</h2><p>B metni.</p><h1>Kaynakça</h1>';
+const headingTexts = (page) => page.locator('.wx-page').locator('h1, h2, h3').allInnerTexts();
+
+test('belge yapısı numaralı ve iç içe; katlanır, tıklayınca bölüme gider', async ({ page }) => {
+  await seedDraft(page, OUTLINE_DOC);
+  await mockApi(page);
+  await page.goto('/#/yazar');
+  const nav = outline(page);
+  await expect(nav.locator('.wx-ol__num')).toHaveText(['1', '2', '2.1', '2.2', '3']);
+  await nav.locator('.wx-ol').nth(1).locator('.wx-ol__fold').click();
+  await expect(nav.locator('.wx-ol')).toHaveCount(3);
+  await nav.locator('.wx-ol').nth(1).locator('.wx-ol__fold').click();
+  await nav.getByRole('button', { name: /Alt B/ }).click();
+  await expect.poll(() => page.evaluate(() => {
+    const node = window.getSelection().anchorNode;
+    return (node?.nodeType === 3 ? node.parentElement : node)?.closest('h2')?.textContent || '';
+  })).toBe('Alt B');
+});
+
+test('belge yapısı: yeniden adlandır, taşı ve bölüm ekle; metin kaybolmaz', async ({ page }) => {
+  await seedDraft(page, OUTLINE_DOC);
+  await mockApi(page);
+  await page.goto('/#/yazar');
+  const nav = outline(page);
+  // Yeniden adlandır
+  await nav.locator('.wx-ol').nth(3).hover();
+  await nav.locator('.wx-ol').nth(3).locator('[data-action="outline-rename"]').click();
+  await nav.locator('[data-action="outline-rename-input"]').fill('Alt B yeni');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => headingTexts(page)).toEqual(['Giriş', 'Kuram', 'Alt A', 'Alt B yeni', 'Kaynakça']);
+  // Alt B'yi yukarı taşı: içeriğiyle birlikte Alt A'nın önüne
+  await nav.locator('.wx-ol').nth(3).hover();
+  await nav.locator('.wx-ol').nth(3).locator('[data-action="outline-up"]').click();
+  await expect.poll(() => headingTexts(page)).toEqual(['Giriş', 'Kuram', 'Alt B yeni', 'Alt A', 'Kaynakça']);
+  const text = await page.locator('.wx-page').innerText();
+  expect(text.indexOf('B metni.')).toBeLessThan(text.indexOf('A metni.'));
+  // Alt bölüm üst bölümden çıkmaz: Alt B artık ilk alt bölüm, yukarı taşınamaz
+  await nav.locator('.wx-ol').nth(2).hover();
+  await nav.locator('.wx-ol').nth(2).locator('[data-action="outline-up"]').click();
+  await expect.poll(() => headingTexts(page)).toEqual(['Giriş', 'Kuram', 'Alt B yeni', 'Alt A', 'Kaynakça']);
+  // Kuram'ı (alt bölümleriyle) sürükleyip Giriş'in önüne bırak
+  await nav.locator('.wx-ol').nth(1).dragTo(nav.locator('.wx-ol').nth(0));
+  await expect.poll(() => headingTexts(page)).toEqual(['Kuram', 'Alt B yeni', 'Alt A', 'Giriş', 'Kaynakça']);
+  // Bölüm ekle: Kaynakça'dan önce, adı düzenlenebilir
+  await nav.locator('[data-action="outline-add"]').click();
+  await nav.locator('[data-action="outline-rename-input"]').fill('Sonuç');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => headingTexts(page)).toEqual(['Kuram', 'Alt B yeni', 'Alt A', 'Giriş', 'Sonuç', 'Kaynakça']);
+  for (const t of ['Giriş metni.', 'A metni.', 'B metni.']) await expect(page.locator('.wx-page')).toContainText(t);
+});
+
+test('belge yapısı: tablo ve şekil başlıkları listelenir, boşken açıklama', async ({ page }) => {
+  await seedDraft(page, '<h1>Bulgular</h1><p>Tablo 1. Koşullar</p><p>Şekil 1: Düzenek</p>');
+  await mockApi(page);
+  await page.goto('/#/yazar');
+  await expect(outline(page).locator('[data-action="outline-caption"]')).toHaveText(['Tablo 1. Koşullar', 'Şekil 1: Düzenek']);
+  // Hedefsiz bölümde kelime sayısı gösterilmez (yalnız şablon hedefi varsa).
+  await expect(outline(page).locator('.wx-ol__count')).toHaveCount(0);
+});
