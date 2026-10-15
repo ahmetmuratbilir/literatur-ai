@@ -1490,3 +1490,38 @@ button.wx-ctl__title:hover { color: var(--wx-accent); }
   ::highlight(wx-cite) { color: inherit; }
   .wx-pnum, .wx-phead { display: none !important; }
 }
+
+/* ---------- Seçim menüsü (Faz 2): koyu, kompakt ---------- */
+.wx-selbar { background: #172033 !important; color: #fff; border-color: #172033 !important; }
+.wx-selbar button { color: #fff !important; }
+.wx-selbar button:hover:not(:disabled) { background: rgba(255, 255, 255, .12) !important; }
+.wx-selbar button:disabled { opacity: .55; cursor: not-allowed; }
+.wx-selbar button small { margin-left: 4px; font-size: 10px; opacity: .8; }
+.wx-selbar { white-space: nowrap; }
+/* Ayırıcı kuralı (> span, 1 px) AI menüsü kapsayıcısına uygulanmasın. */
+.wx-selbar > span.wx-selbar__anchor { position: relative; display: inline-flex; width: auto; height: auto; background: none; }
+.wx-selbar__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 3;
+  display: grid;
+  min-width: 220px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #172033;
+  box-shadow: var(--wx-shadow-pop);
+}
+.wx-selbar__menu button { justify-content: flex-start; padding: 7px 10px !important; text-align: left; }
+
+/* ---------- Sağ panel alt sekmeleri ve Asistan ---------- */
+.wx-subtabs { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 14px 0; flex-wrap: wrap; }
+.wx-assist { display: grid; gap: 10px; }
+.wx-suggest { display: grid; gap: 8px; }
+.wx-suggest__pair { display: grid; gap: 8px; }
+.wx-suggest__pair > div { padding: 8px 10px; border: 1px solid var(--wx-line); border-radius: 8px; }
+.wx-suggest__pair > div:last-child { border-color: var(--wx-accent); background: var(--wx-accent-soft); }
+.wx-suggest__pair p { margin: 4px 0 0; font-family: var(--wx-serif); font-size: 13.5px; line-height: 1.55; }
+.wx-suggest__label { color: var(--wx-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.wx-suggest__notes { margin: 0; padding-left: 18px; color: var(--wx-ink-2); font-size: 12px; }
+.wx-src .wx-tags { display: flex; gap: 4px; margin-top: 4px; }

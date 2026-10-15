@@ -10,6 +10,7 @@ import { searchAll, guarded } from './services/search.js';
 import { searchOpenAlexAuthors, searchOpenAlexInstitutions, getOpenAlexAuthorByOrcid, mergeInstitutionFirst } from './services/openalex.js';
 import { isOrcidEnabled, parseOrcidId, fetchOrcidAffiliations, MAX_ENRICH_IDS } from './services/orcid.js';
 import { generateCitedSentence } from './services/citedSentence.js';
+import { editLanguage } from './services/languageEdit.js';
 import { enrichPapersWithCsl, formatReference, STYLE_FILES } from './services/bibliography.js';
 import { parseReferences, MAX_INPUT_BYTES } from './services/referenceImport.js';
 import { analyzeAndExpandQuery, generateConsensusSnapshot } from './services/llm.js';
@@ -1983,6 +1984,18 @@ app.post('/api/cited-sentence', WRITER_RATE_LIMITER, requireWriterSubscription, 
   } catch (error) {
     console.error('Cited sentence error:', error?.message || error);
     return res.status(502).json({ error: 'Cumle uretilemedi' });
+  }
+});
+
+// Dil ve anlatımı düzelt (WO-011 Faz 2): yalnız kullanıcının seçtiği metin; atıflar
+// servis içinde yer tutucuya çevrilir. Öneri belgeye istemcide "Uygula" ile girer.
+app.post('/api/language-edit', WRITER_RATE_LIMITER, requireWriterSubscription, async (req, res) => {
+  const text = typeof req.body?.text === 'string' ? req.body.text : '';
+  try {
+    return res.json(await editLanguage({ text }));
+  } catch (error) {
+    console.error('Language edit error:', error?.message || error);
+    return res.status(502).json({ error: 'Öneri alınamadı' });
   }
 });
 

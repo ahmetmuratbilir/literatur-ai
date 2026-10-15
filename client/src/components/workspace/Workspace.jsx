@@ -5,7 +5,7 @@ import {
   AlignCenter, AlignJustify, AlignLeft, ArrowLeft, Bold, Check, ChevronDown, ChevronLeft, ChevronRight,
   ClipboardCheck, Download, FileText, History, Info, Italic, LayoutTemplate, Library, List, ListChecks, ListOrdered, ListTree,
   PanelRightClose, PanelRightOpen, Plus, Printer, Quote, Redo2, RefreshCw, RotateCcw, Search, SlidersHorizontal,
-  Underline, Undo2, Upload, X, MoreHorizontal, PlusSquare, Superscript, Subscript, Highlighter, RemoveFormatting,
+  Underline, Undo2, Upload, X, MoreHorizontal, PlusSquare, Sparkles, Superscript, Subscript, Highlighter, RemoveFormatting,
 } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import {
@@ -287,6 +287,8 @@ export default function Workspace({
   const [zoomMode, setZoomMode] = useState('actual');
   const [pageInfo, setPageInfo] = useState({ i: 1, n: 1 });
   const [renamingSection, setRenamingSection] = useState(null);
+  const [assist, setAssist] = useState(null);
+  const [aiMenu, setAiMenu] = useState(false);
   // Araç çubuğu tek satır (Faz 2): taşıyorsa sıradaki grup "Daha fazla"ya geçer
   // (1: yazı tipi, 2: hizalama, 3: liste, 4: düğme yazıları). Genişlik değişince
   // baştan ölçülür. Ölçüm boyamadan önce yapılır; titreme olmaz.
@@ -1637,6 +1639,101 @@ export default function Workspace({
     if (!mediaMatches(MEDIUM)) setNavPanel(null);
   };
 
+  // --- Asistan (WO-011 Faz 2) --------------------------------------------
+  // Hedef: seçim (tek paragraf içinde) ya da imlecin paragrafı. Öneri belgeye
+  // yalnız "Uygula" ile girer ve yalnız o aralığı değiştirir; "Geri al" aynı
+  // aralığı eski metne döndürür. Seçilmeyen metne dokunulmaz (CLAUDE.md 2.9).
+  const assistTarget = () => {
+    const el = pageRef.current;
+    const sel = window.getSelection();
+    const live = sel?.rangeCount && el?.contains(sel.getRangeAt(0).startContainer) ? sel.getRangeAt(0) : null;
+    const range = live || lastRangeRef.current;
+    if (!el || !range || !el.contains(range.startContainer)) return null;
+    const block = topBlock(el, range.startContainer);
+    if (!block || /^H[1-6]$/.test(block.tagName)) return null;
+    if (range.collapsed) return { block, start: 0, end: block.textContent.length, scope: 'paragraph' };
+    if (topBlock(el, range.endContainer) !== block) return { scope: 'cross' };
+    const offset = (node, off) => {
+      const probe = document.createRange();
+      probe.selectNodeContents(block);
+      probe.setEnd(node, off);
+      return probe.toString().length;
+    };
+    return { block, start: offset(range.startContainer, range.startOffset), end: offset(range.endContainer, range.endOffset), scope: 'selection' };
+  };
+
+  const runAssist = async (kind) => {
+    setAiMenu(false);
+    setSelBar(null);
+    setReview(null);
+    setSideView('assistant');
+    openSidePanel();
+    const target = assistTarget();
+    if (!target) { setAssist(null); return; }
+    if (target.scope === 'cross') { setAssist({ kind, status: 'scope' }); return; }
+    const text = target.block.textContent.slice(target.start, target.end);
+    if (kind === 'need') {
+      const items = sentencesRef.current
+        .filter((x) => x.block === target.block && x.end > target.start && x.start < target.end)
+        .map((x) => ({ key: x.key, text: x.text, mark: x.mark, reason: x.reason }));
+      setAssist({ kind, scope: target.scope, items });
+      return;
+    }
+    if (!text.trim()) { setAssist(null); return; }
+    setAssist({ kind, status: 'loading', scope: target.scope });
+    try {
+      const token = await getToken();
+      const { data } = await axios.post(`${apiUrl}/api/language-edit`, { text }, { headers: { Authorization: `Bearer ${token}` } });
+      if (data?.status === 'ok' || data?.status === 'unchanged') {
+        setAssist({ kind, status: data.status, scope: target.scope, original: text.trim(), revised: data.revised, notes: data.notes, model: data.model, promptVersion: data.promptVersion, target });
+      } else {
+        setAssist({ kind, status: 'rejected', reason: data?.status === 'invalid' ? 'length_input' : (data?.reason || 'schema') });
+      }
+    } catch {
+      setAssist({ kind, status: 'error' });
+    }
+  };
+
+  /** Bloğun [start, end) aralığını metinle değiştirir (tarayıcının geri al yığınına da girer). */
+  const replaceInBlock = (block, start, end, text) => {
+    const range = rangeForOffsets(block, start, end);
+    if (!range) return false;
+    pageRef.current.focus({ preventScroll: true });
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    try {
+      document.execCommand('insertText', false, text);
+    } catch {
+      range.deleteContents();
+      range.insertNode(document.createTextNode(text));
+    }
+    onInput();
+    return true;
+  };
+
+  const applyAssist = () => {
+    const a = assist;
+    if (!a?.target?.block?.isConnected) { setAssist({ ...a, status: 'stale' }); return; }
+    const { block, start, end } = a.target;
+    // Öneri, istendiği andaki metne göre: o aralık değiştiyse uygulanmaz.
+    const current = block.textContent.slice(start, end);
+    const lead = current.length - current.trimStart().length;
+    if (current.trim() !== a.original) { setAssist({ ...a, status: 'stale' }); return; }
+    const from = start + lead;
+    const to = from + a.original.length;
+    if (!replaceInBlock(block, from, to, a.revised)) { setAssist({ ...a, status: 'stale' }); return; }
+    setAssist({ ...a, status: 'applied', applied: { block, start: from, end: from + a.revised.length } });
+  };
+
+  const undoAssist = () => {
+    const a = assist;
+    const ap = a?.applied;
+    if (!ap?.block?.isConnected || ap.block.textContent.slice(ap.start, ap.end) !== a.revised) { setAssist({ ...a, status: 'stale' }); return; }
+    replaceInBlock(ap.block, ap.start, ap.end, a.original);
+    setAssist({ ...a, status: 'undone' });
+  };
+
   /** İmlecin yerine (ya da seçimin sonuna) aktif kaynağın metin içi atfı. */
   const insertCitation = () => {
     const el = pageRef.current;
@@ -1909,6 +2006,80 @@ export default function Workspace({
         </div>
       </section>
     </div>
+  );
+
+  const sourcesTab = ['list', 'source', 'bib'].includes(sideView);
+  const assistReason = assist?.reason ? t(`workspace.assist.rejected.${assist.reason}`) : '';
+  const assistantView = (
+    <section className="wx-assist" aria-label={t('workspace.side.assistant')} data-testid="assistant">
+      <p className="wx-muted">{t('workspace.assist.lead')}</p>
+      <div className="wx-acts">
+        <button type="button" className="wx-act" onClick={() => runAssist('language')} disabled={assist?.status === 'loading'} data-action="assist-language">
+          <Sparkles size={13} /> {t('workspace.assist.language')}
+        </button>
+        <button type="button" className="wx-act" onClick={() => runAssist('need')} data-action="assist-need">
+          <ListChecks size={13} /> {t('workspace.assist.need')}
+        </button>
+      </div>
+      {!assist && <p className="wx-muted">{t('workspace.assist.empty')}</p>}
+      {assist?.status === 'scope' && <p className="wx-warn">{t('workspace.assist.crossBlock')}</p>}
+      {assist?.kind === 'language' && assist.status === 'loading' && <p className="wx-muted">{t('workspace.assist.loading')}</p>}
+      {assist?.kind === 'language' && assist.status === 'error' && <p className="wx-warn">{t('workspace.assist.error')}</p>}
+      {assist?.kind === 'language' && assist.status === 'rejected' && (
+        <p className="wx-warn" data-testid="assist-rejected">{t('workspace.assist.rejectedLead')} {assistReason}</p>
+      )}
+      {assist?.kind === 'language' && ['ok', 'unchanged', 'applied', 'undone', 'stale'].includes(assist.status) && (
+        <article className="wx-card wx-suggest" data-testid="assist-suggestion">
+          <small className="wx-muted">{t(`workspace.assist.scope.${assist.scope}`)}</small>
+          <div className="wx-suggest__pair">
+            <div><span className="wx-suggest__label">{t('workspace.assist.original')}</span><p>{assist.original}</p></div>
+            <div><span className="wx-suggest__label">{t('workspace.assist.suggestion')}</span><p data-testid="assist-revised">{assist.revised}</p></div>
+          </div>
+          {assist.notes?.length > 0 && <ul className="wx-suggest__notes">{assist.notes.map((n) => <li key={n}>{n}</li>)}</ul>}
+          <small className="wx-muted">{t('workspace.assist.sources')}</small>
+          {assist.status === 'unchanged' && <p className="wx-muted">{t('workspace.assist.unchanged')}</p>}
+          {assist.status === 'stale' && <p className="wx-warn">{t('workspace.assist.stale')}</p>}
+          <div className="wx-acts">
+            {assist.status === 'ok' && (
+              <>
+                <button type="button" className="wx-act wx-act--primary" onClick={applyAssist} data-action="assist-apply">{t('workspace.assist.apply')}</button>
+                <button type="button" className="wx-act" onClick={() => setAssist(null)} data-action="assist-reject">{t('workspace.assist.reject')}</button>
+              </>
+            )}
+            {assist.status === 'applied' && (
+              <>
+                <span className="wx-done"><Check size={14} /> {t('workspace.assist.applied')}</span>
+                <button type="button" className="wx-act" onClick={undoAssist} data-action="assist-undo"><RotateCcw size={12} /> {t('workspace.assist.undo')}</button>
+              </>
+            )}
+            {assist.status === 'undone' && <span className="wx-done">{t('workspace.assist.undone')}</span>}
+          </div>
+          <small className="wx-muted">{t('workspace.assist.model', { model: assist.model || '—', prompt: assist.promptVersion || '—' })}</small>
+        </article>
+      )}
+      {assist?.kind === 'need' && (
+        <article className="wx-card" data-testid="assist-need">
+          <small className="wx-muted">{t(`workspace.assist.scope.${assist.scope}`)}</small>
+          {assist.items.length === 0 ? <p className="wx-muted">{t('workspace.assist.needEmpty')}</p> : (
+            <ol className="wx-review__list">
+              {assist.items.map((it) => (
+                <li key={it.key} className="wx-rev" data-mark={it.mark}>
+                  <button type="button" className="wx-rev__text" onClick={() => revealSentenceKey(it.key)}>{it.text}</button>
+                  <div className="wx-rev__meta">
+                    <strong>{t(`workspace.assist.verdict.${it.mark}`)}</strong>
+                    {it.reason && <span className="wx-tag">{t(`workspace.reason.${it.reason}`)}</span>}
+                    {it.mark === MARK.uncited && (
+                      <button type="button" className="wx-act wx-act--sm" onClick={() => { setSideView('list'); }}>{t('audit.action.addSource')}</button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+          <small className="wx-muted">{t('workspace.assist.needNote')}</small>
+        </article>
+      )}
+    </section>
   );
 
   const reviewItems = review ? sentences.filter((s) => inReview(s, review)) : [];
@@ -2367,14 +2538,32 @@ export default function Workspace({
               }}
             >
               {/* Seçim araç çubuğu (WO-010 1.4): fare ile basınca seçim kaybolmasın. */}
+              {/* Seçim menüsü (Faz 2): koyu, kompakt. AI yalnız iki eylem (kullanıcı kararı 1). */}
               {selBar && (
                 <div className="wx-selbar" role="toolbar" aria-label={t('workspace.selbar')} style={{ top: selBar.top, left: selBar.left }} onMouseDown={(e) => e.preventDefault()}>
+                  <span className="wx-selbar__anchor">
+                    <button type="button" aria-expanded={aiMenu} onClick={() => setAiMenu((o) => !o)} data-action="selbar-ai">
+                      <Sparkles size={13} /> {t('workspace.selmenu.ai')} <ChevronDown size={12} />
+                    </button>
+                    {aiMenu && (
+                      <span className="wx-selbar__menu" role="menu">
+                        <button type="button" role="menuitem" onClick={() => runAssist('language')} data-action="selbar-ai-language">{t('workspace.assist.language')}</button>
+                        <button type="button" role="menuitem" onClick={() => runAssist('need')} data-action="selbar-ai-need">{t('workspace.assist.need')}</button>
+                      </span>
+                    )}
+                  </span>
+                  <span aria-hidden="true" />
                   <button type="button" onClick={insertCitation} data-action="selbar-cite" title={paper ? inlineCitation(paper, lang) : t('workspace.citeNeedSource')}>
                     <Quote size={13} /> {t('workspace.cite')}
                   </button>
-                  <span aria-hidden="true" />
                   <button type="button" onClick={toggleClaimAtSelection} data-action="selbar-claim" title={t('workspace.claimToggleHint')}>
                     <ListChecks size={13} /> {t('workspace.claimToggle')}
+                  </button>
+                  <button type="button" disabled title={t('workspace.selmenu.soon')} data-action="selbar-verify">
+                    {t('workspace.selmenu.verify')} <small>{t('workspace.selmenu.soon')}</small>
+                  </button>
+                  <button type="button" disabled title={t('workspace.selmenu.soon')} data-action="selbar-comment">
+                    {t('workspace.selmenu.comment')} <small>{t('workspace.selmenu.soon')}</small>
                   </button>
                 </div>
               )}
@@ -2503,34 +2692,45 @@ export default function Workspace({
               <div className="wx-panel-head">
                 {review ? <strong>{t('workspace.contextPanel')}</strong> : (
                   <div className="wx-seg wx-seg--sm" role="group" aria-label={t('workspace.contextPanel')}>
-                    <button type="button" aria-pressed={sideView === 'source'} onClick={() => setSideView('source')} data-action="side-evidence">{t('workspace.side.evidence')}</button>
-                    <button type="button" aria-pressed={sideView === 'list'} onClick={() => setSideView('list')} data-action="side-sources">
+                    <button type="button" aria-pressed={sourcesTab} onClick={() => setSideView('list')} data-action="side-sources">
                       {t('workspace.side.sources')}{basket.papers.length > 0 ? ` · ${fmt(basket.papers.length)}` : ''}
                     </button>
-                    <button type="button" aria-pressed={sideView === 'bib'} onClick={() => setSideView('bib')} data-action="side-bib">{t('workspace.bib.tab')}</button>
+                    <button type="button" aria-pressed={sideView === 'assistant'} onClick={() => setSideView('assistant')} data-action="side-assistant">
+                      {t('workspace.side.assistant')}
+                    </button>
                     <button type="button" aria-pressed={sideView === 'check'} onClick={() => setSideView('check')} data-action="side-check">
                       {t('audit.check.tab')}{checkItems.length > 0 ? ` · ${fmt(checkItems.length)}` : ''}
                     </button>
                   </div>
-                )}
-                {!review && sideView === 'source' && paper && basket.papers.length > 1 && (
-                  <span className="wx-stepper">
-                    <button type="button" className="wx-icon wx-icon--sm" onClick={() => stepSource(-1)} aria-label={t('workspace.prevSource')}>
-                      <ChevronLeft size={15} />
-                    </button>
-                    <small>{t('workspace.sourceOf', { i: fmt(paperIndex + 1), n: fmt(basket.papers.length) })}</small>
-                    <button type="button" className="wx-icon wx-icon--sm" onClick={() => stepSource(1)} aria-label={t('workspace.nextSource')}>
-                      <ChevronRight size={15} />
-                    </button>
-                  </span>
                 )}
                 <button type="button" className="wx-icon wx-icon--sm wx-panel-head__close" onClick={() => setSideOpen(false)} aria-label={t('workspace.closePanel')}>
                   <X size={15} />
                 </button>
               </div>
 
+              {!review && sourcesTab && (
+                <div className="wx-subtabs">
+                  <div className="wx-seg wx-seg--sm" role="group" aria-label={t('workspace.side.sources')}>
+                    <button type="button" aria-pressed={sideView === 'list'} onClick={() => setSideView('list')} data-action="side-list">{t('workspace.side.list')}</button>
+                    <button type="button" aria-pressed={sideView === 'source'} onClick={() => setSideView('source')} data-action="side-evidence">{t('workspace.side.source')}</button>
+                    <button type="button" aria-pressed={sideView === 'bib'} onClick={() => setSideView('bib')} data-action="side-bib">{t('workspace.bib.tab')}</button>
+                  </div>
+                  {sideView === 'source' && paper && basket.papers.length > 1 && (
+                    <span className="wx-stepper">
+                      <button type="button" className="wx-icon wx-icon--sm" onClick={() => stepSource(-1)} aria-label={t('workspace.prevSource')}>
+                        <ChevronLeft size={15} />
+                      </button>
+                      <small>{t('workspace.sourceOf', { i: fmt(paperIndex + 1), n: fmt(basket.papers.length) })}</small>
+                      <button type="button" className="wx-icon wx-icon--sm" onClick={() => stepSource(1)} aria-label={t('workspace.nextSource')}>
+                        <ChevronRight size={15} />
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
               <div className="wx-side__body">
                 {reviewView}
+                {!review && sideView === 'assistant' && assistantView}
                 {!review && sideView === 'bib' && bibView}
                 {!review && sideView === 'check' && (
                   <CheckPanel
@@ -2575,7 +2775,11 @@ export default function Workspace({
                           return (
                             <button key={key} type="button" className={`wx-src${activeSource === key ? ' is-on' : ''}`} onClick={() => openSource(key)} data-action="side-source-open">
                               <strong>{p.title}</strong>
-                              <small>{[p.creator?.split(',')[0], p.year].filter(Boolean).join(' · ')}</small>
+                              <small>{[p.creator?.split(',')[0], p.year, p.publicationName].filter(Boolean).join(' · ')}</small>
+                              <span className="wx-tags">
+                                <span className="wx-tag">{p.doi ? t('workspace.hasDoi') : t('workspace.noDoi')}</span>
+                                <span className="wx-tag">{(p.description || '').trim() ? t('workspace.hasAbstract') : t('workspace.noAbstract')}</span>
+                              </span>
                             </button>
                           );
                         })}

@@ -295,3 +295,109 @@ test('A4 sayfa: Ekle ile numaralı tablo başlığı, Teslim\'de sayfa numarası
   const bytes = fs.readFileSync(await download.path()).toString('latin1');
   expect(bytes).toContain('word/footer1.xml');
 });
+
+// --- WO-011 Faz 2 adım 5: seçim menüsü, Asistan --------------------------------
+// Sahte: /api/language-edit cevabı (gerçek uç sunucu birim testleriyle ve bir canlı çağrıyla denendi).
+
+const ASSIST_DOC = '<h1>Giriş</h1><p>Pasif sistem guvenlidir ve kaza riskini azaltir (Chen &amp; Wang, 2021). Bu cumle secilmeyecek.</p><p>İkinci paragraf aynen kalmalı.</p>';
+
+async function selectInFirstParagraph(page, from, to) {
+  await page.locator('.wx-page p').first().evaluate((el, [a, b]) => {
+    const text = el.firstChild;
+    const r = document.createRange();
+    r.setStart(text, text.textContent.indexOf(a));
+    r.setEnd(text, text.textContent.indexOf(b) + b.length);
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+  }, [from, to]);
+}
+
+test('seçim menüsü: AI yalnız iki eylem; Atıf doğrula ve Yorum "Yakında"; panel üç sekme', async ({ page }) => {
+  await seedDraft(page, ASSIST_DOC);
+  await mockApi(page, { basket: [SOURCE] });
+  await page.goto('/#/yazar');
+  await expect(side(page).locator('.wx-panel-head [role="group"] > button')).toHaveText([/Kaynaklar/, 'Asistan', /Kontrol/]);
+  await page.locator('.wx-page p').first().click({ clickCount: 3 });
+  await expect(page.locator('.wx-selbar')).toBeVisible();
+  await expect(page.locator('[data-action="selbar-verify"]')).toBeDisabled();
+  await expect(page.locator('[data-action="selbar-comment"]')).toBeDisabled();
+  await expect(page.locator('[data-action="selbar-verify"]')).toContainText('Yakında');
+  await page.locator('[data-action="selbar-ai"]').click();
+  await expect(page.locator('.wx-selbar__menu [role="menuitem"]')).toHaveText(['Dil ve anlatımı düzelt', 'Kaynak ihtiyacını değerlendir']);
+});
+
+test('Dil ve anlatımı düzelt: öneri karşılaştırmalı; Uygula yalnız seçimi değiştirir, Geri al döndürür', async ({ page }) => {
+  await seedDraft(page, ASSIST_DOC);
+  await mockApi(page, { basket: [SOURCE] });
+  let sent = '';
+  await page.route('http://localhost:3000/api/language-edit', async (route) => {
+    sent = route.request().postDataJSON().text;
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ status: 'ok', revised: 'Pasif sistem güvenlidir ve kaza riskini azaltır (Chen & Wang, 2021).', notes: ['Yazım düzeltildi'], model: 'sahte', promptVersion: 'PR11.v1' }) });
+  });
+  await page.goto('/#/yazar');
+  const before = await page.locator('.wx-page').innerText();
+  await selectInFirstParagraph(page, 'Pasif', '2021).');
+  await expect(page.locator('.wx-selbar')).toBeVisible();
+  await page.locator('[data-action="selbar-ai"]').click();
+  await page.locator('[data-action="selbar-ai-language"]').click();
+  await expect(page.getByTestId('assist-suggestion')).toBeVisible();
+  expect(sent).toBe('Pasif sistem guvenlidir ve kaza riskini azaltir (Chen & Wang, 2021).');
+  // Uygulanmadan belge değişmez.
+  expect(await page.locator('.wx-page').innerText()).toBe(before);
+  await page.locator('[data-action="assist-apply"]').click();
+  await expect(page.locator('.wx-page p').first()).toHaveText('Pasif sistem güvenlidir ve kaza riskini azaltır (Chen & Wang, 2021). Bu cumle secilmeyecek.');
+  await expect(page.locator('.wx-page p').nth(1)).toHaveText('İkinci paragraf aynen kalmalı.');
+  await page.locator('[data-action="assist-undo"]').click();
+  await expect.poll(() => page.locator('.wx-page').innerText()).toBe(before);
+});
+
+test('Reddet belgeyi değiştirmez; kurallara takılan öneri gösterilmez', async ({ page }) => {
+  await seedDraft(page, ASSIST_DOC);
+  await mockApi(page, { basket: [SOURCE] });
+  let answer = { status: 'ok', revised: 'İkinci paragraf aynen kalmalıdır.', notes: [], model: 'sahte', promptVersion: 'PR11.v1' };
+  await page.route('http://localhost:3000/api/language-edit', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(answer) }));
+  await page.goto('/#/yazar');
+  const before = await page.locator('.wx-page').innerText();
+  await page.locator('.wx-page p').nth(1).click();
+  await page.locator('[data-action="side-assistant"]').click();
+  await page.locator('[data-action="assist-language"]').click();
+  await page.locator('[data-action="assist-reject"]').click();
+  expect(await page.locator('.wx-page').innerText()).toBe(before);
+  answer = { status: 'rejected', reason: 'citations' };
+  await page.locator('.wx-page p').nth(1).click();
+  await page.locator('[data-action="assist-language"]').click();
+  await expect(page.getByTestId('assist-rejected')).toContainText('atıfları korumadı');
+  await expect(page.locator('[data-action="assist-apply"]')).toHaveCount(0);
+});
+
+test('Kaynak ihtiyacını değerlendir: kural tabanlı, modelsiz; cümle bazında karar', async ({ page }) => {
+  await seedDraft(page, '<h1>Giriş</h1><p>Pasif sistemler kaza riskini yüzde doksan azaltır. Isı tahliyesi sürdü (Chen &amp; Wang, 2021).</p>');
+  await mockApi(page, { basket: [SOURCE] });
+  let calls = 0;
+  await page.route('http://localhost:3000/api/language-edit', (route) => { calls += 1; return route.fulfill({ body: '{}' }); });
+  await page.goto('/#/yazar');
+  await page.locator('.wx-page p').first().click();
+  await page.locator('[data-action="side-assistant"]').click();
+  await page.locator('[data-action="assist-need"]').click();
+  const need = page.getByTestId('assist-need');
+  await expect(need.locator('[data-mark="uncited"]')).toContainText('Kaynak gerekli');
+  await expect(need.locator('[data-mark="cited"]')).toContainText('Atıf işareti var');
+  await expect(need).toContainText('model kullanılmadı');
+  expect(calls).toBe(0);
+});
+
+test('yazar modunda yüzde ya da skor gösterilmez (Faz 2)', async ({ page }) => {
+  await seedDraft(page, ASSIST_DOC);
+  await mockApi(page, { basket: [SOURCE] });
+  await page.goto('/#/yazar');
+  for (const view of ['write-view-draft', 'write-view-submit']) {
+    await page.locator(`[data-action="${view}"]`).click();
+    for (const tab of ['side-sources', 'side-assistant', 'side-check']) {
+      await page.locator(`[data-action="${tab}"]`).click();
+      const text = await page.locator('.wx-shell').innerText();
+      const chrome = text.replace(await page.locator('.wx-page').innerText(), '');
+      expect(chrome, `${view} ${tab}`).not.toMatch(/%\s*\d|\d\s*%|skor|güven puanı|doğruluk/i);
+    }
+  }
+});
