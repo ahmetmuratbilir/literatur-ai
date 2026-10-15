@@ -497,7 +497,10 @@
 .wx-ribbon {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  /* Faz 2: tek satır; sığmayan gruplar "Daha fazla"ya geçer (ölçerek).
+     Taşma gizlenmez: açılır paneller (Daha fazla, Sayfa ayarları) kırpılmasın. */
+  flex-wrap: nowrap;
+  min-width: 0;
   gap: 2px;
   padding: 6px 10px;
   border-bottom: 1px solid var(--wx-line);
@@ -1463,3 +1466,11 @@ button.wx-ctl__title:hover { color: var(--wx-accent); }
 .wx-figs ul { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
 .wx-figs li button { width: 100%; padding: 5px 6px; border: 0; border-radius: 6px; background: none; color: var(--wx-ink-2); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wx-figs li button:hover { background: var(--wx-hover); }
+
+/* ---------- Daha fazla (Faz 2) ---------- */
+.wx-more { display: grid; gap: 6px; padding: 4px; }
+.wx-more__row { display: flex; align-items: center; gap: 2px; }
+.wx-more__row--sel { flex-wrap: wrap; gap: 6px; }
+.wx-ribbon--compact .wx-btn > span { display: none; }
+.wx-ribbon .wx-sel[data-action="write-font"] { max-width: 132px; }
+.wx-ribbon > *, .wx-ribbon__end > * { flex-shrink: 0; }

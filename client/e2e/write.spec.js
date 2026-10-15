@@ -158,7 +158,7 @@ test('yeni düğmelerin envanteri', async ({ page }) => {
   await mockApi(page, { basket: [SOURCE] });
   await page.goto('/#/yazar');
   await startDraft(page);
-  for (const id of ['write-outline', 'write-cite', 'write-font', 'write-side', 'write-format', 'write-view-draft', 'write-view-submit',
+  for (const id of ['write-outline', 'write-cite', 'write-more', 'write-side', 'write-format', 'write-view-draft', 'write-view-submit',
     'side-evidence', 'side-sources', 'side-bib']) {
     await expect(page.locator(`[data-action="${id}"]`).first(), id).toBeAttached();
   }
@@ -224,4 +224,39 @@ test('belge yapısı: tablo ve şekil başlıkları listelenir, boşken açıkla
   await expect(outline(page).locator('[data-action="outline-caption"]')).toHaveText(['Tablo 1. Koşullar', 'Şekil 1: Düzenek']);
   // Hedefsiz bölümde kelime sayısı gösterilmez (yalnız şablon hedefi varsa).
   await expect(outline(page).locator('.wx-ol__count')).toHaveCount(0);
+});
+
+test('araç çubuğu tek satır; dar ekranda gruplar "Daha fazla"ya geçer (Faz 2)', async ({ page }) => {
+  await seedDraft(page, '<h1>Giriş</h1><p>Su H2O formülüyle yazılır.</p>');
+  await mockApi(page);
+  await page.goto('/#/yazar');
+  const ribbon = page.locator('.wx-ribbon');
+  // Belge yapısı ve sağ panel kapalıyken 1440 px'te yazı tipi grubu çubukta.
+  await page.locator('[data-action="write-outline"]').click();
+  await page.locator('[data-action="write-side"]').click();
+  await expect(ribbon.locator('[data-action="write-line-height"]')).toBeVisible();
+  for (const width of [1440, 1100, 900, 700]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.waitForTimeout(200);
+    const h = await ribbon.evaluate((el) => el.getBoundingClientRect().height);
+    expect(h, `${width} px`).toBeLessThan(52);
+  }
+  // 700 px: yazı tipi grubu çubuktan kalkar, "Daha fazla" içinde görünür.
+  await expect(ribbon.locator('> [data-action="write-font"], > select[data-action="write-font"]')).toHaveCount(0);
+  // Dar ekranda sağ panel belgenin üstünü örter; kapatılır.
+  if (await side(page).count()) await page.locator('[data-action="write-side"]').click();
+  await page.locator('[data-action="write-more"]').click();
+  await expect(page.locator('.wx-more [data-group="fonts"] [data-action="write-font"]')).toBeInViewport();
+  // Üst simge seçili metne uygulanır.
+  await page.locator('.wx-page p').first().evaluate((el) => {
+    const r = document.createRange();
+    const text = el.firstChild;
+    r.setStart(text, text.textContent.indexOf('2'));
+    r.setEnd(text, text.textContent.indexOf('2') + 1);
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+  });
+  await page.getByRole('button', { name: 'Alt simge' }).click();
+  await expect(page.locator('.wx-page sub')).toHaveText('2');
 });
