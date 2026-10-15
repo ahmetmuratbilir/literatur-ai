@@ -64,17 +64,25 @@ test('sağ panel üç sekme: Kanıt, Kaynaklar, Kaynakça', async ({ page }) => 
   await expect(side(page).getByRole('region', { name: 'Kaynakça' })).toBeVisible();
 });
 
-test('Teslim görünümünde sağ panel açılırken sayfa sığmıyorsa belge yapısı kapanır', async ({ page }) => {
+test('1440×900 Teslim görünümü: sağ panel açıkken A4 %100, sığmayınca belge yapısı kapanır (Faz 2)', async ({ page }) => {
   await seedDraft(page, '<h1>Giriş</h1><p>Metin.</p>');
   await mockApi(page);
   await page.goto('/#/yazar');
-  await page.locator('[data-action="write-view-submit"]').click();
-  await page.locator('[data-action="write-side"]').click(); // kapat
-  await expect(side(page)).toHaveCount(0);
   await expect(outline(page)).toBeVisible();
-  await page.locator('[data-action="write-side"]').click(); // aç
+  await page.locator('[data-action="write-view-submit"]').click();
   await expect(side(page)).toBeVisible();
   await expect(outline(page)).toHaveCount(0);
+  await expect(page.locator('[data-action="write-zoom-actual"]')).toHaveAttribute('aria-pressed', 'true');
+  const width = await page.locator('.wx-page').evaluate((el) => el.getBoundingClientRect().width);
+  expect(Math.abs(width - 793.7)).toBeLessThan(2);
+  // Sayfa görünür alanda: sağ kenarı panelin solunda.
+  const pageRight = await page.locator('.wx-page').evaluate((el) => el.getBoundingClientRect().right);
+  const sideLeft = await side(page).evaluate((el) => el.getBoundingClientRect().left);
+  expect(pageRight).toBeLessThanOrEqual(sideLeft);
+  // Durum çubuğu tek satır ve sayfa numarası "yaklaşık".
+  await expect(page.getByTestId('page-of')).toContainText('yaklaşık');
+  const statusHeight = await page.locator('.wx-status').evaluate((el) => el.getBoundingClientRect().height);
+  expect(statusHeight).toBeLessThan(44);
 });
 
 test('Taslak görünümünde yer yeterliyse belge yapısı açık kalır', async ({ page }) => {
@@ -93,13 +101,15 @@ test('sığdır sayfayı küçültür, gerçek boyut A4\'ü 1:1 gösterir', asyn
   await mockApi(page);
   await page.goto('/#/yazar');
   await page.locator('[data-action="write-view-submit"]').click();
-  // Belge yapısı ve sağ panel açık: A4 (794 px) masaya sığmaz
-  if (!(await outline(page).isVisible())) await page.locator('[data-action="write-outline"]').click();
-  await expect(page.locator('[data-action="write-zoom-fit"]')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('[data-action="write-zoom-fit"]')).toContainText('%');
-  const fitWidth = await page.locator('.wx-page').evaluate((el) => el.getBoundingClientRect().width);
-  await page.locator('[data-action="write-zoom-actual"]').click();
+  // Varsayılan %100. Kullanıcı belge yapısını kendisi açarsa kapatılmaz; o zaman sığmaz.
+  await expect(page.locator('[data-action="write-zoom-actual"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('[data-action="write-outline"]').click();
+  await expect(outline(page)).toBeVisible();
   const actualWidth = await page.locator('.wx-page').evaluate((el) => el.getBoundingClientRect().width);
+  await page.locator('[data-action="write-zoom-fit"]').click();
+  // Ölçekte yüzde gösterilmez (Faz 2).
+  await expect(page.locator('[data-action="write-zoom-fit"]')).not.toContainText('%');
+  const fitWidth = await page.locator('.wx-page').evaluate((el) => el.getBoundingClientRect().width);
   expect(fitWidth).toBeLessThan(actualWidth);
   // A4 = 210 mm = 793.7 CSS px
   expect(Math.abs(actualWidth - 793.7)).toBeLessThan(2);
@@ -133,6 +143,9 @@ test('seçim araç çubuğu: seçince çıkar, iddia kararını çevirir', async
   // Paragrafın ortası boş alan olabilir; üç tık satırı seçer.
   await doc.click({ clickCount: 3 });
   await expect(page.locator('.wx-selbar')).toBeVisible();
+  // Sayaçlar Kontrol sekmesinde (Faz 2).
+  await page.locator('[data-action="side-check"]').click();
+  await doc.click({ clickCount: 3 });
   const notClaimBefore = await page.locator('.wx-stat--plain').innerText();
   await page.locator('[data-action="selbar-claim"]').click();
   await expect(page.locator('.wx-stat--plain')).not.toHaveText(notClaimBefore);

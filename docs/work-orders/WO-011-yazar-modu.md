@@ -2,7 +2,7 @@
 
 | Alan | Değer |
 | --- | --- |
-| Durum | Çalışıyor — Faz 1 ve Faz 3 bitti; sırada Faz 2 |
+| Durum | Çalışıyor — Faz 1, 3 bitti; Faz 2 adım 1/5 bitti |
 | Kaynak | Kullanıcının "Yazar Modu Yeniden Yapılandırma" şartnamesi + güvenlik/faz kapıları ekleri |
 | Dal | `wo-006-istatistik`; güvence: `b1fab98 WIP: önceki iş`, `yedek/wo-011-oncesi` |
 | Faz sırası | **1 → 3 → 2** (kullanıcı kararı). Bir faz bitmeden sonrakine geçilmez |
@@ -252,3 +252,59 @@ Faz 3 tamam; tarayıcıda deneme sonrası Faz 2'ye geçilecek.
   geçiyor.
 - e2e 48 geçti, 1 atlandı.
 - Temel çizgi: BibTeX ve RIS bayt bayt aynı; DOCX yalnız zaman damgası.
+
+### Faz 2 — ara durum (15.10.2026)
+
+Kullanıcı kararları geçerli: AI menüsünde yalnız "Dil ve anlatımı düzelt" ve
+"Kaynak ihtiyacını değerlendir"; sayfa numarası "yaklaşık"; 1440×900'de sağ
+panel açıkken A4 küçülmez, gerekirse sol panel kapanır; yüzde/skor yok. Her
+ana değişiklik sonrası ekran görüntüsü.
+
+**Adım 1 — bitti:**
+- Teslim görünümü %100 açılır. Sayfa sığmazsa sol panel kendiliğinden
+  kapanır; kullanıcı açarsa dokunulmaz.
+- "Sığdır" yazısında yüzde yok.
+- Durum çubuğu tek satır: Sayfa x / y (yaklaşık) · kelime · kayıt durumu ·
+  görünüm · ölçek. Kayıt durumu üst çubuktan buraya taşındı.
+- Cümle/atıf sayaçları Kontrol sekmesinin başında.
+- Belge üstünde en fazla bir bilgi şeridi. Öncelik: kilit, depolama, kaldığın
+  yer, teslim notu.
+- Bulunan hata (Faz 3'ten): sağ panel başlığı dört sekmeyle 360 px'e
+  sığmıyor, kabuğu 98 px yana kaydırıyordu (1440×900 Teslim görünümünde düzen
+  sola kayık). Kabuk `overflow: clip`, panel başlığı alt satıra kırılır.
+- Testler: birim 144/144 · lint temiz · build geçiyor · e2e 48 geçti, 1
+  atlandı. write.spec'teki eski "sığdır varsayılanı" ve "sayaçlar durum
+  çubuğunda" testleri yeni kurallara göre yeniden yazıldı.
+
+**Kalan adımlar (sırayla):**
+
+2. Belge yapısı:
+   - Numaralı (2, 2.1), iç içe, açılır-kapanır.
+   - Kaydırınca aktif bölüm vurgulanır.
+   - Yeniden adlandırma, bölüm ekleme, sürükle-bırak ile sıralama (klavyeyle
+     yukarı/aşağı da).
+   - "Tablolar ve şekiller" bölümü ("Tablo N." başlıklarından; boşken
+     şartnamedeki metin).
+3. Araç çubuğu:
+   - Tek satır: stil · yazı tipi · punto · B/I/U · hizalama · satır aralığı ·
+     liste · geri al/yinele · Atıf ekle · Sayfa ayarları.
+   - "Daha fazla": üst/alt simge, vurgu, girinti.
+   - Dar ekranda gruplar "Daha fazla"ya taşınır; araç çubuğu kırılmaz.
+4. A4 sayfa:
+   - Teslim görünümünde sayfa no ("Sayfa 4 / 14", yaklaşık) ve isteğe bağlı
+     üst bilgi (belge adı); DOCX ve yazdırmada da aynı.
+   - Metin içi atıflar açık mor (CSS Highlight API, DOM'a dokunmadan);
+     tıklayınca kaynak sağ panelde açılır.
+   - Üst çubukta "Ekle ▾": tablo/şekil başlığı, atıf, kaynak dosyası.
+5. Seçim menüsü ve sağ panel:
+   - Koyu, kompakt yüzen menü: AI ile geliştir ▾ · Atıf ekle · Atıf doğrula
+     (Yakında) · Yorum (Yakında).
+   - Sağ panel üç sekme: Kaynaklar (liste + kaynak ayrıntısı + Kaynakça) ·
+     Asistan · Kontrol.
+   - "Kaynak ihtiyacını değerlendir": yerel iddia sınıflandırıcısıyla, modelsiz.
+   - "Dil ve anlatımı düzelt": yeni sunucu ucu ve sürümlü prompt. Model yalnız
+     seçili metni görür; çıktı katı JSON şemasıyla doğrulanır; atıflar
+     birebir korunmazsa öneri reddedilir.
+   - Asistan'da orijinal/öneri karşılaştırması, Uygula/Reddet, geri alınabilir.
+   - Gerçek model çağrısı yerelde Gemini/Groq anahtarlarıyla ayrıca
+     denenecek; prompt kalitesi Bölüm 4 kümesi olmadığı için "ölçülmedi".
