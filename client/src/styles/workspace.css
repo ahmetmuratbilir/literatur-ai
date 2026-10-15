@@ -1358,12 +1358,33 @@ button.wx-ctl__title:hover { color: var(--wx-accent); }
 }
 
 /* ---------- Yazdırma: yalnız sayfa, teslim ayarlarıyla ---------- */
+/* Yazdırma (WO-011 Faz 3 ek). Yalnız yazar modu açıkken geçerli; araştırma
+   sayfasının yazdırılmasına dokunmaz. Eskiden belge sabit konumlu, taşması
+   gizli kutuların içinde kalıyordu ve uzun belge 2. sayfada kesiliyordu:
+   kapsayıcılar yazdırmada akışa döner, arayüz yer de kaplamaz. */
 @media print {
-  body * { visibility: hidden; }
-  .wx-page, .wx-page * { visibility: visible; }
+  body:has(> .wx:not([hidden])) > :not(.wx) { display: none !important; }
+  body:has(> .wx:not([hidden])) * { visibility: hidden; }
+  /* Gizleme kuralı :has yüzünden daha özgül; gösterme de aynı önekle. */
+  body:has(> .wx:not([hidden])) :is(.wx-page, .wx-page *) { visibility: visible; }
+  .wx:not([hidden]),
+  .wx:not([hidden]) :is(.wx-shell, .wx-body, .wx-main, .wx-desk, .wx-sheet) {
+    position: static !important;
+    display: block !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    inset: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+    zoom: 1 !important;
+  }
+  .wx :is(.wx-top, .wx-ribbon, .wx-nav, .wx-side, .wx-status, .wx-sync, .wx-resume, .wx-note, .wx-prep, .wx-marker, .wx-scrim, .wx-overlay, .wx-fmt) {
+    display: none !important;
+  }
   .wx-page {
-    position: absolute;
-    inset: 0;
+    position: static;
     width: auto;
     min-height: 0;
     padding: 0;

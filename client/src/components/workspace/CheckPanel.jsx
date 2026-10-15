@@ -42,13 +42,18 @@ function paramsFor(item, t, fmt) {
  * @param locate    maddenin belgedeki konumu ("Bölüm 2.3 · Paragraf 3") ya da null
  * @param onAction  (action, item) — reveal, section, bib, sources, addSource, notClaim
  * @param focusId   kenar işaretinden gelen madde: görünür olur ve vurgulanır
+ * @param muted     "İddia değil" diye işaretlenmiş cümleler: [{ key, text }]
+ * @param onUnmute  (key) — işareti kaldırır, cümle yeniden denetlenir
  */
-export default function CheckPanel({ items, locate, onAction, focusId = null, focusTick = 0, pending = false, note = null }) {
+export default function CheckPanel({
+  items, locate, onAction, focusId = null, focusTick = 0, pending = false, note = null, muted = [], onUnmute = null,
+}) {
   const { t, lang } = useI18n();
   const locale = lang === 'tr' ? 'tr-TR' : 'en-US';
   const fmt = (n) => (Number.isFinite(Number(n)) ? Number(n).toLocaleString(locale) : n);
   const [filter, setFilter] = useState('all');
   const [open, setOpen] = useState(() => new Set());
+  const [mutedOpen, setMutedOpen] = useState(false);
   const listRef = useRef(null);
 
   const counts = countBySeverity(items);
@@ -165,6 +170,45 @@ export default function CheckPanel({ items, locate, onAction, focusId = null, fo
             );
           })}
         </ul>
+      )}
+      {/* Susturulanlar: kullanıcının "iddia değil" kararları görünür ve geri alınabilir kalır. */}
+      {onUnmute && muted.length > 0 && (
+        <section className="wx-ctl__muted" data-testid="check-muted">
+          <button
+            type="button"
+            className="wx-ctl__title wx-ctl__toggle"
+            aria-expanded={mutedOpen}
+            onClick={() => setMutedOpen((o) => !o)}
+            data-action="check-muted-toggle"
+          >
+            {mutedOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            {t('audit.muted.title', { n: fmt(muted.length) })}
+          </button>
+          <small className="wx-muted">{t('audit.muted.hint')}</small>
+          {mutedOpen && (
+            <ul className="wx-ctl__sub">
+              {muted.map((m) => {
+                const where = locate?.({ target: { kind: 'sentence', key: m.key } });
+                return (
+                  <li key={m.key} className="wx-ctl__item wx-ctl__item--nested" data-muted-key={m.key}>
+                    <div className="wx-ctl__main">
+                      {where && <code className="wx-ctl__where">{where}</code>}
+                      <blockquote>{m.text}</blockquote>
+                      <div className="wx-ctl__acts">
+                        <button type="button" className="wx-act wx-act--sm" onClick={() => onAction('reveal', { target: { kind: 'sentence', key: m.key } })} data-action="check-reveal">
+                          <LocateFixed size={13} /> {t('audit.action.reveal')}
+                        </button>
+                        <button type="button" className="wx-act wx-act--sm" onClick={() => onUnmute(m.key)} data-action="check-unmute">
+                          {t('audit.muted.unmute')}
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       )}
       {pending && <p className="wx-muted">{t('audit.retractionChecking')}</p>}
       <p className="wx-muted wx-ctl__limits">{t('audit.limits')}</p>

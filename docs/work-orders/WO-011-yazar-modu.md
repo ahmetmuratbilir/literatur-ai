@@ -221,3 +221,34 @@ silindi; kurallar `src/audit/audit.js`'te.
   gizlenir. Kaynakça/kaynak eylemleri çekmeceyi kapatıp paneli açar.
 
 Faz 3 tamam; tarayıcıda deneme sonrası Faz 2'ye geçilecek.
+
+### Faz 3 ek — 15.10.2026 (kullanıcı onayı sonrası)
+
+1. **Susturulanlar:** "İddia değil" işaretleri Kontrol'de "Susturulanlar (N)"
+   altında görünüyor; tek tek "Geri aç" ile kaldırılabiliyor.
+2. **Kenar işareti:** yalnız Hata ve Uyarı. Kural saf fonksiyonda
+   (`marginItems`) ve birim testli.
+3. **Kapsam notları:**
+   - Tablo/şekil maddelerinde: "Yalnızca 'Tablo N.' / 'Şekil N:' ile başlayan
+     başlıklar denetlendi."
+   - Teslim paketinde: "Liste genel tez şablonuna göre; kurum kılavuzunla
+     karşılaştır."
+4. **Yazdır/PDF doğrulaması (`e2e/print.spec.js`):** Chromium'un yazdırma
+   motoruyla PDF üretilip ölçülüyor.
+   - Bulunan hata: uzun belge yazdırmada 2. sayfada kesiliyordu (belge sabit
+     konumlu, taşması gizli kutulardaydı; ~140 satırlık metinden 104 satır
+     kağıda çıkıyordu).
+   - Düzeltildi: yazdırmada kapsayıcılar akışa dönüyor, arayüz yer kaplamıyor.
+   - Şimdi 150 satırlık belge 5 sayfa A4 (595×842 pt) olarak çıkıyor; her
+     satır kağıtta.
+   - Yazdırma ortamında üst çubuk, araç çubuğu, paneller, durum çubuğu, kenar
+     işaretleri ve Teslime hazırla gizli; yalnız belge görünür.
+   - Yan düzeltme: yazdırma kuralları artık yalnız yazar modu açıkken geçerli.
+     Önce yazar modu bir kez açıldıktan sonra araştırma sayfası boş
+     yazdırılıyordu.
+
+**Testler:**
+- İstemci birim 144/144 (audit 20/20) · sunucu 417/417 · lint temiz · build
+  geçiyor.
+- e2e 48 geçti, 1 atlandı.
+- Temel çizgi: BibTeX ve RIS bayt bayt aynı; DOCX yalnız zaman damgası.

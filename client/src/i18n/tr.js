@@ -55,8 +55,8 @@ export default {
       quoteNoPage: { title: 'Doğrudan alıntıda sayfa numarası yok', hint: 'APA 7 doğrudan alıntıda sayfa ister: (Yazar, Yıl, s. 45). Pasaj makale özetinden alındıysa sayfa bilinmiyor olabilir.' },
       emptySection: { title: 'Boş bölüm: {name}', hint: 'Başlık var, altında metin yok. Yazarken bilgi olarak görünür; teslim kontrolünde zorunlu bölüm için uyarı olur.' },
       incompleteSource: { title: 'Künye eksik: {title}', hint: 'Eksik: {fields}. Kaynakça satırı eksik çıkar; kaynağın kaydını kontrol et.' },
-      captionOrder: { title: '{kind} numarası sıra dışı: {n} (beklenen {expected})', hint: 'Tablo ve şekiller metindeki sırayla 1\'den numaralanır.' },
-      captionMissing: { title: '{kind} {n} metinde anılıyor, başlığı yok', hint: '“{kind} {n}. …” biçiminde bir başlık satırı bulunamadı.' },
+      captionOrder: { title: '{kind} numarası sıra dışı: {n} (beklenen {expected})', hint: 'Tablo ve şekiller metindeki sırayla 1\'den numaralanır. Yalnızca “Tablo N.” / “Şekil N:” ile başlayan başlıklar denetlendi.' },
+      captionMissing: { title: '{kind} {n} metinde anılıyor, başlığı yok', hint: '“{kind} {n}. …” biçiminde bir başlık satırı bulunamadı. Yalnızca “Tablo N.” / “Şekil N:” ile başlayan başlıklar denetlendi.' },
       underTarget: { title: '{name}: {n} kelime, önerilen {target}', hint: 'Şablonun önerdiği uzunluğun yarısından az. Dergi ve kurum yönergesi önceliklidir.' },
       overTarget: { title: '{name}: {n} kelime, önerilen {target}', hint: 'Şablonun önerdiği uzunluğun bir buçuk katından fazla. Dergi ve kurum yönergesi önceliklidir.' },
       uncitedSources: { title: 'Sepette olup atıf yapılmayan {n} kaynak', hint: 'Bunlar "atıf yapılanlar" kaynakçasına girmez.' },
@@ -92,6 +92,11 @@ export default {
       show: 'Listeyi aç',
       hide: 'Listeyi kapat',
     },
+    muted: {
+      title: 'Susturulanlar ({n})',
+      hint: '“İddia değil” diye işaretlediğin cümleler. Geri açınca yeniden denetlenir.',
+      unmute: 'Geri aç',
+    },
     submit: {
       open: 'Teslime hazırla',
       title: 'Teslime hazırla',
@@ -106,7 +111,7 @@ export default {
       previewOn: 'Belge solda Teslim önizlemesinde. Sayfa sınırları ve numaraları yaklaşıktır.',
       package: {
         title: 'Teslim paketi bileşenleri',
-        note: 'Belgedeki başlıklardan hesaplanır; içeriğin kurum şablonuna uygunluğu denetlenmedi.',
+        note: 'Belgedeki başlıklardan hesaplanır. Liste genel tez şablonuna göre; kurum kılavuzunla karşılaştır. İçeriğin uygunluğu denetlenmedi.',
         status: { present: 'Var', empty: 'Başlık var, içi boş', missing: 'Yok' },
         go: 'Bölüme git',
       },
