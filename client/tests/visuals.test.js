@@ -7,6 +7,8 @@ import path from 'node:path';
 import { matchSpan } from '../src/visuals/match.js';
 import { structureFromRules } from '../src/visuals/rules.js';
 import { validate } from '../src/visuals/validate.js';
+import { fitTemplates } from '../src/visuals/fit.js';
+import { checkSource, paragraphHash, sealSource } from '../src/visuals/source.js';
 import { profileOf, sentenceSignals } from '../src/visuals/signals.js';
 import { VISUAL_SCHEMA_VERSION, addEdge, addNode, createStructure, labelOf, occurrenceAt } from '../src/visuals/schema.js';
 
@@ -275,4 +277,188 @@ test('doğrulama: model gibi yalnız metinle gelen öğe cümledeki asıl biçim
   assert.deepEqual(v.nodes.map((n) => n.text), ['nedenleri', 'yöntemin']);
   assert.ok(v.nodes.every((n) => n.matchMode === 'tolerant'));
   assert.deepEqual(v.dropped, [{ kind: 'node', reason: 'not_in_sentence', detail: 'uydurma kavram' }]);
+});
+
+// ---------- Faz 3: şablon uygunluğu ----------
+
+/** Prototipteki elle yazılmış grafları yapıya çevirir: etiketin yeri matchSpan ile bulunur. */
+function protoStructure(text, nodes, edges) {
+  const st = createStructure({ text });
+  st.profile = profileOf(st.sentences, 'tr');
+  const ids = nodes.map(([label, s]) => {
+    const m = matchSpan(st.sentences[s].text, label);
+    assert.ok(m, `prototip etiketi cümlede yok: ${label}`);
+    return addNode(st, { sentence: s, start: m.start, end: m.end }).id;
+  });
+  for (const [a, b, label, s] of edges) {
+    const m = matchSpan(st.sentences[s].text, label);
+    assert.ok(m, `prototip ok etiketi cümlede yok: ${label}`);
+    addEdge(st, { from: ids[a], to: ids[b], sentence: s, start: m.start, end: m.end });
+  }
+  return st;
+}
+
+const PROTO_TEMPLATES = ['akis', 'dongu', 'kavram', 'hiyerarsi', 'balik', 'geri', 'arguman', 'karsi', 'zaman'];
+const fitSummary = (st) => {
+  const rows = fitTemplates(st).filter((r) => PROTO_TEMPLATES.includes(r.template));
+  return { ok: rows.filter((r) => r.ok).map((r) => r.template).sort(), rec: rows.find((r) => r.recommended)?.template };
+};
+
+const PROTO_COOL = 'Reaktör çekirdeğinde üretilen bozunma ısısı, birincil soğutucuyu ısıtarak yoğunluğunu düşürür. Isınan soğutucu, pompa gerekmeden yükselen kolda doğal sirkülasyonla yukarı taşınır. Üst bölgedeki ısı değiştirici, ısıyı pasif soğutma havuzuna aktarır. Soğuyan ve yoğunluğu artan su, alçalan koldan çekirdeğe geri döner ve döngü tamamlanır.';
+const PROTO_FAC = 'Doğal sirkülasyon döngülerinde akış kararsızlığı birkaç etkene bağlıdır. Düşük güç seviyesi kaldırma kuvvetini zayıflatır. Yükselen koldaki iki fazlı akış basınç düşüşünü dalgalandırır. Boru geometrisi ve yerel kayıplar sönümlemeyi azaltır. Isı değiştiricideki soğutma koşulları ise dönüş sıcaklığını değiştirir.';
+
+test('uygunluk: prototipteki döngü paragrafı — prototipin kararıyla aynı', () => {
+  const st = protoStructure(PROTO_COOL,
+    [['bozunma ısısı', 0], ['doğal sirkülasyon', 1], ['ısı değiştirici', 2], ['yoğunluğu artan su', 3]],
+    [[0, 1, 'birincil soğutucuyu ısıtarak', 0], [1, 2, 'yukarı taşınır', 1], [2, 3, 'havuzuna aktarır', 2], [3, 0, 'çekirdeğe geri döner', 3]]);
+  assert.deepEqual(fitSummary(st), { ok: ['akis', 'dongu', 'kavram'], rec: 'dongu' });
+  const geri = fitTemplates(st).find((r) => r.template === 'geri');
+  assert.equal(geri.reason, 'unfit.noPolarityOrCycle', 'kutup işareti metinde yok');
+});
+
+test('uygunluk: prototipteki etkenler paragrafı — prototipin kararıyla aynı', () => {
+  const st = protoStructure(PROTO_FAC,
+    [['akış kararsızlığı', 0], ['düşük güç seviyesi', 1], ['iki fazlı akış', 2], ['boru geometrisi ve yerel kayıplar', 3], ['soğutma koşulları', 4]],
+    [[1, 0, 'kaldırma kuvvetini zayıflatır', 1], [2, 0, 'basınç düşüşünü dalgalandırır', 2], [3, 0, 'sönümlemeyi azaltır', 3], [4, 0, 'dönüş sıcaklığını değiştirir', 4]]);
+  assert.deepEqual(fitSummary(st), { ok: ['balik', 'hiyerarsi', 'kavram'], rec: 'balik' });
+});
+
+test('uygunluk: prototipteki argüman paragrafı (R5 ile koddan) — prototipin kararıyla aynı', () => {
+  const fx = FIXTURES.find((f) => f.id === 'r5-tr-1');
+  const { structure } = structureFromRules({ text: fx.text, lang: 'tr' });
+  assert.deepEqual(fitSummary(structure), { ok: ['arguman'], rec: 'arguman' });
+});
+
+test('uygunluk: her kalıbın önerilen şablonu', () => {
+  const expected = {
+    'r1-tr-1': 'akis', 'r1-tr-2': 'hiyerarsi', 'r1-en-1': 'akis',
+    'r2-tr-1': 'akis', 'r2-tr-2': 'akis', 'r2-en-1': 'akis',
+    'r3-tr-1': 'balik', 'r3-tr-2': 'balik', 'r3-en-1': 'balik',
+    'r4-tr-1': 'zaman', 'r4-tr-2': 'zaman', 'r4-en-1': 'zaman',
+    'r5-tr-1': 'arguman', 'r5-tr-2': 'arguman', 'r5-en-1': 'arguman',
+    'r6-tr-1': 'pasta', 'r6-tr-2': 'cubuk', 'r6-en-1': 'pasta',
+  };
+  for (const [id, rec] of Object.entries(expected)) {
+    const fx = FIXTURES.find((f) => f.id === id);
+    const { structure } = structureFromRules({ text: fx.text, lang: fx.lang });
+    assert.equal(fitTemplates(structure).find((r) => r.recommended)?.template, rec, id);
+  }
+});
+
+test('uygunluk: karşılaştırma ve dörtlü kural kademesinde her zaman "model gerekir"', () => {
+  for (const fx of FIXTURES.filter((f) => f.rule)) {
+    const { structure } = structureFromRules({ text: fx.text, lang: fx.lang });
+    const rows = fitTemplates(structure);
+    for (const t of ['karsi', 'dortlu']) assert.equal(rows.find((r) => r.template === t).reason, 'unfit.needsModel');
+  }
+});
+
+test('uygunluk: yüzde toplamı 100 değilse pasta uymaz, çubuk uyar', () => {
+  const { structure } = structureFromRules({ text: 'Birinci grupta %40, ikinci grupta %30 ölçüldü.', lang: 'tr' });
+  const rows = fitTemplates(structure);
+  assert.equal(rows.find((r) => r.template === 'pasta').ok, false);
+  assert.equal(rows.find((r) => r.template === 'cubuk').ok, true);
+});
+
+// ---------- Faz 3: kaynak değişimi ----------
+
+const BASE = 'Isınan soğutucu yükselen kolda taşınır. Isı değiştirici ısıyı havuza aktarır.';
+
+async function sealedBase() {
+  const st = createStructure({ text: BASE, paragraphKey: 'p-test' });
+  const s0 = st.sentences[0].text;
+  const s1 = st.sentences[1].text;
+  addNode(st, { sentence: 0, start: s0.indexOf('yükselen kolda'), end: s0.indexOf('yükselen kolda') + 'yükselen kolda'.length });
+  addNode(st, { sentence: 1, start: s1.indexOf('ısıyı havuza'), end: s1.indexOf('ısıyı havuza') + 'ısıyı havuza'.length });
+  return sealSource(st);
+}
+
+/** Güncellenmiş yapıda her etiket hâlâ cümlesindeki aynı metni göstermeli. */
+function assertAnchored(st) {
+  for (const n of st.nodes) assert.equal(st.sentences[n.sentence].text.slice(n.start, n.end), n.text, n.id);
+}
+
+test('kaynak: hash SHA-256, yalnız boşluk farkı aynı hash', async () => {
+  const h = await paragraphHash(BASE);
+  assert.match(h, /^sha256:[0-9a-f]{64}$/);
+  assert.equal(await paragraphHash('  Isınan  soğutucu yükselen kolda taşınır.\nIsı değiştirici ısıyı havuza aktarır. '), h);
+  assert.notEqual(await paragraphHash(BASE + ' Ek.'), h);
+});
+
+test('kaynak: metin değişmedi → unchanged', async () => {
+  const st = await sealedBase();
+  const r = await checkSource(st, BASE);
+  assert.equal(r.status, 'unchanged');
+  assert.equal(r.warn, false);
+});
+
+test('kaynak: yalnız boşluk değişti → unchanged, konumlar yine doğru', async () => {
+  const st = await sealedBase();
+  const r = await checkSource(st, 'Isınan  soğutucu yükselen kolda taşınır.  Isı değiştirici ısıyı havuza aktarır.');
+  assert.equal(r.status, 'unchanged');
+  assertAnchored(r.structure);
+});
+
+test('kaynak: paragrafa kelime eklendi, etiketlerin dışına → relocated, yeni konumlar doğru', async () => {
+  const st = await sealedBase();
+  const r = await checkSource(st, 'Isınan soğutucu hızla yükselen kolda taşınır. Isı değiştirici ısıyı havuza aktarır.');
+  assert.equal(r.status, 'relocated');
+  assert.equal(r.warn, false);
+  assertAnchored(r.structure);
+  assert.equal(r.structure.nodes[0].start, st.nodes[0].start + 'hızla '.length);
+  assert.equal(r.structure.source.text.includes('hızla'), true, 'kaynak yeni metne güncellenir');
+});
+
+test('kaynak: bir etiketin içine kelime eklendi → changed, kaybolan etiket listede, şekil metni aynı', async () => {
+  const st = await sealedBase();
+  const r = await checkSource(st, 'Isınan soğutucu yükselen sıcak kolda taşınır. Isı değiştirici ısıyı havuza aktarır.');
+  assert.equal(r.status, 'changed');
+  assert.equal(r.warn, true);
+  assert.deepEqual(r.lost.map((l) => l.text), ['yükselen kolda']);
+  assert.equal(labelOf(r.structure.nodes[0]), 'yükselen kolda', 'şekil saklanan metinle çizilmeye devam eder');
+});
+
+test('kaynak: paragraf silindi → missing, etiketler yapıdan okunur', async () => {
+  const st = await sealedBase();
+  const r = await checkSource(st, null);
+  assert.equal(r.status, 'missing');
+  assert.equal(r.warn, true);
+  assert.deepEqual(r.structure.nodes.map(labelOf), ['yükselen kolda', 'ısıyı havuza']);
+});
+
+test('kaynak: "olduğu gibi bırak" (detached) → uyarı yok', async () => {
+  const st = await sealedBase();
+  const detached = { ...st, source: { ...st.source, detached: true } };
+  const r = await checkSource(detached, 'tamamen başka bir metin');
+  assert.equal(r.status, 'detached');
+  assert.equal(r.warn, false);
+});
+
+test('kaynak: cümle sırası değişti → changed (yanlış cümleye bağlamaktansa uyar)', async () => {
+  const st = await sealedBase();
+  const r = await checkSource(st, 'Isı değiştirici ısıyı havuza aktarır. Isınan soğutucu yükselen kolda taşınır.');
+  assert.equal(r.status, 'changed');
+});
+
+test('kaynak: geçiş sırası — aynı kelime iki kez, ikincisi etiketli', async () => {
+  const text = 'Sonra ısı artar ve ısı yayılır.';
+  const st0 = createStructure({ text });
+  const at = text.indexOf('ısı', text.indexOf('ısı') + 1);
+  addNode(st0, { sentence: 0, start: at, end: at + 3 });
+  assert.equal(st0.nodes[0].occurrence, 1);
+  const st = await sealSource(st0);
+
+  const after = await checkSource(st, 'Sonra ısı artar ve ısı yayılır ve ısı kaybolur.');
+  assert.equal(after.status, 'relocated', 'etiketten sonra eklenen geçiş');
+  assert.equal(after.structure.nodes[0].start, at);
+  assert.equal(after.structure.nodes[0].occurrence, 1);
+
+  const before = await checkSource(st, 'Önce ısı, sonra ısı artar ve ısı yayılır.');
+  assert.equal(before.status, 'relocated', 'etiketten önce eklenen geçiş: değişen bölge etiketin önünde');
+  assertAnchored(before.structure);
+  assert.equal(before.structure.nodes[0].occurrence, 2, 'artık üçüncü geçiş; aynı kelime');
+  assert.ok(before.structure.sentences[0].text.slice(before.structure.nodes[0].start).startsWith('ısı yayılır'));
+
+  const changed = await checkSource(st, 'Sonra ısı artar ve su yayılır.');
+  assert.equal(changed.status, 'changed', 'etiketli geçiş değişti; öbür "ısı"ya sessizce bağlanmaz');
 });
