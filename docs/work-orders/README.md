@@ -53,10 +53,49 @@ Taslak → Hazır → Çalışıyor → Bitti
 | WO-005 | Kanıt paneli: pasaj arama ve doğrulama | P2 | Yazılmadı |
 | [WO-006](WO-006-istatistik-cekirdegi.md) | İstatistik çekirdeği ve çapraz doğrulama | P3 | **Bitti** (14.10.2026, `wo-006-istatistik`) |
 | WO-007 | Analiz sekmesi: veri girişi ve belgeye ekleme | P3 | Yazılmadı |
-| WO-008 | Grafik: recharts çıktısı ve docx/PDF'e gömme | P3 | Yazılmadı |
+| WO-008 | Şekil ve grafiklerin docx/PDF'e gömülmesi — kapsam 17.10.2026'da genişledi (aşağıdaki not) | P3 | Yazılmadı — sırası öne alındı |
 | [WO-009](WO-009-muhendislik-analizleri.md) | Mühendislik analizleri: belirsizlik, yayılım, Monte Carlo, regresyon | P3 | **Bitti** (14.10.2026, `wo-006-istatistik`) |
 | [WO-010](WO-010-uygulama-kabugu.md) | Uygulama kabuğu ve yeni tasarıma geçiş (Aşama 0–2) | P1 | Kabuk kararı WO-011 ile geri alındı (15.10.2026) |
 | [WO-011](WO-011-yazar-modu.md) | Yazar modu yeniden yapılandırma (şartname Faz 1 → 3 → 2) | P1 | Faz 1, 3, 2 bitti — kullanıcı kontrolü bekliyor (15.10.2026) |
+| [WO-015](WO-015-istatistik-cekirdegi-v2.md) | İstatistik çekirdeği v2: ANOVA, ki-kare, Mann-Whitney, Wilcoxon, Kruskal-Wallis | P3 | Taslak (16.10.2026) |
+| [WO-016](WO-016-gorsel-yapi-cekirdegi.md) | Görsel yapı çekirdeği: sinyal, kural kademesi, Türkçe toleranslı eşleştirme, şablon uygunluğu, kaynak değişimi denetimi | P3 | **Hazır** (17.10.2026) — uygulama S1 raporundan sonra |
+
+**Görselleştirme sırası (kullanıcı kararı 17.10.2026):** WO-016 ve S1
+(Infographic denemesi, iş emri değil, ayrı onayla) paralel → WO-008 → WO-B
+(veriden görseller) → WO-C (PR6.v2 + E5) → WO-D (çizim motoru). Plan:
+`docs/design/gorsellestirme-plani.md`. WO-B/C/D numarası yazılınca verilir.
+
+**WO-008 kapsam notu (17.10.2026):** recharts'a özgü değil; her SVG şekil
+ve grafik Word/PDF'e girer.
+- Word'e **SVG + PNG yedeği** birlikte gömülür. Projedeki `docx` 9.6.1 bunu
+  destekliyor ve yedeği zorunlu tutuyor (`docx/dist/index.d.ts:2832-2839`,
+  `type: "svg"` + `fallback`). Yeni Word vektörü, eski Word / LibreOffice /
+  Google Docs PNG'yi kullanır. PNG ≥ 300 dpi.
+- PNG'ye çevirmeden önce yazı tipleri yüklenmiş olmalı **ve SVG'ye
+  gömülmeli**: SVG resim olarak çizilirken sayfanın yazı tiplerini görmez.
+- **Yazı tipi lisansı:** şekle gömülen yazı tipi açık lisanslı olur
+  (Liberation Serif — Times New Roman ile aynı ölçüler — ya da Noto
+  Serif/Sans). Times New Roman gömülmez, sunucudan sunulmaz. Lisanslar iş
+  emrinde okunup yazılır.
+- Test iki katmanlı: (a) SVG'de `@font-face` var ve yazı tipi ğ ş ı İ ç ö ü
+  karakterlerini içeriyor (kırılmaz test); (b) PNG referans görüntüyle küçük
+  toleransla karşılaştırılır.
+
+**S1'den gelen çizici ölçütleri (kullanıcı kararı 17.10.2026; WO-008 ve
+yazılınca WO-D kabulüne girer).** S1 kaldı; kendi SVG çizicimizle devam.
+1. **`foreignObject` yasak.** Metin yalnız `<text>` / `<tspan>`; satır kırma
+   bizim kodumuzda. (S1: Infographic kart yazılarını `foreignObject` içinde
+   HTML olarak koyuyordu.)
+2. **Metin genişliği gömülü yazı tipiyle, yazı tipi yüklendikten sonra
+   ölçülür.** Kelime ortasında kırma yok; "İlişki" gibi Türkçe kelimelerle
+   test. (S1: sabit ölçü tablosu yüzünden "İlişk / i" bölündü —
+   `docs/design/s1/`.)
+3. **Noto Sans (OFL-1.1) gömülü ve küçültülmüş; sıfır dış istek testi.**
+   Ölçülen: latin 13,1 KB, latin-ext 55,6 KB (woff2). Küçültme (yalnız
+   kullanılan glifler) bir araç gerektirir → **yeni bağımlılık, onay noktası**.
+4. **Elle doğrulama: Ahmet** — dışa aktarılan DOCX'in Word ve LibreOffice'te
+   açılıp şekillerin yazılarıyla doğru göründüğü elle kontrol edilir; WO-008
+   bu kontrol yapılmadan Bitti'ye geçmez.
 
 Denetim bittikten sonra açılacak iş emirleri, denetim raporundaki kritik
 sorun listesinden türetilir. Önceden yazılmaz — neyin bozuk olduğunu bilmeden
