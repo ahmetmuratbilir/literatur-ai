@@ -9,7 +9,8 @@ import { CITATION, fold } from '../components/workspace/claimDetection.js';
 export const CATEGORIES = ['order', 'cycle', 'cause', 'direction', 'contrast', 'classify', 'time', 'number', 'citation'];
 
 const YEAR = /\b(1[5-9]|20)\d{2}\b/g;
-const NUMBER = /%\s?\d|\b\d+(?:[.,]\d+)?\s?(?:%|kg|g|m|cm|mm|km|s|sn|dk|saat|°c|k|mw|kw|w|pa|kpa|mpa|bar)\b/g;
+// "%" harf değildir: ardından \b aranırsa "42%," eşleşmez. Bu yüzden % ayrı dalda.
+const NUMBER = /%\s?\d|\b\d+(?:[.,]\d+)?\s?(?:%|(?:kg|g|m|cm|mm|km|s|sn|dk|saat|°c|k|mw|kw|w|pa|kpa|mpa|bar)\b)/g;
 const LIST_MARKER = /^\s*(?:\d+[.)]|[-•*])\s+/;
 
 const TR = {
