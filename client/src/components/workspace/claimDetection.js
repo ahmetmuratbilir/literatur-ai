@@ -12,7 +12,7 @@ const CITATION = /\([^)]*\b(1[5-9]|20)\d{2}\b[^)]*\)|\[\d+(?:\s*[,-]\s*\d+)*\]/;
 // Türkçe harfler sadeleştirilir: kullanıcı "bölümde" de yazabilir "bolumde"
 // de. Aynı tutarsızlık ORCID aramasında da çıkmıştı (CLAUDE.md 3.10).
 const TR_FOLD = { ı: 'i', İ: 'i', ş: 's', Ş: 's', ğ: 'g', Ğ: 'g', ü: 'u', Ü: 'u', ö: 'o', Ö: 'o', ç: 'c', Ç: 'c' };
-const fold = (s) => String(s).replace(/[ıİşŞğĞüÜöÖçÇ]/g, (c) => TR_FOLD[c]).toLocaleLowerCase('en');
+export const fold = (s) => String(s).replace(/[ıİşŞğĞüÜöÖçÇ]/g, (c) => TR_FOLD[c]).toLocaleLowerCase('en');
 
 // Bölüm geçişi ve kendi çalışmasını anlatan kalıplar: kaynak gerektirmez.
 // Kalıplar sadeleştirilmiş yazılır, girdi de sadeleştirilerek karşılaştırılır.
@@ -48,6 +48,32 @@ export function classifySentence(text) {
 
   // Kalanlar: iddia olabilir de olmayabilir de. 1. kademe karar veremez.
   return { mark: MARK.uncited, reason: 'undetermined' };
+}
+
+/**
+ * Kullanıcı düzeltmesinin anahtarı. Karar cümle METNİNE bağlanır, belgedeki
+ * bir düğüme değil: contentEditable'da Enter blok özniteliklerini yeni
+ * paragrafa kopyalar ve "iddia değil" kararı yazılmamış cümleye yapışırdı.
+ * Metin değişirse anahtar değişir ve karar düşer — sınıflandırıcıya dönmek
+ * güvenli taraftır (§5: en tehlikeli hata, iddiayı "iddia değil" saymak).
+ */
+export function sentenceKey(text) {
+  return fold(String(text || '')).replace(/\s+/g, ' ').trim();
+}
+
+export const OVERRIDE = { claim: 'claim', notClaim: 'notClaim' };
+
+/**
+ * Kullanıcının kararı sınıflandırıcıyı ezer (§5). "Bu bir iddia" denen
+ * cümlede atıf işareti varsa 'cited' kalır; yoksa 'uncited' olur — iddiaysa
+ * kaynak bekliyordur.
+ */
+export function applyOverride(base, override) {
+  if (override === OVERRIDE.notClaim) return { mark: MARK.notClaim, reason: 'userNotClaim' };
+  if (override === OVERRIDE.claim) {
+    return base.mark === MARK.cited ? base : { mark: MARK.uncited, reason: 'userClaim' };
+  }
+  return base;
 }
 
 /** Bir blok metnini cümlelere böler; ayırıcıyı cümleyle birlikte tutar. */

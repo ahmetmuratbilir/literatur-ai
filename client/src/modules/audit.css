@@ -1,0 +1,100 @@
+/* Denetim ve Teslim (WO-010 Aşama 2). Kabuğun değişkenlerini kullanır.
+   Renk önem derecesi içindir, her zaman simge ve metinle birlikte:
+   renk tek başına anlam taşımaz (tasarim-yonu.md §6). */
+
+.au-summary { display: flex; flex-wrap: wrap; gap: 6px; }
+.au-count {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 99px;
+  border: 1px solid var(--la-line);
+  background: var(--la-surface);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.au-count--critical { border-color: #f3c2bd; color: #a3261c; background: #fdf3f2; }
+.au-count--warning { border-color: #f1d9a8; color: #8a5a00; background: #fdf8ee; }
+.au-count--info { color: var(--la-muted); }
+
+.au-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.au-side { display: grid; gap: 16px; }
+
+.au-filters { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: 10px; background: var(--la-canvas); border: 1px solid var(--la-line); }
+.au-filters button {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--la-muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.au-filters button[aria-selected="true"] { background: var(--la-surface); color: var(--la-ink); box-shadow: 0 1px 2px rgba(15, 23, 42, .08), 0 0 0 1px var(--la-line); }
+.au-filters em { font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.au-list { margin: 0; padding: 0; list-style: none; }
+.au-item {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--la-line-soft);
+}
+.au-item:last-child { border-bottom: 0; }
+.au-badge {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.au-badge--critical { background: #fdf3f2; color: #a3261c; }
+.au-badge--warning { background: #fdf8ee; color: #8a5a00; }
+.au-badge--info { background: var(--la-canvas); color: var(--la-muted); }
+.au-item__main { display: grid; gap: 5px; min-width: 0; }
+.au-item__main strong { font-size: 13.5px; font-weight: 700; color: var(--la-ink); }
+.au-item__main small { color: var(--la-muted); font-size: 12.5px; line-height: 1.5; }
+.au-item__main blockquote {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--la-line);
+  color: var(--la-ink-2);
+  font-family: Charter, Georgia, serif;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.au-titles { margin: 2px 0 0; padding-left: 18px; color: var(--la-ink-2); font-size: 12.5px; line-height: 1.5; }
+.au-item__act { align-self: center; }
+.au-limits { padding: 0 16px 14px; }
+
+.au-export { display: grid; gap: 8px; padding: 14px 16px; }
+.au-export .la-btn { justify-content: flex-start; }
+.au-export__row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.au-layout { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 0; padding: 14px 16px 8px; font-size: 13px; }
+.au-layout dt { color: var(--la-muted); }
+.au-layout dd { margin: 0; font-weight: 600; }
+
+@media (max-width: 1100px) {
+  .au-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .au-item { grid-template-columns: minmax(0, 1fr); }
+}

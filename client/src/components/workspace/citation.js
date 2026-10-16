@@ -2,7 +2,7 @@
 // Model çıktısındaki hiçbir dize buraya girmez.
 
 /** "Yılmaz, A., Demir, B." → "Yılmaz" */
-function firstSurname(paper) {
+export function firstSurname(paper) {
   const raw = String(paper?.creator || '').split(',')[0].trim();
   if (!raw) return '';
   const parts = raw.split(/\s+/);

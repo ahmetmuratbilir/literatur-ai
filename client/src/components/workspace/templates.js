@@ -1,6 +1,12 @@
-// Şablonlar (tasarim-yonu.md §9): bölüm ağacı + her bölüme rehber metni.
-// Model çağrısı yok, altyapı yok — şablon pahalı bir özellik değil.
-// İlk sürümde iki tane: makale ve tez. PRISMA, TÜBİTAK ve olgu sunumu sonra.
+// Şablonlar (tasarim-yonu.md §8): bölüm ağacı + her boş bölümde ne
+// yazılacağını söyleyen rehber satırı. Model çağrısı yok, altyapı yok.
+//
+// §8 "İlk açılış": kullanıcı şablon seçmeye zorlanmaz. Şablon, isteyenin
+// üst çubuktan açtığı bir menüdür.
+// §13: "Şablon sayısı değer değil." Yalnız gerçek ihtiyacı olanlar.
+//
+// `words` şablonun önerdiği yaklaşık uzunluktur, kural değil; dergi ve
+// kurum yönergesi önceliklidir ve arayüz bunu söyler. 0 = hedef yok.
 
 export const TEMPLATES = [
   {
@@ -11,7 +17,7 @@ export const TEMPLATES = [
     id: 'imrad',
     setup: { margin: 'normal', lineHeight: 1.5 },
     sections: [
-      { level: 2, key: 'abstract', words: 250 },
+      { level: 2, key: 'summary', words: 250 },
       { level: 2, key: 'intro', words: 900 },
       { level: 2, key: 'method', words: 1200 },
       { level: 2, key: 'results', words: 1000 },
@@ -40,12 +46,58 @@ export const TEMPLATES = [
       { level: 1, key: 'appendix', words: 0 },
     ],
   },
+  {
+    // PRISMA 2020 kontrol listesinin ANA başlıkları — 27 maddenin tamamı
+    // değil. Arayüz "teslimden önce resmi listeyle karşılaştır" der.
+    id: 'prisma',
+    setup: { margin: 'normal', lineHeight: 1.5 },
+    sections: [
+      { level: 2, key: 'summary', words: 300 },
+      { level: 2, key: 'intro', words: 0 },
+      { level: 3, key: 'rationale', words: 500 },
+      { level: 3, key: 'objectives', words: 150 },
+      { level: 2, key: 'method', words: 0 },
+      { level: 3, key: 'eligibility', words: 250 },
+      { level: 3, key: 'infoSources', words: 150 },
+      { level: 3, key: 'searchStrategy', words: 250 },
+      { level: 3, key: 'selection', words: 200 },
+      { level: 3, key: 'dataCollection', words: 200 },
+      { level: 3, key: 'riskOfBias', words: 200 },
+      { level: 3, key: 'synthesis', words: 250 },
+      { level: 2, key: 'results', words: 0 },
+      { level: 3, key: 'studySelection', words: 200 },
+      { level: 3, key: 'studyCharacteristics', words: 400 },
+      { level: 3, key: 'biasResults', words: 200 },
+      { level: 3, key: 'synthesisResults', words: 800 },
+      { level: 2, key: 'discussion', words: 1200 },
+      { level: 2, key: 'registration', words: 100 },
+      { level: 2, key: 'references', words: 0 },
+    ],
+  },
 ];
 
-/** Şablonu belge HTML'ine çevirir. Rehber metni boş bölümde gösterilir. */
+const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+const escape = (s) => String(s).replace(/[&<>"]/g, (c) => ESCAPES[c]);
+
+/** Şablondaki toplam önerilen kelime. */
+export function templateWords(template) {
+  return (template?.sections || []).reduce((sum, s) => sum + (s.words || 0), 0);
+}
+
+/**
+ * Şablonu belge HTML'ine çevirir. Başlık önerilen uzunluğu `data-target`
+ * olarak taşır; ardından gelen boş paragraf rehber satırını `data-hint`
+ * olarak taşır ve kullanıcı yazınca rehber kendiliğinden kaybolur (CSS).
+ * Hemen ardından alt başlık gelen üst başlığa boş paragraf konmaz.
+ */
 export function templateHtml(template, t) {
-  if (!template?.sections?.length) return '<p><br></p>';
-  return template.sections
-    .map(({ level, key }) => `<h${level}>${t(`workspace.section.${key}`)}</h${level}><p><br></p>`)
-    .join('');
+  const sections = template?.sections || [];
+  if (!sections.length) return '<p><br></p>';
+  return sections.map(({ level, key, words }, i) => {
+    const target = words ? ` data-target="${words}"` : '';
+    const heading = `<h${level}${target}>${escape(t(`workspace.section.${key}`))}</h${level}>`;
+    const next = sections[i + 1];
+    if (next && next.level > level) return heading;
+    return `${heading}<p data-hint="${escape(t(`workspace.hint.${key}`))}"><br></p>`;
+  }).join('');
 }
