@@ -220,6 +220,15 @@ temiz. Bağımlılık lisansları izin verici (MIT 41, ISC 36, BSD 10, Apache-2.
 devam. Infographic'in yapılarından fikir alınır (MIT, kod değil).
 Kanıtlar: `docs/design/s1/` (ekran görüntüleri, ağ kaydı özeti).
 
+### WO-D (arayüz) için notlar
+
+- **"Kaynak değişti" uyarısı sürekli gösterilmez** (kullanıcı kararı
+  17.10.2026). Yalnız kullanıcı şekle baktığında (şeklin üzerine geldiğinde ya
+  da şekle odaklandığında) veya şekli düzenlemeye açtığında görünür. Yazarken
+  arka planda `checkSource` çalışabilir, ama sonuç ekrana ancak bu anlarda
+  çıkar. `relocated` hiç uyarı göstermez; `changed` ve `missing` bu anlarda
+  "Yeniden oluştur / Olduğu gibi bırak" seçenekleriyle görünür.
+
 ### Kendi çizicimizin kabul ölçütleri (WO-D ve WO-008)
 
 S1 bulgularından: `foreignObject` yok (metin yalnız `<text>`/`<tspan>`, satır

@@ -53,7 +53,7 @@ Taslak → Hazır → Çalışıyor → Bitti
 | WO-005 | Kanıt paneli: pasaj arama ve doğrulama | P2 | Yazılmadı |
 | [WO-006](WO-006-istatistik-cekirdegi.md) | İstatistik çekirdeği ve çapraz doğrulama | P3 | **Bitti** (14.10.2026, `wo-006-istatistik`) |
 | WO-007 | Analiz sekmesi: veri girişi ve belgeye ekleme | P3 | Yazılmadı |
-| WO-008 | Şekil ve grafiklerin docx/PDF'e gömülmesi — kapsam 17.10.2026'da genişledi (aşağıdaki not) | P3 | Yazılmadı — sırası öne alındı |
+| [WO-008](WO-008-sekillerin-word-pdf-gomulmesi.md) | Şekillerin Word ve PDF'e gömülmesi (SVG + PNG yedeği, gömülü Noto Sans, satır kırma, dış istek 0, elle doğrulama: Ahmet) | P3 | Taslak, kararlar işlendi (17.10.2026) — uygulama kullanıcı WO-011 kontrolünden dönünce |
 | [WO-009](WO-009-muhendislik-analizleri.md) | Mühendislik analizleri: belirsizlik, yayılım, Monte Carlo, regresyon | P3 | **Bitti** (14.10.2026, `wo-006-istatistik`) |
 | [WO-010](WO-010-uygulama-kabugu.md) | Uygulama kabuğu ve yeni tasarıma geçiş (Aşama 0–2) | P1 | Kabuk kararı WO-011 ile geri alındı (15.10.2026) |
 | [WO-011](WO-011-yazar-modu.md) | Yazar modu yeniden yapılandırma (şartname Faz 1 → 3 → 2) | P1 | Faz 1, 3, 2 bitti — kullanıcı kontrolü bekliyor (15.10.2026) |
@@ -91,11 +91,25 @@ yazılınca WO-D kabulüne girer).** S1 kaldı; kendi SVG çizicimizle devam.
    test. (S1: sabit ölçü tablosu yüzünden "İlişk / i" bölündü —
    `docs/design/s1/`.)
 3. **Noto Sans (OFL-1.1) gömülü ve küçültülmüş; sıfır dış istek testi.**
-   Ölçülen: latin 13,1 KB, latin-ext 55,6 KB (woff2). Küçültme (yalnız
-   kullanılan glifler) bir araç gerektirir → **yeni bağımlılık, onay noktası**.
+   Ölçülen: latin 13,1 KB, latin-ext 55,6 KB (woff2). Küçültme kararı
+   (17.10.2026): fonttools + `brotli` yalnız derleme aracı; woff2 bir kez
+   üretilip commit edilir, betik (`client/scripts/subset-font.py`) repoda
+   kalır; uygulamaya bağımlılık eklenmez. Karakter kümesine Yunan harfleri,
+   matematik simgeleri ve üst simge rakamlar dahil (α β χ η μ σ ≤ ≥ ± × √ ⁰–⁹;
+   istatistik çıktıları için).
 4. **Elle doğrulama: Ahmet** — dışa aktarılan DOCX'in Word ve LibreOffice'te
    açılıp şekillerin yazılarıyla doğru göründüğü elle kontrol edilir; WO-008
-   bu kontrol yapılmadan Bitti'ye geçmez.
+   bu kontrol yapılmadan Bitti'ye geçmez. `opentype.js` (metni çizgiye
+   çevirme) şimdilik yok; ancak bu kontrol gerektirirse açılır.
+
+**Dallar (17.10.2026, kullanıcı kararı).** Birleştirme sırası:
+`wo-design-recovery` → `wip-bolunmus` → `wo-011-yazar-modu` →
+`wo-016-gorsel-yapi-yeni` → `wo-008-sekil-gomme`. Eski tek parça WIP
+(`b1fab98`) dört commit'e bölündü; bölme ve yeniden kurmadan sonra
+`git diff 7456d7e 3393081` (eski ve yeni WO-016 ucu) boş çıktı. Bölme öncesi
+hâl `yedek/wip-bolme-oncesi` (= `7456d7e`) olarak uzak depoda; eski
+`wo-006-istatistik` ve `wo-016-gorsel-yapi` dalları da yedek olarak duruyor,
+yeni iş onların üzerine yapılmaz. Ana dala hiçbir şey birleştirilmedi.
 
 Denetim bittikten sonra açılacak iş emirleri, denetim raporundaki kritik
 sorun listesinden türetilir. Önceden yazılmaz — neyin bozuk olduğunu bilmeden
