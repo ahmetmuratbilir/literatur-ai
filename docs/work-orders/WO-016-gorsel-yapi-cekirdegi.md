@@ -407,7 +407,7 @@ liste öğesinin başındaki bağlaç atılmıyordu ("ve %23'ü").
 | --- | --- |
 | `matchSpan` örnek listesi (yumuşama, önek, ünlü düşmesi, ikizleşme, birleşik, kısa kök, fold, İngilizce) | Geçti |
 | Olumsuz örnekler; belirsizlikler `tolerant` olarak sabit | Geçti |
-| Sözlükte her kalıbın olumlu ve olumsuz örneği | **Kısmen:** her kategoride olumlu ve olumsuz örnek var; kategorinin içindeki her tek kalıp alternatifinin ayrı örneği yok |
+| Sözlükte her kalıbın olumlu ve olumsuz örneği | **Geçti** (ek commit, 17.10.2026): 107 kalıbın her biri için ayrı olumlu + olumsuz örnek (TR 57, EN 50). Testler 8 kusur buldu, düzeltildi — yanlış pozitif: "artış"→"artist", "loop"→"loophole", "again"→"against", "rais"→"raisin", "lower"→"lowercase"; eksik: "artan", "yükselir", "düşer", "buna karşılık" |
 | R1–R6 için ≥ 2 TR + 1 EN; kalıpsız ≥ 3 paragraf `null` | Geçti (4 kalıpsız) |
 | Prototipteki üç paragrafın kararları koddan aynı | Geçti (döngü, etkenler, argüman) |
 | Argüman paragrafı R5'ten aynı rol ve atıf durumu | Geçti |
