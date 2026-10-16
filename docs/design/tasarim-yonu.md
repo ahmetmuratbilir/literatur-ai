@@ -537,7 +537,8 @@ terminoloji), daraltılmış iddia önerisi, alternatif sorgular.
 değil, aramanın neden başarısız olabileceği ve sonraki adım gösterilir.
 
 _Rakiplerin bu durumu nasıl ele aldığı incelenmedi; "kimse yapmıyor" iddiası
-doğrulanana kadar yazılmaz._
+doğrulanana kadar yazılmaz. (2026-10-14 taraması §14 ve §15'teki iddiaları
+düzeltti; bu durum için ayrıca bakılmadı.)_
 
 ### İlk açılış
 
@@ -747,7 +748,15 @@ Dört format mockup'ta doğru seçilmiş, beşincisi eklenmeli:
 | `.pdf` | Teslim ve paylaşım |
 | `.tex` | Mühendislik, fizik |
 | `.xlsx` | Literatür sentez matrisi |
-| **Denetim izi PDF'i** | **Kimsede yok.** Hangi cümle hangi kaynaktan, hangi pasajla, ne zaman. Kurumsal satışın kilidi |
+| **Denetim izi PDF'i** | Hangi cümle hangi kaynaktan, hangi pasajla, hangi kararla, ne zaman. Kurumsal satışın kilidi. **"Kimsede yok" denmez** — aşağıdaki nota bak |
+
+> **Rakip notu (2026-10-14, satıcı sayfaları ve üçüncü taraf incelemeler;
+> ürünler elle denenmedi).** *Yazım süreci* izi başkalarında var: Grammarly
+> Authorship metni "yazıldı / yapıştırıldı / yapay zeka üretti" diye
+> etiketleyip yeniden oynatım raporu veriyor (Word, Google Docs, Canvas);
+> Turnitin Clarity taslak geçmişi, yapıştırılan metin ve oynatım gösteriyor.
+> İncelediğimiz ürünlerde görmediğimiz şey daha dar: **cümle → kaynak pasajı →
+> destek kararı** izi. Ayrışma iddiası bu dar haliyle yapılır.
 
 Atıf stili APA, IEEE, Vancouver, Chicago olarak seçilebilir. Atıf verisi kod
 katmanından geldiği için bu saf biçimlendirme işi (`CLAUDE.md` 3.1).
@@ -767,8 +776,21 @@ Standa gelen akademisyen için sıralama:
 5. Telefonu çıkar, danışman görünümünü aç
 
 **Dördüncü adım en önemlisi.** Herkes "kaynak buldum" diyebiliyor. "Bu kaynak
-iddianı tam desteklemiyor" diyen tek ürün sensin — ve bunu bir akademisyene
-gösterdiğinde ne yaptığını anında anlıyor.
+senin cümleni tam desteklemiyor" diyen bir araç, incelediklerimiz arasında yok
+— ve bunu bir akademisyene gösterdiğinde ne yaptığını anında anlıyor.
+
+**"Tek ürün" denmez.** Yakın olanlar var ve farkı söylemek gerekir
+(2026-10-14 taraması, ürünler elle denenmedi):
+
+| Ürün | Ne sınıflandırıyor | Fark |
+| --- | --- | --- |
+| Scite | Bir makaleye yapılan atıfları: destekliyor / karşı çıkıyor / anıyor | Başkalarının o makaleyi nasıl andığına bakar, kullanıcının cümlesine değil |
+| Consensus | Evet/hayır sorusuna ilk 20 sonucu: evet / hayır / belki | Bir soruya bakar, kullanıcının taslağına değil |
+| Paperpal | Kaynakça: eksik DOI, atıf–kaynakça uyuşmazlığı, geri çekilme | Kaynağın iddiayı destekleyip desteklemediğine bakmaz |
+
+Fuarda söylenecek cümle: "İncelediğimiz araçlar kaynağı buluyor ya da kaynağın
+başkalarınca nasıl anıldığını gösteriyor; senin cümlenle pasajı karşılaştırıp
+kapsam farkını söyleyen görmedik."
 
 Bu akış için şerit, cetvel ve 60 düğmenin hiçbiri gerekmiyor.
 
