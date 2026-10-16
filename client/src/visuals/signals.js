@@ -17,17 +17,20 @@ const TR = {
   order: [/^(?:ilk olarak|ilk once|once|ardindan|daha sonra|sonra|son olarak|nihayet)\b/, /\b(?:asama|adim)/],
   cycle: [/\b(?:yeniden|tekrar|geri don|dongu|cevrim)/],
   cause: [/\b(?:bagli|bagimli|etkile|neden ol|yol ac|dolayi|etken|sonucunda|kaynaklan)/],
-  direction: [/\b(?:artir|artar|artis|azal|yukselt|dusur|zayiflat|guclendir)/],
-  contrast: [/\b(?:ancak|buna karsin|oysa|bununla birlikte|aksine|halbuki)\b/],
+  // "artis" "artist"i, "yuksel" ise "yuksek"i yakalamasın: artis(?!t); yuksel ≠ yuksek.
+  direction: [/\b(?:artir|artar|artis(?!t)|artan|azal|yuksel|dusur|duser|dusen|dustu|zayiflat|guclendir)/],
+  contrast: [/\b(?:ancak|buna karsin|buna karsilik|oysa|bununla birlikte|aksine|halbuki)\b/],
   classify: [/\b(?:turleri|cesitleri|alt boyut|siniflandir|kategori)/, /\b(?:iki|uc|dort|bes)\w*\s+(?:\w+\s+)?(?:ayril|grupta|kategoride|boyutta)/],
   time: [/\b(?:yuzyil|donem)/],
 };
 
 const EN = {
   order: [/^(?:first(?:ly)?|then|next|subsequently|finally|lastly|second(?:ly)?)\b/, /\b(?:step|stage|phase)s?\b/],
-  cycle: [/\b(?:cycle|loop|again|returns? to|repeat(?:s|ed)?|recur)/],
+  // Kelime sonu şart: "loophole", "against" yakalanmasın.
+  cycle: [/\b(?:cycles?|loops?|again|returns? to|repeat(?:s|ed|ing)?|recur(?:s|red|ring|rent|rence)?)\b/],
   cause: [/\b(?:because|causes?|caused|leads? to|results? in|depends? on|due to|factors?|affects?|affected)\b/],
-  direction: [/\b(?:increas|decreas|reduc|rais|lower|weaken|strengthen)/],
+  // "raisin", "lowercase" yakalanmasın: rais- ve lower yalnız fiil çekimleriyle.
+  direction: [/\b(?:increas|decreas|reduc|rais(?:e|es|ed|ing)\b|lower(?:s|ed|ing)?\b|weaken|strengthen)/],
   contrast: [/\b(?:however|whereas|in contrast|although|nevertheless|conversely)\b/],
   classify: [/\b(?:types of|kinds of|classified|categor|divided into|subtypes?)/],
   time: [/\b(?:century|decade|era)\b/],
