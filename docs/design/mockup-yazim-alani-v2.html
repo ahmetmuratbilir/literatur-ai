@@ -1,0 +1,1730 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yazım Alanı Prototipi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F6FB; --surface:#fff; --line:#E6E8F2; --line2:#D9DCEA;
+  --ink:#1A1D2E; --ink2:#4B5068; --muted:#5F6478;
+  --primary:#6C5CE7; --primary-d:#5848D6; --primary-soft:#EFEDFD;
+  --rail:#1B1F3B; --rail-ink:#9AA0C3;
+  --ok:#166534; --ok-soft:#E8F5EC; --warn:#B45309; --warn-soft:#FDF3E3;
+  --bad:#B91C1C; --bad-soft:#FCEBEB; --none:#4B5563; --none-soft:#EEF0F3;
+  --cite:#6C5CE7;
+  --ui:'Plus Jakarta Sans',system-ui,sans-serif; --doc:'Source Serif 4',Georgia,serif; --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:var(--ui);font-size:13px;color:var(--ink);background:var(--bg);overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,[tabindex]:focus-visible,input:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px}
+.soon{display:inline-block;font-size:10px;font-weight:600;color:#4B5563;background:#EEF0F3;border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:middle}
+.rail-sep{width:26px;height:1px;background:rgba(255,255,255,.12);margin:6px 0}
+.rbadge{position:absolute;top:4px;right:3px;min-width:16px;height:16px;border-radius:8px;background:#fff;color:var(--rail);font-size:10px;font-weight:700;display:grid;place-items:center;padding:0 3px}
+.rail button.on .rbadge{background:#fff;color:var(--primary)}
+.brand{font-weight:700;font-size:15px;padding-left:4px}
+body[data-view="arastirma"] .doc-only{display:none!important}
+body:not([data-view="arastirma"]) .research-only{display:none!important}
+/* araştırma */
+.rs{flex:1;overflow:auto;background:radial-gradient(1200px 500px at 50% -10%,#ECEAFD 0,transparent 60%),var(--bg);padding:40px 32px 80px}
+.rs-wrap{max-width:1170px;margin:0 auto}
+.rs-logo{display:flex;align-items:center;justify-content:center;gap:16px;margin:16px 0 30px}
+.rs-logo .mk{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#7C6CF0,#5848D6);display:grid;place-items:center;color:#fff;box-shadow:0 10px 24px -8px rgba(108,92,231,.6)}
+.rs-logo b{font-size:40px;letter-spacing:-.03em}
+.rs-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px 30px;box-shadow:0 10px 30px -18px rgba(20,24,60,.25)}
+.rs-tabs{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:4px;margin-bottom:22px}
+.rs-tabs button{padding:9px 18px;border-radius:10px;font-weight:600;color:var(--ink2);font-size:14px}
+.rs-tabs button.on{background:#fff;color:var(--primary);box-shadow:0 1px 3px rgba(20,24,60,.12)}
+.rs-lbl{font-weight:600;font-size:14px;margin:0 0 10px}
+.rs-in{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:6px 6px 6px 16px;margin-bottom:16px}
+.rs-in input{flex:1;border:0;outline:0;font:inherit;font-size:16px;height:40px;background:transparent}
+.rs-go{width:100%;height:52px;border-radius:12px;background:var(--primary);color:#fff;font-weight:700;font-size:16px}
+.rs-go:hover{background:var(--primary-d)}
+.rs-feat{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:28px}
+.rs-feat div{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px}
+.rs-feat b{display:block;font-size:16px;margin:12px 0 6px}
+.rs-feat span{color:var(--ink2);line-height:1.6}
+.rs-feat i{width:40px;height:40px;border-radius:10px;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;font-style:normal}
+.res{margin-top:22px}
+.res-h{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.res-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;gap:14px}
+.res-card div{flex:1}
+.res-card b{display:block;font-size:14px;margin-bottom:3px}
+.res-card span{color:var(--muted);font-size:12px}
+.res-card p{margin:6px 0 0;color:var(--ink2);font-size:12.5px;line-height:1.5}
+.kbd-hint{text-align:center;color:var(--muted);font-size:12px;margin:14px 0 0}
+.kbd-hint kbd{font-family:var(--mono);font-size:11px;background:#fff;border:1px solid var(--line2);border-radius:4px;padding:1px 5px;color:var(--ink2)}
+.empty{background:#fff;border:1px dashed var(--line2);border-radius:12px;padding:22px;text-align:center;color:var(--ink2)}
+.empty b{display:block;font-size:15px;color:var(--ink);margin-bottom:4px}
+body.first .has-drafts{display:none!important}
+body:not(.first) .no-drafts{display:none!important}
+/* köprü: "ilgili olabilir" — kanıt değil, bilinçli olarak nötr */
+.bridge-h{display:flex;align-items:baseline;gap:8px;margin:2px 0 4px}
+.bridge-h b{font-size:13px}
+.bridge-note{font-size:11.5px;color:var(--muted);margin-bottom:10px;line-height:1.45}
+.bcard{border:1px solid var(--line2);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#FAFBFC}
+.bcard b{display:block;font-size:12.5px;line-height:1.35}
+.bcard .meta{font-size:11.5px;color:var(--muted);margin:2px 0 6px}
+.bcard .why{font-size:11.5px;color:var(--ink2);background:#F1F2F6;border-radius:6px;padding:4px 7px;margin-bottom:8px}
+.bcard .why q{font-style:italic}
+.bcard .abs{font-family:var(--doc);font-size:13px;line-height:1.5;color:#2A2E44;border-left:3px solid var(--line2);padding:4px 8px;margin:0 0 8px}
+.bcard .rt{font-size:11px;font-weight:600;color:var(--bad)}
+.bsub{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:10px 0 6px}
+.bempty{border:1px dashed var(--line2);border-radius:10px;padding:12px;font-size:12px;color:var(--ink2);margin-bottom:10px}
+.cite.unv{border-bottom:1.5px dashed var(--warn)}
+.cite.unv::after{content:"?";font-family:var(--ui);font-size:9px;font-weight:700;color:#fff;background:var(--warn);border-radius:50%;width:12px;height:12px;display:inline-grid;place-items:center;margin-left:2px;vertical-align:super}
+/* sağ panel kapalıyken kenar şeridi: panel kaybolmaz, katlanır */
+.side-rail{display:none;width:56px;background:var(--surface);border-left:1px solid var(--line);flex-direction:column;align-items:center;padding:10px 0;gap:4px}
+.side.closed + .side-rail{display:flex}
+.side-rail button{width:46px;padding:7px 0 5px;border-radius:9px;color:var(--ink2);display:flex;flex-direction:column;align-items:center;gap:3px;position:relative}
+.side-rail button:hover{background:var(--primary-soft);color:var(--primary-ink)}
+.side-rail svg{width:18px;height:18px}
+.side-rail span{font-size:10px;font-weight:600}
+.side-rail small{margin-top:auto;font-family:var(--mono);font-size:9.5px;color:var(--muted)}
+.sr-badge{position:absolute;top:2px;right:5px;min-width:15px;height:15px;border-radius:8px;background:var(--warn);color:#fff;font-size:9.5px;font-style:normal;font-weight:700;display:grid;place-items:center;padding:0 3px}
+.titlebar .btn{flex:none;align-self:center;justify-content:center;line-height:1}
+.proto{position:fixed;left:68px;bottom:36px;background:#1A1D2E;color:#fff;font-size:12px;padding:6px 12px;border-radius:999px;opacity:.82;z-index:50;pointer-events:none}
+
+/* ---------- kabuk ---------- */
+.app{display:grid;grid-template-columns:56px 1fr;height:100vh}
+.rail{background:var(--rail);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:4px}
+.rail .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#7C6CF0,#5848D6);display:grid;place-items:center;color:#fff;margin-bottom:12px}
+.rail button{width:44px;height:44px;border-radius:10px;display:grid;place-items:center;color:var(--rail-ink);position:relative}
+.rail button:hover{background:rgba(255,255,255,.07);color:#fff}
+.rail button.on{background:var(--primary);color:#fff}
+.rail button[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:52px;top:50%;transform:translateY(-50%);background:#111427;color:#fff;font-size:12px;padding:5px 9px;border-radius:6px;white-space:nowrap;z-index:40}
+.rail .grow{flex:1}
+.rail svg{width:19px;height:19px}
+
+.main{display:flex;flex-direction:column;min-width:0;height:100vh}
+.titlebar{height:48px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 14px}
+.back{color:var(--ink2);font-weight:500;padding:6px 8px;border-radius:6px}
+.back:hover{background:var(--bg)}
+.doc-title{font-weight:600;font-size:14px;max-width:420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.saved{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px}
+.saved i{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block}
+.cmd{flex:1;max-width:440px;margin:0 auto;height:32px;border:1px solid var(--line);background:var(--bg);border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;color:var(--muted)}
+.cmd:hover{border-color:var(--line2)}
+.cmd kbd{margin-left:auto;font-family:var(--mono);font-size:11px;background:#fff;border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+.btn{height:32px;padding:0 14px;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.btn.primary{background:var(--primary);color:#fff}
+.btn.primary:hover{background:var(--primary-d)}
+.btn.outline{border:1px solid var(--primary);color:var(--primary)}
+.btn.outline:hover{background:var(--primary-soft)}
+.btn.ghost{border:1px solid var(--line);color:var(--ink2);background:#fff}
+.btn.ghost:hover{border-color:var(--line2)}
+.btn.sm{height:28px;padding:0 10px;font-size:12px}
+.btn[disabled]{opacity:.55;cursor:not-allowed}
+
+/* ---------- görünümler ---------- */
+.view{display:none;flex:1;min-height:0}
+.view.on{display:flex}
+
+/* ---------- şerit ---------- */
+.ribbon{background:var(--surface);border-bottom:1px solid var(--line)}
+.rtabs{display:flex;gap:2px;padding:0 12px;height:30px;align-items:flex-end}
+.rtabs button{padding:6px 12px;font-weight:500;color:var(--ink2);border-bottom:2px solid transparent}
+.rtabs button.on{color:var(--primary);border-color:var(--primary);font-weight:600}
+.rrow{display:none;align-items:center;gap:2px;height:40px;padding:0 10px;border-top:1px solid var(--line)}
+.rrow.on{display:flex}
+.tb{height:30px;min-width:30px;padding:0 8px;border-radius:6px;display:inline-flex;align-items:center;gap:6px;color:var(--ink2)}
+.tb:hover{background:var(--bg);color:var(--ink)}
+.tb[disabled]{opacity:.5;cursor:not-allowed}
+.tb svg{width:16px;height:16px}
+.sep{width:1px;height:20px;background:var(--line);margin:0 6px}
+.sel{height:28px;border:1px solid var(--line);border-radius:6px;padding:0 8px;display:inline-flex;align-items:center;gap:6px;color:var(--ink);background:#fff}
+
+/* ---------- yazım çalışma yeri ---------- */
+.work{display:flex;flex:1;min-height:0}
+.outline{width:240px;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;transition:width .16s}
+.outline.collapsed{width:48px}
+.outline.collapsed .ol-body,.outline.collapsed .ol-head span{display:none}
+.ol-head{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 14px;font-weight:600}
+.outline.collapsed .ol-head{padding:0;justify-content:center}
+.ol-body{overflow:auto;padding:0 8px 12px}
+.ol-item{display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;color:var(--ink2)}
+.ol-item:hover{background:var(--bg)}
+.ol-item.on{background:var(--primary-soft);color:var(--primary);font-weight:600}
+.ol-item.l2{padding-left:22px}
+.ol-item small{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:10.5px;margin-top:3px;font-weight:400}
+.bar{flex:1;height:3px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar b{display:block;height:100%;background:var(--primary);opacity:.6}
+.ol-sub{margin:14px 8px 6px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.fig-item{padding:5px 8px;color:var(--ink2);font-size:12px}
+
+.canvas{flex:1;overflow:auto;background:#ECEEF5;position:relative}
+.page{width:794px;min-height:1123px;margin:24px auto 40px;background:#fff;box-shadow:0 1px 3px rgba(20,24,60,.08),0 8px 28px -10px rgba(20,24,60,.12);padding:76px 90px 90px;position:relative;font-family:var(--doc);font-size:16px;line-height:1.65;color:#1E2133}
+.page-head{position:absolute;top:30px;left:90px;right:90px;text-align:center;font-family:var(--ui);font-size:10.5px;color:#6E7389}
+.page-num{position:absolute;bottom:34px;left:0;right:0;text-align:center;font-family:var(--ui);font-size:11px;color:#6E7389}
+.page h2{font-size:19px;font-weight:600;margin:0 0 14px}
+.page h3{font-size:16.5px;font-weight:600;margin:26px 0 10px}
+.page p{margin:0 0 14px;text-align:justify;position:relative}
+.page [contenteditable]{outline:none}
+.cite{color:var(--cite);cursor:pointer;border-bottom:1px dotted rgba(108,92,231,.5)}
+.cite:hover{background:var(--primary-soft)}
+.claim{background:rgba(108,92,231,.13);border-radius:2px}
+.flash{animation:flash 1.4s}
+@keyframes flash{0%,40%{background:#FFF1B8}100%{background:transparent}}
+.hl{background:#FFF1B8;transition:background .12s}
+.mmark{position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-family:var(--ui);font-size:10px;font-weight:700;color:#fff}
+.mmark.warn{background:var(--warn)}
+.viz-btn{position:absolute;left:-40px;top:0;width:26px;height:26px;border-radius:50%;background:#fff;border:1px solid var(--line2);color:var(--primary);display:grid;place-items:center;opacity:0;transition:opacity .12s;font-family:var(--ui)}
+.viz-btn svg{width:14px;height:14px}
+.page p:hover .viz-btn,.viz-btn.on,.viz-btn:focus-visible{opacity:1}
+.viz-btn.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+.viz-btn:hover::after{content:"Görselleştir";position:absolute;right:32px;white-space:nowrap;background:#1A1D2E;color:#fff;font-size:11px;padding:3px 7px;border-radius:5px}
+
+/* görselleştir şeridi */
+.viz{font-family:var(--ui);font-size:13px;border:1px solid var(--line2);border-radius:12px;margin:4px -24px 18px;padding:14px 16px;background:#FCFCFE;box-shadow:0 6px 20px -12px rgba(20,24,60,.25)}
+.viz-h{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.viz-h b{font-size:13.5px}
+.viz-h span{color:var(--muted);font-size:12px}
+.viz-h .x{margin-left:auto;color:var(--muted);font-size:18px;line-height:1}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px 8px;margin-bottom:12px;padding-top:6px}
+.thumb{border:1px solid var(--line);border-radius:9px;background:#fff;padding:6px 6px 5px;text-align:center;font-size:11.5px;color:var(--ink2)}
+.thumb svg{display:block;width:100%;height:46px;margin-bottom:3px}
+.thumb.on{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft);color:var(--primary-ink);font-weight:600}
+.thumb{position:relative;min-width:0}
+.thumb.unfit{opacity:.5;background:#F6F7F9}
+.thumb .recp{position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-size:9.5px;font-weight:700;color:#fff;background:var(--primary-ink);border-radius:999px;padding:1px 7px;white-space:nowrap}
+.thumbs-more{min-height:70px;border:1px dashed var(--line2);border-radius:9px;background:#fff;font-size:11.5px;color:var(--ink2)}
+.viz-why{font-size:12px;color:var(--ink2);margin:-4px 0 10px}
+.viz-why b{color:var(--primary-ink)}
+.viz-prev .note b{display:block;color:var(--ink);margin-bottom:4px}
+/* etiket düzenleme: her satır kaynak cümlesini gösterir; elle değişen işaretlenir */
+.viz-edit{margin-top:10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.viz-edit summary{cursor:pointer;padding:8px 12px;font-weight:600;font-size:12.5px;color:var(--ink2)}
+.ve-list{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;padding:4px 12px 12px}
+.ve-row{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:6px}
+.ve-s{font-size:10.5px;color:var(--muted);white-space:nowrap;min-width:84px}
+.ve-row input{height:28px;border:1px solid var(--line2);border-radius:6px;padding:0 8px;font:inherit;font-size:12.5px;min-width:0}
+.ve-tag{font-size:10px;font-weight:700;color:var(--warn);visibility:hidden}
+.ve-reset{width:24px;height:24px;border-radius:6px;color:var(--muted);visibility:hidden}
+.ve-reset:hover{background:var(--bg);color:var(--ink)}
+.ve-row.edited input{border-color:var(--warn);background:#FFFBF4}
+.ve-row.edited .ve-tag,.ve-row.edited .ve-reset{visibility:visible}
+.ve-warn{grid-column:1/-1;font-size:11px;color:var(--warn);margin:-2px 0 2px 90px}
+figure.ins{position:relative;border-radius:10px;outline:none}
+figure.ins:hover,figure.ins:focus-within,figure.ins:focus{box-shadow:0 0 0 1px var(--line2)}
+.fig-tools{position:absolute;top:6px;right:6px;display:flex;gap:4px;opacity:0;transition:opacity .12s;font-family:var(--ui)}
+figure.ins:hover .fig-tools,figure.ins:focus-within .fig-tools,figure.ins:focus .fig-tools{opacity:1}
+.fig-tools button{height:26px;padding:0 10px;border-radius:6px;background:#fff;border:1px solid var(--line2);font-size:12px;font-weight:600;color:var(--ink2)}
+.fig-tools button:hover{border-color:var(--primary);color:var(--primary-ink)}
+.thumb[disabled]{opacity:.5}
+.viz-prev{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px;min-height:250px;display:grid;place-items:center}
+.viz-prev svg{width:100%;height:auto;max-height:320px}
+.viz-prev .note{color:var(--muted);text-align:center;padding:40px}
+.node{cursor:default}
+.node rect{transition:filter .12s}
+.node:hover rect{filter:brightness(.94)}
+.viz-ctl{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
+.sw{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line2)}
+.sw.on{box-shadow:0 0 0 2px var(--ink)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{padding:4px 10px;font-size:12px;color:var(--ink2)}
+.seg button.on{background:var(--primary-soft);color:var(--primary);font-weight:600}
+.seg button[disabled]{opacity:.45;cursor:not-allowed}
+.cap{flex:1;min-width:200px;height:30px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:inherit}
+.viz-src{font-size:11.5px;color:var(--muted);margin-top:8px}
+figure.ins{margin:10px 0 18px;text-align:center}
+figure.ins svg{width:88%;height:auto}
+figure.ins figcaption{font-family:var(--doc);font-size:14px;font-style:italic;color:#3A3E55;margin-top:4px}
+
+/* seçim menüsü */
+.selmenu{position:fixed;display:none;background:#fff;border:1px solid var(--line2);border-radius:10px;box-shadow:0 12px 28px -10px rgba(20,24,60,.35);padding:4px;z-index:30;font-family:var(--ui)}
+.selmenu.on{display:flex}
+.selmenu button{padding:6px 10px;border-radius:7px;font-size:12.5px;color:var(--ink);white-space:nowrap}
+.selmenu button:hover:not([disabled]){background:var(--primary-soft);color:var(--primary)}
+.selmenu button[disabled]{color:var(--muted);cursor:not-allowed}
+
+/* sağ panel */
+.side{width:360px;background:var(--surface);border-left:1px solid var(--line);display:flex;flex-direction:column;transition:width .16s,opacity .16s}
+.side.closed{width:0;border:0;overflow:hidden;opacity:0}
+.stabs{display:flex;align-items:center;height:40px;border-bottom:1px solid var(--line);padding:0 8px}
+.stabs button.t{padding:10px 10px;font-weight:500;color:var(--ink2);border-bottom:2px solid transparent;height:40px}
+.stabs button.t.on{color:var(--primary);border-color:var(--primary);font-weight:600}
+.stabs .x{margin-left:auto;width:28px;height:28px;border-radius:6px;color:var(--muted)}
+.stabs .x:hover{background:var(--bg)}
+.spane{display:none;overflow:auto;padding:14px;flex:1}
+.spane.on{display:block}
+.claimbox{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-family:var(--doc);font-size:14px;line-height:1.5;margin-bottom:12px}
+.claimbox small{display:block;font-family:var(--ui);font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.card{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:#fff}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.badge{font-size:11px;font-weight:600;border-radius:999px;padding:2px 8px}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.badge.bad{background:var(--bad-soft);color:var(--bad)}
+.badge.none{background:var(--none-soft);color:var(--none)}
+.badge.scope{background:#F1F2F6;color:#5B6078;font-weight:500}
+.quote{border-left:3px solid var(--line2);background:#F8F9FC;padding:8px 10px;font-family:var(--doc);font-size:13.5px;line-height:1.5;color:#2A2E44;border-radius:0 6px 6px 0}
+.quote u{text-decoration-color:var(--primary);text-decoration-thickness:2px;text-underline-offset:2px}
+.src{font-size:12px;color:var(--ink2);margin:8px 0 10px}
+.src b{font-weight:600}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.gap-note{font-size:12px;color:var(--warn);margin-top:2px}
+.scan{font-size:11.5px;color:var(--muted);margin-top:4px}
+.suggest{margin-top:10px;border:1px dashed var(--primary);border-radius:8px;padding:10px;background:#FBFAFF}
+.suggest p{margin:0 0 8px;font-family:var(--doc);font-size:14px}
+.suggest small{display:block;color:var(--muted);font-size:11px;margin-bottom:8px}
+.grp{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 8px}
+.src-row{display:flex;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line)}
+.src-row:last-child{border:0}
+.src-row div{flex:1}
+.src-row b{display:block;font-weight:600;font-size:12.5px}
+.src-row span{color:var(--muted);font-size:11.5px}
+.tag-r{font-size:10.5px;color:var(--bad);background:var(--bad-soft);border-radius:999px;padding:1px 7px;font-weight:600}
+.tag-c{font-size:10.5px;color:var(--ok);font-weight:600}
+.filters{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--ink2);background:#fff}
+.chip.on{border-color:var(--primary);color:var(--primary);background:var(--primary-soft);font-weight:600}
+.issue{border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:8px;background:#fff}
+.issue .h{display:flex;gap:8px;align-items:center;font-weight:600}
+.sev{font-size:10.5px;font-weight:700;border-radius:4px;padding:1px 6px}
+.sev.e{background:var(--bad-soft);color:var(--bad)}
+.sev.w{background:var(--warn-soft);color:var(--warn)}
+.sev.i{background:var(--none-soft);color:var(--none)}
+.loc{font-family:var(--mono);font-size:11px;color:var(--muted);margin:4px 0}
+.exc{font-family:var(--doc);font-size:13px;color:#3A3E55;margin-bottom:8px}
+.linkbtn{color:var(--primary);font-weight:600;font-size:12px;padding:2px 0;margin-right:12px}
+
+.status{height:28px;background:var(--surface);border-top:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 14px;color:var(--muted);font-size:11.5px}
+.status .dot{width:3px;height:3px;border-radius:50%;background:#C3C6D6}
+.status .right{margin-left:auto;display:flex;gap:10px}
+
+/* ---------- tam sayfa görünümler ---------- */
+.full{flex:1;overflow:auto;padding:28px 32px 60px}
+.wrap{max-width:1120px;margin:0 auto}
+.h1{font-size:22px;font-weight:700;margin:0 0 4px}
+.lead{color:var(--muted);margin:0 0 22px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px}
+.sec-h{display:flex;align-items:center;gap:12px;margin:26px 0 12px}
+.sec-h h3{margin:0;font-size:15px}
+.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.tpl{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;text-align:left;transition:transform .14s,box-shadow .14s,border-color .14s;position:relative}
+.tpl:hover,.tpl:focus-visible{border-color:var(--primary);box-shadow:0 10px 24px -14px rgba(108,92,231,.55);transform:translateY(-2px)}
+.tpl .ticon{width:38px;height:38px;border-radius:10px;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;margin-bottom:10px;transition:background .14s,color .14s}
+.tpl .ticon svg{width:20px;height:20px}
+.tpl:hover .ticon,.tpl:focus-visible .ticon{background:var(--primary);color:#fff}
+.tpl .mini{height:58px;border:1px solid var(--line2);border-radius:6px;background:#FAFBFD;margin-bottom:10px;padding:7px 8px;display:flex;flex-direction:column;gap:4px}
+.tpl .mini i{display:block;height:4px;border-radius:2px;background:#C5C9DA}
+.tpl .mini i.h{background:#8B7CF0;width:55%}
+.tpl .go{position:absolute;top:14px;right:14px;color:var(--primary);font-weight:600;font-size:12px;opacity:0;transition:opacity .14s}
+.tpl:hover .go,.tpl:focus-visible .go{opacity:1}
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(20,24,46,.32);display:none;align-items:center;justify-content:center;z-index:65}
+.modal-bg.on{display:flex}
+.modal{width:520px;max-width:calc(100vw - 32px);background:#fff;border-radius:16px;box-shadow:0 30px 60px -20px rgba(20,24,46,.45);padding:22px 24px}
+.modal h3{margin:0 0 4px;font-size:17px}
+.modal .fld{margin-top:16px}
+.modal label.l{display:block;font-weight:600;margin-bottom:6px}
+.modal input.txt{width:100%;height:38px;border:1px solid var(--line2);border-radius:8px;padding:0 12px;font:inherit}
+.modal .hint{font-size:12px;color:var(--muted);margin-top:6px}
+.modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:22px}
+/* analiz yöntem seçici */
+.msearch{width:100%;height:34px;border:1px solid var(--line2);border-radius:8px;padding:0 10px;font:inherit;margin-bottom:10px}
+.qchips{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.qchip{text-align:left;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:#FAFBFD;color:var(--ink);font-size:12.5px}
+.qchip:hover,.qchip.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+.qchip small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+details.mg{border-top:1px solid var(--line)}
+details.mg summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;padding:9px 4px;font-weight:600;font-size:12.5px;color:var(--ink2)}
+details.mg summary::-webkit-details-marker{display:none}
+details.mg summary::after{content:"▸";color:var(--muted);transition:transform .14s}
+details.mg[open] summary::after{transform:rotate(90deg)}
+details.mg summary small{color:var(--muted);font-weight:500;margin-left:auto;margin-right:8px}
+details.mg .mitem{padding-left:14px}
+.tpl b{display:block;margin-bottom:3px}
+.tpl span{color:var(--muted);font-size:12px}
+table.t{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+table.t th{text-align:left;font-size:11.5px;color:var(--muted);font-weight:600;padding:10px 14px;border-bottom:1px solid var(--line);background:#FAFBFD}
+table.t td{padding:11px 14px;border-bottom:1px solid var(--line)}
+table.t tr:last-child td{border:0}
+table.t tr:hover td{background:#FAFBFD}
+.fmt{font-size:11px;font-weight:600;border-radius:999px;padding:2px 8px;background:var(--primary-soft);color:var(--primary)}
+.tool{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:flex-start}
+.tool .ic{width:34px;height:34px;border-radius:9px;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;flex:none}
+.tool .ic svg{width:17px;height:17px}
+.tool b{display:block;margin-bottom:3px}
+.tool span{color:var(--muted);font-size:12px}
+.ready{font-size:10px;font-weight:600;color:var(--ok);background:var(--ok-soft);border-radius:999px;padding:1px 7px;margin-left:6px}
+.amber{margin-top:26px;background:var(--warn-soft);border:1px solid #F2D7A6;color:#7A4A0A;border-radius:10px;padding:10px 14px;display:flex;gap:10px;align-items:center}
+.amber a{color:#7A4A0A;font-weight:600;margin-left:auto}
+.resume{display:flex;align-items:center;gap:18px}
+.resume .meta{color:var(--muted);font-size:12px;margin-top:4px}
+
+/* analiz */
+.an{display:grid;grid-template-columns:250px 1fr 380px;gap:14px;flex:1;min-height:0;padding:14px}
+.an .col{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:auto;padding:12px}
+.steps{display:flex;gap:6px;align-items:center;padding:12px 14px 0;font-weight:600;color:var(--muted)}
+.steps .s{padding:4px 10px;border-radius:999px;background:#fff;border:1px solid var(--line)}
+.steps .s.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.mgrp{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:12px 4px 4px}
+.mitem{display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;color:var(--ink2)}
+.mitem:hover{background:var(--bg)}
+.mitem.on{background:var(--primary-soft);color:var(--primary);font-weight:600}
+table.g{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:12.5px}
+table.g th,table.g td{border:1px solid var(--line);padding:5px 8px;text-align:right}
+table.g th{background:#FAFBFD;font-weight:600;color:var(--ink2)}
+table.g td:first-child,table.g th:first-child{text-align:center;color:var(--muted);width:36px}
+table.g td:nth-child(2){text-align:center}
+.vchips{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap}
+.vchip{background:var(--primary-soft);color:var(--primary);border-radius:6px;padding:3px 8px;font-size:12px;font-weight:600}
+.check{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--ok);margin:3px 0}
+table.apa{width:100%;border-collapse:collapse;font-family:var(--doc);font-size:13.5px;margin:6px 0 10px;font-variant-numeric:tabular-nums}
+table.apa th{border-top:1.5px solid #333;border-bottom:1px solid #333;font-weight:600;padding:4px 6px;text-align:right}
+table.apa td{padding:4px 6px;text-align:right}
+table.apa th:first-child,table.apa td:first-child{text-align:left}
+table.apa tr:last-child td{border-bottom:1.5px solid #333}
+.apa-sent{font-family:var(--doc);font-size:14px;line-height:1.55;background:#F8F9FC;border-radius:8px;padding:10px 12px;margin:10px 0}
+
+/* teslim */
+.teslim{display:grid;grid-template-columns:1fr 380px;gap:16px}
+.stepper{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.stepper .st{display:flex;align-items:center;gap:8px;color:var(--muted);font-weight:600}
+.stepper .st i{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line2);font-style:normal;background:#fff}
+.stepper .st.on{color:var(--primary)}
+.stepper .st.on i{background:var(--primary);color:#fff;border-color:var(--primary)}
+.stepper .ln{flex:0 0 40px;height:1px;background:var(--line2)}
+.pkg-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.pkg-row:last-child{border:0}
+.pill{font-size:11px;font-weight:600;border-radius:999px;padding:2px 8px}
+.pill.var{background:var(--ok-soft);color:var(--ok)}
+.pill.bos{background:var(--warn-soft);color:var(--warn)}
+.pill.yok{background:var(--bad-soft);color:var(--bad)}
+.exp{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.exp button{border:1px solid var(--line);border-radius:9px;padding:12px;text-align:left;font-weight:600;background:#fff}
+.exp button:hover{border-color:var(--primary)}
+.exp small{display:block;color:var(--muted);font-weight:400;font-size:11.5px}
+
+/* kaynaklar tam sayfa */
+.libtop{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.search{flex:1;height:34px;border:1px solid var(--line);border-radius:8px;padding:0 12px;font:inherit;background:#fff}
+
+/* komut kutusu */
+.scrim{position:fixed;inset:0;background:rgba(20,24,46,.28);display:none;z-index:60;align-items:flex-start;justify-content:center;padding-top:12vh}
+.scrim.on{display:flex}
+.palette{width:640px;max-width:calc(100vw - 32px);background:#fff;border-radius:14px;box-shadow:0 30px 60px -20px rgba(20,24,46,.45);overflow:hidden}
+.palette input{width:100%;height:52px;border:0;border-bottom:1px solid var(--line);padding:0 18px;font:inherit;font-size:15px;outline:none}
+.plist{max-height:380px;overflow:auto;padding:6px}
+.pg{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:8px 10px 4px}
+.pi{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:8px;text-align:left}
+.pi.on{background:var(--primary-soft);color:var(--primary)}
+.pi[aria-disabled="true"]{color:var(--muted)}
+.pi kbd{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.pfoot{border-top:1px solid var(--line);padding:8px 14px;color:var(--muted);font-size:11.5px}
+
+.toast{position:fixed;right:20px;bottom:44px;background:#1A1D2E;color:#fff;padding:10px 14px;border-radius:10px;font-size:12.5px;box-shadow:0 10px 30px -10px rgba(0,0,0,.4);z-index:70;display:none;max-width:360px}
+.toast.on{display:block}
+.toast button{color:#C9C2FF;font-weight:600;margin-left:10px}
+
+/* Açık mor zemin (#EFEDFD) üstünde ana mor 4,21:1 kalıyor; metin için bir ton koyusu (5,43:1). */
+:root{--primary-ink:#5A48D8}
+.chip.on,.seg button.on,.mitem.on,.ol-item.on,.vchip,.fmt,.qchip.on,.qchip:hover,.tpl .ticon,.rs-feat i,.selmenu button:hover:not([disabled]),.pi.on,.tool .ic,.rs-tabs button.on{color:var(--primary-ink)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ray -->
+  <nav class="rail" aria-label="İstasyonlar">
+    <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></div>
+    <button data-go="arastirma" data-tip="Araştırma" aria-label="Araştırma"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>
+    <span class="rail-sep" aria-hidden="true"></span>
+    <button data-go="masam" data-tip="Masam" aria-label="Masam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5 12 3l9 7.5V21H3z"/><path d="M9 21v-6h6v6"/></svg></button>
+    <button data-go="yaz" data-tip="Yaz" aria-label="Yaz"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/></svg></button>
+    <button data-go="kaynaklar" data-tip="Kaynaklar (sepet)" aria-label="Kaynaklar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h5v16H4zM10 4h5v16h-5z"/><path d="m16 5 4 1-3 14-4-1"/></svg><span class="rbadge" id="basketBadge">5</span></button>
+    <button data-go="analiz" data-tip="Analiz" aria-label="Analiz"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></button>
+    <button data-go="teslim" data-tip="Teslim" aria-label="Teslim"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12.5 10 17l9-10"/></svg></button>
+    <div class="grow"></div>
+    <button data-go="masam" data-anchor="toolbox" data-tip="Araç kutusu" aria-label="Araç kutusu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></button>
+  </nav>
+
+  <div class="main">
+    <header class="titlebar">
+      <div class="brand research-only">Literatür AI</div>
+      <button class="back doc-only" data-go="masam" title="Belgeyi değiştir">Belge ▾</button>
+      <div class="doc-title doc-only" title="Belge adı">Küçük modüler reaktörlerde pasif soğutma — Yüksek Lisans Tezi</div>
+      <div class="saved doc-only" id="saved"><i></i><span>Kaydedildi</span></div>
+      <button class="cmd doc-only" id="cmdOpen" aria-label="Komut kutusu"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Ne yapmak istiyorsun?<kbd>Ctrl K</kbd></button>
+      <button class="btn outline doc-only" data-go="teslim">Teslime hazırla</button>
+      <button class="btn primary research-only" data-go="yaz">✎ Yazmaya devam et</button>
+    </header>
+
+    <!-- ============ ARAŞTIRMA ============ -->
+    <section class="view on" id="v-arastirma">
+      <div class="rs"><div class="rs-wrap">
+        <div class="rs-logo"><span class="mk"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></span><b>Literatür AI</b></div>
+        <div class="rs-card">
+          <div class="rs-tabs" role="tablist"><button class="on" data-rs="konu">⌕ Konuya göre</button><button data-rs="yazar">👤 Yazara göre</button></div>
+          <div id="rsKonu">
+            <p class="rs-lbl">Araştırma konusu</p>
+            <div class="rs-in"><span style="color:var(--muted)">⌕</span><input id="rsQ" placeholder="Örn: küçük modüler reaktörlerde pasif soğutma"><button class="btn ghost" style="color:var(--primary)" data-toast="Konu, seçebileceğin beş İngilizce Boolean sorguya çevrilirdi.">✦ AI ile geliştir</button></div>
+          </div>
+          <div id="rsYazar" style="display:none">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div><p class="rs-lbl">Araştırmacı adı</p><div class="rs-in"><input placeholder="Örn: Ahmet Yılmaz"></div></div>
+              <div><p class="rs-lbl">Kurum <span style="color:var(--muted);font-weight:400">(isteğe bağlı — sıralar, elemez)</span></p><div class="rs-in"><input placeholder="Örn: Hacettepe Üniversitesi"></div></div>
+            </div>
+          </div>
+          <button class="rs-go" id="rsGo">⌕ Ara</button>
+        </div>
+        <p class="kbd-hint">İpucu: her şeye <kbd>Ctrl</kbd> + <kbd>K</kbd> ile ulaşabilirsin — test, şablon, kaynakça.</p>
+        <div class="res" id="rsRes" style="display:none">
+          <div class="res-h"><b style="font-size:15px">Sonuçlar</b><span style="color:var(--muted)">OpenAlex, Europe PMC · 2010–2026 · 214 kayıt tarandı · sıralama: senin seçtiğin öncelikler</span></div>
+          <div class="res-card"><div><b>Small Modular Reactors: Nuclear Power Fad or Future?</b><span>Ingersoll, D. T. · 2016 · Woodhead</span><p>Passive safety systems remove decay heat without operator action or external power…</p></div><span class="tag-c">Sepette ✓</span></div>
+          <div class="res-card"><div><b>Natural circulation in integral pressurized water reactors</b><span>Zhang, L. ve diğ. · 2021 · Nuclear Engineering and Design</span><p>In integral PWRs, natural circulation provides adequate core cooling for at least 72 hours…</p></div><span class="tag-c">Sepette ✓</span></div>
+          <div class="res-card"><div><b>Passive heat removal in SMR containment: a review</b><span>Okafor, C. ve Ruiz, M. · 2023 · Progress in Nuclear Energy</span><p>This review compares passive containment cooling concepts across eleven SMR designs…</p></div><button class="btn primary sm" data-basket>Sepete ekle</button></div>
+          <div class="res-card"><div><b>Stability of two-phase natural circulation loops at low power</b><span>Banerjee, S. · 2018 · Annals of Nuclear Energy</span><p>Flow oscillations were observed below 8% of rated power in all three test loops…</p></div><button class="btn primary sm" data-basket>Sepete ekle</button></div>
+        </div>
+        <div class="rs-feat" id="rsFeat">
+          <div><i>✦</i><b>AI sorgu genişletme</b><span>Konun İngilizce bir Boolean sorguya çevrilir; seçebileceğin beş alternatif sunulur.</span></div>
+          <div><i>▮</i><b>Şeffaf AHP sıralaması</b><span>Sıralama senin seçtiğin önceliklere göre yapılır; nedenini görürsün. Kaynağın kalitesini kanıtlamaz.</span></div>
+          <div><i>⤓</i><b>Sepetten yazıma</b><span>Sepete eklediğin makaleler soldaki Kaynaklar'da durur; Yaz'da atıf olarak kullanırsın.</span></div>
+        </div>
+      </div></div>
+    </section>
+
+    <!-- ============ YAZ ============ -->
+    <section class="view" id="v-yaz" style="flex-direction:column">
+      <div class="ribbon">
+        <div class="rtabs" role="tablist">
+          <button class="on" data-rt="giris">Giriş</button>
+          <button data-rt="ekle">Ekle</button>
+          <button data-rt="kaynak">Kaynaklar</button>
+          <button data-rt="gozden">Gözden geçir</button>
+        </div>
+        <div class="rrow on" data-rr="giris">
+          <button class="tb" data-cmd="undo" title="Geri al"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-4"/></svg></button>
+          <button class="tb" data-cmd="redo" title="Yinele"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h4"/></svg></button>
+          <span class="sep"></span>
+          <span class="sel">Normal ▾</span>
+          <span class="sel">Times New Roman ▾</span>
+          <span class="sel">12 ▾</span>
+          <span class="sep"></span>
+          <button class="tb" data-cmd="bold" title="Kalın"><b>K</b></button>
+          <button class="tb" data-cmd="italic" title="İtalik"><i style="font-family:serif">T</i></button>
+          <button class="tb" data-cmd="underline" title="Altı çizili"><u>A</u></button>
+          <span class="sep"></span>
+          <button class="tb" data-cmd="justifyLeft" title="Sola hizala"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
+          <button class="tb" data-cmd="justifyFull" title="İki yana yasla"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg></button>
+          <button class="tb" data-cmd="insertUnorderedList" title="Madde işaretli liste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg></button>
+          <button class="tb" data-cmd="insertOrderedList" title="Numaralı liste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 5h1v3M4 12.5 5.5 11H4"/></svg></button>
+          <span class="sel">1,5 satır ▾</span>
+          <span class="sep"></span>
+          <button class="tb" data-more>Daha fazla ⋯</button>
+        </div>
+        <div class="rrow" data-rr="ekle">
+          <button class="tb" data-toast="Tablo ekleme: TipTap geçişiyle (WO-004) gerçek tablo nesnesi gelir.">Tablo</button>
+          <button class="tb" data-toast="Şekil başlığı imlecin yerine eklenir: 'Şekil N:'.">Şekil başlığı</button>
+          <button class="tb" data-action="vizFirst">✦ Görselleştir</button>
+          <button class="tb" data-go="analiz">Analiz sonucu</button>
+          <span class="sep"></span>
+          <button class="tb" disabled>Denklem<span class="soon">Yakında</span></button>
+          <button class="tb" disabled>Kalıp ifade<span class="soon">Yakında</span></button>
+        </div>
+        <div class="rrow" data-rr="kaynak">
+          <button class="tb" data-side="kaynaklar">Atıf ekle</button>
+          <span class="sel">Stil: APA 7 ▾</span>
+          <button class="tb" data-toast="Kaynakça, atıf yapılan kaynaklardan yeniden kuruldu.">Kaynakçayı güncelle</button>
+          <button class="tb" data-go="kaynaklar">İçe aktar (BibTeX / RIS)</button>
+          <span class="sep"></span>
+          <button class="tb" disabled>Kanıt bul<span class="soon">Yakında</span></button>
+        </div>
+        <div class="rrow" data-rr="gozden">
+          <button class="tb" data-side="kontrol">Kontrol</button>
+          <button class="tb" data-go="teslim">Teslime hazırla</button>
+          <span class="sep"></span>
+          <button class="tb" disabled>Yorumlar<span class="soon">Yakında</span></button>
+          <button class="tb" disabled>Sürüm geçmişi<span class="soon">Yakında</span></button>
+          <button class="tb" disabled>Danışmanla paylaş<span class="soon">Yakında</span></button>
+        </div>
+      </div>
+
+      <div class="work">
+        <aside class="outline" id="outline" aria-label="Belge yapısı">
+          <div class="ol-head"><span>Belge yapısı</span>
+            <button class="tb" id="olToggle" title="Belge yapısını aç/kapat (Ctrl+\)" aria-label="Belge yapısını aç/kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
+          </div>
+          <div class="ol-body">
+            <button class="ol-item">1 Giriş<small><span class="bar"><b style="width:100%"></b></span>810 / 800</small></button>
+            <button class="ol-item l2" data-jump="h-11">1.1 Problem tanımı<small><span class="bar"><b style="width:78%"></b></span>620 / 800</small></button>
+            <button class="ol-item l2">1.2 Amaç<small><span class="bar"><b style="width:40%"></b></span>160 / 400</small></button>
+            <button class="ol-item">2 Literatür taraması<small><span class="bar"><b style="width:66%"></b></span>2.640 / 4.000</small></button>
+            <button class="ol-item">3 Yöntem<small><span class="bar"><b style="width:50%"></b></span>1.250 / 2.500</small></button>
+            <button class="ol-item l2 on" data-jump="h-31">3.1 Sayısal model<small><span class="bar"><b style="width:44%"></b></span>530 / 1.200</small></button>
+            <button class="ol-item">4 Bulgular<small><span class="bar"><b style="width:12%"></b></span>360 / 3.000</small></button>
+            <button class="ol-item">5 Sonuç<small><span class="bar"><b style="width:0"></b></span>0 / 1.000</small></button>
+            <button class="ol-item">Kaynakça</button>
+            <div class="ol-sub">Tablolar ve şekiller</div>
+            <div id="figList">
+              <div class="fig-item">Tablo 1. Reaktör parametreleri</div>
+              <div class="fig-item">Şekil 1: Tesis yerleşimi</div>
+              <div class="fig-item">Şekil 2: Çekirdek kesiti</div>
+            </div>
+          </div>
+        </aside>
+
+        <div class="canvas" id="canvas">
+          <article class="page" id="page">
+            <div class="page-head">Küçük modüler reaktörlerde pasif soğutma</div>
+            <div contenteditable="true" spellcheck="false" id="docBody">
+              <h3 id="h-11">1.1 Problem tanımı</h3>
+              <p id="vizArg" data-viz="arg"><button class="viz-btn" contenteditable="false" data-action="viz" aria-label="Bu paragrafı görselleştir"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg></button><span data-s="0">Küçük modüler reaktörler (KMR), fabrikada üretilen ve sahada birleştirilen modüler yapılarıyla nükleer enerjide yatırım riskini azaltmayı hedefler</span> <span class="cite" contenteditable="false" data-src="ingersoll">(Ingersoll, 2016)</span>. <span class="claim" id="claim1" data-claim data-s="1">Pasif soğutma sistemleri, dış güç kaybı durumunda operatör müdahalesi olmadan çekirdek ısısını uzaklaştırarak güvenlik marjını artırır.</span> <span data-s="2">Ancak bu sistemlerin geçici rejimlerdeki davranışı, tasarıma özgü deneysel verilerle sınırlı biçimde doğrulanmıştır.</span></p>
+              <p><span class="mmark warn" contenteditable="false" title="Uyarı: atıfsız iddia">!</span><span id="noCite" data-claim>Doğal sirkülasyonun kararlılığı, düşük güç seviyelerinde akış salınımlarına karşı hassastır.</span> Bu çalışma, söz konusu belirsizliği sayısal bir model üzerinden ele almaktadır.</p>
+
+              <h3 id="h-22">2.2 Kararsızlığı etkileyen etkenler</h3>
+              <p id="vizFac" data-viz="fac"><button class="viz-btn" contenteditable="false" data-action="viz" aria-label="Bu paragrafı görselleştir"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg></button><span data-s="0">Doğal sirkülasyon döngülerinde akış kararsızlığı birkaç etkene bağlıdır.</span> <span data-s="1">Düşük güç seviyesi kaldırma kuvvetini zayıflatır.</span> <span data-s="2">Yükselen koldaki iki fazlı akış basınç düşüşünü dalgalandırır.</span> <span data-s="3">Boru geometrisi ve yerel kayıplar sönümlemeyi azaltır.</span> <span data-s="4">Isı değiştiricideki soğutma koşulları ise dönüş sıcaklığını değiştirir.</span></p>
+
+              <h3 id="h-31">3.1 Sayısal model</h3>
+              <p id="vizPara" data-viz="cool"><button class="viz-btn" contenteditable="false" data-action="viz" aria-label="Bu paragrafı görselleştir"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg></button><span data-s="0">Reaktör çekirdeğinde üretilen bozunma ısısı, birincil soğutucuyu ısıtarak yoğunluğunu düşürür.</span> <span data-s="1">Isınan soğutucu, pompa gerekmeden yükselen kolda doğal sirkülasyonla yukarı taşınır.</span> <span data-s="2">Üst bölgedeki ısı değiştirici, ısıyı pasif soğutma havuzuna aktarır.</span> <span data-s="3">Soğuyan ve yoğunluğu artan su, alçalan koldan çekirdeğe geri döner ve döngü tamamlanır.</span></p>
+              <p>Model, tek boyutlu korunum denklemleriyle kurulmuş ve sonuçları Tablo 1'deki tasarım parametreleriyle karşılaştırılmıştır. Çözüm ağı bağımsızlığı üç farklı düğüm sayısıyla sınanmıştır.</p>
+            </div>
+            <div class="page-num">18</div>
+          </article>
+        </div>
+
+        <aside class="side" id="side" aria-label="Sağ panel">
+          <div class="stabs" role="tablist">
+            <button class="t on" data-st="kanit">Kanıt</button>
+            <button class="t" data-st="kaynaklar">Kaynaklar</button>
+            <button class="t" data-st="kontrol">Kontrol</button>
+            <button class="x" id="sideClose" title="Paneli kapat (Ctrl+.)" aria-label="Paneli kapat">✕</button>
+          </div>
+
+          <div class="spane on" data-sp="kanit">
+            <div class="claimbox"><small>SEÇİLİ İDDİA</small><span id="claimText">Pasif soğutma sistemleri, dış güç kaybı durumunda operatör müdahalesi olmadan çekirdek ısısını uzaklaştırarak güvenlik marjını artırır.</span></div>
+
+            <div id="bridge"></div>
+
+            <div class="grp">Doğrulanmış kanıt <span class="soon">Yakında</span></div>
+            <div class="scan" style="margin:-4px 0 10px">"Kanıt bul" gelince kartlar böyle görünecek. Aşağıdakiler örnek görünüm.</div>
+
+            <div class="card">
+              <div class="badges"><span class="badge ok">Destekliyor</span><span class="badge scope">Yalnız özete dayanıyor</span></div>
+              <div class="quote">Passive safety systems <u>remove decay heat without operator action or external power</u>, which substantially increases the safety margin of SMR designs during station blackout scenarios.</div>
+              <div class="src"><b>Ingersoll, D. T.</b> · Small Modular Reactors · 2016 · Woodhead</div>
+              <div class="acts">
+                <button class="btn primary sm" data-action="cite">Atıf olarak ekle</button>
+                <button class="btn ghost sm" data-action="suggest">Pasajdan cümle öner</button>
+              </div>
+              <div id="suggestBox"></div>
+            </div>
+
+            <div class="card">
+              <div class="badges"><span class="badge warn">Kısmen</span><span class="badge scope">Yalnız özete dayanıyor</span></div>
+              <div class="gap-note">Pasaj yalnız hafif su reaktörlerini kapsıyor; iddia tüm KMR'ler için genel.</div>
+              <div class="quote" style="margin-top:8px">In integral pressurized water reactors, natural circulation <u>provides adequate core cooling</u> for at least 72 hours after shutdown.</div>
+              <div class="src"><b>Zhang, L. ve diğ.</b> · Nuclear Engineering and Design · 2021</div>
+              <div class="acts"><button class="btn ghost sm" data-toast="Kısmi destek: atıf eklenebilir ama iddianın kapsamını daraltman önerilir.">Atıf olarak ekle</button></div>
+            </div>
+
+            <div class="grp">Çelişen</div>
+            <div class="card">
+              <div class="badges"><span class="badge bad">Çelişiyor</span><span class="badge scope">Yalnız özete dayanıyor</span></div>
+              <div class="quote">Flow instabilities in natural circulation loops <u>may reduce passive heat removal capacity</u> at low power.</div>
+              <div class="src"><b>Kumar, A. ve Singh, R.</b> · Annals of Nuclear Energy · 2019</div>
+            </div>
+            <div class="scan">Taranan: OpenAlex, Europe PMC · 2010–2026 · 214 kayıt. Tam metin okunmadı.</div>
+          </div>
+
+          <div class="spane" data-sp="kaynaklar">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><b>Kütüphane</b><span style="color:var(--muted);font-size:12px">5 / 30</span></div>
+            <input class="search" placeholder="Kaynaklarda ara" style="width:100%;margin-bottom:8px">
+            <div class="src-row"><div><b>Small Modular Reactors</b><span>Ingersoll · 2016</span></div><span class="tag-c">Atıf ✓</span></div>
+            <div class="src-row"><div><b>Natural circulation in integral PWRs</b><span>Zhang ve diğ. · 2021</span></div><button class="linkbtn" data-toast="Atıf imlecin olduğu yere eklendi (prototip).">Atıf ekle</button></div>
+            <div class="src-row"><div><b>Flow instabilities at low power</b><span>Kumar, Singh · 2019</span></div><button class="linkbtn" data-toast="Atıf imlecin olduğu yere eklendi (prototip).">Atıf ekle</button></div>
+            <div class="src-row"><div><b>Decay heat removal benchmarks</b><span>IAEA · 2014</span></div><span class="tag-r">Geri çekildi</span></div>
+            <div class="src-row"><div><b>Passive containment cooling review</b><span>Lee · yıl bilinmiyor</span></div><button class="linkbtn" data-toast="Atıf imlecin olduğu yere eklendi (prototip).">Atıf ekle</button></div>
+            <div style="display:flex;gap:6px;margin-top:12px"><button class="btn ghost sm" data-go="kaynaklar">İçe aktar</button><button class="btn ghost sm" data-go="kaynaklar">Kaynakça</button></div>
+          </div>
+
+          <div class="spane" data-sp="kontrol">
+            <div style="color:var(--muted);font-size:12px;margin-bottom:8px">24 cümle · 9 iddia · 6 atıf</div>
+            <div class="filters"><button class="chip on">Tümü <span id="kAll">3</span></button><button class="chip">Hata 1</button><button class="chip">Uyarı <span id="kWarn">2</span></button><button class="chip">Bilgi 0</button></div>
+            <div id="unvList"></div>
+            <div class="issue"><div class="h"><span class="sev e">Hata</span>Geri çekilmiş kaynak sepette</div><div class="loc">Kaynaklar</div><div class="exc">IAEA, 2014 — Decay heat removal benchmarks</div><button class="linkbtn" data-side="kaynaklar">Kaynakları aç</button></div>
+            <div class="issue"><div class="h"><span class="sev w">Uyarı</span>Atıfsız iddia</div><div class="loc">Bölüm 1.1, paragraf 2</div><div class="exc">Doğal sirkülasyonun kararlılığı, düşük güç seviyelerinde…</div><button class="linkbtn" data-reveal="noCite">Metinde göster</button><button class="linkbtn" data-toast="İşaret kaldırıldı; Susturulanlar'da duruyor.">İddia değil</button></div>
+            <div class="issue"><div class="h"><span class="sev w">Uyarı</span>Bölüm hedefin altında</div><div class="loc">Bölüm 3.1</div><div class="exc">530 / 1.200 kelime</div><button class="linkbtn" data-reveal="h-31">Bölüme git</button></div>
+            <div class="scan">Pasajla doğrulama yapılmadı; kontroller metin ve kaynakça üzerinden.</div>
+          </div>
+        </aside>
+        <nav class="side-rail" id="sideTab" aria-label="Sağ paneli aç">
+          <button data-open-side="kanit" title="Kanıt" aria-label="Kanıt panelini aç"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg><span>Kanıt</span></button>
+          <button data-open-side="kaynaklar" title="Kaynaklar" aria-label="Kaynaklar panelini aç"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h5v16H4zM10 4h5v16h-5z"/><path d="m16 5 4 1-3 14-4-1"/></svg><span>Kaynak</span></button>
+          <button data-open-side="kontrol" title="Kontrol" aria-label="Kontrol panelini aç"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg><span>Kontrol</span><i class="sr-badge" id="railWarn">3</i></button>
+          <small>Ctrl+.</small>
+        </nav>
+      </div>
+
+      <footer class="status">
+        <span>Sayfa 18 / 41 (yaklaşık)</span><span class="dot"></span>
+        <span id="wc">6.902 kelime</span><span class="dot"></span>
+        <span>Taslak görünümü</span>
+        <span class="right"><button id="sideOpen" class="linkbtn" style="margin:0">Sağ paneli aç</button><span>%100</span></span>
+      </footer>
+    </section>
+
+    <!-- ============ MASAM ============ -->
+    <section class="view" id="v-masam">
+      <div class="full"><div class="wrap">
+        <h1 class="h1">Masam</h1>
+        <p class="lead">Taslakların, son aramaların ve araçların burada.</p>
+
+        <div class="empty no-drafts"><b>Henüz bir belgen yok</b>Aşağıdan bir biçim seçerek başla. Araştırmada sepete eklediğin makaleler yazarken hazır olur.</div>
+        <div class="panel resume has-drafts">
+          <div style="flex:1"><div style="font-size:11px;font-weight:600;color:var(--muted)">KALDIĞIN YER</div>
+            <div style="font-weight:700;font-size:15px;margin-top:4px">Küçük modüler reaktörlerde pasif soğutma — Yüksek Lisans Tezi</div>
+            <div class="meta">3.1 Sayısal model · 2 saat önce · 6.902 kelime</div></div>
+          <button class="btn primary" data-go="yaz">Devam et</button>
+        </div>
+
+        <div class="sec-h"><h3>Yeni belge</h3><span style="color:var(--muted);font-size:12px">Bir biçim seç; atıf stilini bir sonraki adımda belirlersin</span></div>
+        <div class="grid5">
+          <button class="tpl" data-new="Makale"><span class="go">Oluştur →</span><span class="ticon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h7"/></svg></span><div class="mini"><i class="h"></i><i></i><i></i><i class="h"></i><i></i></div><b>Makale</b><span>Giriş, Yöntem, Bulgular, Tartışma</span></button>
+          <button class="tpl" data-new="Tez"><span class="go">Oluştur →</span><span class="ticon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m2 9 10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/></svg></span><div class="mini"><i class="h"></i><i></i><i class="h"></i><i></i><i class="h"></i></div><b>Tez</b><span>Bölümler, özet, abstract, ekler</span></button>
+          <button class="tpl" data-new="Literatür taraması"><span class="go">Oluştur →</span><span class="ticon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16l-6 8v6l-4 2v-8z"/></svg></span><div class="mini"><i class="h"></i><i></i><i></i><i></i><i class="h"></i></div><b>Literatür taraması</b><span>PRISMA akışı dahil</span></button>
+          <button class="tpl" data-new="Proje raporu"><span class="go">Oluştur →</span><span class="ticon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M9 2h6v4H9zM8 12h8M8 16h5"/></svg></span><div class="mini"><i class="h"></i><i></i><i class="h"></i><i></i><i></i></div><b>Proje raporu</b><span>Amaç, iş paketleri, bütçe</span></button>
+          <button class="tpl" data-new="Boş belge"><span class="go">Oluştur →</span><span class="ticon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg></span><div class="mini"></div><b>Boş</b><span>Kendi yapını kur</span></button>
+        </div>
+
+        <div class="sec-h has-drafts"><h3>Taslaklarım</h3></div>
+        <table class="t has-drafts">
+          <thead><tr><th>Başlık</th><th>Biçim</th><th>Kelime</th><th>Son düzenleme</th><th></th></tr></thead>
+          <tbody>
+            <tr><td><b>Küçük modüler reaktörlerde pasif soğutma</b></td><td><span class="fmt">Tez</span></td><td>6.902</td><td>2 saat önce</td><td style="text-align:right">⋯</td></tr>
+            <tr><td><b>Doğal sirkülasyon kararlılığı — konferans bildirisi</b></td><td><span class="fmt">Makale</span></td><td>3.140</td><td>Dün</td><td style="text-align:right">⋯</td></tr>
+            <tr><td><b>KMR güvenlik literatürü</b></td><td><span class="fmt">Literatür taraması</span></td><td>1.880</td><td>12 Eki</td><td style="text-align:right">⋯</td></tr>
+            <tr><td><b>TÜBİTAK 2209 başvurusu</b></td><td><span class="fmt">Proje raporu</span></td><td>940</td><td>3 Eki</td><td style="text-align:right">⋯</td></tr>
+          </tbody>
+        </table>
+
+        <div class="sec-h" id="toolbox"><h3>Araç kutusu</h3><span style="color:var(--muted);font-size:12px">Yeni araçlar buraya eklenir</span></div>
+        <div class="grid4">
+          <div class="tool"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7"/></svg></div><div><b>Analiz<span class="ready">Hazır</span></b><span>t-testi, korelasyon, alfa, belirsizlik</span></div></div>
+          <div class="tool"><div class="ic">✦</div><div><b>Görselleştir<span class="ready">Hazır</span></b><span>Paragraftan şema, napkin gibi</span></div></div>
+          <div class="tool"><div class="ic">▦</div><div><b>Literatür matrisi<span class="soon">Yakında</span></b><span>Makaleler × amaç, yöntem, bulgu</span></div></div>
+          <div class="tool"><div class="ic">✎</div><div><b>Kendi cümlenle anlat<span class="soon">Yakında</span></b><span>Anladığını yaz, kanıtla karşılaştır</span></div></div>
+          <div class="tool"><div class="ic">▤</div><div><b>Makale kartı<span class="soon">Yakında</span></b><span>Amaç, yöntem, örneklem, sınırlılık</span></div></div>
+          <div class="tool"><div class="ic">⟳</div><div><b>Hatırlatma kartları<span class="soon">Yakında</span></b><span>Aralıklı tekrar, cevap = pasaj</span></div></div>
+          <div class="tool"><div class="ic">▭</div><div><b>Poster<span class="soon">Yakında</span></b><span>Bitmiş makaleden şablonlu afiş</span></div></div>
+          <div class="tool"><div class="ic">⇄</div><div><b>Zotero / Mendeley eşitleme<span class="soon">Yakında</span></b><span>Bugün: BibTeX / RIS içe aktarma</span></div></div>
+        </div>
+
+        <div class="amber">⚠ Taslakların yalnız bu tarayıcıda saklanıyor. Düzenli olarak DOCX yedeği al.<a href="#" data-toast="DOCX yedeği indirildi (prototip).">Şimdi yedekle</a></div>
+      </div></div>
+    </section>
+
+    <!-- ============ KAYNAKLAR ============ -->
+    <section class="view" id="v-kaynaklar">
+      <div class="full"><div class="wrap">
+        <div style="display:flex;align-items:center;gap:12px"><button class="back" data-go="yaz">← Belgeye dön</button></div>
+        <h1 class="h1" style="margin-top:8px">Kaynaklar</h1>
+        <p class="lead">Kütüphane, kaynakça ve içe aktarma. Kaynakça yalnız doğrulanmış kayıtlardan kurulur.</p>
+        <div style="display:grid;grid-template-columns:1fr 360px;gap:16px">
+          <div>
+            <div class="libtop"><input class="search" placeholder="Başlık, yazar veya DOI ara"><span style="color:var(--muted)">5 / 30</span></div>
+            <table class="t">
+              <thead><tr><th>Başlık</th><th>Yazar</th><th>Yıl</th><th>Durum</th></tr></thead>
+              <tbody>
+                <tr><td><b>Small Modular Reactors</b></td><td>Ingersoll</td><td>2016</td><td><span class="tag-c">Atıf yapıldı ✓</span></td></tr>
+                <tr><td><b>Natural circulation in integral PWRs</b></td><td>Zhang ve diğ.</td><td>2021</td><td><span style="color:var(--muted)">Atıf yok</span></td></tr>
+                <tr><td><b>Flow instabilities at low power</b></td><td>Kumar, Singh</td><td>2019</td><td><span style="color:var(--muted)">Atıf yok</span></td></tr>
+                <tr><td><b>Decay heat removal benchmarks</b></td><td>IAEA</td><td>2014</td><td><span class="tag-r">Geri çekildi</span></td></tr>
+                <tr><td><b>Passive containment cooling review</b></td><td>Lee</td><td><span style="color:var(--muted)">bilinmiyor</span></td><td><span style="color:var(--warn)">Eksik bilgi</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <div class="panel" style="margin-bottom:12px">
+              <b>İçe aktar</b>
+              <div style="border:1.5px dashed var(--line2);border-radius:10px;padding:22px;text-align:center;color:var(--muted);margin:10px 0">BibTeX veya RIS dosyası bırak<br><small>Zotero, Mendeley, EndNote dışa aktarımı · en fazla 768 KB</small></div>
+              <div style="display:flex;gap:6px"><button class="btn ghost sm" disabled>Zotero ile eşitle<span class="soon">Yakında</span></button><button class="btn ghost sm" disabled>Mendeley<span class="soon">Yakında</span></button></div>
+            </div>
+            <div class="panel">
+              <b>Kaynakça</b>
+              <div class="seg" style="margin:10px 0"><button class="on">APA 7</button><button>IEEE</button><button>MLA</button><button>Chicago</button></div>
+              <div class="seg" style="margin-bottom:10px"><button class="on">Atıf yapılanlar</button><button>Sepetteki tümü</button></div>
+              <div style="font-size:12px;color:var(--ink2)">
+                <div class="check" style="color:var(--warn)">● Kaynakçada var, metinde atıf yok (3)</div>
+                <div class="check" style="color:var(--bad)">● Geri çekilmiş kaynak (1)</div>
+              </div>
+              <button class="btn primary sm" style="margin-top:10px" data-toast="Kaynakça belgenin sonuna eklendi (prototip).">Kaynakçayı belgeye ekle</button>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </section>
+
+    <!-- ============ ANALİZ ============ -->
+    <section class="view" id="v-analiz" style="flex-direction:column">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 14px 0"><button class="back" data-go="yaz">← Belgeye dön</button><b style="font-size:15px">Analiz</b><span style="color:var(--muted);font-size:12px">Hesap çekirdeği hazır; bu arayüz prototip</span></div>
+      <div class="steps"><span class="s">1 Veri</span>→<span class="s">2 Yöntem</span>→<span class="s on">3 Sonuç</span></div>
+      <div class="an">
+        <div class="col" id="methods">
+          <input class="msearch" id="mSearch" placeholder="Test ara (ör. korelasyon)" aria-label="Test ara">
+          <div class="mgrp" style="margin-top:0">Ne yapmak istiyorsun?</div>
+          <div class="qchips">
+            <button class="qchip on" data-q="Bağımsız t-testi">İki grubu karşılaştırmak<small>A ve B grubunun ortalaması farklı mı?</small></button>
+            <button class="qchip" data-q="Pearson korelasyonu">İki ölçüm arasında ilişki<small>Biri artınca diğeri de artıyor mu?</small></button>
+            <button class="qchip" data-q="Cronbach alfa">Ölçeğim güvenilir mi<small>Anket maddeleri tutarlı mı?</small></button>
+            <button class="qchip" data-q="Belirsizlik bütçesi">Ölçüm belirsizliğim ne<small>Sonucum ± ne kadar?</small></button>
+          </div>
+          <div class="mgrp">Tüm testler</div>
+          <details class="mg"><summary>Betimsel<small>1</small></summary><button class="mitem">Ortalama, sapma, çeyrekler</button></details>
+          <details class="mg"><summary>Normallik<small>1</small></summary><button class="mitem">Shapiro-Wilk</button></details>
+          <details class="mg" open><summary>Karşılaştırma<small>4</small></summary><button class="mitem on">Bağımsız t-testi</button><button class="mitem">Eşleştirilmiş t-testi</button><button class="mitem">Tek örneklem t-testi</button><button class="mitem">Levene</button></details>
+          <details class="mg"><summary>İlişki<small>2</small></summary><button class="mitem">Pearson korelasyonu</button><button class="mitem">Spearman korelasyonu</button></details>
+          <details class="mg"><summary>Güvenirlik<small>1</small></summary><button class="mitem">Cronbach alfa</button></details>
+          <details class="mg"><summary>Mühendislik<small>4</small></summary><button class="mitem">Belirsizlik bütçesi</button><button class="mitem">Belirsizlik yayılımı</button><button class="mitem">Monte Carlo</button><button class="mitem">Regresyon ve kalibrasyon</button></details>
+          <div class="scan" id="mNone" style="display:none">Bu adla bir test yok. ANOVA ve ki-kare henüz çekirdekte yok.</div>
+        </div>
+        <div class="col">
+          <div style="display:flex;gap:6px;margin-bottom:6px"><button class="btn ghost sm">Excel'den yapıştır</button><button class="btn ghost sm">CSV yükle</button><button class="btn ghost sm">Satır ekle</button></div>
+          <div class="vchips"><span class="vchip">Bağımlı: Çıkış sıcaklığı</span><span class="vchip">Grup: A / B</span></div>
+          <table class="g" id="grid"><thead><tr><th>#</th><th>Grup</th><th>Çıkış sıcaklığı (°C)</th><th>Debi (kg/s)</th></tr></thead><tbody></tbody></table>
+        </div>
+        <div class="col">
+          <b style="font-size:14px">Bağımsız örneklem t-testi</b>
+          <div style="margin:8px 0"><div class="check">✓ Normallik (Shapiro-Wilk): sağlandı</div><div class="check">✓ Varyans eşitliği (Levene): sağlandı</div></div>
+          <div style="font-family:var(--doc);font-style:italic;font-size:13px">Tablo 2</div>
+          <div style="font-family:var(--doc);font-size:13px;margin-bottom:2px">Gruplara göre çıkış sıcaklığı</div>
+          <table class="apa"><thead><tr><th>Grup</th><th>n</th><th>Ort.</th><th>SS</th></tr></thead><tbody><tr><td>A</td><td>12</td><td>312,4</td><td>4,1</td></tr><tr><td>B</td><td>12</td><td>308,6</td><td>3,9</td></tr></tbody></table>
+          <div class="apa-sent">A grubunun çıkış sıcaklığı (<i>Ort.</i> = 312,4, <i>SS</i> = 4,1) B grubundan anlamlı düzeyde yüksektir, <i>t</i>(22) = 2,31, <i>p</i> = ,031, <i>d</i> = 0,94.</div>
+          <svg viewBox="0 0 340 120" style="width:100%;height:auto" aria-label="Kutu grafiği">
+            <line x1="40" y1="100" x2="330" y2="100" stroke="#C3C6D6"/>
+            <g><line x1="110" y1="20" x2="110" y2="88" stroke="#6C5CE7"/><rect x="85" y="36" width="50" height="34" fill="#EFEDFD" stroke="#6C5CE7"/><line x1="85" y1="52" x2="135" y2="52" stroke="#6C5CE7" stroke-width="2"/><text x="110" y="114" text-anchor="middle" font-size="11" fill="#4B5068">A</text></g>
+            <g><line x1="250" y1="32" x2="250" y2="96" stroke="#4B5068"/><rect x="225" y="48" width="50" height="32" fill="#F1F2F6" stroke="#4B5068"/><line x1="225" y1="64" x2="275" y2="64" stroke="#4B5068" stroke-width="2"/><text x="250" y="114" text-anchor="middle" font-size="11" fill="#4B5068">B</text></g>
+          </svg>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn primary sm" data-action="insertTable">Belgeye tablo olarak ekle</button><button class="btn ghost sm" data-toast="Grafik belgeye eklenirdi (prototip).">Grafiği ekle</button><button class="linkbtn" data-toast="APA cümlesi panoya kopyalandı (prototip).">Raporu kopyala</button></div>
+          <div class="scan" style="margin-top:10px">Örnek veri. Hesaplar tarayıcında yapılır · çekirdek SciPy 1.17 ile doğrulandı.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TESLİM ============ -->
+    <section class="view" id="v-teslim">
+      <div class="full"><div class="wrap">
+        <div style="display:flex;align-items:center;gap:12px"><button class="back" data-go="yaz">← Belgeye dön</button></div>
+        <h1 class="h1" style="margin-top:8px">Teslime hazırla</h1>
+        <div class="stepper" style="margin-top:14px"><span class="st on"><i>1</i>Kontrol</span><span class="ln"></span><span class="st"><i>2</i>Önizleme</span><span class="ln"></span><span class="st"><i>3</i>Dışa aktar</span></div>
+        <div class="teslim">
+          <div>
+            <div class="filters" id="tFilters"><button class="chip on" data-f="all">Tümü 14</button><button class="chip" data-f="e">Hata 2</button><button class="chip" data-f="w">Uyarı 5</button><button class="chip" data-f="i">Bilgi 7</button></div>
+            <div class="issue" data-sev="e"><div class="h"><span class="sev e">Hata</span>Geri çekilmiş kaynağa atıf</div><div class="loc">Bölüm 2.3, paragraf 4</div><div class="exc">Bozunma ısısı kıyas çalışmaları bu yaklaşımı doğrulamaktadır <span class="cite">(IAEA, 2014)</span>.</div><button class="linkbtn">Metinde göster</button><button class="linkbtn">Kaynağı aç</button></div>
+            <div class="issue" data-sev="e"><div class="h"><span class="sev e">Hata</span>Metindeki atıf kaynakçada yok</div><div class="loc">Bölüm 4.1, paragraf 2</div><div class="exc">…sonuçlar önceki ölçümlerle uyumludur <span class="cite">(Park, 2020)</span>.</div><button class="linkbtn">Metinde göster</button><button class="linkbtn">Kaynak ekle</button></div>
+            <div class="issue" data-sev="w"><div class="h"><span class="sev w">Uyarı</span>Atıfsız iddia (3)</div><div class="loc">Bölüm 1.1 · 2.2 · 4.3</div><div class="exc">Doğal sirkülasyonun kararlılığı, düşük güç seviyelerinde…</div><button class="linkbtn">Metinde göster</button><button class="linkbtn">İddia değil</button></div>
+            <div class="issue" data-sev="w"><div class="h"><span class="sev w">Uyarı</span>Doğrudan alıntıda sayfa numarası yok</div><div class="loc">Bölüm 1.2, paragraf 1</div><button class="linkbtn">Metinde göster</button></div>
+            <div class="issue" data-sev="w"><div class="h"><span class="sev w">Uyarı</span>Kaynakta eksik bilgi: yıl</div><div class="loc">Kaynakça · Lee</div><button class="linkbtn">Kaynağı düzenle</button></div>
+            <div class="issue" data-sev="i"><div class="h"><span class="sev i">Bilgi</span>Atıf yapılmayan kaynak (5)</div><div class="loc">Kaynaklar</div><button class="linkbtn">Listeyi aç</button></div>
+            <div class="issue" data-sev="i"><div class="h"><span class="sev i">Bilgi</span>Boş bölüm (2)</div><div class="loc">5 Sonuç · Ekler</div><button class="linkbtn">Bölüme git</button></div>
+            <div class="scan">Pasajla doğrulama yapılmadı; kontroller metin ve kaynakça üzerinden. <button class="linkbtn">Susturulanlar (2)</button></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn ghost">Yine de devam et</button><button class="btn primary" data-toast="Önizleme: belge Teslim görünümünde açılırdı.">Önizlemeye geç</button></div>
+          </div>
+          <div>
+            <div class="panel" style="margin-bottom:12px">
+              <b>Tez teslim paketi</b>
+              <div class="scan" style="margin-bottom:6px">Liste genel tez şablonuna göre; kurum kılavuzunla karşılaştır.</div>
+              <div class="pkg-row">Kapak<span class="pill var">Var</span></div>
+              <div class="pkg-row">Onay sayfası<span class="pill yok">Yok</span></div>
+              <div class="pkg-row">Etik beyan<span class="pill bos">Başlık var, içi boş</span></div>
+              <div class="pkg-row">Özet<span class="pill var">Var</span></div>
+              <div class="pkg-row">Abstract<span class="pill var">Var</span></div>
+              <div class="pkg-row">İçindekiler<span class="pill var">Var</span></div>
+              <div class="pkg-row">Tablolar listesi<span class="pill var">Var</span></div>
+              <div class="pkg-row">Şekiller listesi<span class="pill yok">Yok</span></div>
+              <div class="pkg-row">Ekler<span class="pill bos">Başlık var, içi boş</span></div>
+            </div>
+            <div class="panel">
+              <b>Dışa aktar</b>
+              <div class="exp"><button>Word (.docx)<small>Biçim ve sayfa ayarlarıyla</small></button><button>PDF<small>Tarayıcının yazdırma penceresi</small></button><button>BibTeX<small>Kaynakça dosyası</small></button><button>RIS<small>Zotero, Mendeley için</small></button></div>
+              <div class="scan" style="margin-top:10px">Benzerlik (intihal) raporu bu araçta yok; enstitünün sistemini kullan.</div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </section>
+  </div>
+</div>
+
+<!-- seçim menüsü -->
+<div class="selmenu" id="selmenu" role="menu">
+  <button disabled title="İddiadan kanıta arama (WO-005)">Kanıt bul<span class="soon">Yakında</span></button>
+  <button data-sel="lang">Dil ve anlatımı düzelt</button>
+  <button data-sel="need">Kaynak ihtiyacını değerlendir</button>
+  <button data-sel="cite">Atıf ekle</button>
+</div>
+
+<!-- komut kutusu -->
+<div class="scrim" id="scrim">
+  <div class="palette" role="dialog" aria-label="Komut kutusu">
+    <input id="pIn" placeholder="Ne yapmak istiyorsun?  ör. tablo, t-testi, kaynakça" autocomplete="off">
+    <div class="plist" id="pList"></div>
+    <div class="pfoot">↑↓ seç · Enter aç · Esc kapat</div>
+  </div>
+</div>
+
+<!-- yeni belge penceresi -->
+<div class="modal-bg" id="newDoc">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ndTitle">
+    <h3 id="ndTitle">Yeni belge</h3>
+    <div class="hint" style="margin:0">Bu ayarlar yalnız bu belgeye uygulanır. Sonradan Kaynaklar'dan değiştirebilirsin; metin silinmez.</div>
+    <div class="fld"><label class="l" for="ndName">Belge adı</label><input class="txt" id="ndName"></div>
+    <div class="fld"><span class="l" style="display:block;font-weight:600;margin-bottom:6px">Atıf stili</span>
+      <div class="seg" id="ndStyle"><button class="on">APA 7</button><button>IEEE</button><button>MLA</button><button>Chicago</button><button disabled title="Yakında">İSNAD</button></div>
+      <div class="hint">Bölümün veya enstitün hangisini istiyorsa onu seç. İSNAD yakında.</div>
+    </div>
+    <div class="fld"><span class="l" style="display:block;font-weight:600;margin-bottom:6px">Sayfa</span>
+      <div class="seg"><button class="on">A4</button><button>Letter</button></div>
+    </div>
+    <div class="foot"><button class="btn ghost" id="ndCancel">Vazgeç</button><button class="btn primary" id="ndOk">Oluştur</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="proto">Prototip — veriler örnektir · <a href="#ilk" style="color:#C9C2FF;pointer-events:auto" id="firstLink">ilk açılışı dene</a></div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+/* ---------- bildirim ---------- */
+let toastT;
+function toast(msg, undo) {
+  const t = $('#toast');
+  t.innerHTML = '';
+  t.append(msg);
+  if (undo) { const b = document.createElement('button'); b.textContent = 'Geri al'; b.onclick = () => { undo(); t.classList.remove('on'); }; t.append(b); }
+  t.classList.add('on');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 3600);
+}
+
+/* ---------- görünümler ---------- */
+function go(view, anchor) {
+  $('#selmenu').classList.remove('on');
+  document.body.dataset.view = view;
+  $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + view));
+  $$('.rail [data-go]').forEach(b => b.classList.toggle('on', b.dataset.go === view && !b.dataset.anchor));
+  if (anchor) setTimeout(() => document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth' }), 30);
+}
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-go]');
+  if (g) { go(g.dataset.go, g.dataset.anchor); return; }
+  const t = e.target.closest('[data-toast]');
+  if (t) { e.preventDefault(); toast(t.dataset.toast); return; }
+  const r = e.target.closest('[data-action="research"]');
+  if (r) toast('Araştırma ekranına dönülürdü; belge, imleç ve kaydırma korunur.');
+  const s = e.target.closest('[data-side]');
+  if (s) openSide(s.dataset.side);
+  const rv = e.target.closest('[data-reveal]');
+  if (rv) reveal(rv.dataset.reveal);
+});
+
+/* ---------- araştırma ---------- */
+$$('[data-rs]').forEach(b => b.onclick = () => {
+  $$('[data-rs]').forEach(x => x.classList.toggle('on', x === b));
+  $('#rsKonu').style.display = b.dataset.rs === 'konu' ? '' : 'none';
+  $('#rsYazar').style.display = b.dataset.rs === 'yazar' ? '' : 'none';
+});
+$('#rsGo').onclick = () => { $('#rsRes').style.display = ''; $('#rsFeat').style.display = 'none'; $('#rsRes').scrollIntoView({ behavior: 'smooth' }); };
+$('#rsQ').addEventListener('keydown', e => { if (e.key === 'Enter') $('#rsGo').click(); });
+let basket = 5;
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-basket]'); if (!b) return;
+  basket++; $('#basketBadge').textContent = basket;
+  const s = document.createElement('span'); s.className = 'tag-c'; s.textContent = 'Sepette ✓'; b.replaceWith(s);
+  toast('Sepete eklendi. Yaz\'da atıf olarak kullanabilirsin.');
+});
+go('arastirma');
+
+/* ---------- ilk açılış (hiç taslak yok) ---------- */
+function applyFirst() {
+  const first = location.hash === '#ilk';
+  document.body.classList.toggle('first', first);
+  // Taslağı olmayan kullanıcıya "Yazmaya devam et" değil "Yazmaya başla" denir.
+  $('.research-only.btn').textContent = first ? '✎ Yazmaya başla' : '✎ Yazmaya devam et';
+  $('.research-only.btn').dataset.go = first ? 'masam' : 'yaz';
+  $('#firstLink').textContent = first ? 'normal görünüme dön' : 'ilk açılışı dene';
+  $('#firstLink').href = first ? '#' : '#ilk';
+}
+addEventListener('hashchange', applyFirst);
+applyFirst();
+
+/* ---------- şerit ---------- */
+$$('.rtabs button').forEach(b => b.onclick = () => {
+  $$('.rtabs button').forEach(x => x.classList.toggle('on', x === b));
+  $$('.rrow').forEach(r => r.classList.toggle('on', r.dataset.rr === b.dataset.rt));
+});
+$$('[data-cmd]').forEach(b => b.addEventListener('mousedown', e => { e.preventDefault(); document.execCommand(b.dataset.cmd); }));
+$('[data-more]').onclick = () => toast('Sığmayan araçlar burada: girinti, vurgu, üst/alt simge, biçimi temizle.');
+
+/* ---------- kenar panelleri ---------- */
+const outline = $('#outline'), side = $('#side');
+let outlinePinned = false;
+$('#olToggle').onclick = () => { outline.classList.toggle('collapsed'); outlinePinned = !outline.classList.contains('collapsed'); };
+function openSide(tab) {
+  side.classList.remove('closed');
+  if (tab) { $$('.stabs .t').forEach(x => x.classList.toggle('on', x.dataset.st === tab)); $$('.spane').forEach(p => p.classList.toggle('on', p.dataset.sp === tab)); }
+  // 1440'ta A4 küçülmesin diye sol panel ikona iner; kullanıcı açtıysa dokunulmaz.
+  if (innerWidth < 1500 && !outlinePinned) outline.classList.add('collapsed');
+  $('#sideOpen').style.display = 'none';
+}
+function closeSide() {
+  side.classList.add('closed'); $('#sideOpen').style.display = '';
+  $('#railWarn').textContent = $('#kWarn').textContent;
+  // Kapatan düğme yok oldu; odak kaybolmasın diye şeride geçer.
+  if (side.contains(document.activeElement) || document.activeElement === document.body) $('#sideTab button').focus();
+}
+$$('[data-open-side]').forEach(b => b.onclick = () => openSide(b.dataset.openSide));
+$('#sideClose').onclick = closeSide;
+$('#sideOpen').onclick = () => openSide();
+$('#sideOpen').style.display = 'none';
+$$('.stabs .t').forEach(b => b.onclick = () => openSide(b.dataset.st));
+if (innerWidth < 1500) outline.classList.add('collapsed');
+
+$$('[data-jump]').forEach(b => b.onclick = () => { $$('.ol-item').forEach(x => x.classList.toggle('on', x === b)); reveal(b.dataset.jump); });
+function reveal(id) {
+  go('yaz');
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+}
+
+/* ---------- kanıt kartı ---------- */
+let cited = false;
+document.querySelector('[data-action="cite"]').onclick = () => {
+  const claim = $('#claim1');
+  if (cited) { toast('Bu kaynak bu iddiaya zaten bağlı.'); return; }
+  const c = document.createElement('span');
+  c.className = 'cite'; c.contentEditable = 'false'; c.textContent = '(Ingersoll, 2016)';
+  claim.after(' ', c);
+  cited = true;
+  reveal('claim1');
+  toast('Atıf eklendi. Kaynakça kayıttan kuruldu.', () => { c.previousSibling?.remove?.(); c.remove(); cited = false; });
+};
+document.querySelector('[data-action="suggest"]').onclick = () => {
+  const box = $('#suggestBox');
+  if (box.innerHTML) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="suggest"><small>Yalnız bu pasajdan üretildi · Destekliyor</small><p>Pasif güvenlik sistemleri, dış güç ve operatör müdahalesi olmaksızın bozunma ısısını uzaklaştırarak KMR tasarımlarının güvenlik marjını artırmaktadır.</p><div class="acts"><button class="btn primary sm" id="sgIns">Metne ekle</button><button class="btn ghost sm" id="sgNo">Vazgeç</button></div></div>`;
+  $('#sgNo').onclick = () => box.innerHTML = '';
+  $('#sgIns').onclick = () => {
+    const p = $('#claim1').closest('p');
+    const np = document.createElement('p');
+    np.innerHTML = 'Pasif güvenlik sistemleri, dış güç ve operatör müdahalesi olmaksızın bozunma ısısını uzaklaştırarak KMR tasarımlarının güvenlik marjını artırmaktadır <span class="cite" contenteditable="false">(Ingersoll, 2016)</span>.';
+    np.id = 'insS'; p.after(np); box.innerHTML = '';
+    reveal('insS');
+    toast('Cümle metne eklendi. Kaynağı ve pasajı kayıtta duruyor.', () => np.remove());
+  };
+};
+
+/* ---------- araştırmadan yazıma köprü (A yolu: sorgu eşleştirme) ----------
+   Kararlar (16.10.2026):
+   1. Eşleşme konu benzerliğidir, kanıt değildir: kart nötr, sınıf rozeti yok.
+   2. Bu yolla eklenen atıf "doğrulanmadı" işareti taşır ve Kontrol'e girer.
+   3. Türkçe iddia İngilizce özetle değil, makaleyi getiren arama sorgusuyla
+      karşılaştırılır. Model çağrısı yok, veri tarayıcıdan çıkmaz.
+   Atıf imlece değil, panel açılırken bağlanan iddia cümlesinin kimliğine gider. */
+const PAPERS = {
+  ing: { t: 'Small Modular Reactors: Nuclear Power Fad or Future?', a: 'Ingersoll, D. T.', y: 2016, cite: '(Ingersoll, 2016)', abs: 'Passive safety systems remove decay heat without operator action or external power, which substantially increases the safety margin of SMR designs during station blackout scenarios.' },
+  zhang: { t: 'Natural circulation in integral pressurized water reactors', a: 'Zhang, L. ve diğ.', y: 2021, cite: '(Zhang ve diğ., 2021)', abs: 'In integral PWRs, natural circulation provides adequate core cooling for at least 72 hours after shutdown.' },
+  iaea: { t: 'Decay heat removal benchmarks', a: 'IAEA', y: 2014, cite: '(IAEA, 2014)', retracted: true, abs: 'Benchmark exercises for decay heat removal in advanced reactor designs.' },
+  okafor: { t: 'Passive heat removal in SMR containment: a review', a: 'Okafor, C. ve Ruiz, M.', y: 2023, cite: '(Okafor ve Ruiz, 2023)', abs: 'This review compares passive containment cooling concepts across eleven SMR designs.' },
+  kumar: { t: 'Flow instabilities at low power', a: 'Kumar, A. ve Singh, R.', y: 2019, cite: '(Kumar ve Singh, 2019)', abs: 'Flow instabilities in natural circulation loops may reduce passive heat removal capacity at low power.' },
+  banerjee: { t: 'Stability of two-phase natural circulation loops at low power', a: 'Banerjee, S.', y: 2018, cite: '(Banerjee, 2018)', abs: 'Flow oscillations were observed below 8% of rated power in all three test loops.' },
+  lazard: { t: 'Levelized cost of electricity from small reactors', a: 'Moreno, P.', y: 2022, cite: '(Moreno, 2022)', abs: 'We estimate investment risk and levelized cost for factory-built reactor modules.' },
+};
+const BASKET_IDS = new Set(['ing', 'zhang', 'iaea', 'kumar']);
+const HISTORY = [
+  { q: 'küçük modüler reaktör pasif soğutma', when: '2 gün önce', papers: ['ing', 'zhang', 'iaea', 'okafor'] },
+  { q: 'doğal sirkülasyon kararlılık düşük güç', when: 'dün', papers: ['kumar', 'banerjee'] },
+  { q: 'nükleer santral yatırım riski maliyet', when: '12 Eki', papers: ['lazard'] },
+];
+const STOP = new Set(['olarak', 'olan', 'için', 'ancak', 'gibi', 'daha', 'veya', 'ile', 'bu', 'bir', 've', 'karşı', 'göre', 'olmadan', 'durumunda']);
+// Türkçe ekler için kaba gövde: ilk 5 harf. Ölçülmüş bir yöntem değil; E1 kümesi gelince değerlendirilir.
+const stems = (text) => {
+  const out = new Map();
+  for (const w of text.toLocaleLowerCase('tr').replace(/[^\p{L}\s]/gu, ' ').split(/\s+/)) {
+    if (w.length < 4 || STOP.has(w)) continue;
+    const s = w.slice(0, 5);
+    if (!out.has(s)) out.set(s, w);
+  }
+  return out;
+};
+function relatedFor(claim) {
+  const cs = stems(claim);
+  const hits = new Map();
+  HISTORY.slice(0, 3).forEach(h => {
+    const qs = stems(h.q);
+    const common = [...qs.keys()].filter(k => cs.has(k)).map(k => qs.get(k));
+    if (common.length < 2) return;
+    h.papers.forEach(id => {
+      const prev = hits.get(id);
+      if (!prev || prev.common.length < common.length) hits.set(id, { id, q: h.q, when: h.when, common });
+    });
+  });
+  const all = [...hits.values()].sort((a, b) => b.common.length - a.common.length);
+  return { basket: all.filter(x => BASKET_IDS.has(x.id)), recent: all.filter(x => !BASKET_IDS.has(x.id)) };
+}
+let currentClaim = 'claim1', lastRange = null;
+function bindClaim() {
+  if (!lastRange) return null;
+  let el = lastRange.commonAncestorContainer;
+  el = el.nodeType === 3 ? el.parentElement : el;
+  const existing = el.closest('[data-claim]');
+  if (existing) return existing.id;
+  // İddia her zaman tam cümledir: yarım seçim cümle sınırlarına genişletilir.
+  const r = lastRange;
+  if (r.startContainer === r.endContainer && r.startContainer.nodeType === 3) {
+    const t = r.startContainer.textContent;
+    const prevEnd = Math.max(t.lastIndexOf('. ', r.startOffset - 1), t.lastIndexOf('? ', r.startOffset - 1));
+    let start = prevEnd >= 0 ? prevEnd + 2 : 0;
+    while (start < t.length && /\s/.test(t[start])) start++;
+    const m = /[.?!]/.exec(t.slice(r.endOffset - 1));
+    const end = m ? r.endOffset - 1 + m.index + 1 : t.length;
+    r.setStart(r.startContainer, start); r.setEnd(r.startContainer, end);
+  }
+  const span = document.createElement('span');
+  span.dataset.claim = ''; span.id = 'c' + Date.now();
+  try { lastRange.surroundContents(span); } catch { span.append(lastRange.extractContents()); lastRange.insertNode(span); }
+  return span.id;
+}
+function setClaim(id) {
+  currentClaim = id;
+  $$('#docBody .claim').forEach(x => x.classList.remove('claim'));
+  const el = document.getElementById(id);
+  el.classList.add('claim');
+  $('#claimText').textContent = el.textContent;
+  renderBridge(el.textContent);
+}
+function bcard(x) {
+  const p = PAPERS[x.id];
+  return `<div class="bcard" data-pid="${x.id}">
+    <b>${p.t}</b><div class="meta">${p.a} · ${p.y}${p.retracted ? ' · <span class="rt">Geri çekildi</span>' : ''}</div>
+    <div class="why">Neden burada: <q>${x.q}</q> aramandan (${x.when}) · ortak: ${x.common.join(', ')}</div>
+    <div class="acts">${p.retracted
+      ? '<button class="btn ghost sm" disabled title="Geri çekilmiş kaynağa atıf önerilmez">Atıf önerilmez</button>'
+      : '<button class="btn ghost sm" data-bcite>Atıf olarak ekle</button>'}
+      <button class="linkbtn" data-babs>Özeti oku</button></div></div>`;
+}
+function renderBridge(claim) {
+  const { basket, recent } = relatedFor(claim);
+  let html = `<div class="bridge-h"><b>Son aramandan ilgili olabilir</b><span style="color:var(--muted);font-size:11.5px">${basket.length + recent.length} makale</span></div>
+    <div class="bridge-note">Konu benzerliğine göre, arama sorgularınla eşleştirildi. Destek anlamına gelmez; eklenen atıf "doğrulanmadı" olarak işaretlenir.</div>`;
+  if (!basket.length && !recent.length) {
+    const words = [...stems(claim).values()].slice(0, 4).join(' ');
+    html += `<div class="bempty">Son 3 aramanda bu cümleyle eşleşen bir sorgu yok.<br><button class="linkbtn" style="margin-top:6px" data-bsearch="${words}">Araştırmada ara: “${words}” →</button></div>`;
+  } else {
+    if (basket.length) html += '<div class="bsub">Sepetinden</div>' + basket.map(bcard).join('');
+    if (recent.length) html += '<div class="bsub">Son aramalarından</div>' + recent.map(bcard).join('');
+  }
+  $('#bridge').innerHTML = html;
+}
+$('#bridge').addEventListener('click', e => {
+  const card = e.target.closest('.bcard');
+  if (e.target.closest('[data-babs]')) {
+    const ex = card.querySelector('.abs');
+    if (ex) ex.remove(); else card.querySelector('.why').insertAdjacentHTML('afterend', `<div class="abs">${PAPERS[card.dataset.pid].abs}</div><div class="scan" style="margin:-4px 0 8px">Yalnız özet; tam metin okunmadı.</div>`);
+    return;
+  }
+  const sb = e.target.closest('[data-bsearch]');
+  if (sb) { go('arastirma'); $('#rsQ').value = sb.dataset.bsearch; $('#rsQ').focus(); return; }
+  if (!e.target.closest('[data-bcite]')) return;
+  const claimEl = document.getElementById(currentClaim);
+  if (!claimEl || !$('#docBody').contains(claimEl)) { toast('Bu cümle artık belgede yok; atıf eklenmedi.'); return; }
+  const p = PAPERS[card.dataset.pid];
+  const c = document.createElement('span');
+  c.className = 'cite unv'; c.contentEditable = 'false'; c.textContent = p.cite;
+  c.title = 'Doğrulanmadı: konu benzerliğiyle eklendi, pasajla karşılaştırılmadı';
+  // İddianın arkasındaki mevcut atıfların sonuna eklenir; sıra korunur.
+  let anchor = claimEl;
+  for (let n = claimEl.nextSibling; n; n = n.nextSibling) {
+    if (n.nodeType === 3 && !n.textContent.trim()) continue;
+    if (n.nodeType === 1 && n.classList.contains('cite')) { anchor = n; continue; }
+    break;
+  }
+  anchor.after(' ', c);
+  const item = document.createElement('div');
+  item.className = 'issue';
+  item.innerHTML = `<div class="h"><span class="sev w">Uyarı</span>Doğrulanmamış atıf</div><div class="loc">${p.cite}</div><div class="exc">${claimEl.textContent.slice(0, 70)}…</div><button class="linkbtn" data-reveal="${currentClaim}">Metinde göster</button>`;
+  $('#unvList').append(item);
+  const bump = (d) => { $('#kAll').textContent = +$('#kAll').textContent + d; $('#kWarn').textContent = +$('#kWarn').textContent + d; };
+  bump(1);
+  reveal(currentClaim);
+  toast(`${p.cite} eklendi — doğrulanmadı olarak işaretli, Kontrol'de görünüyor.`, () => { c.previousSibling?.remove?.(); c.remove(); item.remove(); bump(-1); });
+});
+renderBridge($('#claim1').textContent);
+
+/* ---------- seçim menüsü ---------- */
+const selmenu = $('#selmenu');
+let lastSel = '';
+function placeMenu() {
+  const s = getSelection(); const txt = s.toString().trim();
+  if (!txt || s.rangeCount === 0 || !$('#docBody').contains(s.anchorNode)) { selmenu.classList.remove('on'); return; }
+  lastSel = txt;
+  lastRange = s.getRangeAt(0).cloneRange();
+  const r = s.getRangeAt(0).getBoundingClientRect();
+  selmenu.classList.add('on');
+  const w = selmenu.offsetWidth;
+  selmenu.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+  selmenu.style.top = Math.max(56, r.top - 46) + 'px';
+}
+$('#docBody').addEventListener('mouseup', () => setTimeout(placeMenu, 0));
+document.addEventListener('mousedown', e => { if (!e.target.closest('#selmenu')) selmenu.classList.remove('on'); });
+// Seçim yaparken odak sayfayı birkaç piksel kaydırabiliyor; menüyü kapatmak yerine yerini güncelle.
+$('#canvas').addEventListener('scroll', () => { if (selmenu.classList.contains('on')) placeMenu(); });
+selmenu.addEventListener('click', e => {
+  const b = e.target.closest('[data-sel]'); if (!b) return;
+  selmenu.classList.remove('on');
+  if (b.dataset.sel === 'need') {
+    const id = bindClaim();
+    if (!id) return;
+    setClaim(id);
+    openSide('kanit');
+    toast('Seçili cümle iddia olarak işaretlendi. Sağda son aramalarından ilgili olabilecek makaleler var.');
+  }
+  if (b.dataset.sel === 'cite') openSide('kaynaklar');
+  if (b.dataset.sel === 'lang') toast('Dil önerisi sağ panelde gösterilir; metne yalnız sen eklersin.');
+});
+
+/* ---------- görselleştir (napkin benzeri) ----------
+   Her görsel yalnız o paragrafın cümlelerinden kurulur; her düğüm ve ok bir
+   cümleye bağlıdır ve etiketler cümleden birebir alınır. Metinde olmayan
+   ilişki çizilmez: uymayan şablon gizlenmez, nedenini söyler.
+   Prototipte paragraf yapıları elle çıkarıldı; üründe PR6 üretir, kod her
+   etiketin cümlede birebir geçtiğini doğrular (geçmeyen öğe atılır).
+   Şablon seçimi thinking-toolkit'in (MIT) seçim kurallarından uyarlandı:
+   neden sayılıyorsa balık kılçığı, sıra varsa akış, kapanan dönüş varsa döngü. */
+const THEMES = [
+  { fill: '#EFEDFD', stroke: '#6C5CE7', ink: '#2B2470', arrow: '#6C5CE7' },
+  { fill: '#E6F2F1', stroke: '#0F766E', ink: '#0B3B37', arrow: '#0F766E' },
+  { fill: '#EEF0F3', stroke: '#475569', ink: '#1E293B', arrow: '#475569' },
+  { fill: '#FDF0E6', stroke: '#C2410C', ink: '#5A1F05', arrow: '#C2410C' },
+];
+const TEMPLATES = [
+  { id: 'akis', name: 'Akış', orient: true },
+  { id: 'dongu', name: 'Döngü' },
+  { id: 'kavram', name: 'Kavram haritası' },
+  { id: 'hiyerarsi', name: 'Hiyerarşi' },
+  { id: 'balik', name: 'Balık kılçığı' },
+  { id: 'geri', name: 'Geri besleme' },
+  { id: 'arguman', name: 'Argüman haritası' },
+  { id: 'karsi', name: 'Karşılaştırma' },
+  { id: 'zaman', name: 'Zaman çizelgesi' },
+];
+const MODELS = {
+  cool: {
+    title: 'Pasif soğutma döngüsü',
+    nodes: [{ t: 'bozunma ısısı', s: 0 }, { t: 'doğal sirkülasyon', s: 1 }, { t: 'ısı değiştirici', s: 2 }, { t: 'yoğunluğu artan su', s: 3 }],
+    edges: [[0, 1, 'birincil soğutucuyu ısıtarak', 0], [1, 2, 'yukarı taşınır', 1], [2, 3, 'havuzuna aktarır', 2], [3, 0, 'çekirdeğe geri döner', 3]],
+    rec: 'dongu',
+    fit: { dongu: '"geri döner" ve "döngü tamamlanır" geçiyor: dönüş kapanıyor', akis: 'Dört adım sırayla anlatılıyor', kavram: 'Adımlar fiillerle birbirine bağlanmış' },
+    unfit: {
+      hiyerarsi: 'Paragrafta üst–alt (tür, parça) ilişkisi yok; adımlar eşit düzeyde.',
+      balik: 'Bir sonucun nedenleri sayılmıyor; bir süreç anlatılıyor.',
+      geri: '"Artırır / azaltır" türü yönlü etki yok. Kutup işareti (+/−) metinde olmadan çizilmez.',
+      arguman: 'Paragrafta iddia ya da atıf yok; süreç anlatılıyor.',
+      karsi: 'Karşılaştırılan iki taraf yok.',
+      zaman: 'Tarih ya da dönem yok; adımlar zaman değil sıra bildiriyor. Sıra için Akış.',
+    },
+  },
+  fac: {
+    title: 'Akış kararsızlığını etkileyen etkenler',
+    effect: { t: 'akış kararsızlığı', s: 0 },
+    nodes: [{ t: 'akış kararsızlığı', s: 0 }, { t: 'düşük güç seviyesi', s: 1 }, { t: 'iki fazlı akış', s: 2 }, { t: 'boru geometrisi ve yerel kayıplar', s: 3 }, { t: 'soğutma koşulları', s: 4 }],
+    edges: [[1, 0, 'kaldırma kuvvetini zayıflatır', 1], [2, 0, 'basınç düşüşünü dalgalandırır', 2], [3, 0, 'sönümlemeyi azaltır', 3], [4, 0, 'dönüş sıcaklığını değiştirir', 4]],
+    rec: 'balik',
+    fit: { balik: '"birkaç etkene bağlıdır" ve ardından 4 etken sayılıyor', kavram: 'Her etkenin etkisi bir fiille adlandırılmış', hiyerarsi: 'Tek sonuç altında 4 etken' },
+    unfit: {
+      akis: 'Etkenler bir sıra izlemiyor; aynı anda etkiliyorlar.',
+      dongu: 'Sonuç nedenlere geri dönmüyor.',
+      geri: 'Yönlü etkiler var ("zayıflatır", "azaltır") ama döngü kapanmıyor: kararsızlığın etkenlere geri etkisi metinde yok.',
+      arguman: 'Atıf yok; iddia–destek yapısı yerine etkenler sayılıyor.',
+      karsi: 'Karşılaştırılan iki taraf yok.',
+      zaman: 'Tarih ya da dönem yok.',
+    },
+  },
+  arg: {
+    title: 'KMR güvenlik iddiası ve sınırlılığı',
+    nodes: [{ t: 'yatırım riskini azaltmayı hedefler', s: 0, role: 'Önerme' }, { t: 'güvenlik marjını artırır', s: 1, role: 'İddia' }, { t: 'sınırlı biçimde doğrulanmıştır', s: 2, role: 'Sınırlılık' }],
+    edges: [[2, 1, 'Ancak', 2]],
+    rec: 'arguman',
+    fit: { arguman: 'Atıflı ve atıfsız cümleler var; "Ancak" bir sınırlılık bildiriyor' },
+    unfit: {
+      akis: 'Cümleler bir sıra değil, bir argüman kuruyor.',
+      dongu: 'Dönüş yok.',
+      kavram: 'Kavramlar arasında fiille kurulmuş ilişki yok; cümleler birbirini destekliyor ya da sınırlıyor.',
+      hiyerarsi: 'Üst–alt ilişkisi yok.',
+      balik: 'Bir sonucun nedenleri sayılmıyor.',
+      geri: 'Yönlü etki zinciri yok.',
+      karsi: 'Karşılaştırılan iki taraf yok.',
+      zaman: 'Tarih ya da dönem yok.',
+    },
+  },
+};
+const viz = { tpl: null, theme: 0, orient: 'h', all: false };
+const cap1 = (s) => s.charAt(0).toLocaleUpperCase('tr') + s.slice(1);
+function wrap(s, n) { const out = []; let cur = ''; for (const w of s.split(' ')) { if ((cur + ' ' + w).trim().length > n && cur) { out.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); } out.push(cur); return out; }
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const defs = (th) => `<defs><marker id="ah${th.stroke.slice(1)}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="${th.arrow}"/></marker></defs>`;
+function box(x, y, w, h, node, th, i, { pill = false, num = true, sub = null } = {}) {
+  const lines = wrap(cap1(node.t), Math.max(10, Math.floor(w / 8.4)));
+  const ty = y + h / 2 - (lines.length - 1) * 8 + 5 - (sub ? 6 : 0);
+  return `<g class="node" data-n="${i}" data-s="${node.s}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${pill ? h / 2 : 12}" fill="${th.fill}" stroke="${th.stroke}" stroke-width="1.5"/>` +
+    (num ? `<circle cx="${x + 13}" cy="${y + 13}" r="8" fill="${th.stroke}"/><text x="${x + 13}" y="${y + 17}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">${node.s + 1}</text>` : '') +
+    lines.map((l, k) => `<text x="${x + w / 2}" y="${ty + k * 16}" text-anchor="middle" font-size="13" font-weight="600" fill="${th.ink}" font-family="Plus Jakarta Sans, sans-serif">${esc(l)}</text>`).join('') +
+    (sub ? `<text x="${x + w / 2}" y="${y + h - 10}" text-anchor="middle" font-size="10.5" font-style="italic" fill="${th.ink}" opacity=".85">${esc(sub)}</text>` : '') + `</g>`;
+}
+function label(x, y, text, th, s, anchor = 'middle') {
+  const w = text.length * 6.1 + 12;
+  const rx = anchor === 'middle' ? x - w / 2 : anchor === 'start' ? x - 4 : x - w + 4;
+  return `<g class="node" data-s="${s}"><rect x="${rx}" y="${y - 12}" width="${w}" height="18" rx="5" fill="#fff" stroke="${th.fill}" /><text x="${x}" y="${y + 1}" text-anchor="${anchor}" font-size="11" font-style="italic" fill="${th.ink}">${esc(text)}</text></g>`;
+}
+const line = (x1, y1, x2, y2, th, curve = 0) => {
+  const mx = (x1 + x2) / 2 + curve, my = (y1 + y2) / 2 - curve * 0.25;
+  return `<path d="M${x1} ${y1} Q${mx} ${my} ${x2} ${y2}" fill="none" stroke="${th.arrow}" stroke-width="2" marker-end="url(#ah${th.stroke.slice(1)})"/>`;
+};
+
+const RENDER = {
+  akis(m, th, orient) {
+    const v = orient === 'v', n = m.nodes.length, w = 138, h = 58;
+    let s = defs(th);
+    if (v) {
+      m.nodes.forEach((nd, i) => { s += box(40, 14 + i * 104, w, h, nd, th, i); });
+      m.edges.filter(e => e[1] === e[0] + 1).forEach(e => { const y = 14 + e[0] * 104 + h; s += line(109, y + 2, 109, y + 44, th) + label(196, y + 25, e[2], th, e[3], 'start'); });
+      return `<svg viewBox="0 0 470 ${n * 104}">${s}</svg>`;
+    }
+    m.nodes.forEach((nd, i) => { s += box(14 + i * 186, 30, w, h, nd, th, i); });
+    m.edges.filter(e => e[1] === e[0] + 1).forEach(e => { const x = 14 + e[0] * 186 + w; s += line(x + 2, 59, x + 46, 59, th) + label(x + 24, 120, e[2], th, e[3]); });
+    return `<svg viewBox="0 0 ${n * 186 - 34} 140">${s}</svg>`;
+  },
+  dongu(m, th) {
+    const P = [[225, 14], [430, 134], [225, 254], [20, 134]], w = 150, h = 62;
+    let s = defs(th) + line(380, 46, 490, 128, th, 30) + line(490, 200, 380, 286, th, 30) + line(220, 286, 110, 200, th, -30) + line(110, 128, 220, 46, th, -30);
+    const L = [[470, 70, 'start'], [470, 262, 'start'], [128, 262, 'end'], [128, 70, 'end']];
+    m.edges.forEach((e, i) => { s += label(L[i][0], L[i][1], e[2], th, e[3], L[i][2]); });
+    m.nodes.forEach((nd, i) => { s += box(P[i][0], P[i][1], w, h, nd, th, i); });
+    return `<svg viewBox="-60 0 720 330">${s}</svg>`;
+  },
+  kavram(m, th) {
+    let s = defs(th);
+    if (m.effect) {
+      const C = [300, 170], P = [[30, 24], [420, 24], [30, 262], [420, 262]], w = 170, h = 52;
+      m.edges.forEach((e, i) => {
+        const [x, y] = P[i], sx = x < 300 ? x + w : x, sy = y < 170 ? y + h : y, tx = x < 300 ? C[0] - 84 : C[0] + 84, ty = y < 170 ? C[1] - 26 : C[1] + 26;
+        s += line(sx, sy, tx, ty, th) + label((sx + tx) / 2, (sy + ty) / 2 + (y < 170 ? -4 : 12), e[2], th, e[3]);
+      });
+      s += box(C[0] - 84, C[1] - 26, 168, 52, m.nodes[0], th, 0, { pill: true, num: false });
+      m.nodes.slice(1).forEach((nd, i) => { s += box(P[i][0], P[i][1], w, h, nd, th, i + 1, { pill: true, num: false }); });
+      return `<svg viewBox="0 0 620 340">${s}</svg>`;
+    }
+    const P = [[30, 30], [400, 30], [400, 230], [30, 230]], w = 170, h = 52;
+    const E = [[200, 56, 400, 56], [485, 82, 485, 230], [400, 256, 200, 256], [115, 230, 115, 82]];
+    m.edges.forEach((e, i) => { const [a, b, c, d] = E[i]; s += line(a, b, c, d, th) + label((a + c) / 2, (b + d) / 2 + (i % 2 ? 4 : -10), e[2], th, e[3], i === 1 ? 'start' : i === 3 ? 'end' : 'middle'); });
+    m.nodes.forEach((nd, i) => { s += box(P[i][0], P[i][1], w, h, nd, th, i, { pill: true, num: false }); });
+    return `<svg viewBox="-70 0 740 310">${s}</svg>`;
+  },
+  hiyerarsi(m, th) {
+    let s = defs(th) + box(225, 12, 170, 56, m.nodes[0], th, 0);
+    const kids = m.nodes.slice(1), w = 140;
+    kids.forEach((nd, i) => {
+      const x = 10 + i * 152;
+      s += `<path d="M310 68 V96 H${x + w / 2} V122" fill="none" stroke="${th.arrow}" stroke-width="1.6"/>`;
+      s += box(x, 122, w, 76, nd, th, i + 1, { sub: m.edges[i] ? m.edges[i][2] : null });
+    });
+    return `<svg viewBox="0 0 620 210">${s}</svg>`;
+  },
+  balik(m, th) {
+    let s = defs(th);
+    s += `<line x1="30" y1="170" x2="470" y2="170" stroke="${th.stroke}" stroke-width="3"/>`;
+    s += `<g class="node" data-s="${m.effect.s}"><path d="M470 120 H610 a10 10 0 0 1 10 10 V210 a10 10 0 0 1 -10 10 H470 L450 170 Z" fill="${th.stroke}"/>` +
+      wrap(cap1(m.effect.t), 14).map((l, k) => `<text x="540" y="${166 + k * 16}" text-anchor="middle" font-size="13.5" font-weight="700" fill="#fff">${esc(l)}</text>`).join('') + '</g>';
+    const X = [130, 330, 130, 330];
+    m.edges.forEach((e, i) => {
+      const top = i < 2, x = X[i], y0 = top ? 40 : 300, nd = m.nodes[e[0]];
+      s += `<line x1="${x}" y1="${y0}" x2="${x + 80}" y2="170" stroke="${th.stroke}" stroke-width="2"/>`;
+      s += box(x - 80, top ? y0 - 40 : y0, 160, 40, nd, th, e[0], { num: false });
+      s += label(x + 48 + (top ? -6 : 6), top ? 108 : 238, e[2], th, e[3], 'start');
+    });
+    return `<svg viewBox="0 -8 640 356">${s}</svg>`;
+  },
+  arguman(m, th) {
+    const status = (i) => {
+      const el = $(`#${currentVizPara.id} [data-s="${m.nodes[i].s}"]`);
+      const cites = [];
+      for (let n = el && el.nextSibling; n; n = n.nextSibling) {
+        if (n.nodeType === 3 && /^[\s.,;]*$/.test(n.textContent)) continue;
+        if (n.nodeType === 1 && n.classList.contains('cite')) { cites.push({ t: n.textContent, unv: n.classList.contains('unv') }); continue; }
+        break;
+      }
+      if (!cites.length) return { t: 'Atıf yok', c: '#B45309', bg: '#FDF3E3' };
+      if (cites.every(c => c.unv)) return { t: 'Doğrulanmamış: ' + cites.map(c => c.t).join(' '), c: '#B45309', bg: '#FDF3E3' };
+      return { t: 'Atıflı: ' + cites.map(c => c.t).join(' '), c: '#5A48D8', bg: '#EFEDFD' };
+    };
+    const card = (x, y, i) => {
+      const nd = m.nodes[i], st = status(i), w = 190, h = 104;
+      const lines = wrap(cap1(nd.t), 22);
+      return `<g class="node" data-s="${nd.s}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" fill="#fff" stroke="${th.stroke}" stroke-width="${nd.role === 'İddia' ? 2.5 : 1.5}"/>` +
+        `<text x="${x + 12}" y="${y + 20}" font-size="10.5" font-weight="700" fill="${th.stroke}" letter-spacing=".04em">${nd.role.toLocaleUpperCase('tr')} · CÜMLE ${nd.s + 1}</text>` +
+        lines.map((l, k) => `<text x="${x + 12}" y="${y + 42 + k * 16}" font-size="13" font-weight="600" fill="${th.ink}">${esc(l)}</text>`).join('') +
+        `<rect x="${x + 10}" y="${y + h - 26}" width="${Math.min(w - 20, st.t.length * 5.9 + 14)}" height="18" rx="9" fill="${st.bg}"/><text x="${x + 17}" y="${y + h - 13}" font-size="10.5" font-weight="600" fill="${st.c}">${esc(st.t.length > 30 ? st.t.slice(0, 29) + '…' : st.t)}</text></g>`;
+    };
+    let s = defs(th) + card(215, 10, 1) + card(10, 170, 0) + card(420, 170, 2);
+    s += line(500, 168, 380, 116, th) + label(470, 140, '"' + m.edges[0][2] + '" — sınırlar', th, m.edges[0][3], 'start');
+    s += `<text x="105" y="150" text-anchor="middle" font-size="10.5" fill="#5F6478">metinde bağ kurulmamış</text>`;
+    return `<svg viewBox="0 0 630 290">${s}</svg>`;
+  },
+};
+function thumbSvg(id) {
+  const c = '#B9B0F5', d = '#6C5CE7';
+  const r = (x, y, w = 22, h = 12, rx = 3) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${c}"/>`;
+  const m = {
+    akis: r(2, 17) + r(27, 17) + r(52, 17) + r(77, 17),
+    dongu: r(39, 2) + r(68, 17) + r(39, 32) + r(10, 17) + `<circle cx="50" cy="23" r="13" fill="none" stroke="${d}" stroke-dasharray="3 3"/>`,
+    kavram: r(36, 17, 28, 12, 6) + r(4, 3, 24, 10, 5) + r(72, 3, 24, 10, 5) + r(4, 33, 24, 10, 5) + r(72, 33, 24, 10, 5) + `<path d="M28 8 40 18M72 8 60 18M28 38 40 28M72 38 60 28" stroke="${d}"/>`,
+    hiyerarsi: r(39, 2) + r(6, 30) + r(39, 30) + r(72, 30) + `<path d="M50 14v8M17 22h66M17 22v8M83 22v8" stroke="${d}" fill="none"/>`,
+    balik: `<path d="M6 23h68" stroke="${d}" stroke-width="2"/><path d="M74 14h20v18H74l-6-9z" fill="${d}"/><path d="M18 5l14 18M44 5l14 18M18 41l14-18M44 41l14-18" stroke="${c}" stroke-width="2"/>`,
+    geri: `<circle cx="50" cy="23" r="15" fill="none" stroke="${d}" stroke-width="2"/><text x="31" y="12" font-size="11" fill="${d}">+</text><text x="64" y="40" font-size="12" fill="${d}">−</text>` + r(40, 3, 20, 9) + r(40, 34, 20, 9),
+    arguman: r(34, 2, 32, 14) + r(4, 28, 30, 14) + r(66, 28, 30, 14) + `<path d="M74 28 58 17" stroke="${d}"/>`,
+    karsi: r(8, 4, 38, 38, 4) + r(54, 4, 38, 38, 4),
+    zaman: `<line x1="4" y1="34" x2="96" y2="34" stroke="${d}" stroke-width="2"/>` + [14, 38, 62, 86].map(x => `<circle cx="${x}" cy="34" r="3.5" fill="${d}"/>` + r(x - 11, 12)).join(''),
+  };
+  return `<svg viewBox="0 0 100 46">${m[id]}</svg>`;
+}
+
+let vizEl = null, figN = 3, currentVizPara = null, editingFig = null;
+const fitOf = (m, id) => m.fit[id] ? { ok: true, why: m.fit[id] } : { ok: false, why: m.unfit[id] || 'Bu paragrafa uymuyor.' };
+function orderedTemplates(m) {
+  return [...TEMPLATES].sort((a, b) => (b.id === m.rec) - (a.id === m.rec) || (!!m.fit[b.id]) - (!!m.fit[a.id]));
+}
+// Kullanıcının elle değiştirdiği etiketler modele uygulanır; kaynak cümle bağı (s) korunur.
+function editedModel(m) {
+  const n = m.nodes.map((nd, i) => ({ ...nd, t: viz.labels.n[i] }));
+  return {
+    ...m,
+    nodes: n,
+    edges: m.edges.map((e, i) => [e[0], e[1], viz.labels.e[i], e[3]]),
+    effect: m.effect ? { ...m.effect, t: viz.labels.n[0] } : undefined,
+  };
+}
+const editedCount = (m) => m.nodes.filter((nd, i) => viz.labels.n[i] !== nd.t).length + m.edges.filter((e, i) => viz.labels.e[i] !== e[2]).length;
+
+function openViz(para, state = null, fig = null) {
+  if (vizEl) { const same = currentVizPara === para && !fig && !editingFig; closeViz(); if (same) return; }
+  currentVizPara = para; editingFig = fig;
+  const m = MODELS[para.dataset.viz];
+  Object.assign(viz, state
+    ? { tpl: state.tpl, theme: state.theme, orient: state.orient, labels: { n: [...state.labels.n], e: [...state.labels.e] }, all: false }
+    : { tpl: m.rec, all: false, labels: { n: m.nodes.map(n => n.t), e: m.edges.map(e => e[2]) } });
+  para.querySelector('.viz-btn').classList.add('on');
+  vizEl = document.createElement('div');
+  vizEl.className = 'viz'; vizEl.contentEditable = 'false';
+  vizEl.innerHTML = `
+    <div class="viz-h"><b>${fig ? 'Şekli düzenle' : 'Bu paragraftan görsel'}</b><span>Yalnız bu paragraftaki ${para.querySelectorAll('[data-s]').length} cümleden kurulur</span><button class="x" aria-label="Kapat">×</button></div>
+    <div class="thumbs"></div>
+    <div class="viz-why"></div>
+    <div class="viz-prev"></div>
+    <div class="viz-src"></div>
+    <details class="viz-edit"${state && editedCount(m) ? ' open' : ''}><summary>Etiketleri düzenle</summary><div class="ve-list"></div></details>
+    <div class="viz-ctl">
+      <span style="display:flex;gap:6px">${THEMES.map((t, i) => `<button class="sw${i === viz.theme ? ' on' : ''}" data-th="${i}" style="background:${t.stroke}" aria-label="Renk ${i + 1}"></button>`).join('')}</span>
+      <span class="seg"><button data-or="h">Yatay</button><button data-or="v">Dikey</button></span>
+      <input class="cap" value="${esc(state ? state.cap : `Şekil ${figN}: ${m.title}`)}" aria-label="Şekil başlığı">
+      <button class="btn ghost sm" data-vz="cancel">Vazgeç</button>
+      <button class="btn primary sm" data-vz="add">${fig ? 'Güncelle' : 'Belgeye ekle'}</button>
+    </div>`;
+  (fig || para).after(vizEl);
+  if (fig) fig.style.display = 'none';
+  vizEl.querySelector('.x').onclick = closeViz;
+  vizEl.addEventListener('click', e => {
+    const t = e.target.closest('[data-tpl]'); if (t) { viz.tpl = t.dataset.tpl; paintViz(); }
+    if (e.target.closest('[data-vmore]')) { viz.all = !viz.all; paintViz(); }
+    const th = e.target.closest('[data-th]'); if (th) { viz.theme = +th.dataset.th; paintViz(); }
+    const o = e.target.closest('[data-or]'); if (o && !o.disabled) { viz.orient = o.dataset.or; paintViz(); }
+    const r = e.target.closest('[data-reset]');
+    if (r) {
+      const [k, i] = r.dataset.reset.split(':');
+      viz.labels[k][+i] = k === 'n' ? m.nodes[+i].t : m.edges[+i][2];
+      paintEditor(); paintPreview();
+    }
+    const a = e.target.closest('[data-vz]');
+    if (a?.dataset.vz === 'cancel') closeViz();
+    if (a?.dataset.vz === 'add' && !a.disabled) addFigure();
+  });
+  vizEl.addEventListener('input', e => {
+    // Görsel henüz belgede değil: etiket ve başlık yazımı belgeyi "değişti" saymasın.
+    e.stopPropagation();
+    const inp = e.target.closest('[data-lab]'); if (!inp) return;
+    const [k, i] = inp.dataset.lab.split(':');
+    viz.labels[k][+i] = inp.value;
+    // Odak kaybolmasın diye listeyi yeniden kurmadan yalnız işareti güncelle.
+    const orig = k === 'n' ? m.nodes[+i].t : m.edges[+i][2];
+    inp.closest('.ve-row').classList.toggle('edited', inp.value !== orig);
+    citeWarn(inp);
+    paintPreview();
+  });
+  paintEditor();
+  paintViz();
+  vizEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+// Etikete elle yazılan atıf kaynakçaya girmez ve kayıttan doğrulanmaz (tüzük 3.1): uyar, engelleme.
+const CITE_RE = /\([^()]*\b(1[89]|20)\d{2}[a-z]?\)|\[\d+(?:[,–-]\d+)*\]/;
+function citeWarn(inp) {
+  const row = inp.closest('.ve-row');
+  let w = row.nextElementSibling?.classList.contains('ve-warn') ? row.nextElementSibling : null;
+  if (CITE_RE.test(inp.value)) {
+    if (!w) { w = document.createElement('div'); w.className = 've-warn'; row.after(w); }
+    w.textContent = 'Etikette atıf var. Şekil etiketindeki atıf kaynakçaya girmez; atıfı metne "Atıf ekle" ile koy.';
+  } else w?.remove();
+}
+function paintEditor() {
+  const m = MODELS[currentVizPara.dataset.viz];
+  const row = (k, i, val, orig, s, kind) => `<label class="ve-row${val !== orig ? ' edited' : ''}"><span class="ve-s">${kind} · cümle ${s + 1}</span><input data-lab="${k}:${i}" value="${esc(val)}" aria-label="${kind} ${i + 1} etiketi"><span class="ve-tag">elle</span><button type="button" class="ve-reset" data-reset="${k}:${i}" title="Cümledeki haline dön: ${esc(orig)}">↺</button></label>`;
+  $('.ve-list', vizEl).innerHTML =
+    m.nodes.map((nd, i) => row('n', i, viz.labels.n[i], nd.t, nd.s, 'Kutu')).join('') +
+    m.edges.map((e, i) => row('e', i, viz.labels.e[i], e[2], e[3], 'Ok')).join('');
+  $$('[data-lab]', vizEl).forEach(citeWarn);
+}
+function paintPreview() {
+  const m = MODELS[currentVizPara.dataset.viz];
+  const prev = $('.viz-prev', vizEl);
+  const f = fitOf(m, viz.tpl);
+  if (!f.ok) return;
+  prev.innerHTML = RENDER[viz.tpl](editedModel(m), THEMES[viz.theme], viz.orient);
+  $$('.node', prev).forEach(n => {
+    const s = currentVizPara.querySelector(`[data-s="${n.dataset.s}"]`);
+    if (!s) return;
+    n.onmouseenter = () => s.classList.add('hl');
+    n.onmouseleave = () => s.classList.remove('hl');
+  });
+  const ed = editedCount(m);
+  $('.viz-src', vizEl).textContent = ed
+    ? `${ed} etiket elle düzenlendi; kaynak cümle bağları korunuyor. Düğüme gel: cümlesi vurgulanır.`
+    : 'Etiketler cümlelerden birebir alındı. Düğüme gel: kaynak cümlesi paragrafta vurgulanır.';
+}
+function paintViz() {
+  const m = MODELS[currentVizPara.dataset.viz];
+  const t = TEMPLATES.find(x => x.id === viz.tpl);
+  const order = orderedTemplates(m);
+  const shown = viz.all ? order : order.slice(0, 4);
+  if (!shown.includes(t)) shown[3] = t;
+  $('.thumbs', vizEl).innerHTML = shown.map(x => {
+    const f = fitOf(m, x.id);
+    return `<button class="thumb${x.id === viz.tpl ? ' on' : ''}${f.ok ? '' : ' unfit'}" data-tpl="${x.id}" title="${esc(f.why)}">${x.id === m.rec ? '<span class="recp">Önerilen</span>' : ''}${thumbSvg(x.id)}${x.name}</button>`;
+  }).join('') + `<button class="thumbs-more" data-vmore>${viz.all ? 'Daha az' : `Tümü (${TEMPLATES.length})`}</button>`;
+  $$('.sw', vizEl).forEach((b, i) => b.classList.toggle('on', i === viz.theme));
+  const f = fitOf(m, viz.tpl);
+  $$('[data-or]', vizEl).forEach(b => { b.disabled = !(t.orient && f.ok); b.classList.toggle('on', t.orient && f.ok && b.dataset.or === viz.orient); });
+  $('.viz-why', vizEl).innerHTML = f.ok ? `<b>Neden uygun:</b> ${esc(f.why)}` : '';
+  $('.viz-edit', vizEl).style.display = f.ok ? '' : 'none';
+  const addBtn = $('[data-vz="add"]', vizEl);
+  if (!f.ok) {
+    $('.viz-prev', vizEl).innerHTML = `<div class="note"><b>${t.name} bu paragrafa uymuyor</b>${esc(f.why)}</div>`;
+    $('.viz-src', vizEl).textContent = '';
+    addBtn.disabled = true; return;
+  }
+  addBtn.disabled = false;
+  paintPreview();
+}
+function closeViz() {
+  if (editingFig) editingFig.style.display = '';
+  editingFig = null;
+  vizEl?.remove(); vizEl = null;
+  $$('.viz-btn.on').forEach(b => b.classList.remove('on'));
+  $$('#docBody .hl').forEach(x => x.classList.remove('hl'));
+}
+const FIG_TOOLS = '<div class="fig-tools" contenteditable="false"><button type="button" data-fig="edit">Düzenle</button><button type="button" data-fig="remove">Kaldır</button></div>';
+function figHtml(m, cap) {
+  return FIG_TOOLS + RENDER[viz.tpl](editedModel(m), THEMES[viz.theme], viz.orient) + `<figcaption>${esc(cap)}</figcaption>`;
+}
+function addFigure() {
+  const m = MODELS[currentVizPara.dataset.viz];
+  const cap = $('.cap', vizEl).value.trim() || `Şekil ${figN}`;
+  const state = { para: currentVizPara.id, tpl: viz.tpl, theme: viz.theme, orient: viz.orient, labels: { n: [...viz.labels.n], e: [...viz.labels.e] }, cap };
+  if (editingFig) {
+    const fig = editingFig, prev = { html: fig.innerHTML, state: fig.dataset.state };
+    fig.innerHTML = figHtml(m, cap);
+    fig.dataset.state = JSON.stringify(state);
+    const li = $(`#figList [data-fig-id="${fig.id}"]`), prevCap = li?.textContent;
+    if (li) li.textContent = cap;
+    closeViz();
+    reveal(fig.id);
+    toast('Şekil güncellendi.', () => { fig.innerHTML = prev.html; fig.dataset.state = prev.state; if (li) li.textContent = prevCap; });
+    return;
+  }
+  const fig = document.createElement('figure');
+  fig.className = 'ins'; fig.contentEditable = 'false'; fig.id = 'fig' + figN; fig.tabIndex = 0;
+  fig.innerHTML = figHtml(m, cap);
+  fig.dataset.state = JSON.stringify(state);
+  vizEl.after(fig);
+  const li = document.createElement('div'); li.className = 'fig-item'; li.dataset.figId = fig.id; li.textContent = cap; $('#figList').append(li);
+  figN++;
+  closeViz();
+  reveal(fig.id);
+  toast('Şekil belgeye eklendi. Üzerine gelip "Düzenle" ile değiştirebilirsin.', () => { fig.remove(); li.remove(); figN--; });
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-fig]'); if (!b) return;
+  const fig = b.closest('figure.ins'), state = JSON.parse(fig.dataset.state);
+  if (b.dataset.fig === 'edit') openViz(document.getElementById(state.para), state, fig);
+  if (b.dataset.fig === 'remove') {
+    const li = $(`#figList [data-fig-id="${fig.id}"]`);
+    const parent = fig.parentNode, next = fig.nextSibling;
+    fig.remove(); li?.remove();
+    toast('Şekil kaldırıldı.', () => { parent.insertBefore(fig, next); if (li) $('#figList').append(li); });
+  }
+});
+document.addEventListener('click', e => {
+  const vb = e.target.closest('[data-action="viz"]');
+  if (vb) { e.preventDefault(); openViz(vb.closest('[data-viz]')); }
+  if (e.target.closest('[data-action="vizFirst"]')) { reveal('vizPara'); if (!vizEl || currentVizPara?.id !== 'vizPara') openViz($('#vizPara')); }
+  if (e.target.closest('[data-action="insertTable"]')) {
+    go('yaz');
+    const last = $('#docBody p:last-of-type');
+    const wrapEl = document.createElement('div');
+    wrapEl.id = 'tblIns'; wrapEl.contentEditable = 'false';
+    wrapEl.innerHTML = `<div style="font-style:italic;margin-top:10px">Tablo 2</div><div>Gruplara göre çıkış sıcaklığı</div>` + $('.apa').outerHTML;
+    last.after(wrapEl);
+    const li = document.createElement('div'); li.className = 'fig-item'; li.textContent = 'Tablo 2. Gruplara göre çıkış sıcaklığı'; $('#figList').append(li);
+    reveal('tblIns');
+    toast('Tablo belgeye eklendi.', () => { wrapEl.remove(); li.remove(); });
+  }
+});
+
+/* ---------- analiz örnek verisi ---------- */
+(() => {
+  const A = [312.1, 316.4, 308.9, 311.7, 318.2, 309.5, 313.0, 307.8, 315.6, 310.4, 314.9, 310.3];
+  const B = [305.2, 309.8, 311.4, 304.1, 307.7, 312.6, 306.3, 310.9, 303.8, 308.4, 309.1, 313.9];
+  const tb = $('#grid tbody'); let i = 1;
+  [['A', A], ['B', B]].forEach(([g, arr]) => arr.forEach((v, k) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i++}</td><td>${g}</td><td>${v.toFixed(1).replace('.', ',')}</td><td>${(1.8 + ((k * 7) % 5) / 10).toFixed(2).replace('.', ',')}</td>`;
+    tb.append(tr);
+  }));
+})();
+
+/* ---------- yeni belge penceresi ---------- */
+let ndKind = '';
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-new]'); if (!t) return;
+  ndKind = t.dataset.new;
+  $('#ndTitle').textContent = 'Yeni ' + ndKind.toLocaleLowerCase('tr');
+  $('#ndName').value = ndKind === 'Boş belge' ? 'Adsız belge' : 'Adsız ' + ndKind.toLocaleLowerCase('tr');
+  $('#newDoc').classList.add('on');
+  $('#ndName').select();
+});
+$$('#ndStyle button:not([disabled])').forEach(b => b.onclick = () => $$('#ndStyle button').forEach(x => x.classList.toggle('on', x === b)));
+$('#ndCancel').onclick = () => $('#newDoc').classList.remove('on');
+$('#newDoc').onclick = e => { if (e.target.id === 'newDoc') $('#newDoc').classList.remove('on'); };
+$('#ndOk').onclick = () => {
+  const style = $('#ndStyle .on').textContent;
+  $('#newDoc').classList.remove('on');
+  go('yaz');
+  toast(`"${$('#ndName').value}" ${style} ile oluşturulurdu (prototip: mevcut belge açıldı).`);
+};
+
+/* ---------- analiz yöntem seçici ---------- */
+function pickMethod(name) {
+  $$('#methods .mitem').forEach(m => {
+    const hit = m.textContent === name;
+    m.classList.toggle('on', hit);
+    if (hit) m.closest('details').open = true;
+  });
+}
+$$('.qchip').forEach(q => q.onclick = () => {
+  $$('.qchip').forEach(x => x.classList.toggle('on', x === q));
+  pickMethod(q.dataset.q);
+  if (q.dataset.q !== 'Bağımsız t-testi') toast(`${q.dataset.q} seçildi (prototipte sonuç paneli yalnız t-testini gösteriyor).`);
+});
+$$('#methods .mitem').forEach(m => m.onclick = () => { $$('.qchip').forEach(x => x.classList.remove('on')); pickMethod(m.textContent); });
+$('#mSearch').oninput = () => {
+  const q = norm($('#mSearch').value.trim());
+  let any = false;
+  $$('#methods details').forEach(d => {
+    let n = 0;
+    $$('.mitem', d).forEach(m => { const ok = !q || norm(m.textContent + ' ' + d.querySelector('summary').textContent).includes(q); m.style.display = ok ? '' : 'none'; if (ok) n++; });
+    d.style.display = n ? '' : 'none';
+    // Arama silinince liste yeniden kalabalıklaşmasın: yalnız seçili testin grubu açık kalır.
+    d.open = q ? n > 0 : !!d.querySelector('.mitem.on');
+    if (n) any = true;
+  });
+  $('#mNone').style.display = any ? 'none' : '';
+};
+
+/* ---------- teslim süzgeci ---------- */
+$$('#tFilters .chip').forEach(c => c.onclick = () => {
+  $$('#tFilters .chip').forEach(x => x.classList.toggle('on', x === c));
+  $$('#v-teslim .issue').forEach(it => it.style.display = (c.dataset.f === 'all' || it.dataset.sev === c.dataset.f) ? '' : 'none');
+});
+
+/* ---------- komut kutusu ---------- */
+const CMDS = [
+  ['Ekle', 'Görselleştir: paragraftan şema', () => { reveal('vizPara'); if (!vizEl) openViz(); }],
+  ['Ekle', 'Tablo', () => toast('Tablo ekleme: TipTap geçişiyle gerçek tablo nesnesi gelir.')],
+  ['Ekle', 'Atıf ekle', () => openSide('kaynaklar')],
+  ['Ekle', 'Kaynakçayı güncelle', () => toast('Kaynakça, atıf yapılan kaynaklardan yeniden kuruldu.')],
+  ['Analiz', 'Bağımsız t-testi', () => go('analiz')],
+  ['Analiz', 'Korelasyon', () => go('analiz')],
+  ['Analiz', 'Cronbach alfa', () => go('analiz')],
+  ['Analiz', 'Belirsizlik bütçesi', () => go('analiz')],
+  ['Kaynaklar', 'Zotero / Mendeley dosyasından içe aktar (BibTeX, RIS)', () => go('kaynaklar')],
+  ['Kaynaklar', 'Kaynakça stilini değiştir: APA 7, IEEE, MLA, Chicago', () => go('kaynaklar')],
+  ['Kaynaklar', 'Kanıt bul', null],
+  ['Kontrol', 'Kontrol listesini aç', () => openSide('kontrol')],
+  ['Kontrol', 'Teslime hazırla', () => go('teslim')],
+  ['Git', 'Araştırma: konu veya yazar ara', () => go('arastirma')],
+  ['Git', 'Masam', () => go('masam')],
+  ['Git', 'Yaz', () => go('yaz')],
+  ['Git', 'Araç kutusu', () => go('masam', 'toolbox')],
+  ['Git', 'Poster', null],
+  ['Git', 'Sürüm geçmişi', null],
+];
+const norm = s => s.toLocaleLowerCase('tr').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ı/g, 'i');
+let pSel = 0, pItems = [];
+function paintPalette() {
+  const q = norm($('#pIn').value.trim());
+  pItems = CMDS.filter(c => !q || norm(c[1] + ' ' + c[0]).includes(q));
+  pSel = Math.min(pSel, Math.max(0, pItems.length - 1));
+  let html = '', grp = '';
+  pItems.forEach((c, i) => {
+    if (c[0] !== grp) { grp = c[0]; html += `<div class="pg">${grp}</div>`; }
+    html += `<button class="pi${i === pSel ? ' on' : ''}" data-i="${i}" aria-disabled="${!c[2]}">${c[1]}${c[2] ? '' : '<span class="soon">Yakında</span>'}</button>`;
+  });
+  $('#pList').innerHTML = html || '<div class="pg" style="text-transform:none">Sonuç yok. Kanıt aramak için cümleyi seç ve sağ paneli kullan.</div>';
+}
+function openPalette() { $('#scrim').classList.add('on'); $('#pIn').value = ''; pSel = 0; paintPalette(); $('#pIn').focus(); }
+function closePalette() { $('#scrim').classList.remove('on'); }
+function runP(i) { const c = pItems[i]; if (!c?.[2]) return; closePalette(); c[2](); }
+$('#cmdOpen').onclick = openPalette;
+$('#pIn').oninput = () => { pSel = 0; paintPalette(); };
+$('#pList').onclick = e => { const b = e.target.closest('.pi'); if (b) runP(+b.dataset.i); };
+$('#scrim').onclick = e => { if (e.target.id === 'scrim') closePalette(); };
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && k === 'k') { e.preventDefault(); $('#scrim').classList.contains('on') ? closePalette() : openPalette(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key === '\\') { e.preventDefault(); $('#olToggle').click(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key === '.') { e.preventDefault(); side.classList.contains('closed') ? openSide() : closeSide(); return; }
+  if ($('#scrim').classList.contains('on')) {
+    if (e.key === 'Escape') closePalette();
+    if (e.key === 'ArrowDown') { e.preventDefault(); pSel = Math.min(pItems.length - 1, pSel + 1); paintPalette(); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); pSel = Math.max(0, pSel - 1); paintPalette(); }
+    if (e.key === 'Enter') { e.preventDefault(); runP(pSel); }
+    return;
+  }
+  if (e.key === 'Escape') { selmenu.classList.remove('on'); $('#newDoc').classList.remove('on'); if (vizEl) closeViz(); }
+});
+
+/* ---------- kayıt durumu ---------- */
+let saveT;
+$('#docBody').addEventListener('input', () => {
+  $('#saved span').textContent = 'Kaydediliyor…';
+  clearTimeout(saveT); saveT = setTimeout(() => $('#saved span').textContent = 'Kaydedildi', 700);
+});
+</script>
+</body>
+</html>
