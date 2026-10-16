@@ -10,6 +10,8 @@ import { searchAll, guarded } from './services/search.js';
 import { searchOpenAlexAuthors, searchOpenAlexInstitutions, getOpenAlexAuthorByOrcid, mergeInstitutionFirst } from './services/openalex.js';
 import { isOrcidEnabled, parseOrcidId, fetchOrcidAffiliations, MAX_ENRICH_IDS } from './services/orcid.js';
 import { generateCitedSentence } from './services/citedSentence.js';
+import { enrichPapersWithCsl, formatReference, STYLE_FILES } from './services/bibliography.js';
+import { parseReferences, MAX_INPUT_BYTES } from './services/referenceImport.js';
 import { analyzeAndExpandQuery, generateConsensusSnapshot } from './services/llm.js';
 import { translateToEnglish } from './utils/translation.js';
 import SearchHistory from './models/SearchHistory.js';
@@ -785,6 +787,112 @@ app.post('/api/retractions', retractionLimiter, async (req, res) => {
   } catch (error) {
     console.error('Retraction check error:', error);
     return res.status(502).json({ error: 'Geri cekilme kontrolu yapilamadi' });
+  }
+});
+
+// Calisma alaninin kaynakcasi (docs/design/tasarim-yonu.md §14). Model cagrisi
+// yok: kunye DOI varsa doi.org'dan (CSL-JSON) gelir, yoksa kayittaki alanlardan
+// kurulur; eksik alan uydurulmaz (CLAUDE.md 3.1, 3.6). Bicimlenemeyen kaynak
+// `text: null` doner ve istemci bunu kullaniciya soyler, sessizce dusurmez.
+const bibliographyLimiter = IS_TEST_MODE
+  ? (req, res, next) => next()
+  : rateLimit({
+    windowMs: 60 * 1000,
+    max: 20,
+    keyGenerator: (req) => getAuth(req)?.userId || ipKeyGenerator(req.ip),
+    message: { error: 'Çok fazla istek gönderildi. Lütfen 1 dakika bekleyin.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+app.post('/api/bibliography', bibliographyLimiter, async (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) return;
+  const { papers, format = 'APA 7' } = req.body || {};
+  if (!Array.isArray(papers) || papers.length === 0) {
+    return res.status(400).json({ error: 'En az bir kaynak gerekli.' });
+  }
+  if (papers.length > BASKET_LIMIT) {
+    return res.status(400).json({ error: `En fazla ${BASKET_LIMIT} kaynak gönderilebilir.` });
+  }
+  if (!Object.hasOwn(STYLE_FILES, format)) {
+    return res.status(400).json({ error: 'Bilinmeyen kaynakça biçimi.' });
+  }
+
+  // Yazim hattiyla ayni temizleme. Sira istemcinin gonderdigi siradir: IEEE
+  // numarasi metindeki ilk gecis sirasina gore verilir.
+  const safePapers = papers.map((p, i) => ({
+    ref: i + 1,
+    key: String(p?.key ?? i).slice(0, 300),
+    title: String(p?.title || 'Başlıksız').slice(0, 300),
+    authorsFull: String(p?.creator || '').slice(0, 3000),
+    year: p?.year || 'n.d.',
+    journal: String(p?.publicationName || '').slice(0, 150),
+    volume: String(p?.volume || '').slice(0, 30),
+    issue: String(p?.issue || '').slice(0, 30),
+    pages: String(p?.pages || '').slice(0, 30),
+    doi: String(p?.doi || '').slice(0, 100),
+    url: String(p?.url || '').slice(0, 300),
+  }));
+
+  try {
+    await enrichPapersWithCsl(safePapers);
+    const entries = safePapers.map((p) => ({
+      key: p.key,
+      text: formatReference(p, format),
+      // Kunye doi.org'dan mi geldi, kayittaki alanlardan mi: arayuz soyler.
+      source: p.csl ? 'doi' : 'record',
+    }));
+    // IEEE metindeki sirayla; APA, MLA ve Chicago soyadina gore alfabetik.
+    if (format !== 'IEEE') {
+      entries.sort((a, b) => (a.text || '\uffff').localeCompare(b.text || '\uffff', 'tr'));
+    }
+    return res.json({ format, entries });
+  } catch (error) {
+    console.error('Bibliography error:', error);
+    return res.status(502).json({ error: 'Kaynakça oluşturulamadı.' });
+  }
+});
+
+// Zotero / Mendeley / EndNote disa aktarmasi (.bib, .ris) -> sepete eklenebilir
+// kayitlar. Model cagrisi yok, alanlar yalnizca dosyadan gelir (CLAUDE.md 3.1).
+// Uc yalniz ayristirir; hangi kayit sepete girecegine kullanici karar verir
+// (2.9). Ayristirma eszamanli ve dis istek yok: hiz siniri yalnizca CPU'yu
+// korumak icin.
+const importLimiter = IS_TEST_MODE
+  ? (req, res, next) => next()
+  : rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    keyGenerator: (req) => getAuth(req)?.userId || ipKeyGenerator(req.ip),
+    message: { error: 'Çok fazla istek gönderildi. Lütfen 1 dakika bekleyin.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+const IMPORT_ERRORS = {
+  EMPTY: 'Dosya boş.',
+  TOO_LARGE: `Dosya çok büyük (en fazla ${Math.round(MAX_INPUT_BYTES / 1024)} KB).`,
+  UNKNOWN_FORMAT: 'Dosya BibTeX (.bib) veya RIS (.ris) biçiminde değil.',
+  UNPARSABLE: 'Dosyada okunabilir kayıt bulunamadı.',
+};
+
+app.post('/api/references/import', importLimiter, async (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) return;
+  const { text } = req.body || {};
+  if (typeof text !== 'string') {
+    return res.status(400).json({ error: 'Dosya içeriği gerekli.' });
+  }
+  try {
+    // Bicim dosya iceriginden okunur, uzantidan degil (referenceImport.js).
+    return res.json(await parseReferences(text));
+  } catch (error) {
+    if (IMPORT_ERRORS[error.code]) {
+      return res.status(400).json({ error: IMPORT_ERRORS[error.code], code: error.code });
+    }
+    console.error('Reference import error:', error);
+    return res.status(500).json({ error: 'Dosya okunamadı.' });
   }
 });
 
@@ -1864,8 +1972,13 @@ const WRITER_RATE_LIMITER = IS_TEST_MODE
 app.post('/api/cited-sentence', WRITER_RATE_LIMITER, requireWriterSubscription, async (req, res) => {
   const passage = typeof req.body?.passage === 'string' ? req.body.passage : '';
   const topic = typeof req.body?.topic === 'string' ? req.body.topic : '';
+  // first | similar | new; onceki cumleler veri olarak gider (servis temizler).
+  const mode = typeof req.body?.mode === 'string' ? req.body.mode : 'first';
+  const previous = Array.isArray(req.body?.previous) ? req.body.previous : [];
+  // "Benzer" icin onceki cumlenin dayandigi parca; servis pasajda birebir var mi bakar.
+  const focus = typeof req.body?.focus === 'string' ? req.body.focus.slice(0, 1200) : '';
   try {
-    const result = await generateCitedSentence({ passage, topic });
+    const result = await generateCitedSentence({ passage, topic, mode, previous, focus });
     return res.json(result);
   } catch (error) {
     console.error('Cited sentence error:', error?.message || error);

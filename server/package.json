@@ -15,7 +15,9 @@
     "license": "ISC",
     "dependencies": {
         "@citation-js/core": "^0.9.0",
+        "@citation-js/plugin-bibtex": "^0.9.0",
         "@citation-js/plugin-csl": "^0.9.0",
+        "@citation-js/plugin-ris": "^0.9.0",
         "@clerk/express": "^2.1.12",
         "@google/generative-ai": "^0.24.1",
         "axios": "^1.15.2",
