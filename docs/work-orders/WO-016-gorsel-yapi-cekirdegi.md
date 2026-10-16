@@ -2,7 +2,7 @@
 
 | Alan | Değer |
 | --- | --- |
-| Durum | **Hazır** (kullanıcı onayı 17.10.2026; kaynak değişimi düzeltmesiyle). Uygulama S1 raporundan sonra başlar |
+| Durum | **Bitti** (17.10.2026, dal `wo-016-gorsel-yapi`, push yok) — bitiş raporu aşağıda; kullanıcı kontrolü bekliyor |
 | Kapsam | Tek modül (yalnız istemci, **arayüz yok, model çağrısı yok**) |
 | Dosya değişikliği | İzinli (liste aşağıda) — biri mevcut (`claimDetection.js`, yalnız `export`) |
 | Tahmini süre | 2 oturum |
@@ -354,11 +354,85 @@ gerekmiyor. Dal: `wo-016-gorsel-yapi`.
 
 ## Bitiş raporu
 
-Ajan tarafından doldurulur.
-- Değişen dosyalar:
-- Teknik kararlar ve gerekçeleri:
-- Çalıştırılan testler ve gerçek çıktıları:
-- Ölçülen etki:
-- Bilinen eksikler:
-- Sonraki adım:
-- **Durum:** READY / NEEDS ATTENTION / BLOCKED
+**Commit'ler** (dal `wo-016-gorsel-yapi`, `wo-006-istatistik` üzerinden; push yok):
+`e297797` Faz 0 belgeler · `da0591a` Faz 1 · `2586cd9` Faz 2 · Faz 3 (bu rapor).
+
+**Değişen dosyalar** — `git status` yalnız listedeki yolları gösterdi:
+
+- yeni: `client/src/visuals/{schema,signals,match,rules,validate,fit,source}.js`
+- yeni: `client/tests/visuals.test.js` (62 test), `client/tests/fixtures/visuals-paragraphs.json` (22 paragraf)
+- mevcut: `client/src/components/workspace/claimDetection.js` — yalnız `CITATION`'a `export` (diff: 1 satır)
+
+**Teknik kararlar**
+
+1. **Etiket konum + metin kopyasıyla saklanır; çizim yalnız kopyayı okur**
+   (`labelOf`). Paragraf silinse de etiketler aynı (test).
+2. **exact/fold eşleşmesi kelime sınırında.** Sınırsız alt dizgi "kan"ı önce
+   gelen "kanat"ın içine bağlıyordu; ekli biçim (`nedenleri`) `tolerant`'a düşer.
+3. **Türkçe ek kuralları fold sonrası çalışır.** fold ç→c ve ğ→g yaptığı için
+   ç/c ve k/ğ yumuşaması kendiliğinden kalkar; kod p→b, t→d, k→g, ünlü düşmesi,
+   ikizleşme ve en fazla iki kuralın birleşimini dener. Kısa kök (< 4) yalnız
+   kapalı ek listesiyle.
+4. **Kaynak değişiminde konum takibi değişen bölgeye dayanır**, geçiş sıra
+   numarasına değil: etiketten önce aynı kelime eklenince sıra numarası
+   tek başına yanlış geçişi gösterirdi. Değişen bölge etiketle kesişirse ve
+   kelime cümlede birden çok geçiyorsa `changed` (sessiz seçim yok).
+5. **Yalnız boşluk değişikliği `unchanged`**, ama konumlar yine güncellenir
+   (vurgu kaymasın).
+6. **Kural kademesi ayraçsız neden cümlelerini almaz** ("X a ve b'ye
+   bağlıdır"): sonucun nerede bittiği noktalamasız güvenle bulunamıyor;
+   fikstürde `none-tr-3` olarak sabit.
+7. **Uygunluk tamamen graf şekliyle:** hiyerarşi için "aynı yönde ≥ 2 dal"
+   şartı, düz zinciri hiyerarşi saymamak için; akış, döngüyü de kapsar
+   (prototipin kararı).
+
+**Bulunup düzeltilen hatalar (testlerle):** "42%" sayılmıyordu (`%`'den sonra
+`\b`); yönelme ekinde "-ne" unutulmuştu ("eksikliğine" → "eksikliğin");
+liste öğesinin başındaki bağlaç atılmıyordu ("ve %23'ü").
+
+**Çalıştırılan testler ve gerçek çıktıları**
+
+| Komut | Çıktı |
+| --- | --- |
+| Başlangıç `npm test` | 145/145 |
+| `npm test` (Faz 1 / 2 / 3 sonrası) | 165/165 · 192/192 · **207/207** |
+| `npx eslint .` | temiz |
+| `npm run build` | `index-CL8Nnd0U.js` 568,43 kB — başlangıçla aynı (değişiklikler kenara alınarak ölçüldü) |
+| Saflık (`fetch\|axios\|localStorage\|document.\|window.` in `src/visuals/`) | eşleşme yok |
+| Kontrol karakteri taraması (yeni dosyalar) | 0 |
+
+**Kabul kriterleri**
+
+| Kriter | Durum |
+| --- | --- |
+| `matchSpan` örnek listesi (yumuşama, önek, ünlü düşmesi, ikizleşme, birleşik, kısa kök, fold, İngilizce) | Geçti |
+| Olumsuz örnekler; belirsizlikler `tolerant` olarak sabit | Geçti |
+| Sözlükte her kalıbın olumlu ve olumsuz örneği | **Kısmen:** her kategoride olumlu ve olumsuz örnek var; kategorinin içindeki her tek kalıp alternatifinin ayrı örneği yok |
+| R1–R6 için ≥ 2 TR + 1 EN; kalıpsız ≥ 3 paragraf `null` | Geçti (4 kalıpsız) |
+| Prototipteki üç paragrafın kararları koddan aynı | Geçti (döngü, etkenler, argüman) |
+| Argüman paragrafı R5'ten aynı rol ve atıf durumu | Geçti |
+| `validate` atar, sayar, dayanaksız kutbu siler | Geçti |
+| `text` + `source.text` + `source.hash` | Geçti |
+| `checkSource` senaryoları (değişmedi, boşluk, dışarı ekleme, içeri ekleme, silindi, detached, cümle sırası, geçiş sırası üç durum) | Geçti |
+| `labelOf` canlı paragraf olmadan | Geçti |
+| Saflık, `claimDetection` tek `export`, test/lint/build, boyut aynı | Geçti |
+
+**Ölçülen etki:** kural kademesinin gerçek paragraflarda karşılama oranı
+**ölçülmedi**; fikstürler bu iş için yazıldı, oran sayılmaz. Gerçek oran E5
+ile (WO-C).
+
+**Bilinen eksikler ve riskler**
+
+- Arayüze bağlı değil (bilinçli; WO-D).
+- "ise" karşıtlık kuralı kaba: yalnız "-ken" yan cümlesiyle.
+- Önek kuralı anlam farkını görmez (etki → etkileşim); `tolerant` kipiyle işaretli.
+- `checkSource` tek değişen bölge varsayar; paragrafta birbirinden uzak iki
+  ayrı düzenleme tek büyük bölge sayılır → gerektiğinden sık `changed`
+  (güvenli taraf).
+- `evidence.js`'teki `locateSpan` benzer bir iş yapıyor (boşluk/büyük harf
+  toleransı); kapsam dışı olduğu için birleştirilmedi.
+
+**Sonraki adım:** sıra gereği WO-008 (şekillerin Word/PDF'e gömülmesi, S1
+ölçütleriyle). Ya da arayüzü görmek için WO-D'nin taslağı.
+
+- **Durum:** READY

@@ -58,7 +58,7 @@ Taslak → Hazır → Çalışıyor → Bitti
 | [WO-010](WO-010-uygulama-kabugu.md) | Uygulama kabuğu ve yeni tasarıma geçiş (Aşama 0–2) | P1 | Kabuk kararı WO-011 ile geri alındı (15.10.2026) |
 | [WO-011](WO-011-yazar-modu.md) | Yazar modu yeniden yapılandırma (şartname Faz 1 → 3 → 2) | P1 | Faz 1, 3, 2 bitti — kullanıcı kontrolü bekliyor (15.10.2026) |
 | [WO-015](WO-015-istatistik-cekirdegi-v2.md) | İstatistik çekirdeği v2: ANOVA, ki-kare, Mann-Whitney, Wilcoxon, Kruskal-Wallis | P3 | Taslak (16.10.2026) |
-| [WO-016](WO-016-gorsel-yapi-cekirdegi.md) | Görsel yapı çekirdeği: sinyal, kural kademesi, Türkçe toleranslı eşleştirme, şablon uygunluğu, kaynak değişimi denetimi | P3 | **Hazır** (17.10.2026) — uygulama S1 raporundan sonra |
+| [WO-016](WO-016-gorsel-yapi-cekirdegi.md) | Görsel yapı çekirdeği: sinyal, kural kademesi, Türkçe toleranslı eşleştirme, şablon uygunluğu, kaynak değişimi denetimi | P3 | **Bitti** (17.10.2026, `wo-016-gorsel-yapi`, push yok) — kullanıcı kontrolü bekliyor |
 
 **Görselleştirme sırası (kullanıcı kararı 17.10.2026):** WO-016 ve S1
 (Infographic denemesi, iş emri değil, ayrı onayla) paralel → WO-008 → WO-B
