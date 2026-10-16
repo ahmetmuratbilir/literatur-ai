@@ -7,7 +7,7 @@
 // arayüz bunu açıkça yazar — eksik sessizce gizlenmez (CLAUDE.md 2.8).
 
 /** Metin içi atıf işareti: (Yılmaz, 2021), (Chen & Wang, 2021), [14] */
-const CITATION = /\([^)]*\b(1[5-9]|20)\d{2}\b[^)]*\)|\[\d+(?:\s*[,-]\s*\d+)*\]/;
+export const CITATION = /\([^)]*\b(1[5-9]|20)\d{2}\b[^)]*\)|\[\d+(?:\s*[,-]\s*\d+)*\]/;
 
 // Türkçe harfler sadeleştirilir: kullanıcı "bölümde" de yazabilir "bolumde"
 // de. Aynı tutarsızlık ORCID aramasında da çıkmıştı (CLAUDE.md 3.10).
