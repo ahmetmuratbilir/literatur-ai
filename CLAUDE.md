@@ -27,6 +27,9 @@ Bölüm 1 her görevde geçerlidir. Bölüm 2–4 ilgili iş yapılırken okunur
 | `docs/sources.md` | Kaynak durum matrisi (2.7) |
 | `docs/design/atif-dogrulamali-yazim-motoru.md` | Yazım motoru tasarımı: iddia–kanıt modeli, PR1–PR10 prompt'ları, döngüler, arayüz, eklenti kararı |
 | `docs/design/calisma-alani.md` | Tek panel çalışma alanı: araştırma + yazım, anlama araçları, belge biçimi |
+| `docs/design/gorsellestirme-plani.md` | Metinden görsel: hangi metne hangi şema, kod mu model mi, çizim motoru (S1), sıra (WO-016 → WO-008 → …) |
+| `docs/design/etkilesim-ve-durumlar-plani.md` | Katmanlar, Esc, pencereler, bekleme/hata/kart durumları, araştırma–yazım köprüsü, dış kaynak incelemeleri |
+| `docs/eval/E5-etiketleme-kilavuzu.md` | E5 (görsel yapı) etiketleme kuralları ve uyum ölçümü |
 
 ---
 
