@@ -63,9 +63,13 @@ Taslak → Hazır → Çalışıyor → Bitti
 | [WO-018](WO-018-etkilesim-altyapisi.md) | Etkileşim altyapısı: katmanlar, Esc yığını, ortak pencere, geri al (planlardaki WO-E1) | P1 | Taslak (17.10.2026) — ön koşul WO-017 |
 | [WO-019](WO-019-cizici-ve-gorsellestir.md) | Çizici ve Görselleştir: paragraftan şekil, belgeye ekleme (planlardaki WO-D) | P3 | Taslak (17.10.2026) — ön koşul galeri kararları, WO-017 |
 
+| [WO-020](WO-020-arastirmadan-yazima-kopru.md) | Araştırmadan yazıma köprü: Yaz'da "son aramandan ilgili olabilir", doğrulanmamış atıf | P1 | Taslak (17.10.2026) — ön koşul WO-017; onay: `Basket.query` alanı |
+| [WO-021](WO-021-bekleme-hata-kart-durumlari.md) | Bekleme, hata ve kart durumları (planlardaki WO-E2) | P1 | Taslak (17.10.2026) — ön koşul WO-018 |
+| [WO-022](WO-022-model-kademesi-pr6.md) | Görsel yapı model kademesi PR6.v2 ve E5 (planlardaki WO-C) | P3 | Taslak (17.10.2026) — ön koşul WO-019, E5 etiketlemesi |
+
 **Yol haritası (17.10.2026):** `docs/design/yol-haritasi.md`. Görünür sonuç
 sırası: WO-011 kontrolü → galeri kararları → WO-017 → WO-018 → WO-019 →
-WO-008 → köprü → WO-E2 → WO-C → WO-B → WO-007/015. WO-019 (çizici)
+WO-008 → WO-020 (köprü) → WO-021 (WO-E2) → WO-022 (WO-C) → WO-B → WO-007/015. WO-019 (çizici)
 WO-008'den önce: dışa aktarılacak şekil olmadan WO-008 görünür sonuç vermez.
 
 **Görselleştirme sırası (kullanıcı kararı 17.10.2026):** WO-016 ve S1

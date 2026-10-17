@@ -176,6 +176,12 @@ Kullanıcı 17.10.2026'da "plana göre yap, plan değişikliği yok" dedi: dört
    uygulanmaz.
 5. **WO-015 açık soruları** (5 mi 3 mü test, Bonferroni, Welch ANOVA).
 
+**Güncelleme (17.10.2026, devam oturumu):** 6.3'ün dört maddesi yapıldı —
+galeri cilası (`6137469`: piramit ve basamak tek ton, sayı kartı tek satır,
+çubukta ızgara, yatay zamanda kalın eksen, geri beslemede işarete göre renkli
+ok; öz-denetim 0 sorun), WO-020 (köprü), WO-021 (WO-E2), WO-022 (WO-C)
+taslakları. Sıradaki onaysız iş kalmadı; her şey 6.2'deki kararları bekliyor.
+
 ### 6.3 Onay gerektirmeyen sıradaki işler (Claude, bu sırayla)
 
 1. **Galeri cilası, kalan aileler.** Piramit, huni, zaman çizelgeleri, sayı
