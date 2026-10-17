@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Literatür AI — giriş ekranı prototipi v1</title>
+<!--
+  mockup-giris-v1.html — İLK GİRİŞ PANELİ prototipi (18.10.2026)
+
+  Amaç: az yazı, çok hareket. Kullanıcı ilk 8 saniyede ürünün ne yaptığını
+  ANLAMALI: iddia yazılır → kaynaktan birebir pasaj gelir → kanıt sınıfı
+  gösterilir → kanıt yoksa cümle belgeye girmez.
+
+  A/B anahtarı iki yerleşim sunar:
+    A — "Tek cümle, tek kaynak": sahne ortada, iddia soldan, pasaj sağdan.
+    B — "Belge + kanıt paneli": çalışma alanının minyatürü.
+
+  Kural: dış istek yok (gömülü yazı tipi yok, CDN yok, görsel dosyası yok).
+  Hareket yalnız CSS/JS; prefers-reduced-motion açıksa animasyon kapanır.
+  Bu bir prototiptir: ürün koduna bağlı değildir, ölçüm üretmez.
+-->
+<style>
+  :root {
+    --ink: #10151c;
+    --ink-2: #3d4753;
+    --muted: #6b7684;
+    --line: #e4e8ef;
+    --bg: #fbfcfe;
+    --card: #ffffff;
+    --accent: #4338ca;
+    --accent-soft: #eef0ff;
+    --support: #0f766e;
+    --support-soft: #e6f5f2;
+    --partial: #b45309;
+    --partial-soft: #fdf3e3;
+    --none: #64748b;
+    --none-soft: #eef1f5;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(16, 21, 28, .04), 0 12px 32px -18px rgba(16, 21, 28, .28);
+    --ease: cubic-bezier(.22, .8, .2, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  .muted { color: var(--muted); }
+  .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+
+  /* ── üst çubuk ─────────────────────────────────────────────── */
+  header.bar {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 14px 0;
+    background: rgba(251, 252, 254, .86);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid transparent;
+    transition: border-color .25s var(--ease);
+  }
+  header.bar.stuck { border-bottom-color: var(--line); }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.01em; }
+  .mark {
+    width: 26px; height: 26px; border-radius: 8px;
+    background: linear-gradient(140deg, var(--accent), #7c3aed 70%);
+    display: grid; place-items: center; color: #fff; font-size: 13px; font-weight: 800;
+    box-shadow: 0 6px 16px -8px rgba(67, 56, 202, .8);
+  }
+  .bar nav { display: flex; align-items: center; gap: 8px; }
+  .btn {
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    padding: 8px 14px; border-radius: 10px; font: inherit; font-weight: 600;
+    cursor: pointer; transition: transform .16s var(--ease), box-shadow .2s var(--ease), background .2s;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+  .btn:active { transform: translateY(0); }
+  .btn--primary {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+    box-shadow: 0 10px 22px -12px rgba(67, 56, 202, .9);
+  }
+  .btn--primary:hover { background: #3b31b8; }
+  .btn--ghost { background: transparent; border-color: transparent; color: var(--ink-2); }
+  .btn:focus-visible, .seg button:focus-visible, .replay:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  /* ── kahraman ──────────────────────────────────────────────── */
+  .hero { padding: 56px 0 8px; }
+  h1 {
+    margin: 0 0 10px; font-size: clamp(30px, 4.4vw, 46px); line-height: 1.08;
+    letter-spacing: -.025em; font-weight: 760; max-width: 16ch;
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+  .sub {
+    margin: 0 0 22px; font-size: clamp(15px, 1.4vw, 17px); color: var(--ink-2);
+    max-width: 46ch;
+  }
+  .cta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .cta small { color: var(--muted); }
+
+  /* ── sahne ─────────────────────────────────────────────────── */
+  .stage-card {
+    margin: 34px 0 0; background: var(--card); border: 1px solid var(--line);
+    border-radius: 20px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .stage-top {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 14px; border-bottom: 1px solid var(--line); background: #fcfdff;
+  }
+  .seg { display: inline-flex; background: var(--none-soft); border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg button {
+    border: 0; background: transparent; font: inherit; font-size: 12.5px; font-weight: 650;
+    color: var(--ink-2); padding: 5px 11px; border-radius: 8px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(16,21,28,.12); }
+  .stage-meta { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+  .replay {
+    border: 1px solid var(--line); background: var(--card); border-radius: 9px;
+    width: 30px; height: 30px; display: grid; place-items: center; cursor: pointer; color: var(--ink-2);
+  }
+  .replay:hover { background: var(--accent-soft); border-color: #cfd3ff; color: var(--accent); }
+  .stage { position: relative; padding: 26px; min-height: 340px; }
+
+  /* A yerleşimi */
+  .scene-a { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 760px) { .scene-a { grid-template-columns: 1fr; } }
+  .panel {
+    border: 1px solid var(--line); border-radius: var(--radius); background: #fff;
+    padding: 14px; min-height: 132px;
+  }
+  .panel h3 {
+    margin: 0 0 8px; font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; display: flex; align-items: center; gap: 6px;
+  }
+  .dots { display: inline-flex; gap: 3px; }
+  .dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .35; }
+  .claim-line { font-size: 17px; line-height: 1.55; letter-spacing: -.01em; min-height: 3.1em; }
+  .claim-line .mk { background: var(--accent-soft); border-radius: 5px; box-shadow: 0 0 0 3px var(--accent-soft); }
+  .caret {
+    display: inline-block; width: 2px; height: 1.05em; background: var(--accent);
+    vertical-align: -2px; margin-left: 2px; animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0 } }
+  .passage {
+    font-size: 13.5px; line-height: 1.6; color: var(--ink-2);
+    border-left: 3px solid var(--line); padding: 2px 0 2px 12px; min-height: 4.6em;
+  }
+  .passage .hit { background: #fff6d9; box-shadow: 0 0 0 2px #fff6d9; border-radius: 3px; }
+  .src { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .chip-src {
+    border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; font-size: 11px;
+    font-weight: 650; color: var(--ink-2); background: #fbfcfe;
+  }
+  .verdict-row { margin-top: 16px; display: flex; align-items: center; gap: 10px; min-height: 34px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 7px; border-radius: 999px;
+    padding: 5px 12px; font-size: 12.5px; font-weight: 700;
+    border: 1px solid transparent; opacity: 0; transform: translateY(6px) scale(.96);
+    transition: opacity .3s var(--ease), transform .3s var(--ease);
+  }
+  .badge.on { opacity: 1; transform: none; }
+  .badge--support { color: var(--support); background: var(--support-soft); border-color: #bfe6df; }
+  .badge--partial { color: var(--partial); background: var(--partial-soft); border-color: #f4d7ae; }
+  .badge--none { color: var(--none); background: var(--none-soft); border-color: #dbe1ea; }
+  .note { font-size: 12.5px; color: var(--muted); opacity: 0; transition: opacity .35s var(--ease) .1s; }
+  .note.on { opacity: 1; }
+
+  /* B yerleşimi */
+  .scene-b { display: grid; grid-template-columns: 1.15fr .85fr; gap: 16px; }
+  @media (max-width: 760px) { .scene-b { grid-template-columns: 1fr; } }
+  .doc { border: 1px solid var(--line); border-radius: var(--radius); background: #fff; padding: 14px; }
+  .doc .ln { height: 9px; border-radius: 4px; background: #eef1f6; margin: 0 0 9px; }
+  .doc .ln.w1 { width: 92%; } .doc .ln.w2 { width: 78%; } .doc .ln.w3 { width: 86%; }
+  .doc .ln.w4 { width: 64%; } .doc .ln.w5 { width: 71%; }
+  .doc .sentence {
+    position: relative; font-size: 13.5px; line-height: 1.6; margin: 2px 0 12px;
+    padding: 8px 10px; border-radius: 9px; border: 1px solid transparent;
+    transition: background .3s var(--ease), border-color .3s var(--ease);
+  }
+  .doc .sentence.lit { background: var(--accent-soft); border-color: #cfd3ff; }
+  .doc .sentence .anchor {
+    position: absolute; right: 8px; top: 8px; font-size: 10px; font-weight: 800;
+    color: var(--accent); opacity: 0; transition: opacity .3s var(--ease);
+  }
+  .doc .sentence.lit .anchor { opacity: 1; }
+  .cards { display: grid; gap: 10px; align-content: start; }
+  .ev {
+    border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; background: #fff;
+    opacity: .35; transform: translateY(8px); transition: opacity .35s var(--ease), transform .35s var(--ease);
+  }
+  .ev.on { opacity: 1; transform: none; }
+  .ev--support { border-color: #bfe6df; background: linear-gradient(180deg, #f3fbf9, #fff); }
+  .ev--none { border-color: #dbe1ea; background: #fcfdff; }
+  .ev h4 { margin: 0 0 6px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+  .ev p { margin: 0; font-size: 12px; color: var(--ink-2); line-height: 1.55; }
+  .ev .tag {
+    margin-left: auto; font-size: 10px; font-weight: 800; letter-spacing: .04em;
+    text-transform: uppercase; padding: 1px 7px; border-radius: 999px;
+  }
+  .ev--support .tag { color: var(--support); background: var(--support-soft); }
+  .ev--none .tag { color: var(--none); background: var(--none-soft); }
+
+  /* ── üç adım ───────────────────────────────────────────────── */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 26px 0 0; }
+  @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+  .step {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--card);
+    padding: 14px; display: flex; gap: 11px; align-items: flex-start;
+  }
+  .step .n {
+    width: 26px; height: 26px; border-radius: 8px; background: var(--accent-soft); color: var(--accent);
+    display: grid; place-items: center; font-size: 12px; font-weight: 800; flex: 0 0 auto;
+  }
+  .step strong { display: block; font-size: 13.5px; margin-bottom: 2px; }
+  .step span { font-size: 12.5px; color: var(--muted); }
+
+  /* ── güven şeridi ──────────────────────────────────────────── */
+  .trust { margin: 34px 0 0; padding: 18px 0 0; border-top: 1px solid var(--line); }
+  .trust h2 { margin: 0 0 4px; font-size: 14px; letter-spacing: -.01em; }
+  .trust .row {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;
+  }
+  .trust .row span {
+    border: 1px solid var(--line); background: var(--card); border-radius: 999px;
+    padding: 4px 11px; font-size: 12px; color: var(--ink-2);
+  }
+  .reasons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+  @media (max-width: 760px) { .reasons { grid-template-columns: 1fr; } }
+  .reason { font-size: 12.5px; color: var(--ink-2); display: flex; gap: 8px; }
+  .reason b { color: var(--ink); }
+  .tick { color: var(--support); flex: 0 0 auto; margin-top: 1px; }
+
+  footer { margin: 40px 0 32px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+  /* ── hareket kapalı ────────────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    .badge, .note, .ev, .doc .sentence, .doc .sentence .anchor { opacity: 1 !important; transform: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bar wrap" id="bar">
+  <div class="brand"><span class="mark">L</span> Literatür AI</div>
+  <nav>
+    <button class="btn btn--ghost" type="button">Giriş</button>
+    <button class="btn btn--primary" type="button">Ücretsiz dene</button>
+  </nav>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Her cümle, <em>bir kaynağa</em> bağlı.</h1>
+    <p class="sub">İddiayı yaz. Kanıtı gör. Atıfı al. Kanıt yoksa cümle belgeye girmez.</p>
+    <div class="cta">
+      <button class="btn btn--primary" type="button">Aramaya başla</button>
+      <button class="btn" type="button" id="jump">Nasıl çalışır?</button>
+    </div>
+  </section>
+
+  <section class="stage-card" id="demo" aria-label="Ürünün kanıt döngüsü">
+    <div class="stage-top">
+      <div class="seg" role="group" aria-label="Yerleşim">
+        <button type="button" id="layout-a" aria-pressed="true" data-layout="a">A — Tek cümle</button>
+        <button type="button" id="layout-b" aria-pressed="false" data-layout="b">B — Belge + kanıt</button>
+      </div>
+      <div class="stage-meta">
+        <span id="beat-label">1/3 · İddia</span>
+        <button class="replay" type="button" id="replay" aria-label="Animasyonu yeniden oynat">↻</button>
+      </div>
+    </div>
+
+    <div class="stage" id="stage">
+      <!-- A -->
+      <div class="scene-a" id="scene-a">
+        <div class="panel">
+          <h3>İddia <span class="dots"><i></i><i></i><i></i></span></h3>
+          <div class="claim-line" id="claim-line"><span class="caret" id="caret"></span></div>
+        </div>
+        <div class="panel">
+          <h3>Kaynak pasajı</h3>
+          <div class="passage" id="passage">Pasaj, kaynaktan birebir gelir; model yeniden yazamaz.</div>
+          <div class="src" id="src-row" style="opacity:0">
+            <span class="chip-src">Europe PMC</span>
+            <span>2021 · tam metin</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- B -->
+      <div class="scene-b" id="scene-b" hidden>
+        <div class="doc" aria-label="Belge">
+          <div class="ln w1"></div>
+          <div class="ln w3"></div>
+          <div class="sentence" id="doc-sentence">
+            Nükleer reaktör kazalarında insan hatası belirleyicidir.<span class="anchor">1</span>
+          </div>
+          <div class="ln w2"></div>
+          <div class="ln w4"></div>
+          <div class="sentence" id="doc-sentence-2" style="opacity:.55">
+            Bakım prosedürleri kaza riskini azaltır.<span class="anchor">2</span>
+          </div>
+          <div class="ln w5"></div>
+          <div class="ln w2"></div>
+        </div>
+        <div class="cards">
+          <article class="ev ev--support" id="ev-1">
+            <h4>Kanıt 1 <span class="tag">destekliyor</span></h4>
+            <p>“İnsan hatası, kaydedilen olayların %60’ında birincil etkendir.”</p>
+          </article>
+          <article class="ev ev--none" id="ev-2">
+            <h4>Kanıt 2 <span class="tag">kanıt yok</span></h4>
+            <p>Bu iddia için uygun pasaj bulunamadı. Cümle belgeye eklenemez.</p>
+          </article>
+        </div>
+      </div>
+
+      <!-- A alt şerit -->
+      <div class="verdict-row" id="verdict-row">
+        <span class="badge badge--support" id="badge-support">✓ destekliyor · birebir pasaj</span>
+        <span class="badge badge--partial" id="badge-partial">≈ kısmen · kapsam farkı</span>
+        <span class="badge badge--none" id="badge-none">— kanıt yok</span>
+        <span class="note" id="note"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="steps" aria-label="Üç adım">
+    <div class="step"><span class="n">1</span><div><strong>Ara</strong><span>Açık dizinlerde tek sorgu.</span></div></div>
+    <div class="step"><span class="n">2</span><div><strong>Doğrula</strong><span>Pasaj, iddiayı gerçekten destekliyor mu?</span></div></div>
+    <div class="step"><span class="n">3</span><div><strong>Yaz</strong><span>Sen tıklarsın, cümle belgeye girer.</span></div></div>
+  </section>
+
+  <section class="trust">
+    <h2>Neden güvenilir</h2>
+    <p class="muted" style="margin:0;font-size:12.5px">Üç kural ürünün tamamını yönetir:</p>
+    <div class="reasons">
+      <div class="reason"><span class="tick">✓</span><span><b>Birebir pasaj.</b> Gösterilen metin kaynaktan alınır, üretilmez.</span></div>
+      <div class="reason"><span class="tick">✓</span><span><b>Beş kanıt sınıfı.</b> Destekliyor, kısmen, ilgisiz, çelişiyor, kanıt yok.</span></div>
+      <div class="reason"><span class="tick">✓</span><span><b>Senin tıklaman.</b> Hiçbir cümle belgeye kendiliğinden girmez.</span></div>
+    </div>
+    <div class="row" aria-label="Taranan kaynaklar">
+      <span>OpenAlex</span><span>Crossref</span><span>Europe PMC</span><span>PubMed</span>
+      <span>Semantic Scholar</span><span>DOAJ</span><span>arXiv</span><span>OpenAIRE</span>
+    </div>
+  </section>
+
+  <footer>
+    <span>Prototip v1 · 18.10.2026 · dış istek yok</span>
+    <span class="mono">docs/design/mockup-giris-v1.html</span>
+  </footer>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const CLAIM = 'Nükleer reaktör kazalarında insan hatası belirleyicidir.';
+  const PASSAGE_FULL = 'İnsan hatası, kaydedilen olayların %60’ında birincil etkendir; tasarım kaynaklı hatalar ikinci sıradadır.';
+  const PASSAGE_PARTIAL = 'Tek santralde yapılan incelemede insan hatası öne çıktı.';
+
+  const el = (id) => document.getElementById(id);
+  const claimLine = el('claim-line');
+  const caret = el('caret');
+  const passage = el('passage');
+  const srcRow = el('src-row');
+  const note = el('note');
+  const beatLabel = el('beat-label');
+
+  const badges = {
+    support: el('badge-support'),
+    partial: el('badge-partial'),
+    none: el('badge-none'),
+  };
+
+  let timers = [];
+  const after = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const clearAll = () => { timers.forEach(clearTimeout); timers = []; };
+
+  const resetBadges = () => {
+    Object.values(badges).forEach(b => b.classList.remove('on'));
+    note.classList.remove('on');
+    note.textContent = '';
+  };
+
+  const typeClaim = (done) => {
+    claimLine.textContent = '';
+    if (caret) claimLine.appendChild(caret);
+    let i = 0;
+    const step = () => {
+      if (i >= CLAIM.length) { done(); return; }
+      caret.insertAdjacentText('beforebegin', CLAIM[i]);
+      i += 1;
+      after(reduced ? 0 : 26, step);
+    };
+    step();
+  };
+
+  function sceneA() {
+    resetBadges();
+    passage.textContent = 'Pasaj, kaynaktan birebir gelir; model yeniden yazamaz.';
+    passage.classList.remove('');
+    srcRow.style.opacity = '0';
+    beatLabel.textContent = '1/3 · İddia';
+
+    typeClaim(() => {
+      beatLabel.textContent = '2/3 · Pasaj';
+      after(320, () => {
+        passage.innerHTML = '';
+        const hit = document.createElement('span');
+        hit.className = 'hit';
+        hit.textContent = 'İnsan hatası';
+        passage.append(hit, document.createTextNode(PASSAGE_FULL.slice('İnsan hatası'.length)));
+        srcRow.style.transition = 'opacity .3s';
+        srcRow.style.opacity = '1';
+      });
+      after(1100, () => {
+        beatLabel.textContent = '3/3 · Sınıf';
+        badges.support.classList.add('on');
+        note.textContent = 'Pasaj iddiayı doğrudan söylüyor; cümle eklenebilir.';
+        note.classList.add('on');
+      });
+      after(2300, () => {
+        resetBadges();
+        passage.innerHTML = '';
+        passage.append(document.createTextNode(PASSAGE_PARTIAL));
+        note.textContent = 'Kapsam farkı var: pasaj tek santrali kapsıyor, iddia genel.';
+        badges.partial.classList.add('on');
+        note.classList.add('on');
+      });
+      after(3700, () => {
+        resetBadges();
+        passage.textContent = 'Uygun pasaj bulunamadı.';
+        note.textContent = 'Sistem uydurmaz: kanıt yoksa cümle belgeye girmez.';
+        badges.none.classList.add('on');
+        note.classList.add('on');
+      });
+    });
+  }
+
+  function sceneB() {
+    const s1 = el('doc-sentence');
+    const s2 = el('doc-sentence-2');
+    const ev1 = el('ev-1');
+    const ev2 = el('ev-2');
+    s1.classList.remove('lit');
+    s2.classList.remove('lit');
+    ev1.classList.remove('on');
+    ev2.classList.remove('on');
+    beatLabel.textContent = '1/3 · Belge';
+    after(250, () => s1.classList.add('lit'));
+    after(900, () => { ev1.classList.add('on'); beatLabel.textContent = '2/3 · Kanıt'; });
+    after(1600, () => s2.classList.add('lit'));
+    after(2200, () => { ev2.classList.add('on'); beatLabel.textContent = '3/3 · Sınıf'; });
+  }
+
+  let layout = 'a';
+  function play() {
+    clearAll();
+    const a = el('scene-a');
+    const b = el('scene-b');
+    const verdict = el('verdict-row');
+    if (layout === 'a') { a.hidden = false; b.hidden = true; verdict.hidden = false; sceneA(); }
+    else { a.hidden = true; b.hidden = false; verdict.hidden = true; sceneB(); }
+  }
+
+  document.querySelectorAll('[data-layout]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      layout = btn.dataset.layout;
+      document.querySelectorAll('[data-layout]').forEach(o => o.setAttribute('aria-pressed', String(o === btn)));
+      play();
+    });
+  });
+
+  el('replay').addEventListener('click', play);
+  el('jump').addEventListener('click', () => {
+    el('demo').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+    el('replay').focus({ preventScroll: true });
+  });
+  document.querySelector('.btn--primary').addEventListener('click', () => {
+    el('demo').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+  });
+
+  const bar = el('bar');
+  const onScroll = () => bar.classList.toggle('stuck', window.scrollY > 6);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // Görünür olunca bir kez oynat.
+  if (reduced) {
+    // Azaltılmış hareket: son durumu göster, animasyon yok.
+    claimLine.textContent = CLAIM;
+    passage.innerHTML = '<span class="hit">İnsan hatası</span>' + PASSAGE_FULL.slice('İnsan hatası'.length);
+    srcRow.style.opacity = '1';
+    badges.support.classList.add('on');
+    note.textContent = 'Pasaj iddiayı doğrudan söylüyor; cümle eklenebilir.';
+    note.classList.add('on');
+    beatLabel.textContent = '3/3 · Sınıf';
+  } else {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) { play(); io.disconnect(); }
+      });
+    }, { threshold: 0.35 });
+    io.observe(el('demo'));
+  }
+})();
+</script>
+</body>
+</html>
