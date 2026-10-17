@@ -415,7 +415,8 @@ function drawStairs(d, t) {
   let out = '';
   d.items.forEach((it, i) => {
     const x = PAD + i * (colW + gap), h = bh(i), y = baseY - h;
-    const fill = t.sade ? tint(t.col(0), 0.72 - 0.62 * i / Math.max(1, n - 1)) : t.col(i);
+    // Yükselen düzey: tek ton, en üst basamak en koyu.
+    const fill = tint(t.col(0), 0.72 - 0.68 * i / Math.max(1, n - 1));
     const txt = onColor(fill);
     out += rect(x, y, colW, h, { fill, rx: 6 });
     out += T(wrap(String(i + 1), 99, 16, 700), x + colW / 2, baseY - 15, { fill: txt, anchor: 'middle', v: 'middle' });
@@ -579,27 +580,32 @@ function drawLoop(d, t) {
   const ang = (i) => -Math.PI / 2 + i * 2 * Math.PI / n;
   const P = (a) => [rx * Math.cos(a), ry * Math.sin(a)];
   const speed = (a) => Math.hypot(rx * Math.sin(a), ry * Math.cos(a));
-  const L = d.items.map((it, i) => { const b = wrap(it.label, n >= 7 ? 104 : 120, 12.5, 600), a = ang(i); const [x, y] = P(a); return { b, a, x, y }; });
-  const along = (p) => { const tx = -rx * Math.sin(p.a), ty = ry * Math.cos(p.a), m = Math.hypot(tx, ty); return Math.abs(tx / m) * (p.b.w / 2 + 8) + Math.abs(ty / m) * (p.b.h / 2 + 6); };
+  const L = d.items.map((it, i) => { const b = wrap(it.label, n >= 7 ? 100 : 118, 13, 700), a = ang(i); const [x, y] = P(a); return { b, a, x, y }; });
+  const along = (p) => { const tx = -rx * Math.sin(p.a), ty = ry * Math.cos(p.a), m = Math.hypot(tx, ty); return Math.abs(tx / m) * (p.b.w / 2 + 11) + Math.abs(ty / m) * (p.b.h / 2 + 8); };
   let out = '';
   E.add(-rx - 12, -ry - 12, rx + 12, ry + 12);
   L.forEach((p, i) => {
     const q = L[(i + 1) % n], aq = ang(i + 1);
     const a1 = p.a + (along(p) + 4) / speed(p.a), a2 = aq - (along(q) + 8) / speed(aq);
     const [x1, y1] = P(a1), [x2, y2] = P(a2);
-    out += path(`M${r1(x1)} ${r1(y1)} A${rx} ${ry} 0 0 1 ${r1(x2)} ${r1(y2)}`, t.line, 2) + head(x2, y2, Math.atan2(ry * Math.cos(a2), -rx * Math.sin(a2)), t.line, 9);
-    const [bx, by] = P((a1 + a2) / 2), neg = d.items[i].pol === '-', c = neg ? t.neg : t.pos;
-    out += circ(bx, by, 10, '#ffffff', c, 1.6) + T(wrap(neg ? '−' : '+', 99, 14, 700), bx, by, { fill: c, anchor: 'middle', v: 'middle' });
+    // Okun rengi bağın işaretinden: artırır (+) yeşil, azaltır (−) kırmızı; işaret ayrıca dairede yazılı (renk tek başına anlam taşımaz).
+    const neg = d.items[i].pol === '-', c = neg ? t.neg : t.pos, ac = t.sade ? t.dark : tint(c, 0.2);
+    out += path(`M${r1(x1)} ${r1(y1)} A${rx} ${ry} 0 0 1 ${r1(x2)} ${r1(y2)}`, ac, 2.8) + head(x2, y2, Math.atan2(ry * Math.cos(a2), -rx * Math.sin(a2)), ac, 12);
+    const [bx, by] = P((a1 + a2) / 2);
+    out += circ(bx, by, 12, '#ffffff', c, 2) + T(wrap(neg ? '−' : '+', 99, 16, 700), bx, by, { fill: c, anchor: 'middle', v: 'middle' });
   });
   L.forEach((p, i) => {
-    const c = t.col(i), bw = p.b.w + 16, bh = p.b.h + 12, box = [p.x - bw / 2, p.y - bh / 2, bw, bh];
-    out += rect(box[0], box[1], bw, bh, { shadow: true, fill: tint(c, 0.9), stroke: c, sw: 1.2, rx: 8 }) + T(p.b, p.x, p.y, { fill: t.ink, anchor: 'middle', v: 'middle', box });
+    const c = t.col(i), bw = p.b.w + 22, bh = p.b.h + 16, box = [p.x - bw / 2, p.y - bh / 2, bw, bh];
+    out += rect(box[0], box[1], bw, bh, { shadow: true, fill: tint(c, 0.9), stroke: c, sw: 1.4, rx: 10 }) + T(p.b, p.x, p.y, { fill: t.ink, anchor: 'middle', v: 'middle', box });
     E.add(box[0], box[1], box[0] + bw, box[1] + bh);
   });
   const minus = d.items.filter((it) => it.pol === '-').length, reinf = minus % 2 === 0;
-  out += circ(0, -16, 20, '#ffffff', t.dark, 2) + T(wrap(reinf ? 'R' : 'B', 99, 18, 700), 0, -16, { fill: t.dark, anchor: 'middle', v: 'middle' });
-  out += T(wrap(reinf ? 'Pekiştiren döngü' : 'Dengeleyen döngü', 150, 12, 600), 0, 12, { fill: t.dark, anchor: 'middle' });
-  out += T(wrap(`eksi bağ: ${minus} (${reinf ? 'çift' : 'tek'})`, 150, 10.5), 0, 30, { fill: t.muted, anchor: 'middle' });
+  // Merkez: harf rozeti, döngü adı, gerekçe — dikeyde yüksekliklerine göre dizilir.
+  const nb = wrap(reinf ? 'Pekiştiren döngü' : 'Dengeleyen döngü', 120, 12, 700), mb = wrap(`eksi bağ: ${minus} (${reinf ? 'çift' : 'tek'})`, 120, 10.5);
+  const stackH = 40 + 6 + nb.h + 2 + mb.h, y0 = -stackH / 2;
+  out += circ(0, 0, Math.max(60, stackH / 2 + 14), t.sade ? '#f2f4f7' : tint(t.col(0), 0.93));
+  out += circ(0, y0 + 20, 20, t.dark) + T(wrap(reinf ? 'R' : 'B', 99, 18, 700), 0, y0 + 20, { fill: '#ffffff', anchor: 'middle', v: 'middle' });
+  out += T(nb, 0, y0 + 46, { fill: t.dark, anchor: 'middle' }) + T(mb, 0, y0 + 46 + nb.h + 2, { fill: t.muted, anchor: 'middle' });
   return E.wrap(out);
 }
 
@@ -703,18 +709,19 @@ function drawMind(d, t) {
 }
 function drawPyramid(d, t) {
   const n = d.items.length, pw = 340, px = PAD, apexX = px + pw / 2, lx = px + pw + 40, lw = W - PAD - lx;
-  const B = d.items.map((it) => ({ l: wrap(it.label, lw, 12.5, 600), s: wrap(it.desc || '', lw, 11) }));
-  const lh = Math.max(42, ...B.map((b) => b.l.h + (b.s.lines.length ? 2 + b.s.h : 0) + 10));
+  const B = d.items.map((it) => ({ l: wrap(it.label, lw, 13.5, 700), s: wrap(it.desc || '', lw, 12) }));
+  const lh = Math.max(44, ...B.map((b) => b.l.h + (b.s.lines.length ? 2 + b.s.h : 0) + 12));
   const top = PAD, H = lh * n, wAt = (y) => pw * (y - top) / H;
   let out = '';
   d.items.forEach((it, i) => {
     const y1 = top + i * lh, y2 = y1 + lh, w1 = wAt(y1), w2 = wAt(y2), ym = (y1 + y2) / 2;
-    const c = t.sade ? tint(t.col(0), 0.06 + 0.66 * i / Math.max(1, n - 1)) : t.col(i);
-    out += `<polygon points="${r1(apexX - w1 / 2)},${r1(y1)} ${r1(apexX + w1 / 2)},${r1(y1)} ${r1(apexX + w2 / 2)},${r1(y2)} ${r1(apexX - w2 / 2)},${r1(y2)}" fill="${c}" stroke="#ffffff" stroke-width="2"/>`;
+    // Sıralı düzey: tek ton, tepe koyu → taban açık (gökkuşağı sıra anlatmaz).
+    const c = tint(t.col(0), 0.04 + 0.7 * i / Math.max(1, n - 1));
+    out += `<polygon points="${r1(apexX - w1 / 2)},${r1(y1)} ${r1(apexX + w1 / 2)},${r1(y1)} ${r1(apexX + w2 / 2)},${r1(y2)} ${r1(apexX - w2 / 2)},${r1(y2)}" fill="${c}" stroke="#ffffff" stroke-width="2.5"/>`;
     const ny = i === 0 ? y1 + lh * 0.66 : ym;
-    out += T(wrap(String(i + 1), 99, 13, 700), apexX, ny, { fill: onColor(c), anchor: 'middle', v: 'middle' });
-    const ex = apexX + wAt(ym) / 2 + 6;
-    out += line(ex, ym, lx - 8, ym, t.line, 1, '2 3') + circ(lx - 8, ym, 2.5, t.line);
+    out += T(wrap(String(i + 1), 99, 14, 700), apexX, ny, { fill: onColor(c), anchor: 'middle', v: 'middle' });
+    const ex = apexX + wAt(ym) / 2 + 6, lc = t.sade ? t.line : tint(t.col(0), 0.35);
+    out += line(ex, ym, lx - 10, ym, lc, 1.3, '2 4') + circ(lx - 10, ym, 3.5, lc);
     const bh = B[i].l.h + (B[i].s.lines.length ? 2 + B[i].s.h : 0);
     out += T(B[i].l, lx, ym - bh / 2, { fill: t.ink }) + T(B[i].s, lx, ym - bh / 2 + B[i].l.h + 2, { fill: t.muted });
   });
@@ -925,19 +932,20 @@ function drawTimeH(d, t) {
   const n = d.items.length, inner = W - 2 * PAD;
   const lw = n > 1 ? Math.min(210, (2 * inner / (n - 1) - 18) / (1 + 2 / (n - 1))) : 300;
   const x0 = PAD + lw / 2, x1 = W - PAD - lw / 2, step = n > 1 ? (x1 - x0) / (n - 1) : 0, stem = 26;
-  const B = d.items.map((it) => wrap(it.label, lw, 12, 600));
+  const B = d.items.map((it) => wrap(it.label, lw, 12.5, 600));
   const upH = Math.max(0, ...B.filter((_, i) => i % 2 === 0).map((b) => b.h)), dnH = Math.max(0, ...B.filter((_, i) => i % 2 === 1).map((b) => b.h));
-  const ay = PAD + upH + 4 + stem + 10;
-  let out = arrow(PAD, ay, W - PAD, ay, t.line, 2);
+  const ph = 26, ay = PAD + upH + 6 + stem + ph / 2;
+  // Kalın eksen şeridi; yıl hapı üstünde, sap ucunda nokta.
+  let out = rect(PAD, ay - 3, W - 2 * PAD - 8, 6, { fill: t.sade ? '#d5dbe2' : tint(t.col(0), 0.8), rx: 3 }) + head(W - PAD, ay, 0, t.sade ? '#9aa4b1' : tint(t.col(0), 0.45), 12);
   d.items.forEach((it, i) => {
     const x = n > 1 ? x0 + i * step : W / 2, c = t.col(i), up = i % 2 === 0, b = B[i];
     const lx = Math.min(Math.max(x, PAD + b.w / 2), W - PAD - b.w / 2);
-    if (up) out += line(x, ay - 10, x, ay - 10 - stem, c, 1.5) + T(b, lx, ay - 14 - stem, { fill: t.ink, anchor: 'middle', v: 'bottom' });
-    else out += line(x, ay + 10, x, ay + 10 + stem, c, 1.5) + T(b, lx, ay + 14 + stem, { fill: t.ink, anchor: 'middle' });
-    const yb = wrap(it.year, 80, 11.5, 700), yw = yb.w + 14;
-    out += rect(x - yw / 2, ay - 10, yw, 20, { fill: c, rx: 10 }) + T(yb, x, ay, { fill: '#ffffff', anchor: 'middle', v: 'middle', box: [x - yw / 2, ay - 10, yw, 20] });
+    if (up) out += line(x, ay - ph / 2, x, ay - ph / 2 - stem, c, 2) + circ(x, ay - ph / 2 - stem, 3.5, c) + T(b, lx, ay - ph / 2 - stem - 7, { fill: t.ink, anchor: 'middle', v: 'bottom' });
+    else out += line(x, ay + ph / 2, x, ay + ph / 2 + stem, c, 2) + circ(x, ay + ph / 2 + stem, 3.5, c) + T(b, lx, ay + ph / 2 + stem + 7, { fill: t.ink, anchor: 'middle' });
+    const yb = wrap(it.year, 80, 12.5, 700), yw = yb.w + 18;
+    out += rect(x - yw / 2, ay - ph / 2, yw, ph, { shadow: true, fill: c, rx: ph / 2 }) + T(yb, x, ay, { fill: '#ffffff', anchor: 'middle', v: 'middle', box: [x - yw / 2, ay - ph / 2, yw, ph] });
   });
-  return { w: W, h: ay + 14 + stem + dnH + PAD, svg: out };
+  return { w: W, h: ay + ph / 2 + stem + 7 + dnH + PAD, svg: out };
 }
 function drawTimeV(d, t) {
   const cx = W / 2, cw = 262, gx = 30;
@@ -967,7 +975,9 @@ function drawKpi(d, t) {
   let out = '', y = PAD;
   for (let r0 = 0; r0 < n; r0 += cols) {
     const idx = range(cols).map((j) => r0 + j).filter((i) => i < n);
-    const B = idx.map((i) => ({ v: wrap(d.items[i].value, cw - 24 - (t.icons ? 30 : 0), 24, 700), l: wrap(d.items[i].label, cw - 24, 12) }));
+    // Değer tek satırda kalır: sığmazsa yazı küçülür (en az 16), bölünmez.
+    const fit = (s, mw) => { let z = 26; while (z > 16 && tw(s, z, 700) > mw) z -= 1; return wrap(s, tw(s, z, 700) > mw ? mw : 9999, z, 700); };
+    const B = idx.map((i) => ({ v: fit(d.items[i].value, cw - 24 - (t.icons ? 30 : 0)), l: wrap(d.items[i].label, cw - 24, 12.5) }));
     const h = Math.max(...B.map((b) => 16 + b.v.h + 4 + b.l.h + 16));
     idx.forEach((i, j) => {
       const x = PAD + j * (cw + gap), c = t.col(i), box = [x, y, cw, h];
@@ -982,19 +992,22 @@ function drawKpi(d, t) {
 function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); return [1, 2, 2.5, 5, 10].map((m) => m * p).find((m) => m >= v); }
 function drawBars(d, t) {
   const lw = 160, bx = PAD + lw + 14, bwMax = W - PAD - 46 - bx, max = niceMax(Math.max(...d.items.map((it) => it.value)));
-  let out = '', y = PAD;
-  const c = t.col(0);
+  let bars = '', y = PAD;
+  const c = t.col(0), bh = 22;
   d.items.forEach((it) => {
-    const lb = wrap(it.label, lw, 12), h = Math.max(lb.h, 20) + 12, w = bwMax * it.value / max;
-    out += T(lb, bx - 10, y + h / 2, { fill: t.ink, anchor: 'end', v: 'middle' });
-    out += rect(bx, y + h / 2 - 10, w, 20, { fill: c, rx: 3 }) + T(wrap(fmt(it.value), 60, 12, 700), bx + w + 6, y + h / 2, { fill: t.ink, v: 'middle' });
+    const lb = wrap(it.label, lw, 12.5, 600), h = Math.max(lb.h, bh) + 12, w = bwMax * it.value / max;
+    bars += T(lb, bx - 12, y + h / 2, { fill: t.ink, anchor: 'end', v: 'middle' });
+    bars += rect(bx, y + h / 2 - bh / 2, w, bh, { fill: c, rx: 5 }) + T(wrap(fmt(it.value), 60, 12.5, 700), bx + w + 7, y + h / 2, { fill: t.ink, v: 'middle' });
     y += h;
   });
-  out += line(bx, PAD - 4, bx, y, t.line, 1);
-  [0, 0.5, 1].forEach((f) => {
+  // Izgara önce (çubukların arkasında), sonra çubuklar.
+  let out = '';
+  const ticks = [0, 0.25, 0.5, 0.75, 1];
+  ticks.forEach((f) => {
     const x = bx + bwMax * f;
-    out += line(x, y, x, y + 5, t.line, 1) + T(wrap(fmt(max * f), 60, 10.5), x, y + 8, { fill: t.muted, anchor: 'middle' });
+    out += line(x, PAD - 4, x, y, f === 0 ? t.line : '#e3e7ed', f === 0 ? 1.4 : 1, f === 0 ? null : '3 4') + T(wrap(fmt(max * f), 60, 11), x, y + 8, { fill: t.muted, anchor: 'middle' });
   });
+  out += bars;
   out += T(wrap(d.axis, 300, 11.5, 600), bx + bwMax / 2, y + 26, { fill: t.muted, anchor: 'middle' });
   return { w: W, h: y + 26 + 16 + PAD, svg: out };
 }
