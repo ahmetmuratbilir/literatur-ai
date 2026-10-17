@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Durumlar prototipi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F6FB; --surface:#fff; --line:#E6E8F2; --line2:#D9DCEA;
+  --ink:#1A1D2E; --ink2:#4B5068; --muted:#5F6478;
+  --primary:#6C5CE7; --primary-d:#5848D6; --primary-soft:#EFEDFD; --primary-ink:#5A48D8;
+  --ok:#166534; --ok-soft:#E8F5EC; --warn:#B45309; --warn-soft:#FDF3E3;
+  --bad:#B91C1C; --bad-soft:#FCEBEB; --none:#4B5563; --none-soft:#EEF0F3;
+  --ui:'Plus Jakarta Sans',system-ui,sans-serif; --doc:'Source Serif 4',Georgia,serif; --mono:'JetBrains Mono',monospace;
+  /* Katman ölçeği (etkileşim planı §1.1) */
+  --z-base:0; --z-sticky:10; --z-panel:20; --z-popover:30; --z-drawer:40; --z-modal:50; --z-palette:60; --z-toast:70; --z-tooltip:80;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--ui);font-size:14px;color:var(--ink);background:var(--bg);line-height:1.5}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,[tabindex]:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px}
+button[disabled]{cursor:not-allowed}
+.top{position:sticky;top:0;z-index:var(--z-sticky);background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 16px}
+.topbar{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;padding:12px 0}
+.topbar h1{font-size:17px;margin:0}
+.nav{display:flex;flex-wrap:wrap;gap:4px}
+.nav a{padding:6px 12px;border-radius:999px;color:var(--ink2);text-decoration:none;font-weight:600;font-size:13px}
+.nav a:hover,.nav a.on{background:var(--primary-soft);color:var(--primary-ink)}
+.intro{color:var(--ink2);max-width:860px;margin:20px 0 4px}
+section.blk{margin:34px 0}
+section.blk>h2{font-size:20px;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--ink2);margin:0 0 16px;max-width:860px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 10px 30px -22px rgba(20,24,60,.3)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:10px;font-weight:600;border:1px solid var(--line2);background:#fff}
+.btn:hover{border-color:var(--primary);color:var(--primary-ink)}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.pri:hover{background:var(--primary-d);color:#fff}
+.btn.sm{height:30px;padding:0 10px;font-size:13px;border-radius:8px}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.seg{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:3px;flex-wrap:wrap}
+.seg button{padding:7px 12px;border-radius:9px;font-weight:600;color:var(--ink2);font-size:13px}
+.seg button[aria-pressed="true"]{background:#fff;color:var(--primary-ink);box-shadow:0 1px 3px rgba(20,24,60,.12)}
+.lbl{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px}
+.note{font-size:12.5px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px}
+@media (max-width:900px){.grid2{grid-template-columns:1fr}}
+
+/* Arama */
+.sbox{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:6px 6px 6px 16px}
+.sbox input{flex:1;min-width:0;border:0;outline:0;font:inherit;font-size:15px;height:38px;background:transparent}
+.sbox .go{min-width:132px;justify-content:center}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;animation:sp .8s linear infinite}
+.spin.dark{border-color:rgba(90,72,216,.25);border-top-color:var(--primary)}
+@keyframes sp{to{transform:rotate(360deg)}}
+.status{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:16px 0 10px;font-size:13.5px;color:var(--ink2)}
+.status b{color:var(--ink)}
+.banner{display:flex;gap:10px;align-items:flex-start;border-radius:12px;padding:12px 14px;margin:10px 0;font-size:13.5px}
+.banner.warn{background:var(--warn-soft);color:#7a3d06;border:1px solid #F3D7AE}
+.banner.bad{background:var(--bad-soft);color:#7f1414;border:1px solid #F2C9C9}
+.banner.info{background:var(--none-soft);color:#2f3742;border:1px solid var(--line2)}
+.banner.ok{background:var(--ok-soft);color:#0f4a26;border:1px solid #C8E6D1}
+.banner svg{flex:none;margin-top:1px}
+.banner .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.sk{background:linear-gradient(90deg,#EEF0F6 0,#F7F8FC 40%,#EEF0F6 80%);background-size:300% 100%;animation:sh 1.4s ease infinite;border-radius:6px}
+@keyframes sh{0%{background-position:100% 0}100%{background-position:0 0}}
+.srclist{display:grid;gap:6px;font-size:13px}
+.srclist div{display:flex;justify-content:space-between;gap:10px;padding:7px 10px;border-radius:8px;background:var(--bg)}
+.srclist .st-ok{color:var(--ok);font-weight:600}.srclist .st-slow{color:var(--warn);font-weight:600}.srclist .st-bad{color:var(--bad);font-weight:600}.srclist .st-wait{color:var(--muted)}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;border-radius:999px;padding:2px 9px;background:var(--none-soft);color:var(--none)}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}.tag.warn{background:var(--warn-soft);color:var(--warn)}.tag.bad{background:var(--bad-soft);color:var(--bad)}.tag.pri{background:var(--primary-soft);color:var(--primary-ink)}
+.tag.soon{background:#EEF0F3;color:#4B5563}
+
+/* Kartlar */
+.card{position:relative;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card h4{margin:0;font-size:14.5px;line-height:1.35}
+.card .meta{font-size:12.5px;color:var(--ink2)}
+.card .unknown{color:var(--muted);font-style:italic}
+.card .abs{font-family:var(--doc);font-size:13px;line-height:1.5;color:#2A2E44;border-left:3px solid var(--line2);padding:2px 10px;margin:0}
+.card .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.card .ribbon{margin:-14px -16px 2px;padding:7px 16px;border-radius:14px 14px 0 0;font-size:12.5px;font-weight:700;display:flex;gap:8px;align-items:center}
+.card .ribbon.bad{background:var(--bad);color:#fff}.card .ribbon.warn{background:var(--warn-soft);color:#7a3d06;border-bottom:1px solid #F3D7AE}
+.card.retracted{border-color:#E9B0B0}
+.card.retracted h4{text-decoration:line-through;text-decoration-color:rgba(185,28,28,.5)}
+.card .ev{display:flex;gap:8px;align-items:center;font-size:12.5px;font-weight:700}
+.card .pass{font-family:var(--doc);font-size:13px;line-height:1.55;background:#FAFAFD;border-radius:8px;padding:8px 10px;margin:0}
+.card .pass mark{background:#EFEDFD;color:inherit;padding:0 2px;border-radius:3px}
+.card.ev-supports{border-left:4px solid var(--ok)}.card.ev-partial{border-left:4px solid var(--warn)}.card.ev-contradicts{border-left:4px solid var(--bad)}.card.ev-irrelevant,.card.ev-none{border-left:4px solid #9AA1AE}
+.card .ro{position:absolute;inset:0;border-radius:14px;background:rgba(245,246,251,.55);pointer-events:none}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:16px}
+.tile .cap{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin:0 0 6px}
+.tile .cap b{font-size:13px}
+.tile .cap span{font-size:11.5px;color:var(--muted)}
+.rowcard{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px}
+.rowcard .t{flex:1;min-width:0}
+.rowcard .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.matrix{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:12px;overflow:hidden}
+.matrix th,.matrix td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+.matrix th{background:#FAFAFD;font-size:12px;color:var(--muted)}
+.matrix td.y{color:var(--ok);font-weight:700}.matrix td.n{color:var(--muted)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+
+/* Hatalar */
+.errlist{display:grid;gap:6px}
+.errlist button{display:flex;justify-content:space-between;gap:8px;text-align:left;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;font-weight:600;font-size:13.5px}
+.errlist button[aria-pressed="true"]{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-ink)}
+.errlist small{font-weight:500;color:var(--muted)}
+.mock{border:1px dashed var(--line2);border-radius:14px;padding:16px;background:var(--bg)}
+details.tech{font-size:12px;color:var(--muted);margin-top:6px}
+details.tech code{font-family:var(--mono);font-size:11.5px}
+.field{display:grid;gap:4px;margin:0 0 10px}
+.field input{height:38px;border:1px solid var(--line2);border-radius:10px;padding:0 12px;font:inherit}
+.field input[aria-invalid="true"]{border-color:var(--bad);background:#FFF8F8}
+.field .ferr{color:var(--bad);font-size:12.5px;font-weight:600}
+
+/* Pencere, menü, bildirim */
+.popover{position:absolute;z-index:var(--z-popover);background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px -16px rgba(20,24,60,.35);padding:6px;min-width:220px}
+.popover button{display:block;width:100%;text-align:left;padding:8px 10px;border-radius:8px;font-size:13.5px}
+.popover button:hover,.popover button:focus-visible{background:var(--primary-soft);color:var(--primary-ink)}
+.scrim{position:fixed;inset:0;z-index:var(--z-modal);background:rgba(20,24,46,.42);display:grid;place-items:center;padding:16px}
+.dialog{background:#fff;border-radius:16px;max-width:460px;width:100%;padding:22px;box-shadow:0 30px 70px -20px rgba(20,24,60,.5)}
+.dialog h3{margin:0 0 6px;font-size:17px}
+.dialog p{margin:0 0 12px;color:var(--ink2)}
+.dialog ul{margin:0 0 16px;padding-left:18px;color:var(--ink2)}
+.dialog .acts{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.toasts{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:var(--z-toast);display:grid;gap:8px;width:min(460px,calc(100vw - 32px))}
+.toast{display:flex;align-items:center;gap:12px;background:#1F2340;color:#fff;border-radius:12px;padding:10px 12px 10px 16px;box-shadow:0 14px 30px -12px rgba(0,0,0,.5);font-size:13.5px;position:relative;overflow:hidden}
+.toast .msg{flex:1}
+.toast button{color:#C9C2FF;font-weight:700;padding:4px 8px;border-radius:8px}
+.toast button:hover{background:rgba(255,255,255,.08)}
+.toast .bar{position:absolute;left:0;bottom:0;height:3px;background:#8E82F5}
+.toast.err{background:#5B1414}
+.drafts{display:grid;gap:8px}
+.draft{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.draft .t{flex:1;min-width:0}
+.draft input{font:inherit;font-weight:600;border:1px solid var(--primary);border-radius:8px;padding:4px 8px;width:100%}
+.log{font-family:var(--mono);font-size:12px;background:#1F2340;color:#D9D6FF;border-radius:10px;padding:10px 12px;min-height:84px;white-space:pre-wrap}
+[inert]{opacity:.98}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap topbar">
+    <h1>Durumlar prototipi</h1>
+    <nav class="nav" aria-label="Bölümler">
+      <a href="#bekleme">1 · Arama bekleme</a><a href="#hatalar">2 · Hatalar</a><a href="#kartlar">3 · Kart durumları</a><a href="#pencere">4 · Pencere ve geri al</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+  <p class="intro">Etkileşim planının (<code>docs/design/etkilesim-ve-durumlar-plani.md</code>) §3–§6'sı tıklanabilir halde.
+  Kodda WO-018 (pencere, Esc, geri al) ve WO-E2 (bekleme, hata, kart durumları) bunu izler. <b>Örnek kayıtlar uydurmadır</b>;
+  yalnız görünüm ve davranış denemesi içindir.</p>
+
+  <!-- 1. Arama bekleme -->
+  <section class="blk" id="bekleme" aria-labelledby="h-bek">
+    <h2 id="h-bek">1 · Arama bekleme — dürüst yol (A)</h2>
+    <p class="lead">Bugün aşama metinleri 2 sn'lik zamanlayıcıyla dönüyor ve gerçek ilerlemeyle bağı yok (<code>App.jsx:397-404</code>).
+    Burada yalnız doğru olan gösteriliyor: geçen süre, sonuç şeklinde iskelet, İptal. Kaç kaynağın tarandığı tahmin edilmez, yanıtla gelir.</p>
+    <div class="grid2">
+      <div class="panel">
+        <div class="row" style="justify-content:space-between;margin-bottom:12px">
+          <div>
+            <p class="lbl">Senaryo</p>
+            <div class="seg" id="scen" role="group" aria-label="Senaryo">
+              <button data-s="fast" aria-pressed="false">0,2 sn</button>
+              <button data-s="short" aria-pressed="false">1 sn</button>
+              <button data-s="mid" aria-pressed="true">5 sn</button>
+              <button data-s="long" aria-pressed="false">25 sn</button>
+              <button data-s="partial" aria-pressed="false">Kısmi</button>
+              <button data-s="empty" aria-pressed="false">Boş</button>
+            </div>
+          </div>
+          <label class="note"><input type="checkbox" id="fastfwd" checked> Uzun senaryoyu 5× hızlandır</label>
+        </div>
+        <form class="sbox" id="sform" role="search">
+          <input id="q" value="küçük modüler reaktör pasif soğutma" aria-label="Arama sorgusu">
+          <button class="btn pri go" id="go" type="submit">Ara</button>
+        </form>
+        <div id="sres" aria-live="polite"></div>
+      </div>
+      <div class="panel">
+        <p class="lbl">Kural (§3.1)</p>
+        <table class="matrix" style="margin-bottom:14px"><tbody>
+          <tr><td>&lt; 300 ms</td><td>Hiçbir şey (titremesin)</td></tr>
+          <tr><td>300 ms – 2 sn</td><td>Düğmede dönen simge, “Aranıyor…”</td></tr>
+          <tr><td>&gt; 2 sn</td><td>İskelet + gerçek süre + İptal</td></tr>
+          <tr><td>&gt; 20 sn</td><td>“Beklenenden uzun sürüyor” + İptal</td></tr>
+        </tbody></table>
+        <p class="lbl">B yolu — gerçek ilerleme <span class="tag soon">ayrı karar · WO-E3</span></p>
+        <p class="note" style="margin:0 0 8px">Sunucu her kaynağın bitişini akışla gönderirse liste böyle dolar; düşen kaynak sessiz kalmaz (tüzük 2.11).</p>
+        <div class="srclist" id="srclist"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Hatalar -->
+  <section class="blk" id="hatalar" aria-labelledby="h-hat">
+    <h2 id="h-hat">2 · Hata durumları</h2>
+    <p class="lead">Her mesaj üç şeyi söyler: ne oldu, bir şey kaybettin mi, ne yapacaksın. “Bir hata oluştu” tek başına yok (§5.2).
+    Teknik ayrıntı katlanır alanda.</p>
+    <div class="grid2" style="grid-template-columns:minmax(0,.8fr) minmax(0,1.4fr)">
+      <div class="errlist" id="errlist" role="group" aria-label="Hata türü"></div>
+      <div>
+        <p class="lbl">Kullanıcının gördüğü</p>
+        <div class="mock" id="errview"></div>
+        <p class="note" id="errwhy" style="margin-top:10px"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Kartlar -->
+  <section class="blk" id="kartlar" aria-labelledby="h-kar">
+    <h2 id="h-kar">3 · Kart durumları</h2>
+    <p class="lead">Matrisin (§4) her dolu hücresi aşağıda çizili. Kurallar: eksik alan “bilinmiyor” yazar, gizlenmez; zenginleştirme düşerse kart kalır,
+    yalnız o bilgi görünmez ve bu kırmızı değildir; geri çekilmiş kaynak kartta en görünür bilgidir; kartta en fazla 3 eylem.</p>
+    <div class="seg" id="ctype" role="group" aria-label="Kart türü" style="margin-bottom:16px"></div>
+    <div class="tiles" id="tiles"></div>
+    <h3 style="margin:28px 0 8px;font-size:15px">Matris: hangi durum hangi kartta</h3>
+    <div class="tablewrap"><table class="matrix" id="matrix"></table></div>
+  </section>
+
+  <!-- 4. Pencere ve geri al -->
+  <section class="blk" id="pencere" aria-labelledby="h-pen">
+    <h2 id="h-pen">4 · Pencere, Esc ve geri al</h2>
+    <p class="lead">Tarayıcının kendi kutuları (<code>confirm</code>, <code>prompt</code>, <code>alert</code>; kodda 6 yer) yerine:
+    geri alınabilen eylem onay sormaz, “Geri al” bildirimi verir; geri alınamayan eylem ürünün penceresiyle sorar, varsayılan düğme Vazgeç.
+    Esc yalnız en üstteki katmanı kapatır.</p>
+    <div class="grid2">
+      <div class="panel">
+        <p class="lbl">Taslaklar (Masam)</p>
+        <div class="drafts" id="drafts"></div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn" id="emptySecBtn">Boş bölümleri kaldır…</button>
+          <span class="note">Geri alınamaz (sürüm geçmişi WO-014'e kadar) → onay penceresi</span>
+        </div>
+      </div>
+      <div class="panel">
+        <p class="lbl">Katman yığını ve Esc</p>
+        <div class="row" style="position:relative">
+          <button class="btn" id="menuBtn" aria-haspopup="menu" aria-expanded="false">⋯ Menü aç</button>
+          <span class="note">Menüden pencere aç, sonra Esc'ye bas: önce yalnız pencere kapanır, sonra menü.</span>
+        </div>
+        <p class="lbl" style="margin-top:14px">Yığın</p>
+        <div class="log" id="stacklog" aria-live="polite">(boş)</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const fmt = (n) => Number(n).toLocaleString('tr-TR');
+const IC = {
+  info: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
+  warn: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></svg>',
+  bad: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>',
+  ok: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>',
+  wifi: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h.01M8.5 16.43a5 5 0 0 1 7 0M2 8.82a15 15 0 0 1 4.17-2.65M22 8.82a15 15 0 0 0-11.29-3.76M5 12.86a10 10 0 0 1 5.17-2.69M19 12.86a10 10 0 0 0-2-1.43M2 2l20 20"/></svg>',
+};
+
+// ================= 1. Arama bekleme =================
+const SOURCES = ['OpenAlex', 'Crossref', 'Semantic Scholar', 'Europe PMC', 'PubMed', 'DOAJ', 'Unpaywall', 'OpenCitations', 'DergiPark (yerel)', 'TR Dizin (yerel)'];
+const SCEN = {
+  fast: { ms: 200, n: 186, fail: [] }, short: { ms: 1000, n: 186, fail: [] }, mid: { ms: 5000, n: 214, fail: [] },
+  long: { ms: 25000, n: 214, fail: [], slow: ['Crossref', 'Europe PMC'] }, partial: { ms: 6000, n: 171, fail: ['Crossref'] }, empty: { ms: 3000, n: 0, fail: [] },
+};
+let run = null;
+const resultCards = () => [RC('normal'), RC('oa')].map((c) => `<div style="margin-top:10px">${c}</div>`).join('');
+function skeleton() {
+  return `<div aria-hidden="true">${[0, 1, 2].map(() => `<div class="card" style="margin-top:10px"><div class="sk" style="height:16px;width:78%"></div><div class="sk" style="height:12px;width:46%"></div><div class="sk" style="height:46px;width:100%"></div><div class="row"><div class="sk" style="height:28px;width:96px"></div><div class="sk" style="height:28px;width:70px"></div></div></div>`).join('')}</div>`;
+}
+function setGo(state) {
+  const go = $('#go');
+  if (state === 'busy') { go.innerHTML = '<span class="spin" aria-hidden="true"></span> Aranıyor…'; go.setAttribute('aria-busy', 'true'); }
+  else { go.textContent = 'Ara'; go.removeAttribute('aria-busy'); }
+}
+function renderSrc(elapsed, sc, done) {
+  const total = sc.ms, rows = SOURCES.map((s, i) => {
+    const t = total * (0.25 + 0.07 * i);
+    if (sc.fail.includes(s) && (done || elapsed > total * 0.8)) return `<div><span>${s}</span><span class="st-bad">yanıt vermedi</span></div>`;
+    if (sc.slow && sc.slow.includes(s) && !done) return `<div><span>${s}</span><span class="st-slow">yavaş… ${Math.round(elapsed / 1000)} sn</span></div>`;
+    if (done || elapsed >= t) return `<div><span>${s}</span><span class="st-ok">✓ ${sc.n ? 4 + ((i * 37) % 60) : 0} kayıt</span></div>`;
+    return `<div><span>${s}</span><span class="st-wait">bekleniyor</span></div>`;
+  });
+  $('#srclist').innerHTML = rows.join('');
+}
+function startSearch() {
+  if (run) cancel(true);
+  const key = $('#scen [aria-pressed="true"]').dataset.s, sc = SCEN[key];
+  const speed = key === 'long' && $('#fastfwd').checked ? 5 : 1;
+  const t0 = performance.now();
+  run = { sc, key, t0, speed, timer: null, done: false };
+  $('#sres').innerHTML = '';
+  const tick = () => {
+    const el = (performance.now() - t0) * speed;
+    if (el >= sc.ms) return finish();
+    if (el >= 300) setGo('busy');
+    if (el >= 2000) {
+      const long = el >= 20000;
+      $('#sres').innerHTML =
+        `<div class="status"><span class="spin dark" aria-hidden="true"></span><span><b>Kaynaklar taranıyor</b> · ${Math.floor(el / 1000)} sn</span><button class="btn sm" id="cancelBtn" type="button">İptal</button></div>` +
+        (long ? `<div class="banner warn" role="status">${IC.warn}<div><b>Beklenenden uzun sürüyor.</b> ${sc.slow ? 'Yavaş yanıt veren kaynaklar: ' + sc.slow.join(', ') + '.' : ''} İstersen iptal et; gelen sonuçlar kaybolmaz.</div></div>` : '') + skeleton();
+      $('#cancelBtn').onclick = () => cancel(false);
+    }
+    renderSrc(el, sc, false);
+    run.timer = setTimeout(tick, 100);
+  };
+  tick();
+}
+function finish() {
+  const { sc, t0, speed } = run; run.done = true; setGo('idle');
+  const secs = ((performance.now() - t0) * speed / 1000).toFixed(1).replace('.', ',');
+  renderSrc(sc.ms, sc, true);
+  const scanned = SOURCES.length - sc.fail.length;
+  if (!sc.n) {
+    $('#sres').innerHTML = `<div class="banner info" role="status">${IC.info}<div><b>Bu sorguyla taranan ${scanned} kaynakta kayıt bulunamadı.</b><br>
+      Taranan: ${SOURCES.join(', ')} · Yıl aralığı 2015–2026 · Dil: tümü. Bu, konuda çalışma olmadığı anlamına gelmez.
+      <div class="acts"><button class="btn sm">Yıl aralığını kaldır</button><button class="btn sm">Sorguyu genişlet</button><button class="btn sm">✦ AI ile geliştir</button></div></div></div>`;
+  } else {
+    $('#sres').innerHTML = `<div class="status"><span><b>${fmt(sc.n)} kayıt</b> · ${scanned} kaynak tarandı${sc.fail.length ? ` · <span class="tag warn">${sc.fail.length} kaynak yanıt vermedi: ${sc.fail.join(', ')}</span> <button class="btn sm ghost">Yalnız onu tekrar dene</button>` : ''} · ${secs} sn</span></div>` + resultCards();
+  }
+  run = null;
+}
+function cancel(silent) {
+  if (!run) return;
+  clearTimeout(run.timer); setGo('idle');
+  if (!silent) $('#sres').innerHTML = `<div class="banner info" role="status">${IC.info}<div><b>Arama iptal edildi.</b> Gönderilmiş istekler sunucuya ulaşmış olabilir; sonuç gösterilmeyecek.
+    <div class="acts"><button class="btn sm" onclick="startSearch()">Yeniden ara</button></div></div></div>`;
+  run = null;
+}
+$('#sform').addEventListener('submit', (e) => { e.preventDefault(); startSearch(); });
+$('#scen').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; $('#scen').querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); });
+
+// ================= 2. Hatalar =================
+let countdown = null;
+const ERRORS = [
+  { k: 'offline', t: 'İnternet yok', how: '`navigator.onLine`, ağ hatası', kind: 'warn', icon: 'wifi',
+    msg: '<b>Bağlantı yok.</b> Yazdıkların bu tarayıcıda duruyor, kaybolmadı.', act: '<span class="note">Bağlantı gelince otomatik tekrar denenecek.</span>' },
+  { k: 'cold', t: 'Sunucu uyanıyor', how: 'İlk istekte uzun süre / 502–503 (Render soğuk başlangıç)', kind: 'info', icon: 'info',
+    msg: '<b>Sunucu hazırlanıyor.</b> Bu, bir süre kullanılmadıktan sonraki ilk istekte 30 sn kadar sürebilir. Hiçbir şey kaybolmadı.', act: '<span class="spin dark" aria-hidden="true"></span><span class="note">Hazır olunca istek kendiliğinden gönderilecek.</span>' },
+  { k: '401', t: 'Oturum düştü', how: '401', kind: 'warn', icon: 'warn',
+    msg: '<b>Oturumun sona erdi.</b> Belgen ve sepetin bu tarayıcıda duruyor; giriş yapınca kaldığın yerden devam edersin.', act: '<button class="btn sm pri">Giriş yap</button>' },
+  { k: '429', t: 'Hız sınırı', how: '429 + Retry-After', kind: 'warn', icon: 'warn',
+    msg: '<b>Kısa sürede çok istek gönderildi.</b> Kaynak sağlayıcı bir süre bekletiyor.', act: '<button class="btn sm" id="retry429" disabled>Tekrar dene · <span id="cd">30</span> sn</button>' },
+  { k: '5xx', t: 'Sunucu hatası', how: '5xx', kind: 'bad', icon: 'bad', role: 'alert',
+    msg: '<b>Arama tamamlanamadı; sunucu tarafında bir sorun oldu.</b> Sorgun ve filtrelerin duruyor.', act: '<button class="btn sm pri">Tekrar dene</button>', tech: 'Hata kimliği: <code>srch-7f3a-1c02</code> · 503 · 2026-10-17 14:22:09 — destekle paylaşırken bunu ekle' },
+  { k: 'timeout', t: 'Zaman aşımı', how: 'İstemci süresi doldu', kind: 'warn', icon: 'warn',
+    msg: '<b>45 sn içinde yanıt gelmedi.</b> Kaynakların biri yavaş olabilir. Sorgun duruyor.', act: '<button class="btn sm pri">Tekrar dene</button><button class="btn sm">İptal</button>' },
+  { k: 'partial', t: 'Kısmi sonuç', how: 'Bazı kaynaklar düştü', kind: 'warn', icon: 'warn', inline: true,
+    msg: '<b>171 kayıt</b> · 9 kaynak tarandı · <span class="tag warn">1 kaynak yanıt vermedi: Crossref</span>', act: '<button class="btn sm ghost">Yalnız Crossref’i tekrar dene</button>' },
+  { k: 'empty', t: 'Boş sonuç', how: '0 kayıt', kind: 'info', icon: 'info',
+    msg: '<b>Bu sorguyla taranan 10 kaynakta kayıt bulunamadı.</b> Taranan kaynaklar ve yıl aralığı (2015–2026) bununla sınırlı; konuda çalışma olmadığı anlamına gelmez.', act: '<button class="btn sm">Yıl aralığını kaldır</button><button class="btn sm">✦ AI ile geliştir</button>' },
+  { k: 'storage', t: 'Depolama kapalı / dolu', how: '`localStorage` hatası', kind: 'warn', icon: 'warn', persistent: true,
+    msg: '<b>Bu tarayıcı taslağı kaydedemiyor</b> (gizli pencere ya da depolama dolu). Sayfayı kapatırsan son değişiklikler kaybolur.', act: '<button class="btn sm pri">Belgeyi DOCX olarak indir</button>' },
+  { k: 'input', t: 'Geçersiz girdi', how: 'İstemci denetimi', kind: 'field' },
+];
+function renderErr(k) {
+  if (countdown) { clearInterval(countdown); countdown = null; }
+  const e = ERRORS.find((x) => x.k === k);
+  $('#errlist').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === k)));
+  if (e.kind === 'field') {
+    $('#errview').innerHTML = `<div class="field"><label for="doiIn"><b>DOI ile ekle</b></label><input id="doiIn" value="10.1016/j.pnucene" aria-invalid="true" aria-describedby="doiErr"><span class="ferr" id="doiErr">DOI eksik görünüyor: “10.” ile başlayıp “/” sonrasında bir kimlik içermeli (ör. 10.1016/j.pnucene.2015.10.012).</span></div><button class="btn sm pri">Ekle</button>`;
+  } else {
+    $('#errview').innerHTML = `<div class="banner ${e.kind}" role="${e.role || 'status'}">${IC[e.icon]}<div>${e.msg}<div class="acts">${e.act}</div>${e.tech ? `<details class="tech"><summary>Teknik ayrıntı</summary>${e.tech}</details>` : ''}</div></div>`;
+  }
+  $('#errwhy').innerHTML = `<b>Nasıl anlaşılır:</b> ${esc(e.how || 'Alan denetimi')}${e.persistent ? ' · <b>Kalıcı uyarı</b>: kapanmaz, sorun bitince kalkar.' : ''}${e.role === 'alert' ? ' · Ekran okuyucuya <code>role="alert"</code>.' : ''}`;
+  if (k === '429') {
+    let n = 30;
+    countdown = setInterval(() => {
+      n--; const cd = $('#cd'); if (!cd) return clearInterval(countdown);
+      cd.textContent = n;
+      if (n <= 0) { clearInterval(countdown); const b = $('#retry429'); b.disabled = false; b.textContent = 'Tekrar dene'; b.classList.add('pri'); }
+    }, 1000);
+  }
+}
+$('#errlist').innerHTML = ERRORS.map((e) => `<button data-k="${e.k}" aria-pressed="false"><span>${esc(e.t)}</span><small>${esc(e.how ? e.how.replace(/`/g, '') : '')}</small></button>`).join('');
+$('#errlist').addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (b) renderErr(b.dataset.k); });
+
+// ================= 3. Kart durumları =================
+const P = {
+  title: 'Pasif soğutma sistemlerinin geçici rejim davranışı: deneysel bir inceleme',
+  authors: 'Yılmaz, A., Demir, K. ve Kaya, S.', venue: 'Nükleer Mühendislik Dergisi', year: 2021, cites: 37,
+  abs: 'Bu çalışmada doğal sirkülasyonlu bir test düzeneğinde güç geçişleri sırasında akış kararsızlığı incelenmiştir. Düşük güç seviyelerinde salınım genliğinin arttığı gözlenmiştir.',
+};
+const ACT3 = (a = 'Sepete ekle', b = 'Oku') => `<div class="acts"><button class="btn sm pri">${a}</button><button class="btn sm">${b}</button><button class="btn sm ghost" aria-label="Diğer eylemler">⋯</button></div>`;
+function RC(state) {
+  const t = P;
+  const meta = (o = {}) => `<div class="meta">${o.noAuthors ? '<span class="unknown">Yazar bilinmiyor</span>' : esc(t.authors)} · ${o.noVenue ? '<span class="unknown">Dergi bilinmiyor</span>' : esc(t.venue)} · ${o.noYear ? '<span class="unknown">Yıl bilinmiyor</span>' : t.year}</div>`;
+  const badges = (o = {}) => `<div class="row" style="gap:6px">${o.oa === false ? '<span class="tag">Açık erişim yok · PDF yok</span>' : '<span class="tag ok">Açık erişim</span>'}${o.noCites ? '' : `<span class="tag">${t.cites} atıf</span>`}</div>`;
+  switch (state) {
+    case 'normal': return `<article class="card"><h4>${esc(t.title)}</h4>${meta()}<p class="abs">${esc(t.abs)}</p>${badges()}${ACT3()}</article>`;
+    case 'skeleton': return `<article class="card" aria-busy="true"><div class="sk" style="height:16px;width:85%"></div><div class="sk" style="height:12px;width:55%"></div><div class="sk" style="height:48px"></div><div class="row"><div class="sk" style="height:28px;width:100px"></div><div class="sk" style="height:28px;width:60px"></div></div></article>`;
+    case 'missing': return `<article class="card"><h4>${esc(t.title)}</h4>${meta({ noYear: true, noVenue: true })}<p class="abs">${esc(t.abs)}</p>${badges()}${ACT3()}</article>`;
+    case 'noabs': return `<article class="card"><h4>${esc(t.title)}</h4>${meta()}<p class="note" style="margin:0">Özet yok — kaynak özet sağlamadı. Kanıt aramasında bu kayıt kullanılamaz.</p>${badges()}${ACT3('Sepete ekle', 'Kaynağa git ↗')}</article>`;
+    case 'retracted': return `<article class="card retracted"><div class="ribbon bad">${IC.bad} Geri çekildi · Retraction Watch, 2024</div><h4>${esc(t.title)}</h4>${meta()}<p class="note" style="margin:0">Geri çekme gerekçesi: veri bütünlüğü. Bu çalışmaya atıf vermeden önce geri çekme bildirimini oku.</p><div class="acts"><button class="btn sm danger">Uyarıyla sepete ekle</button><button class="btn sm">Bildirimi oku ↗</button></div></article>`;
+    case 'concern': return `<article class="card"><div class="ribbon warn">${IC.warn} Endişe beyanı · yayıncı, 2025</div><h4>${esc(t.title)}</h4>${meta()}<p class="abs">${esc(t.abs)}</p>${ACT3()}</article>`;
+    case 'oa': return `<article class="card"><h4>Doğal sirkülasyon döngülerinde iki fazlı akış kararsızlığı</h4><div class="meta">Arslan, M. · Isı Bilimi ve Tekniği · 2019</div><p class="abs">İki fazlı akışın yükselen kolda basınç düşüşünü dalgalandırdığı ve sönümlemenin boru geometrisine bağlı olduğu gösterilmiştir.</p>${badges({ oa: false })}${ACT3('Sepete ekle', 'Özeti oku')}</article>`;
+    case 'enrich': return `<article class="card"><h4>${esc(t.title)}</h4>${meta()}<p class="abs">${esc(t.abs)}</p>${badges({ noCites: true })}<p class="note" style="margin:0">Atıf sayısı şu an alınamadı (OpenCitations yanıt vermedi). Kart bundan etkilenmez.</p>${ACT3()}</article>`;
+    case 'error': return `<article class="card"><div class="banner bad" role="alert" style="margin:0">${IC.bad}<div><b>Bu kayıt yüklenemedi.</b> Diğer sonuçlar etkilenmedi.<div class="acts"><button class="btn sm">Tekrar dene</button></div></div></div></article>`;
+    case 'soon': return `<article class="card"><h4>${esc(t.title)}</h4>${meta()}<div class="acts"><button class="btn sm" disabled aria-describedby="full1">Sepete ekle</button><button class="btn sm" disabled>Alıntı ağı <span class="tag soon">Yakında</span></button></div><p class="note" id="full1" style="margin:0"><b>Devre dışı:</b> sepet dolu (50/50). Birini kaldırınca açılır. · <b>Yakında:</b> henüz yapılmadı, tıklanamaz.</p></article>`;
+  }
+}
+const EVP = 'Yükselen koldaki iki fazlı akış, <mark>basınç düşüşünü dalgalandırarak düşük güçte salınımları büyütmektedir</mark>; ancak etki yalnız 2 MPa altında gözlenmiştir.';
+function EC(state) {
+  const claim = '<p class="note" style="margin:0"><b>İddia:</b> İki fazlı akış, doğal sirkülasyonda akış kararsızlığını artırır.</p>';
+  const src = (o = {}) => `<div class="meta">Arslan, M. · 2019 · ${o.noSec ? '<span class="unknown">bölüm bilinmiyor</span>' : 'Bulgular'} · <span class="tag">özetten — tam metin yok</span></div>`;
+  const acts = '<div class="acts"><button class="btn sm pri">Atıf olarak ekle</button><button class="btn sm">Pasajı aç</button><button class="btn sm ghost" aria-label="Diğer">⋯</button></div>';
+  const cls = { supports: ['ok', 'Destekliyor'], partial: ['warn', 'Kısmen destekliyor — kapsam farkı'], contradicts: ['bad', 'Çelişiyor'], irrelevant: ['', 'İlgili ama iddia hakkında değil'] };
+  if (cls[state]) {
+    const [k, l] = cls[state];
+    const extra = state === 'partial' ? '<p class="note" style="margin:0"><b>Kapsam farkı:</b> pasaj yalnız 2 MPa altını söylüyor; iddia genel.</p>' : state === 'contradicts' ? '<p class="note" style="margin:0">Pasaj iddianın tersini söylüyor. Atıf olarak eklenmez; “karşı görüş” olarak eklenebilir.</p>' : '';
+    const pass = state === 'contradicts' ? 'Ölçümlerde iki fazlı bölgenin <mark>salınım genliğini azalttığı</mark>, sönümlemeyi artırdığı gözlenmiştir.' : state === 'irrelevant' ? 'Doğal sirkülasyon döngüleri, <mark>pasif güvenlik sistemlerinde yaygın olarak kullanılmaktadır</mark>.' : EVP;
+    const a = state === 'contradicts' ? '<div class="acts"><button class="btn sm">Karşı görüş olarak ekle</button><button class="btn sm">Pasajı aç</button></div>' : state === 'irrelevant' ? '<div class="acts"><button class="btn sm">Pasajı aç</button></div>' : acts;
+    return `<article class="card ev-${state}">${claim}<div class="ev"><span class="tag ${k}">${l}</span></div><p class="pass">${pass}</p>${src()}${extra}${a}</article>`;
+  }
+  switch (state) {
+    case 'none': return `<article class="card ev-none">${claim}<div class="ev"><span class="tag">Kanıt bulunamadı</span></div><p class="note" style="margin:0">Arama yapıldı: 3 tur, 24 pasaj, sepetteki 12 kaynak ve OpenAlex. Hiçbiri iddiayı desteklemiyor ya da çürütmüyor. Bu, iddianın yanlış olduğu anlamına gelmez.</p><div class="acts"><button class="btn sm">Aramayı genişlet</button><button class="btn sm">İddiayı daralt</button></div></article>`;
+    case 'skeleton': return `<article class="card" aria-busy="true">${claim}<div class="sk" style="height:20px;width:120px"></div><div class="sk" style="height:56px"></div><div class="sk" style="height:12px;width:50%"></div></article>`;
+    case 'missing': return `<article class="card ev-supports">${claim}<div class="ev"><span class="tag ok">Destekliyor</span></div><p class="pass">${EVP.replace('; ancak etki yalnız 2 MPa altında gözlenmiştir.', '.')}</p>${src({ noSec: true })}${acts}</article>`;
+    case 'retracted': return `<article class="card retracted ev-none"><div class="ribbon bad">${IC.bad} Kaynak geri çekildi</div>${claim}<p class="pass">${EVP}</p><p class="note" style="margin:0">Pasaj iddiayla ilgili, ama geri çekilmiş bir çalışmadan. Kanıt olarak kullanılamaz.</p><div class="acts"><button class="btn sm">Başka kanıt ara</button></div></article>`;
+    case 'enrich': return `<article class="card ev-supports">${claim}<div class="ev"><span class="tag ok">Destekliyor</span></div><p class="pass">${EVP}</p><div class="meta">Arslan, M. · 2019 · <span class="tag">özetten — tam metin yok</span></div><p class="note" style="margin:0">Geri çekme durumu şu an denetlenemedi (Retraction Watch dökümü yüklenemedi). Eklemeden önce yeniden denenecek.</p>${acts}</article>`;
+    case 'error': return `<article class="card">${claim}<div class="banner bad" role="alert" style="margin:0">${IC.bad}<div><b>Kanıt değerlendirmesi tamamlanamadı.</b> İddian değişmedi.<div class="acts"><button class="btn sm">Tekrar dene</button></div></div></div></article>`;
+    case 'soon': return `<article class="card">${claim}<div class="acts"><button class="btn sm" disabled>Tam metinde ara <span class="tag soon">Yakında</span></button></div><p class="note" style="margin:0">Pasajlar bugün yalnız özetten (tüzük 2.8).</p></article>`;
+  }
+}
+function SR(state) {
+  const base = (inner, extra = '') => `<div class="rowcard"${extra}>${inner}</div>`;
+  const t = '<div class="t"><b>Yılmaz, A. vd. (2021). Pasif soğutma sistemlerinin geçici rejim davranışı</b><span class="note">Nükleer Mühendislik Dergisi</span></div>';
+  switch (state) {
+    case 'normal': return base(`${t}<span class="tag ok">Açık erişim</span><button class="btn sm ghost" aria-label="Kaldır">Kaldır</button>`);
+    case 'skeleton': return base('<div class="t"><div class="sk" style="height:13px;width:80%;margin-bottom:6px"></div><div class="sk" style="height:11px;width:40%"></div></div>');
+    case 'missing': return base('<div class="t"><b>Yılmaz, A. vd. (<span class="unknown">yıl bilinmiyor</span>). Pasif soğutma sistemlerinin geçici rejim davranışı</b><span class="note unknown">Dergi bilinmiyor — kaynakçada eksik görünecek</span></div><span class="tag warn">Eksik</span>');
+    case 'noabs': return base(`${t}<span class="tag">Özet yok</span>`);
+    case 'retracted': return base(`${t.replace('<b>', '<b style="text-decoration:line-through">')}<span class="tag bad">Geri çekildi</span>`, ' style="border-color:#E9B0B0;background:#FFF9F9"');
+    case 'oa': return base(`${t}<span class="tag">PDF yok</span>`);
+    case 'enrich': return base(`${t}<span class="note">atıf sayısı alınamadı</span>`);
+    case 'error': return base('<div class="t"><b>Kayıt okunamadı</b><span class="note">DOI çözülemedi: 10.1016/j.pnucene.2021.xxxx</span></div><button class="btn sm">Tekrar dene</button>');
+    case 'soon': return base(`${t}<button class="btn sm" disabled>Zotero'ya gönder <span class="tag soon">Yakında</span></button>`);
+  }
+}
+function DC(state) {
+  const inner = '<h4>Doğal sirkülasyonda kararsızlık — Yüksek lisans tezi</h4><div class="meta">Tez · APA 7 · 12.480 kelime · 3 saat önce</div>';
+  switch (state) {
+    case 'normal': return `<article class="card">${inner}<div class="acts"><button class="btn sm pri">Aç</button><button class="btn sm">Çoğalt</button><button class="btn sm ghost" aria-label="Diğer">⋯</button></div></article>`;
+    case 'skeleton': return '<article class="card" aria-busy="true"><div class="sk" style="height:16px;width:70%"></div><div class="sk" style="height:12px;width:45%"></div><div class="sk" style="height:28px;width:80px"></div></article>';
+    case 'readonly': return `<article class="card">${inner}<div class="banner info" style="margin:0">${IC.info}<div>Bu taslak başka bir sekmede açık. Burada <b>salt okunur</b>; veri kaybı olmasın diye.<div class="acts"><button class="btn sm">Burada düzenle (öbür sekme salt okunur olur)</button></div></div></div></article>`;
+    case 'error': return `<article class="card">${inner}<div class="banner bad" role="alert" style="margin:0">${IC.bad}<div><b>Kaydedilemedi.</b> Son değişiklikler yalnız bu sayfada duruyor.<div class="acts"><button class="btn sm pri">Tekrar dene</button><button class="btn sm">DOCX indir</button></div></div></div></article>`;
+    case 'soon': return `<article class="card">${inner}<div class="acts"><button class="btn sm pri">Aç</button><button class="btn sm" disabled>Hesaba kaydet <span class="tag soon">Yakında</span></button></div><p class="note" style="margin:0">Taslaklar bugün yalnız bu tarayıcıda.</p></article>`;
+  }
+}
+function AC(state) {
+  const head = '<h4>Bağımsız örneklem t-testi</h4><div class="meta">Deney (n = 32) · Kontrol (n = 30)</div>';
+  const apa = '<p class="pass" style="font-family:var(--doc)">Deney grubunun son test puanı (<i>M</i> = 78,4, <i>SS</i> = 9,1) kontrol grubundan (<i>M</i> = 71,2, <i>SS</i> = 10,3) anlamlı düzeyde yüksektir, <i>t</i>(60) = 2,92, <i>p</i> = ,005, <i>d</i> = 0,74.</p>';
+  switch (state) {
+    case 'normal': return `<article class="card">${head}${apa}<div class="acts"><button class="btn sm pri">Belgeye ekle</button><button class="btn sm">Tablo olarak</button><button class="btn sm ghost" aria-label="Diğer">⋯</button></div></article>`;
+    case 'skeleton': return `<article class="card" aria-busy="true">${head}<div class="sk" style="height:60px"></div></article>`;
+    case 'assume': return `<article class="card">${head}<div class="banner warn" style="margin:0">${IC.warn}<div><b>Normallik varsayımı sağlanmadı</b> (kontrol grubu, Shapiro–Wilk <i>p</i> = ,003). Sonuç aşağıda, ama bu veride t-testi yanıltıcı olabilir. Parametrik olmayan karşılığı (Mann–Whitney U) WO-015 ile gelecek.</div></div>${apa}<div class="acts"><button class="btn sm">Uyarıyla belgeye ekle</button></div></article>`;
+    case 'error': return `<article class="card">${head}<div class="banner bad" role="alert" style="margin:0">${IC.bad}<div><b>Veri okunamadı:</b> 3. satır, 2. sütunda sayı yerine “yok” var. Düzeltip yeniden çalıştır; başka bir şey değişmedi.<div class="acts"><button class="btn sm">Veriye git</button></div></div></div></article>`;
+    case 'soon': return `<article class="card">${head}<div class="acts"><button class="btn sm" disabled>ANOVA <span class="tag soon">Yakında</span></button><button class="btn sm" disabled>Ki-kare <span class="tag soon">Yakında</span></button></div></article>`;
+  }
+}
+const STATES = [
+  ['normal', 'Normal'], ['skeleton', 'Yükleniyor (iskelet)'], ['missing', 'Eksik bilgi'], ['noabs', 'Özet yok'], ['retracted', 'Geri çekilmiş'], ['concern', 'Endişe beyanı'],
+  ['oa', 'Açık erişim / PDF yok'], ['enrich', 'Zenginleştirme düştü'], ['supports', 'Kanıt: destekliyor'], ['partial', 'Kanıt: kısmen'], ['contradicts', 'Kanıt: çelişiyor'],
+  ['irrelevant', 'Kanıt: ilgisiz'], ['none', 'Kanıt yok'], ['assume', 'Varsayım sağlanmadı'], ['error', 'Hata (tekrar dene)'], ['readonly', 'Salt okunur'], ['soon', 'Yakında / devre dışı'],
+];
+const CTYPES = [
+  { k: 'res', t: 'Sonuç kartı', f: RC, s: ['normal', 'skeleton', 'missing', 'noabs', 'retracted', 'concern', 'oa', 'enrich', 'error', 'soon'],
+    dash: { supports: 'kanıt sınıfı sonuç kartında yok', partial: '', contradicts: '', irrelevant: '', none: '', assume: 'analize özgü', readonly: 'kart düzenlenmez' } },
+  { k: 'ev', t: 'Kanıt kartı', f: EC, s: ['supports', 'partial', 'contradicts', 'irrelevant', 'none', 'skeleton', 'missing', 'retracted', 'enrich', 'error', 'soon'],
+    dash: { normal: '“destekliyor” normal hal', noabs: 'pasaj özetten gelir; özetsiz kayıt kanıt üretmez', oa: 'pasaj notunda söylenir', concern: 'geri çekilmişle aynı ele alınır (öneri)', assume: 'analize özgü', readonly: 'düzenlenmez' } },
+  { k: 'src', t: 'Kaynak satırı', f: SR, s: ['normal', 'skeleton', 'missing', 'noabs', 'retracted', 'oa', 'enrich', 'error', 'soon'],
+    dash: { concern: 'satırda “Geri çekildi” ile aynı yer, amber (öneri)', supports: 'kanıta özgü', partial: '', contradicts: '', irrelevant: '', none: '', assume: 'analize özgü', readonly: 'satır düzenlenmez' } },
+  { k: 'draft', t: 'Taslak kartı', f: DC, s: ['normal', 'skeleton', 'readonly', 'error', 'soon'],
+    dash: { missing: 'taslağın meta verisi bizim', noabs: '', retracted: '', concern: '', oa: '', enrich: 'dış kaynak yok', supports: '', partial: '', contradicts: '', irrelevant: '', none: '', assume: '' } },
+  { k: 'an', t: 'Analiz sonucu', f: AC, s: ['normal', 'skeleton', 'assume', 'error', 'soon'],
+    dash: { missing: 'veri kullanıcının', noabs: '', retracted: '', concern: '', oa: '', enrich: 'dış kaynak yok', supports: '', partial: '', contradicts: '', irrelevant: '', none: '', readonly: '' } },
+];
+let ctype = 'res';
+function renderTiles() {
+  const c = CTYPES.find((x) => x.k === ctype);
+  $('#ctype').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === ctype)));
+  $('#tiles').innerHTML = c.s.map((s) => `<div class="tile"><div class="cap"><b>${esc(STATES.find((x) => x[0] === s)[1])}</b><span>${c.t}</span></div>${c.f(s)}</div>`).join('');
+}
+$('#ctype').innerHTML = CTYPES.map((c) => `<button data-k="${c.k}" aria-pressed="false">${c.t}</button>`).join('');
+$('#ctype').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { ctype = b.dataset.k; renderTiles(); } });
+$('#matrix').innerHTML = `<thead><tr><th>Durum</th>${CTYPES.map((c) => `<th>${c.t}</th>`).join('')}</tr></thead><tbody>` +
+  STATES.map(([k, l]) => `<tr><td>${esc(l)}</td>${CTYPES.map((c) => c.s.includes(k) ? '<td class="y">✓ çizildi</td>' : `<td class="n">— ${esc(c.dash[k] || '')}</td>`).join('')}</tr>`).join('') + '</tbody>';
+
+// ================= 4. Pencere, Esc, geri al =================
+const stack = [];
+function logStack() { $('#stacklog').textContent = stack.length ? stack.map((l, i) => `${i + 1}. ${l.name}${i === stack.length - 1 ? '   ← Esc bunu kapatır' : ''}`).join('\n') : '(boş)'; }
+function pushLayer(name, close) { stack.push({ name, close }); logStack(); }
+function popLayer(name) { const i = stack.map((l) => l.name).lastIndexOf(name); if (i >= 0) stack.splice(i, 1); logStack(); }
+// Tek Esc dinleyicisi: yalnız en üstteki kapanır; yazı alanında Esc metne dokunmaz.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || !stack.length) return;
+  e.preventDefault();
+  stack[stack.length - 1].close();
+});
+let menuEl = null;
+function openMenu() {
+  if (menuEl) return;
+  const btn = $('#menuBtn');
+  menuEl = document.createElement('div'); menuEl.className = 'popover'; menuEl.setAttribute('role', 'menu');
+  menuEl.style.top = '44px'; menuEl.style.left = '0';
+  menuEl.innerHTML = '<button role="menuitem" id="miDialog">Pencere aç (onay)</button><button role="menuitem" id="miToast">Bildirim göster</button><button role="menuitem" id="miClose">Menüyü kapat</button>';
+  btn.parentElement.appendChild(menuEl); btn.setAttribute('aria-expanded', 'true');
+  pushLayer('Açılır menü', closeMenu);
+  $('#miDialog').onclick = () => openConfirm({ title: 'Deneme penceresi', body: '<p>Esc’ye bas: yalnız bu pencere kapanır, arkadaki menü açık kalır.</p>', ok: 'Tamam', onOk: () => {} });
+  // Menü öğesi seçilince menü kapanır; pencere öğesi hariç (Esc yığını gösterimi için menü arkada açık kalır).
+  $('#miToast').onclick = () => { closeMenu(); toast('Bilgi bildirimi — 8 sn sonra kapanır; üzerine gelince durur.'); };
+  $('#miClose').onclick = closeMenu;
+  menuEl.querySelector('button').focus();
+}
+function closeMenu() { if (!menuEl) return; menuEl.remove(); menuEl = null; $('#menuBtn').setAttribute('aria-expanded', 'false'); popLayer('Açılır menü'); $('#menuBtn').focus(); }
+$('#menuBtn').addEventListener('click', () => (menuEl ? closeMenu() : openMenu()));
+
+function openConfirm({ title, body, ok, danger, onOk }) {
+  const opener = document.activeElement;
+  const scrim = document.createElement('div'); scrim.className = 'scrim';
+  scrim.innerHTML = `<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgT" aria-describedby="dlgB"><h3 id="dlgT">${esc(title)}</h3><div id="dlgB">${body}</div>
+    <div class="acts"><button class="btn" data-a="cancel">Vazgeç</button><button class="btn ${danger ? 'danger' : 'pri'}" data-a="ok">${esc(ok)}</button></div></div>`;
+  document.body.appendChild(scrim);
+  $('#main').inert = true; $('.top').inert = true;
+  const close = () => { scrim.remove(); popLayer('Pencere'); if (!stack.some((l) => l.name === 'Pencere')) { $('#main').inert = false; $('.top').inert = false; } if (opener && opener.isConnected) opener.focus(); };
+  pushLayer('Pencere', close);
+  scrim.addEventListener('click', (e) => { if (e.target === scrim) close(); const b = e.target.closest('button[data-a]'); if (!b) return; if (b.dataset.a === 'ok') onOk(); close(); });
+  // Odak hapsi
+  scrim.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const f = [...scrim.querySelectorAll('button')]; const i = f.indexOf(document.activeElement);
+    if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); } else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+  });
+  scrim.querySelector('[data-a="cancel"]').focus(); // varsayılan: Vazgeç
+}
+
+// Bildirim kuyruğu: en fazla 3; 8 sn; üzerine gelince ya da odaktayken durur.
+function toast(msg, { undo, err } = {}) {
+  const box = $('#toasts');
+  while (box.children.length >= 3) box.firstElementChild.remove();
+  const el = document.createElement('div'); el.className = 'toast' + (err ? ' err' : ''); el.setAttribute('role', err ? 'alert' : 'status');
+  el.innerHTML = `<span class="msg">${msg}</span>${undo ? '<button data-u>Geri al</button>' : ''}<button data-x aria-label="Kapat">✕</button><span class="bar"></span>`;
+  box.appendChild(el);
+  let left = 8000, last = performance.now(), paused = false, raf;
+  const bar = el.querySelector('.bar');
+  const step = (now) => { if (!paused) left -= now - last; last = now; bar.style.width = Math.max(0, left / 80) + '%'; if (left <= 0) return el.remove(); raf = requestAnimationFrame(step); };
+  raf = requestAnimationFrame(step);
+  const pause = (v) => () => { paused = v; last = performance.now(); };
+  el.addEventListener('mouseenter', pause(true)); el.addEventListener('mouseleave', pause(false));
+  el.addEventListener('focusin', pause(true)); el.addEventListener('focusout', pause(false));
+  el.addEventListener('click', (e) => { if (e.target.closest('[data-u]')) { undo(); el.remove(); cancelAnimationFrame(raf); } if (e.target.closest('[data-x]')) { el.remove(); cancelAnimationFrame(raf); } });
+}
+
+let drafts = [
+  { id: 1, t: 'Doğal sirkülasyonda kararsızlık — Yüksek lisans tezi' },
+  { id: 2, t: 'KMR güvenliği — Konferans bildirisi' },
+  { id: 3, t: 'Literatür taraması: pasif sistemler' },
+];
+let editing = null;
+function renderDrafts() {
+  $('#drafts').innerHTML = drafts.length ? drafts.map((d) => `<div class="draft" data-id="${d.id}"><div class="t">${editing === d.id ? `<input value="${esc(d.t)}" aria-label="Taslak adı">` : `<b>${esc(d.t)}</b>`}</div>
+    ${editing === d.id ? '<button class="btn sm pri" data-a="save">Kaydet</button>' : '<button class="btn sm" data-a="rename">Yeniden adlandır</button><button class="btn sm ghost" data-a="remove">Kaldır</button>'}</div>`).join('')
+    : '<p class="note">Taslak yok.</p>';
+  if (editing) { const i = $('#drafts input'); i.focus(); i.select(); }
+}
+$('#drafts').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-a]'); if (!b) return;
+  const id = Number(b.closest('.draft').dataset.id), d = drafts.find((x) => x.id === id), idx = drafts.indexOf(d);
+  if (b.dataset.a === 'remove') {
+    drafts = drafts.filter((x) => x !== d); renderDrafts();
+    toast(`“${esc(d.t)}” kaldırıldı.`, { undo: () => { drafts.splice(idx, 0, d); renderDrafts(); toast('Geri alındı.'); } });
+  }
+  if (b.dataset.a === 'rename') { editing = id; renderDrafts(); }
+  if (b.dataset.a === 'save') { d.t = $('#drafts input').value.trim() || d.t; editing = null; renderDrafts(); }
+});
+$('#drafts').addEventListener('keydown', (e) => {
+  if (!editing || e.target.tagName !== 'INPUT') return;
+  if (e.key === 'Enter') { drafts.find((x) => x.id === editing).t = e.target.value.trim() || drafts.find((x) => x.id === editing).t; editing = null; renderDrafts(); }
+  if (e.key === 'Escape') { e.stopPropagation(); editing = null; renderDrafts(); }
+});
+$('#emptySecBtn').addEventListener('click', () => openConfirm({
+  title: '3 boş bölüm kaldırılsın mı?', danger: true, ok: 'Kaldır',
+  body: '<p>Bu işlem geri alınamaz (sürüm geçmişi gelene kadar). İçinde yazı olan bölümlere dokunulmaz.</p><ul><li>2.3 Kuramsal çerçeve</li><li>4.2 Sınırlılıklar</li><li>Ek B</li></ul>',
+  onOk: () => toast('3 boş bölüm kaldırıldı.'),
+}));
+
+// Başlangıç
+renderErr('5xx'); renderTiles(); renderDrafts(); logStack(); renderSrc(0, SCEN.mid, false);
+</script>
+</body>
+</html>

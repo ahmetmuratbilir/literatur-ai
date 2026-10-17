@@ -37,6 +37,13 @@ WO-008'den önce (yol haritası sıra kararı, 17.10.2026).
   düzenlemeye açınca görünür (plan §5 WO-D notu); `relocated` uyarısız;
   `changed` / `missing` için "Yeniden oluştur / Olduğu gibi bırak".
 - Şekil durumu (yapı, şablon, tema, mühür) belgeyle saklanır.
+- **Elle kur** (bulgu 17.10.2026, aşağıda): kural kademesi yapı çıkaramazsa
+  ✦ yine görünür ve iki yol sunar: sinyalin önerdiği aileden şablon seç,
+  paragrafta metin seçerek öğe ekle (seçim = düğüm; etiket cümleye bağlı,
+  izlenebilirlik korunur), öğeler arası ok etiketini de seçimle ya da
+  yazarak ver. Profilde sinyal varsa (`cycle`, `cause` …) o aile üstte
+  önerilir, "kural kademesi bu paragraftan yapı çıkaramadı" diye söylenir
+  (2.8). Model yok.
 - **Neden bu şablon**: her önerinin altında tek satır gerekçe ("“geri döner”
   geçiyor: dönüş kapanıyor"); uymayanlar katlanır listede nedeniyle (WO-016
   `fit.*` / `unfit.*` kodlarının Türkçe metni). Galerideki "Gerçek paragraf"
@@ -116,7 +123,16 @@ silinmez.
 | Risk | Olasılık | Etki | Önlem |
 | --- | --- | --- | --- |
 | WO-008'de gömülü yazı tipiyle genişlik değişir, yerleşim kayar | Orta | Taşma | Ölçücü enjekte; WO-008 aynı öz-denetimi gömülü yazı tipiyle koşar |
-| Kural kademesi az paragraf yakalar, kullanıcı ✦'yi çoğu yerde boş görür | Yüksek | Hayal kırıklığı | ✦ yalnız uygun aile varsa görünür; yoksa "elle şekil" yolu |
+| Kural kademesi az paragraf yakalar, kullanıcı ✦'yi çoğu yerde boş görür | **Ölçüldü: yüksek** | Hayal kırıklığı | "Elle kur" yolu kapsamda; sinyale göre aile önerisi. WO-C (model kademesi) bu iş emrinden hemen sonra öne alınabilir — kullanıcı kararı |
+
+**Bulgu (17.10.2026, `structureFromRules` çalıştırılarak):** v2 prototipinin
+üç paragrafından yalnız biri kural kademesinde yapı verdi. KMR güvenliği →
+R5, 3 düğüm (önerme, iddia, sınırlılık), "Ancak" bağı, öneri `arguman` ✓.
+Pasif soğutma → kural yok (profil `cycle: 1`, `direction: 3`). Akış
+kararsızlığı → kural yok (profil `cause: 1`, `direction: 3`). Tasarım gereği:
+ayraçsız düzyazıdan düğüm kesmek kural kademesine verilmedi (WO-016,
+`rules.js` başlığı). Sonuç: gerçek paragrafların çoğunda yapı ya elle ya
+modelle kurulacak.
 | Simge verisi bundle'ı büyütür | Düşük | Boyut | Yalnız kullanılan simgeler (≈100, ≈20 KB) |
 
 ## Onay gereken noktalar
