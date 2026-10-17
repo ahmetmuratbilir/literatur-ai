@@ -1,0 +1,96 @@
+# CI — aşamalı kapı.
+#
+# 1) checks: istemci birim testleri + lint + build + sunucu testleri.
+#    Hızlı geri bildirim; kırılırsa PR kırmızı.
+# 2) e2e: Playwright, yalnız checks yeşilse. Ayrı adım çünkü tarayıcı kurulumu
+#    ve uygulama sunucusu gerektiriyor; yavaş ve gürültülü.
+#
+# Repo kuralları (CLAUDE.md): main'e doğrudan push yok, birleştirme PR + yeşil
+# CI ile. Bu dosya o kapının kendisidir.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Birim + lint + build + sunucu
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+            server/package-lock.json
+
+      - name: Bağımlılıklar (istemci)
+        run: npm ci --prefix client
+
+      - name: Bağımlılıklar (sunucu)
+        run: npm ci --prefix server
+
+      - name: Birim testleri (istemci)
+        run: npm --prefix client test
+
+      - name: Lint
+        run: npm --prefix client run lint
+
+      - name: Build
+        run: npm --prefix client run build
+
+      # Sunucu testleri gerçek API'lere gidiyor (OpenAlex, Crossref…). Ağ
+      # erişimi olmayan bir çalıştırmada bunlar kırılır; kırılırsa önce testin
+      # kendisi gözden geçirilir, "geçti" diye susturulmaz.
+      - name: Sunucu testleri
+        run: npm --prefix server test
+        env:
+          CI: 'true'
+
+  e2e:
+    name: E2E (Playwright)
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+
+      - name: Bağımlılıklar (istemci)
+        run: npm ci --prefix client
+
+      - name: Chromium kur
+        run: npx --prefix client playwright install --with-deps chromium
+
+      # playwright.config.js kendi dev sunucusunu 5173'te başlatıyor.
+      - name: E2E
+        run: npm --prefix client run test:e2e
+
+      - name: Rapor (başarısızlıkta)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: client/test-results
+          if-no-files-found: ignore
