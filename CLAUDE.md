@@ -779,6 +779,7 @@ gerçek değerler bu tabloda tutulmaz, panelden okunur.
 | `WRITER_QUALITY_CHECK_ENABLED` | sunucu ortamı | `false` | Yazım panelinde kalite kontrolü |
 | `WRITER_REVISION_COACH_ENABLED` | sunucu ortamı | `false` | Yazım panelinde revizyon koçu |
 | `ALLOW_E2E_TEST_AUTH` | sunucu ortamı | kapalı | Geliştirmede `test-token` kabul edilir; `NODE_ENV=production` iken kod reddeder |
+| `BYOK_ENABLED` | sunucu ortamı | `false` | Kullanıcının kendi yapay zekâ anahtarı (WO-023). `KEY_ENCRYPTION_KEY` (≥ 16 karakter, gizli) olmadan açılmaz; kayıtlar MongoDB'de, veritabanı yoksa yalnız geliştirmede bellekte |
 
 `server/.env.example` bazı `WRITER_*` değerlerini `true` gösterir; kodun
 varsayılanı `false`'tur (`server/config/writerFlags.js`). Yeni bayrak ekleyen

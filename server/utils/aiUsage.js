@@ -15,6 +15,8 @@
  * fiyatlandırma sağlayıcının kendi faturasından okunur.
  */
 
+import { currentKeySource } from '../services/aiContext.js';
+
 const num = (value) => (Number.isFinite(value) ? value : 0);
 
 /**
@@ -65,6 +67,7 @@ export function logAiUsage(label, usage) {
     ? 'cache=bilgi yok'
     : `cache: isabet ${cacheHitTokens} / iska ${cacheMissTokens} (%${(hitRate * 100).toFixed(1)})`;
 
-  console.log(`[AI-USAGE] ${label} girdi=${promptTokens} cikti=${completionTokens} ${cachePart}`);
+  // Anahtarın kaynağı (WO-023): kullanıcının kendi anahtarı mı, bizimki mi. Anahtarın kendisi asla.
+  console.log(`[AI-USAGE] ${label} anahtar=${currentKeySource()} girdi=${promptTokens} cikti=${completionTokens} ${cachePart}`);
   return summary;
 }

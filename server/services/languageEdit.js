@@ -1,5 +1,6 @@
 import { fetch } from 'undici';
 import { resolveChatProvider } from '../config/aiModels.js';
+import { noteProviderResponse } from './aiContext.js';
 
 /**
  * "Dil ve anlatımı düzelt" (WO-011 Faz 2, kullanıcı kararı 1).
@@ -115,6 +116,7 @@ async function callJson(provider, body) {
     headers: { Authorization: `Bearer ${provider.key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  noteProviderResponse(provider, response.status);
   if (!response.ok) throw new Error(`AI saglayicisi hatasi (${response.status})`);
   const data = await response.json();
   try {

@@ -22,6 +22,11 @@ import Lead from './models/Lead.js';
 import crypto from 'crypto';
 import Analysis from './models/Analysis.js';
 import Basket, { BASKET_LIMIT } from './models/Basket.js';
+import AiConnection from './models/AiConnection.js';
+import { aiContextMiddleware, createAiConnectionsRouter } from './routes/aiConnections.js';
+import { memoryStore, mongoStore } from './services/aiConnectionService.js';
+import { vaultReady } from './services/keyVault.js';
+import { runWithAiContext } from './services/aiContext.js';
 import { planBasketAdd, collectLegacyPapers } from './services/basketService.js';
 import { getWriterFlags } from './config/writerFlags.js';
 import { validateEnvironment, formatEnvReport } from './config/envValidation.js';
@@ -236,7 +241,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   // 429'da arayüz geri sayımı Retry-After'dan alır; CORS açıkça izin vermezse
   // tarayıcı bu başlığı JavaScript'e göstermez (WO-021, e2e yakaladı).
-  exposedHeaders: ['Retry-After'],
+  exposedHeaders: ['Retry-After', 'X-AI-Key-Status'],
   credentials: true
 }));
 app.use(express.json({ limit: '1mb' }));
@@ -295,6 +300,27 @@ const searchLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// --- Kendi yapay zekâ anahtarın (WO-023) ---------------------------------
+// BYOK_ENABLED=true ve KEY_ENCRYPTION_KEY (≥ 16 karakter) gerekir. Kayıtlar
+// MongoDB'de; veritabanı bağlı değilken yalnız geliştirmede bellekte.
+const BYOK_ENABLED = process.env.BYOK_ENABLED === 'true' && vaultReady();
+if (process.env.BYOK_ENABLED === 'true' && !vaultReady()) {
+  console.warn('[BYOK] KEY_ENCRYPTION_KEY yok ya da 16 karakterden kısa: kendi anahtarını bağlama kapalı.');
+}
+const aiMongoStore = mongoStore(AiConnection);
+const aiMemoryStore = memoryStore();
+const getAiStore = () => (mongoose.connection.readyState === 1 ? aiMongoStore : (IS_PRODUCTION ? null : aiMemoryStore));
+const aiConnectionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => getAuth(req)?.userId || ipKeyGenerator(req.ip),
+  message: { error: 'Anahtar denemesi dakikada en fazla 5 kez. Biraz bekle.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(aiContextMiddleware({ getAuth, getStore: getAiStore, enabled: BYOK_ENABLED, runWithAiContext }));
+app.use('/api/ai-connections', createAiConnectionsRouter({ getAuth, getStore: getAiStore, enabled: BYOK_ENABLED, limiter: aiConnectionLimiter }));
 
 const getRequestUserId = (req, res) => {
   const { userId } = getAuth(req);

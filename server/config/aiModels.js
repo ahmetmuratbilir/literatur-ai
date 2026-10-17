@@ -1,3 +1,5 @@
+import { currentAiConnection } from '../services/aiContext.js';
+
 /**
  * Yapay zekâ sağlayıcıları ve model adları.
  *
@@ -76,8 +78,29 @@ export function getProviderOrder() {
   return requested.length > 0 ? requested : [...KNOWN_PROVIDERS];
 }
 
+const ENV_KEYS = { deepseek: 'DEEPSEEK_API_KEY', gemini: 'GEMINI_API_KEY', groq: 'GROQ_API_KEY' };
+
+/**
+ * Sağlayıcının anahtarı (WO-023). Kullanıcının etkin bağlantısı varsa yalnız
+ * onun sağlayıcısının anahtarı döner, diğerleri için null: kullanıcının
+ * anahtarı hata verirse bizim anahtarımıza sessizce geçilmez.
+ */
+export function keyFor(provider, env = process.env) {
+  const conn = env === process.env ? currentAiConnection() : null;
+  if (conn) return conn.provider === provider ? conn.key : null;
+  return env[ENV_KEYS[provider]] || null;
+}
+
+/** Anahtarın kaynağı: kullanıcının kendi anahtarı mı, Literatür AI'nınki mi. */
+function keySourceOf(provider) {
+  const conn = currentAiConnection();
+  return conn && conn.provider === provider ? 'user' : 'platform';
+}
+
 /** Sağlayıcının anahtarı tanımlı mı. */
 export function isProviderConfigured(provider, env = process.env) {
+  const conn = env === process.env ? currentAiConnection() : null;
+  if (conn) return conn.provider === provider;
   if (provider === 'deepseek') return Boolean(env.DEEPSEEK_API_KEY);
   if (provider === 'gemini') return Boolean(env.GEMINI_API_KEY);
   if (provider === 'groq') return Boolean(env.GROQ_API_KEY);
@@ -88,6 +111,8 @@ export function isProviderConfigured(provider, env = process.env) {
  * Sırayla denenecek, anahtarı gerçekten tanımlı olan sağlayıcılar.
  */
 export function getActiveProviders(env = process.env) {
+  const conn = env === process.env ? currentAiConnection() : null;
+  if (conn) return [conn.provider];
   return getProviderOrder().filter((provider) => isProviderConfigured(provider, env));
 }
 
@@ -112,7 +137,8 @@ export function resolveChatProvider({ profile = 'fast', preferProvider = null } 
       return {
         name: 'groq',
         url: 'https://api.groq.com/openai/v1/chat/completions',
-        key: process.env.GROQ_API_KEY,
+        key: keyFor('groq'),
+        keySource: keySourceOf('groq'),
         model: getGroqModel(),
         body: {},
       };
@@ -121,11 +147,15 @@ export function resolveChatProvider({ profile = 'fast', preferProvider = null } 
       return {
         name: 'deepseek',
         url: `${DEEPSEEK_BASE_URL}/chat/completions`,
-        key: process.env.DEEPSEEK_API_KEY,
+        key: keyFor('deepseek'),
+        keySource: keySourceOf('deepseek'),
         model: getDeepseekModel(profile),
         body: { thinking: { type: 'disabled' } },
       };
     }
+    // Gemini platform sırasında yok (yukarıdaki not); kullanıcı kendi Gemini
+    // anahtarını bağladıysa OpenAI uyumlu ucuyla kullanılır (WO-023).
+    if (provider === 'gemini' && currentAiConnection()) return chatProviderConfig('gemini', { profile });
   }
   return null;
 }
@@ -139,13 +169,13 @@ export function chatProviderConfig(name, { profile = 'fast' } = {}) {
   if (name === 'groq') {
     // gpt-oss akıl yürüten bir model; varsayılan düzeyde kısa bir JSON için
     // ~2000 token düşünüp 13 sn sürüyordu.
-    return { name, url: 'https://api.groq.com/openai/v1/chat/completions', key: process.env.GROQ_API_KEY, model: getGroqModel(), body: { reasoning_effort: 'low' } };
+    return { name, url: 'https://api.groq.com/openai/v1/chat/completions', key: keyFor('groq'), keySource: keySourceOf('groq'), model: getGroqModel(), body: { reasoning_effort: 'low' } };
   }
   if (name === 'deepseek') {
-    return { name, url: `${DEEPSEEK_BASE_URL}/chat/completions`, key: process.env.DEEPSEEK_API_KEY, model: getDeepseekModel(profile), body: { thinking: { type: 'disabled' } } };
+    return { name, url: `${DEEPSEEK_BASE_URL}/chat/completions`, key: keyFor('deepseek'), keySource: keySourceOf('deepseek'), model: getDeepseekModel(profile), body: { thinking: { type: 'disabled' } } };
   }
   if (name === 'gemini') {
-    return { name, url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', key: process.env.GEMINI_API_KEY, model: getGeminiModel(), body: { reasoning_effort: 'none' } };
+    return { name, url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', key: keyFor('gemini'), keySource: keySourceOf('gemini'), model: getGeminiModel(), body: { reasoning_effort: 'none' } };
   }
   return null;
 }

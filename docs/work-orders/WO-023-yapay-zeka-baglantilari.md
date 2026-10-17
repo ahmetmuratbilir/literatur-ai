@@ -2,7 +2,7 @@
 
 | Alan | Değer |
 | --- | --- |
-| Durum | Taslak (17.10.2026) |
+| Durum | **Bitti** (17.10.2026, `wo-023-yz-baglantilari`; kullanıcı onayı: MVP kapsamı, koleksiyon ve gizli değişken dahil) |
 | Kapsam | Çapraz (sunucu: şifreli saklama, istek bazında anahtar; istemci: ayarlar ekranı) |
 | Dosya değişikliği | İzinli (liste aşağıda) |
 | Tahmini süre | 2 oturum |
@@ -108,10 +108,51 @@ silinmez. `AiConnection` koleksiyonu ayrı; diğer veriye dokunmaz.
 - Render'da `KEY_ENCRYPTION_KEY` gizli değişkeninin eklenmesi (dağıtım).
 
 ## Bitiş raporu
-- Değişen dosyalar:
-- Teknik kararlar ve gerekçeleri:
-- Çalıştırılan testler ve gerçek çıktıları:
-- Ölçülen etki:
-- Bilinen eksikler:
-- Sonraki adım:
-- **Durum:**
+- **Değişen dosyalar:** sunucu — yeni `services/aiContext.js`,
+  `services/keyVault.js`, `services/aiConnectionService.js`,
+  `models/AiConnection.js`, `routes/aiConnections.js`,
+  `tests/keyVault.test.js`, `tests/aiConnections.test.js`; değişen
+  `config/aiModels.js`, `services/llm.js`, `services/citedSentence.js`,
+  `services/languageEdit.js`, `utils/translation.js`, `utils/aiUsage.js`,
+  `index.js`, `.env.example`. İstemci — yeni
+  `components/settings/AiConnections.jsx`, `e2e/ai-connections.spec.js`;
+  değişen `App.jsx`, `HistorySidebar.jsx`, `styles/ui.css`, `i18n/tr.js`,
+  `i18n/en.js`. `CLAUDE.md` 3.12 tablosu.
+- **Teknik kararlar:**
+  - Anahtar istek boyunca `AsyncLocalStorage` bağlamında (`aiContext.js`);
+    model çağıran kod değişmedi, anahtarı `aiModels.js` tek yerden verir
+    (`keyFor`). Bağlantı varken yalnız kullanıcının sağlayıcısı etkin;
+    diğerleri için anahtar `null` — sessiz geri düşüş yok (birim testli).
+  - Gemini platform sırasında yoktu; kullanıcı Gemini bağlarsa OpenAI uyumlu
+    ucuyla kullanılır.
+  - Beş çağrı yeri `noteProviderResponse` ile 401/403/429'u not eder: yanıta
+    `X-AI-Key-Status` (CORS'ta açık), bağlantının son durumu güncellenir;
+    istemcideki tek axios yakalayıcısı "anahtarın çalışmadı" bildirimi
+    gösterir.
+  - Kullanım logunda `anahtar=user|platform` (3.9); anahtar hiçbir logda yok
+    (test logları yakalayıp tarıyor).
+  - Depo arayüzü: MongoDB; veritabanı bağlı değilken yalnız geliştirmede
+    bellek (yerel `.env`'deki veritabanı adresi şablon — yerelde denemek
+    için). Canlıda veritabanı yoksa uç 503.
+  - Anahtar denemesi model listesiyle (token harcamaz); dakikada 5 sınırı.
+  - Geçersiz anahtar kaydedilir ama etkin yapılmaz.
+- **Testler:** sunucu birim yeni `keyVault` 5/5, `aiConnections` 6/6
+  (anahtar yanıtta/logda/şifreli alanda yok; geçersiz anahtar etkin değil;
+  girdi denetimi, 401, kapalıyken 503; bağlantı varken yalnız kullanıcının
+  sağlayıcısı, başka kullanıcı etkilenmez, varsayılana dönüş; 401'de başlık
+  ve durum güncellemesi); e2e yeni `ai-connections.spec.js` 4/4. Yerelde
+  gerçek uç: `GET /api/ai-connections` → `enabled: true, storage: memory`.
+  Tam kontrol sonuçları commit mesajında.
+- **Ölçülen etki:** ölçülmedi.
+- **Bilinen eksikler:** OpenAI / Anthropic / OpenRouter bağdaştırıcıları
+  yok (faz 2). `embeddingService` (gömme) ve kapalı eski yazar paneli
+  (`aiService.js`, `deepseek.js`) bizim anahtarla çalışır — bağlam onları
+  kapsamaz (gömme kullanıcıya görünen bir model adımı değil; eski panel
+  kapalı). Model sınıfı uyarısı (3.7, doğrulama adımı) WO-005 ile.
+  Kullanıcının gerçek anahtarıyla elle deneme yapılmadı (anahtar yok).
+- **Yerel kurulum:** `server/.env`'e `BYOK_ENABLED=true` ve rastgele
+  `KEY_ENCRYPTION_KEY` eklendi (gitignore'da). Canlıya alırken Render'a
+  gizli değişken olarak girilmeli (onay noktası).
+- **Sonraki adım:** kaynak lisans tablosu.
+- **Durum:** NEEDS ATTENTION — testler geçti; gerçek sağlayıcı anahtarıyla
+  elle deneme bekliyor.

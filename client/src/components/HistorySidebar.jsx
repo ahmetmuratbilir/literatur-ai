@@ -4,7 +4,7 @@ const MotionAside = motion.aside;
 const MotionDiv = motion.div;
 import {
   Trash2, PlusCircle, Zap, Star, ChevronRight, ChevronLeft, BookmarkCheck, PenLine, Download, FolderOpen,
-  FileText, Pencil, Copy, AlertTriangle, Search
+  FileText, Pencil, Copy, AlertTriangle, Search, KeyRound
 } from 'lucide-react';
 import { toBibTeX, toRIS, downloadText } from '../utils/citationExport.js';
 import { AppUserButton, useAppAuth, useAppUser } from '../auth/clerkBridge.js';
@@ -68,7 +68,7 @@ const HistorySidebar = ({
   isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, onDeleteHistoryEntry, onNewSearch, basket, onOpenWriter,
   drafts = [], activeDraftId = null, onOpenDraft, onNewDraft, onRenameDraft, onDuplicateDraft, onDeleteDraft,
   // Tek panel kabuk (WO-017): rayın en üstünde bölümler; sidebar yazım yüzeyinin üstüne açılabilsin diye `raised`.
-  section = 'research', onGoResearch, writeExtra = null, raised = false,
+  section = 'research', onGoResearch, writeExtra = null, raised = false, onOpenAi,
 }) => {
   const { t, lang } = useI18n();
   const locale = lang === 'tr' ? 'tr-TR' : 'en-US';
@@ -232,6 +232,7 @@ const HistorySidebar = ({
         <nav style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <SidebarItem icon={<FolderOpen size={18} />} label={t('sidebar.works')} isOpen={isOpen} active={activeTab === 'works'} onClick={() => openTab('works')} badge={drafts.length || null} />
           <SidebarItem icon={<Star size={18} />} label={t('sidebar.favorites')} isOpen={isOpen} active={activeTab === 'favorites'} onClick={() => openTab('favorites')} badge={favorites?.papers?.length || null} />
+          {onOpenAi && <SidebarItem icon={<KeyRound size={18} />} label={t('sidebar.ai')} isOpen={isOpen} action="nav-ai" onClick={() => { onOpenAi(); closeOnMobile(); }} />}
           <SidebarItem icon={<BookmarkCheck size={18} />} label={t('basket.title')} isOpen={isOpen} active={activeTab === 'basket'} onClick={() => openTab('basket')} badge={basketPapers.length ? `${basketPapers.length}/${basketLimit}` : null} basketTarget />
         </nav>
 

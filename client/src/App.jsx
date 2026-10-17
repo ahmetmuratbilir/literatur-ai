@@ -34,6 +34,7 @@ import { useLayer } from './components/ui/useLayer.js';
 import { classifyError } from './components/states/errorClass.js';
 import { EmptyResult, ErrorNotice, PartialSources, SearchCancelled, SearchWaiting } from './components/states/SearchStates.jsx';
 import { useElapsed } from './components/states/useElapsed.js';
+import AiConnections from './components/settings/AiConnections.jsx';
 
 const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -241,6 +242,28 @@ function App() {
   const [resultFilter, setResultFilter] = useState('all');
   const [selectedYear, setSelectedYear] = useState(null);
   const [activeReaderPaper, setActiveReaderPaper] = useState(null);
+  // Kendi yapay zekâ anahtarın (WO-023): bağlantı paneli ve "anahtarın çalışmadı" bildirimi.
+  const [showAi, setShowAi] = useState(false);
+  useEffect(() => {
+    let lastAt = 0;
+    const onHeaders = (headers) => {
+      const status = headers?.['x-ai-key-status'];
+      if (!status || Date.now() - lastAt < 30000) return;
+      lastAt = Date.now();
+      pushToast({
+        tone: 'warn',
+        title: t('aiConn.keyFailedTitle'),
+        text: t(status === 'quota' ? 'aiConn.keyQuota' : 'aiConn.keyInvalid'),
+        action: { label: t('aiConn.open'), onClick: () => setShowAi(true) },
+        duration: 12000,
+      });
+    };
+    const id = axios.interceptors.response.use(
+      (res) => { onHeaders(res.headers); return res; },
+      (err) => { onHeaders(err?.response?.headers); return Promise.reject(err); },
+    );
+    return () => axios.interceptors.response.eject(id);
+  }, [pushToast, t]);
 
   // Clerk ile oturum açıldığında kullanıcıyı senkronize et ve gerekirse hoş geldin e-postası tetikle
   useEffect(() => {
@@ -1194,6 +1217,7 @@ function App() {
           onGoResearch={goResearch}
           writeExtra={drafts.active ? (drafts.active.title || t('workspace.untitled')) : null}
           raised={mode === 'workspace'}
+          onOpenAi={() => setShowAi(true)}
           drafts={drafts.items}
           activeDraftId={drafts.active?.id || null}
           onOpenDraft={openDraft}
@@ -1288,6 +1312,7 @@ function App() {
 
         {/* Sağ kenardaki yüzen "Yazar modu" düğmesi (WriterDock) kalktı (WO-017):
             Yaz artık raydaki bir bölüm; sepet temizleme kenar çubuğundaki Sepet'te. */}
+        <AiConnections open={showAi} onClose={() => setShowAi(false)} apiUrl={defaultApiUrl} getToken={getToken} />
         <Toasts toasts={toasts} onDismiss={dismissToast} />
       </AuthedOnly>
 

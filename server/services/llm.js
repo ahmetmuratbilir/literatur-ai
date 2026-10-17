@@ -1,6 +1,7 @@
 import { fetch } from 'undici';
 import { resolveChatProvider, chatProvidersInOrder } from '../config/aiModels.js';
 import { logAiUsage } from '../utils/aiUsage.js';
+import { noteProviderResponse } from './aiContext.js';
 import { tokenizeBoolean, isWellFormed } from './sourceQuery.js';
 
 /**
@@ -134,6 +135,7 @@ async function requestQueryAnalysis(provider, topic, lang) {
       ...(provider.body || {}),
     }),
   });
+  noteProviderResponse(provider, response.status);
   if (!response.ok) {
     const errorText = (await response.text()).slice(0, 200);
     throw new Error(`HTTP ${response.status}: ${errorText}`);
@@ -217,6 +219,7 @@ RULES:
     })
   });
 
+  noteProviderResponse(provider, response.status);
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Consensus API failed (${response.status}): ${errorText}`);
