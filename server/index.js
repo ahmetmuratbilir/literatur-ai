@@ -234,6 +234,9 @@ app.use(cors({
   origin: corsOrigin,
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  // 429'da arayüz geri sayımı Retry-After'dan alır; CORS açıkça izin vermezse
+  // tarayıcı bu başlığı JavaScript'e göstermez (WO-021, e2e yakaladı).
+  exposedHeaders: ['Retry-After'],
   credentials: true
 }));
 app.use(express.json({ limit: '1mb' }));
@@ -1302,9 +1305,12 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
     let status = 500;
     let friendlyMessage = message;
 
-    if (message.includes('429') || message.includes('Kotanız') || message.includes('QUOTA')) {
+    if (error?.code === 'SOURCES_UNAVAILABLE') {
+      status = 503;
+      friendlyMessage = 'Akademik kaynakların hiçbirine şu an ulaşılamadı. Sorgun kaybolmadı; biraz sonra tekrar dene.';
+    } else if (message.includes('429') || message.includes('Kotanız') || message.includes('QUOTA')) {
       status = 429;
-      friendlyMessage = 'Scopus veya akademik kaynak kotası doldu. Sistem demo verilerle devam ediyor.';
+      friendlyMessage = 'Akademik kaynakların kotası doldu. Biraz sonra tekrar dene.';
     } else if (message.includes('401')) {
       status = 401;
       friendlyMessage = 'API erişim hatası (Yetkisiz). Lütfen anahtarlarınızı kontrol edin.';
@@ -1315,6 +1321,8 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
 
     return res.status(status).json({
       error: friendlyMessage,
+      code: error?.code || null,
+      failedSources: error?.failedSources || undefined,
       originalError: message,
       quota: error?.quota || null,
     });

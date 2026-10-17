@@ -2,7 +2,7 @@
 
 | Alan | Değer |
 | --- | --- |
-| Durum | Taslak (17.10.2026) |
+| Durum | **Bitti** (17.10.2026, `wo-021-durumlar`; kullanıcı onayı: MVP kapsamı) |
 | Kapsam | Çapraz (istemci; sunucuda yanıta kaynak durumu) |
 | Dosya değişikliği | İzinli (liste aşağıda) |
 | Tahmini süre | 2 oturum |
@@ -93,10 +93,53 @@ bağlı; eski istemci yok sayar.
 - Faz 0 sonrası sunucu değişikliği gerekirse kapsamı.
 
 ## Bitiş raporu
-- Değişen dosyalar:
-- Teknik kararlar ve gerekçeleri:
-- Çalıştırılan testler ve gerçek çıktıları:
-- Ölçülen etki:
-- Bilinen eksikler:
-- Sonraki adım:
-- **Durum:**
+- **Değişen dosyalar:** istemci — yeni `components/states/errorClass.js`,
+  `SearchStates.jsx`, `useElapsed.js`, `tests/errorClass.test.js`,
+  `e2e/states.spec.js`; değişen `App.jsx`, `styles/states.css`, `i18n/tr.js`,
+  `i18n/en.js`. Sunucu — `services/search.js`, `index.js`, yeni
+  `tests/searchEmptyOutcome.test.js`.
+- **Faz 0 bulguları (envanter):**
+  - `/api/search` zaten `failedSources` döndürüyordu ama istemci hiç
+    göstermiyordu (düşen kaynak sessizce kayboluyordu — 2.11 madde 3).
+  - **Ciddi:** sonuç boşken sunucu her durumda "demo moduna" geçip
+    `exdata.json`'daki kayıtları döndürüyordu. Kaynaklar yanıt verip sorgu
+    gerçekten eşleşmediğinde de kullanıcı alakasız örnek makaleler ve
+    "hiçbir kaynağa ulaşılamadı" mesajı görüyordu (2.8 ihlali).
+  - 429 mesajı "Sistem demo verilerle devam ediyor" diyordu, oysa hata
+    dönüyordu.
+  - Bekleme ekranının metinleri doğrulanmamış iddialar taşıyordu ("9 Açık
+    Kaynak", "SJR Q1-Q4 & Atıf Skoru", "AHP ağırlıklarınla sıralanıyor" —
+    kullanıcı ağırlık seçemiyor).
+  - Arama süresi p50/p95 ölçülmedi (canlı veri yok; yerelde sahte sunucu).
+- **Teknik kararlar:**
+  - Sunucu: `queriedSources` ve `emptyOutcome` saf fonksiyon (birim testli).
+    Boş sonuç → `{ results: [], empty: true, sourcesQueried }`; sorgulanan
+    her kaynak düştüyse canlıda 503 `SOURCES_UNAVAILABLE` (düşen kaynaklarla),
+    yalnız geliştirmede işaretli örnek veri. Yanıta `sourcesQueried` eklendi.
+    CORS `exposedHeaders: ['Retry-After']` (tarayıcı başlığı göstermiyordu —
+    e2e yakaladı; gerçek sunucuda doğrulandı).
+  - İstemci: zamanlayıcılı aşama metni ve dört aşamalı gösterge kalktı.
+    300 ms altında hiçbir şey; sonra düğmede "Aranıyor…"; 2 sn sonra
+    iskelet + gerçek süre + İptal (`AbortController`); 20 sn sonra
+    "beklenenden uzun". Hata `classifyError` ile 10 sınıfa ayrılır, her biri
+    ne olduğunu, kaybedilen olup olmadığını ve ne yapılacağını söyler; 429'da
+    geri sayım; teknik ayrıntı katlanır. Boş sonuç taranan kaynakları sayar,
+    "çalışma yok" demez; kısmi sonuçta yanıt vermeyen kaynaklar adıyla.
+  - Faz 3 (kart durumları): sonuç kartında geri çekilmiş / endişe beyanı
+    şeridi, "özet yok", "yıl bilinmiyor" zaten vardı (doğrulandı,
+    `ResultCard.jsx:74-140`); yenisi kısmi ve boş sonuç. Taslak ve analiz
+    kartlarının hata durumları WO-011'de var; kanıt kartı WO-005 ile.
+- **Testler:** istemci birim 323/323 (yeni `errorClass` 4); sunucu yeni
+  `searchEmptyOutcome` 5/5; lint temiz; yeni `e2e/states.spec.js` 10/10
+  (bekleme eşikleri, sahte metin yok, İptal ve yeniden arama, 401 / 429
+  geri sayım / 500 / 503 / bütün kaynaklar düştü, çevrimdışı, boş sonuç,
+  kısmi sonuç). Tam kontrol sonuçları commit mesajında.
+- **Ölçülen etki:** ölçülmedi (kalite metriği yok, 4.7). Arama süresi
+  ölçümü canlı veriyle yapılmalı.
+- **Bilinen eksikler:** B yolu (SSE ile kaynak kaynak ilerleme) yok —
+  ayrı karar. "Yalnız düşen kaynağı tekrar dene" düğmesi yok (B yolunu
+  ister). Oturum düşünce "Giriş yap" düğmesi yerine "Tekrar dene" çıkıyor
+  (Clerk giriş akışı bağlanmadı).
+- **Sonraki adım:** WO-023 (kendi yapay zekâ anahtarın).
+- **Durum:** NEEDS ATTENTION — testler geçti; canlı kaynaklarla davranış
+  (gerçek boş sonuç, gerçek 429) yerelde sahte sunucuyla denendi.

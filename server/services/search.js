@@ -153,6 +153,31 @@ export function guarded(name, fn, breaker = sourceBreaker, { deadlineMs = SOURCE
 // Tek bir yavas kaynak tum aramayi bekletmesin: kaynaklarin kendi zaman
 // asimlari 6-10 sn ve S2 yeniden denemeleriyle daha da uzayabiliyordu.
 // Yetismeyen kaynak TIMEOUT sayilir (art arda 3 kez -> kesici 2 dk).
+/**
+ * Gerçekten sorgulanan kaynakların tekil adları (WO-021). `pairs`: [ad, settled
+ * sonuç]; atlanan (SKIPPED ile çözülen) kaynak sayılmaz.
+ */
+export function queriedSources(pairs, skipped = SKIPPED) {
+  return [...new Set(pairs.filter(([, r]) => !(r?.status === 'fulfilled' && r.value === skipped)).map(([name]) => name))];
+}
+
+/**
+ * Sonuç yokken ne yapılır (WO-021, tüzük 2.4/2.8):
+ *  'results'     — sonuç var, normal akış;
+ *  'empty'       — kaynaklar yanıt verdi, eşleşen kayıt yok → dürüst boş sonuç;
+ *  'unavailable' — sorgulanan her kaynak hata verdi, canlı ortam → açık hata;
+ *  'demo'        — aynı durum, geliştirme ortamı → işaretli örnek veri.
+ * Eskiden her boş sonuçta örnek veri dönüyordu: gerçek boş arama alakasız
+ * makaleler ve "hiçbir kaynağa ulaşılamadı" mesajı gösteriyordu.
+ */
+export function emptyOutcome({ resultCount, sourcesQueried, failedSources, production }) {
+  if (resultCount > 0) return 'results';
+  const failed = new Set((failedSources || []).map((f) => f.name));
+  const allFailed = sourcesQueried.length > 0 && sourcesQueried.every((name) => failed.has(name));
+  if (!allFailed) return 'empty';
+  return production ? 'unavailable' : 'demo';
+}
+
 export const SOURCE_DEADLINE_MS = 6500;
 
 /** Arama sirasinda yasal PDF'i onceden aranan ilk sonuc sayisi ve toplam bekleme ust siniri. */
@@ -290,6 +315,15 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
   ]);
 
   const categorizeError = classifySourceError;
+
+  // Gerçekten sorgulanan kaynaklar (atlananlar hariç: Scopus kapalı, yazar
+  // araması, arXiv'e uygun ifade yok …). Arayüz boş sonuçta "şu kaynaklar
+  // tarandı" der, "çalışma yok" demez (tüzük 2.8; WO-021).
+  const sourcesQueried = queriedSources([
+    ['Scopus', scopusResult], ['OpenAlex', openAlexResult], ['CORE', coreResult], ['Crossref', crossrefResult],
+    ['SemanticScholar', s2Result], ['ArXiv', arxivResult], ['DOAJ', doajResult], ['EuropePMC', europePmcResult],
+    ['OpenAlex', turkishResult], ['OpenAIRE', openAireResult], ['DataCite', dataCiteResult], ['PubMed', pubmedResult],
+  ]);
 
 
   let allResults = [];
@@ -504,8 +538,32 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
   const apiFetchTime = performance.now();
   console.log(`API Çekim Süresi: ${((apiFetchTime - startTime) / 1000).toFixed(2)} sn`);
 
-  if (allResults.length === 0) {
-     console.log('--- KOTA DOLU VEYA API HATASI: DEMO MODUNA GEÇİLİYOR ---');
+  // Sonuç yok: iki ayrı durum (tüzük 2.4/2.8, WO-021). Kaynaklar yanıt verdi
+  // ama eşleşen kayıt yok → dürüst boş sonuç. Sorgulanan her kaynak hata verdi →
+  // canlıda açık hata; yalnız geliştirmede örnek veri (eskiden her boş sonuçta
+  // örnek veri dönüyordu: gerçek boş arama alakasız makaleler gösteriyordu).
+  const outcome = emptyOutcome({ resultCount: allResults.length, sourcesQueried, failedSources, production: process.env.NODE_ENV === 'production' });
+  if (outcome === 'empty') {
+    return {
+      totalFound: 0,
+      analyzedCount: 0,
+      results: [],
+      empty: true,
+      searchTime: ((performance.now() - startTime) / 1000).toFixed(2),
+      sourcesQueried,
+      failedSources,
+      zeroResultSources,
+      relevance: { level: 'none', dropped: 0 },
+    };
+  }
+  if (outcome === 'unavailable') {
+    const err = new Error('Hiçbir akademik kaynağa ulaşılamadı.');
+    err.code = 'SOURCES_UNAVAILABLE';
+    err.failedSources = failedSources;
+    throw err;
+  }
+  if (outcome === 'demo') {
+     console.log('--- BÜTÜN KAYNAKLAR HATA VERDİ (geliştirme): ÖRNEK VERİYE GEÇİLİYOR ---');
      try {
        const rootDir = path.join(__dirname, '../..');
        const primaryPath = path.join(rootDir, 'exdata.json');
@@ -541,6 +599,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
          results: finalResults,
          demoMode: true,
          failedSources,
+         sourcesQueried,
          sourceBreakdown,
          totalFromAPIs,
          quota: { 
@@ -722,6 +781,7 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
     results: finalResults || [],
     searchTime: totalDuration,
     failedSources,
+    sourcesQueried,
     // Hata vermeyen ama sonuc dondurmeyen kaynaklar. failedSources'dan ayri
     // tutuluyor: "erisemedik" ile "erisildik ama bos dondu" ayri arizalardir
     // ve ikincisi neredeyse her zaman bizim sorgumuzun hatasidir.

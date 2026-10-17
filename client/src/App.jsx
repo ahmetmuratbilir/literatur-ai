@@ -31,6 +31,9 @@ import AdminPanel from './components/AdminPanel.jsx';
 import { useI18n } from './i18n/context.js';
 import { useDialogs } from './components/ui/dialogContext.js';
 import { useLayer } from './components/ui/useLayer.js';
+import { classifyError } from './components/states/errorClass.js';
+import { EmptyResult, ErrorNotice, PartialSources, SearchCancelled, SearchWaiting } from './components/states/SearchStates.jsx';
+import { useElapsed } from './components/states/useElapsed.js';
 
 const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -199,7 +202,12 @@ function App() {
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [deviceId, setDeviceId] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [loadingStep, setLoadingStep] = useState(0);
+  // Arama durumu (WO-021): başlangıç anı (gerçek süre için), sınıflanmış hata, iptal.
+  const [searchStartedAt, setSearchStartedAt] = useState(null);
+  const [searchError, setSearchError] = useState(null);
+  const [searchCancelled, setSearchCancelled] = useState(false);
+  const searchAbort = useRef(null);
+  const searchElapsed = useElapsed(searchStartedAt);
   const [isShared, setIsShared] = useState(false);
   const [activeLandingTab, setActiveLandingTab] = useState(null);
   const [landingTheme, setLandingTheme] = useState('light');
@@ -337,8 +345,6 @@ function App() {
 
 
 
-  const loadingSteps = t('loading.steps');
-
   // Yazar modunda konu isteğe bağlı ama kişi seçilmiş olmalı.
   const canSubmitSearch = searchMode === 'author'
     ? Boolean(selectedAuthor)
@@ -362,7 +368,6 @@ function App() {
     if (sharedId) {
       const fetchSharedData = async () => {
         setLoading(true);
-        setLoadingStep(0);
         try {
           const res = await axios.get(`${defaultApiUrl}/api/share/${sharedId}`);
           setData({ results: res.data.results, totalFound: res.data.results.length, analyzedCount: res.data.results.length });
@@ -390,17 +395,9 @@ function App() {
     if (isMobile) setSidebarOpen(false);
   }, [isMobile]);
 
-  // Loading messages interval (akıcı ve dengeli geçiş)
-  useEffect(() => {
-    let interval;
-    if (loading) {
-      setLoadingStep(0);
-      interval = setInterval(() => {
-        setLoadingStep((prev) => prev + 1);
-      }, 2000);
-    }
-    return () => clearInterval(interval);
-  }, [loading]);
+  // Eskiden burada 2 sn'lik zamanlayıcı "aşama" metni döndürüyordu; gerçek
+  // ilerlemeyle bağı yoktu (tüzük 2.8). Yerine gerçek süre ve İptal (WO-021).
+  const cancelSearch = () => searchAbort.current?.abort();
 
   const handleToggleBasket = useCallback(async (paper, sourceEl) => {
     if (basket.has(paper)) {
@@ -513,13 +510,21 @@ function App() {
 
     setLoading(true);
     setError(null);
+    setSearchError(null);
+    setSearchCancelled(false);
     setData(null);
     setAiAnalysis(null);
     setShowWriterPanel(false);
+    searchAbort.current?.abort();
+    const controller = new AbortController();
+    searchAbort.current = controller;
+    setSearchStartedAt(Date.now());
 
     try {
       const token = await getToken();
       const response = await axios.get(`${defaultApiUrl}/api/search`, {
+        signal: controller.signal,
+        timeout: 90000,
         params: {
           mainTopic: trimmedTopic,
           authorName: trimmedAuthor,
@@ -541,9 +546,17 @@ function App() {
         keywords: JSON.stringify(cleanKeywords)
       });
     } catch (err) {
-      setError(err.response?.data?.error || t('search.failed'));
-      setLoading(false);
+      // Hata sınıflanır: ne oldu, kaybedilen var mı, ne yapılacak (WO-021, §5.1).
+      const cls = classifyError(err, { online: typeof navigator === 'undefined' ? true : navigator.onLine });
+      if (searchAbort.current === controller) {
+        if (cls.kind === 'cancelled') setSearchCancelled(true);
+        else setSearchError({ ...cls, at: Date.now() });
+        setSearchStartedAt(null);
+        setLoading(false);
+      }
       return;
+    } finally {
+      if (searchAbort.current === controller) setSearchStartedAt(null);
     }
 
     // Geçmişe kaydetme ayrı ele alınıyor. Önceki sürümde aynı try bloğundaydı:
@@ -941,8 +954,9 @@ function App() {
                     disabled={loading || !canSubmitSearch}
                     className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block"
                   >
-                    {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
-                    {loading ? t('search.submitting') : t('search.submit')}
+                    {/* 300 ms altında hiçbir şey değişmez (titremesin); sonra düğmede "Aranıyor…" (§3.1). */}
+                    {loading && searchElapsed >= 300 ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
+                    {loading && searchElapsed >= 300 ? t('search.submitting') : t('search.submit')}
                   </button>
                 </form>
               )}
@@ -951,73 +965,8 @@ function App() {
             {!data && !loading && !aiAnalysis && !error && <FeatureHighlights />}
 
             <AnimatePresence>
-              {loading && (
-                <MotionDiv
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="ui-panel"
-                  style={{ padding: 'var(--space-8)', textAlign: 'center' }}
-                  role="status"
-                >
-                  <div style={{ position: 'relative', width: '64px', height: '64px', margin: '0 auto var(--space-4)' }}>
-                    <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid var(--brand-primary-soft)' }} />
-                    <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid transparent', borderTopColor: 'var(--brand-primary)', animation: 'spin 1s linear infinite' }} />
-                    <div style={{ position: 'absolute', inset: '9px', display: 'grid', placeItems: 'center', background: 'var(--brand-primary-soft)', borderRadius: '50%' }}>
-                      <Activity size={24} color="var(--brand-primary)" />
-                    </div>
-                  </div>
-                  <h3 style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, margin: '0 0 var(--space-2)' }}>{t('loading.title')}</h3>
-                  <AnimatePresence mode="wait">
-                    <motion.p
-                      key={loadingStep}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -5 }}
-                      style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', fontWeight: 500, minHeight: '1.5em', margin: 0 }}
-                    >
-                      {loadingSteps[loadingStep % loadingSteps.length]}
-                    </motion.p>
-                  </AnimatePresence>
-
-                  {/* 4 Aşamalı Süreç Göstergesi */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
-                    gap: '8px',
-                    maxWidth: '820px',
-                    margin: '0 auto 1.5rem',
-                    textAlign: 'left'
-                  }}>
-                    {[
-                      { step: 1, title: 'AI & MeSH Çeviri', desc: 'Boolean Genişletme' },
-                      { step: 2, title: '9 Açık Kaynak', desc: 'OpenAlex, Crossref, Europe PMC' },
-                      { step: 3, title: 'AHP Matrisi', desc: 'SJR Q1-Q4 & Atıf Skoru' },
-                      { step: 4, title: 'Unpaywall & PDF', desc: 'Açık Erişim Doğrulama' },
-                    ].map((st, i) => {
-                      const isActive = loadingStep >= i;
-                      return (
-                        <div
-                          key={st.step}
-                          style={{
-                            padding: '8px 12px',
-                            borderRadius: '10px',
-                            background: isActive ? 'rgba(99, 102, 241, 0.08)' : 'rgba(0,0,0,0.02)',
-                            border: isActive ? '1px solid rgba(99, 102, 241, 0.25)' : '1px solid rgba(0,0,0,0.05)',
-                            transition: 'all 0.3s ease'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '700', color: isActive ? 'var(--brand-primary)' : 'var(--text-muted)' }}>
-                            <span style={{ width: '16px', height: '16px', borderRadius: '50%', background: isActive ? 'var(--brand-primary)' : '#cbd5e1', color: '#fff', display: 'grid', placeItems: 'center', fontSize: '9px', fontWeight: '800' }}>{st.step}</span>
-                            <span>{st.title}</span>
-                          </div>
-                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px', paddingLeft: '22px' }}>{st.desc}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </MotionDiv>
-              )}
+              {/* Bekleme (WO-021, §3.1): < 2 sn yalnız düğme; sonra iskelet, gerçek süre, İptal. */}
+              {loading && <SearchWaiting key="wait" elapsed={searchElapsed} onCancel={cancelSearch} />}
             </AnimatePresence>
 
             <AnimatePresence>
@@ -1031,8 +980,14 @@ function App() {
               )}
             </AnimatePresence>
 
-            {data && (
+            {data && data.results?.length === 0 && !data.demoMode && (
+              <EmptyResult sources={data.sourcesQueried} onImprove={mainTopic.trim() ? handleAiSuggest : null} />
+            )}
+
+            {data && data.results?.length > 0 && (
               <div>
+                {/* Kaynakların bir kısmı yanıt vermediyse adlarıyla söylenir (2.11). */}
+                {!data.demoMode && <PartialSources failedSources={data.failedSources} scanned={data.sourcesQueried?.length || 0} />}
                 {/* Sunucu hicbir kaynaga ulasamadiginda yerel ornek veri seti
                     donuyor (demoMode); kullanici bunu gercek sonuc sanmamali. */}
                 {data.demoMode && (
@@ -1160,6 +1115,9 @@ function App() {
                 )}
               </div>
             )}
+
+            {searchError && <div style={{ marginTop: 'var(--space-6)' }}><ErrorNotice key={searchError.at} error={searchError} onRetry={() => handleSearch(null)} /></div>}
+            {searchCancelled && <div style={{ marginTop: 'var(--space-6)' }}><SearchCancelled onRetry={() => handleSearch(null)} /></div>}
 
             {error && (
               <MotionDiv initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} role="alert" className="ui-notice ui-notice--error" style={{ marginTop: 'var(--space-6)' }}>
