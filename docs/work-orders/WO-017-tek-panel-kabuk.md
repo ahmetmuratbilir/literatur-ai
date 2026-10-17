@@ -2,7 +2,7 @@
 
 | Alan | Değer |
 | --- | --- |
-| Durum | Taslak (17.10.2026) |
+| Durum | Hazır (17.10.2026, kullanıcı onayı) — uygulama WO-011 elle kontrolü gelince |
 | Kapsam | Çapraz (istemci) |
 | Dosya değişikliği | İzinli (liste aşağıda) |
 | Tahmini süre | 2 oturum |
