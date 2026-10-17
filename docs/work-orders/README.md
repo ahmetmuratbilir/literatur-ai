@@ -59,6 +59,14 @@ Taslak → Hazır → Çalışıyor → Bitti
 | [WO-011](WO-011-yazar-modu.md) | Yazar modu yeniden yapılandırma (şartname Faz 1 → 3 → 2) | P1 | Faz 1, 3, 2 bitti — kullanıcı kontrolü bekliyor (15.10.2026) |
 | [WO-015](WO-015-istatistik-cekirdegi-v2.md) | İstatistik çekirdeği v2: ANOVA, ki-kare, Mann-Whitney, Wilcoxon, Kruskal-Wallis | P3 | Taslak (16.10.2026) |
 | [WO-016](WO-016-gorsel-yapi-cekirdegi.md) | Görsel yapı çekirdeği: sinyal, kural kademesi, Türkçe toleranslı eşleştirme, şablon uygunluğu, kaynak değişimi denetimi | P3 | **Bitti** (17.10.2026, `wo-016-gorsel-yapi`, push yok) — kullanıcı kontrolü bekliyor |
+| [WO-017](WO-017-tek-panel-kabuk.md) | Tek panel kabuk: sol rayda Araştırma ilk sırada, yazım aynı kabukta | P1 | Taslak (17.10.2026) — ön koşul WO-011 kontrolü |
+| [WO-018](WO-018-etkilesim-altyapisi.md) | Etkileşim altyapısı: katmanlar, Esc yığını, ortak pencere, geri al (planlardaki WO-E1) | P1 | Taslak (17.10.2026) — ön koşul WO-017 |
+| [WO-019](WO-019-cizici-ve-gorsellestir.md) | Çizici ve Görselleştir: paragraftan şekil, belgeye ekleme (planlardaki WO-D) | P3 | Taslak (17.10.2026) — ön koşul galeri kararları, WO-017 |
+
+**Yol haritası (17.10.2026):** `docs/design/yol-haritasi.md`. Görünür sonuç
+sırası: WO-011 kontrolü → galeri kararları → WO-017 → WO-018 → WO-019 →
+WO-008 → köprü → WO-E2 → WO-C → WO-B → WO-007/015. WO-019 (çizici)
+WO-008'den önce: dışa aktarılacak şekil olmadan WO-008 görünür sonuç vermez.
 
 **Görselleştirme sırası (kullanıcı kararı 17.10.2026):** WO-016 ve S1
 (Infographic denemesi, iş emri değil, ayrı onayla) paralel → WO-008 → WO-B
