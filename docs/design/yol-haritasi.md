@@ -57,6 +57,14 @@ sayfasında) neyin değiştiğini söyler.
 | 9 | **Veriden görseller** | WO-B | Sepetin yayın yılı çizelgesi, PRISMA akışı | 4, 5 | 1–2 oturum |
 | 10 | **Analiz arayüzü** + çekirdek v2 | WO-007 + WO-015 | Analiz istasyonu: veri yapıştır, test seç, APA tablosu belgeye; ANOVA, ki-kare, Mann-Whitney | 4, 5 | 3 oturum |
 
+**Durum (17.10.2026):** adım 1 yapıldı —
+`docs/design/mockup-sekil-galerisi.html`, 24 şablon, her biri 3/5/8 öğeyle
+(Venn 2–3, çok sütunlu tablo 2–4). Sayfa her şekli kendisi denetler (yazı
+taşması, yazı çakışması, kutudan taşma, çizimin şekil dışına çıkması);
+iki tema × simge açık/kapalı: 0 sorun, dış istek 0. Kullanıcı kararları
+(Kalsın / Düzelt / At) bekleniyor. Adım 2 ve sonrası adım 0'ı (WO-011
+kontrolü) bekliyor.
+
 **Sıra değişikliği önerisi:** daha önce WO-008, WO-D'den önce gelecekti.
 Bu planda **WO-D (4) önce, WO-008 (5) sonra**: uygulamada henüz hiç şekil
 yok; WO-008 önce gelirse yalnız test için yerleştirilmiş şekilleri dışa

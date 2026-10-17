@@ -1,0 +1,1188 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Şekil galerisi v3</title>
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#ffffff; --ink:#1b2430; --muted:#4f5b69; --line:#dde2e8;
+  --primary:#1f3a5f; --primary-soft:#e8eef6; --ok:#0a7f5a; --warn:#8a5300; --bad:#b42318;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans","Segoe UI",system-ui,-apple-system,Arial,sans-serif}
+header.top{position:sticky;top:0;z-index:10;background:var(--panel);border-bottom:1px solid var(--line)}
+.wrap{max-width:1480px;margin:0 auto;padding:0 16px}
+.bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:10px 0}
+.bar h1{font-size:18px;margin:0 8px 0 0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:#fff;padding:6px 12px;font:inherit;font-size:13.5px;color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--primary);color:#fff}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-size:13.5px;cursor:pointer}
+.fams{display:flex;flex-wrap:wrap;gap:6px;padding:0 0 10px}
+.fams button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer;color:var(--ink)}
+.fams button[aria-pressed="true"]{background:var(--primary-soft);border-color:var(--primary);color:var(--primary);font-weight:600}
+.btn{border:1px solid var(--primary);background:var(--primary);color:#fff;border-radius:8px;padding:6px 12px;font:inherit;font-size:13.5px;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--primary)}
+.sum{font-size:13px;color:var(--muted)}
+.intro{padding:18px 0 4px;max-width:900px;color:var(--muted);font-size:14px}
+.intro b{color:var(--ink)}
+h2.fam{font-size:16px;margin:26px 0 10px;color:var(--primary)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px 12px;margin:0 0 16px}
+.card .head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+.card h3{font-size:16px;margin:0}
+.meta{font-size:12.5px;color:var(--muted)}
+.meta code{font-size:12px;background:var(--primary-soft);color:var(--primary);padding:1px 6px;border-radius:4px}
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:12px;margin:10px 0}
+figure{margin:0;border:1px solid var(--line);border-radius:8px;background:#fff;padding:8px;cursor:zoom-in;display:flex;flex-direction:column}
+figure .svgbox{flex:1;display:flex;align-items:center;justify-content:center}
+figure svg{display:block;width:100%;height:auto}
+figcaption{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);padding-top:6px;border-top:1px dashed var(--line);margin-top:6px}
+.chkres.ok{color:var(--ok)} .chkres.bad{color:var(--bad);font-weight:600}
+body.gray figure svg{filter:grayscale(1)}
+.decide{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.decide .seg button[data-v="kalsin"][aria-pressed="true"]{background:var(--ok)}
+.decide .seg button[data-v="duzelt"][aria-pressed="true"]{background:var(--warn)}
+.decide .seg button[data-v="at"][aria-pressed="true"]{background:var(--bad)}
+.decide input{flex:1;min-width:200px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:inherit;font-size:13.5px}
+.issues{font-size:12px;color:var(--bad);margin:0 0 6px;padding-left:18px}
+.lb{position:fixed;inset:0;background:rgba(15,23,35,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.lb.open{display:flex}
+.lb .inner{background:#fff;border-radius:10px;max-width:min(1100px,100%);max-height:100%;overflow:auto;padding:16px}
+.lb .inner svg{width:100%;height:auto;display:block}
+.lb .x{float:right}
+.modal textarea{width:min(720px,90vw);height:50vh;font:13px/1.5 ui-monospace,Consolas,monospace}
+@media (max-width:640px){.bar h1{width:100%}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="bar">
+      <h1>Şekil galerisi v3</h1>
+      <div class="seg" role="group" aria-label="Tema" id="themeSeg">
+        <button data-theme="renkli" aria-pressed="true">Renkli</button>
+        <button data-theme="sade" aria-pressed="false">Akademik sade</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="iconsChk" checked> Simgeler</label>
+      <label class="chk"><input type="checkbox" id="grayChk"> Gri tonlama (baskı testi)</label>
+      <span class="sum" id="sum"></span>
+      <button class="btn" id="copyBtn">Kararları kopyala</button>
+    </div>
+    <div class="fams" id="fams"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="intro">
+    <p><b>Ne bu:</b> metinden üretilecek şekillerin görünüm önerileri. Yol haritası adım 1
+    (<code>docs/design/yol-haritasi.md</code>). Kod bu sayfa onaylanmadan yazılmaz.</p>
+    <p><b>Nasıl okunur:</b> her şablon 3, 5 ve 8 öğeyle çizildi (Venn 2–3, çok sütunlu tablo 2–4 seçenek).
+    Yerleşim öğe sayısından ve yazı genişliğinden hesaplanır; sabit koordinat yok. Her şeklin altındaki
+    satır otomatik denetimdir: yazı taşması, yazıların üst üste binmesi, kutudan taşma.
+    <b>Örnek içerikler yalnız görünümü denemek içindir</b>; kaynak değildir.</p>
+    <p><b>Kod ne yapar, kullanıcı ne yapar:</b> WO-016 paragraftan yapıyı ve uygun <i>aileyi</i> çıkarır
+    (her kartta <code>WO-016: …</code>). Aynı ailenin görünümleri arasında seçim kullanıcınındır.
+    Simgeyi kod önerir, kullanıcı değiştirir ya da kapatır; simge anlam taşımaz.</p>
+    <p><b>Senden istenen:</b> her şablon için Kalsın / Düzelt / At, gerekirse kısa not. Bitince
+    “Kararları kopyala” ile metni bana yapıştır. Kararlar bu tarayıcıda saklanır.</p>
+  </div>
+  <div id="gallery"></div>
+</main>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Büyük görünüm">
+  <div class="inner"><button class="btn ghost x" id="lbClose">Kapat (Esc)</button><div id="lbBody"></div></div>
+</div>
+
+<script>
+'use strict';
+const ICONS = {"thermometer":[["path",{"d":"M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"}]],"flame":[["path",{"d":"M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"}]],"droplets":[["path",{"d":"M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"}],["path",{"d":"M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"}]],"wind":[["path",{"d":"M12.8 19.6A2 2 0 1 0 14 16H2"}],["path",{"d":"M17.5 8a2.5 2.5 0 1 1 2 4H2"}],["path",{"d":"M9.8 4.4A2 2 0 1 1 11 8H2"}]],"sun":[["circle",{"cx":"12","cy":"12","r":"4"}],["path",{"d":"M12 2v2"}],["path",{"d":"M12 20v2"}],["path",{"d":"m4.93 4.93 1.41 1.41"}],["path",{"d":"m17.66 17.66 1.41 1.41"}],["path",{"d":"M2 12h2"}],["path",{"d":"M20 12h2"}],["path",{"d":"m6.34 17.66-1.41 1.41"}],["path",{"d":"m19.07 4.93-1.41 1.41"}]],"cloud-rain":[["path",{"d":"M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"}],["path",{"d":"M16 14v6"}],["path",{"d":"M8 14v6"}],["path",{"d":"M12 16v6"}]],"leaf":[["path",{"d":"M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"}],["path",{"d":"M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"}]],"trees":[["path",{"d":"M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z"}],["path",{"d":"M7 16v6"}],["path",{"d":"M13 19v3"}],["path",{"d":"M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5"}]],"factory":[["path",{"d":"M12 16h.01"}],["path",{"d":"M16 16h.01"}],["path",{"d":"M3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5a.5.5 0 0 0-.769-.422l-4.462 2.844A.5.5 0 0 1 15 10.5v-2a.5.5 0 0 0-.769-.422L9.77 10.922A.5.5 0 0 1 9 10.5V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2z"}],["path",{"d":"M8 16h.01"}]],"users":[["path",{"d":"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"}],["path",{"d":"M16 3.128a4 4 0 0 1 0 7.744"}],["path",{"d":"M22 21v-2a4 4 0 0 0-3-3.87"}],["circle",{"cx":"9","cy":"7","r":"4"}]],"user":[["path",{"d":"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"}],["circle",{"cx":"12","cy":"7","r":"4"}]],"graduation-cap":[["path",{"d":"M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"}],["path",{"d":"M22 10v6"}],["path",{"d":"M6 12.5V16a6 3 0 0 0 12 0v-3.5"}]],"book-open":[["path",{"d":"M12 7v14"}],["path",{"d":"M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"}]],"search":[["path",{"d":"m21 21-4.34-4.34"}],["circle",{"cx":"11","cy":"11","r":"8"}]],"file-text":[["path",{"d":"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"}],["path",{"d":"M14 2v5a1 1 0 0 0 1 1h5"}],["path",{"d":"M10 9H8"}],["path",{"d":"M16 13H8"}],["path",{"d":"M16 17H8"}]],"filter":[["path",{"d":"M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"}]],"circle-check":[["circle",{"cx":"12","cy":"12","r":"10"}],["path",{"d":"m9 12 2 2 4-4"}]],"circle-x":[["circle",{"cx":"12","cy":"12","r":"10"}],["path",{"d":"m15 9-6 6"}],["path",{"d":"m9 9 6 6"}]],"target":[["circle",{"cx":"12","cy":"12","r":"10"}],["circle",{"cx":"12","cy":"12","r":"6"}],["circle",{"cx":"12","cy":"12","r":"2"}]],"lightbulb":[["path",{"d":"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"}],["path",{"d":"M9 18h6"}],["path",{"d":"M10 22h4"}]],"flask-conical":[["path",{"d":"M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2"}],["path",{"d":"M6.453 15h11.094"}],["path",{"d":"M8.5 2h7"}]],"microscope":[["path",{"d":"M6 18h8"}],["path",{"d":"M3 22h18"}],["path",{"d":"M14 22a7 7 0 1 0 0-14h-1"}],["path",{"d":"M9 14h2"}],["path",{"d":"M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z"}],["path",{"d":"M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3"}]],"chart-column":[["path",{"d":"M3 3v16a2 2 0 0 0 2 2h16"}],["path",{"d":"M18 17V9"}],["path",{"d":"M13 17V5"}],["path",{"d":"M8 17v-3"}]],"trending-up":[["path",{"d":"M16 7h6v6"}],["path",{"d":"m22 7-8.5 8.5-5-5L2 17"}]],"trending-down":[["path",{"d":"M16 17h6v-6"}],["path",{"d":"m22 17-8.5-8.5-5 5L2 7"}]],"scale":[["path",{"d":"M12 3v18"}],["path",{"d":"m19 8 3 8a5 5 0 0 1-6 0zV7"}],["path",{"d":"M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1"}],["path",{"d":"m5 8 3 8a5 5 0 0 1-6 0zV7"}],["path",{"d":"M7 21h10"}]],"brain":[["path",{"d":"M12 18V5"}],["path",{"d":"M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4"}],["path",{"d":"M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5"}],["path",{"d":"M17.997 5.125a4 4 0 0 1 2.526 5.77"}],["path",{"d":"M18 18a4 4 0 0 0 2-7.464"}],["path",{"d":"M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517"}],["path",{"d":"M6 18a4 4 0 0 1-2-7.464"}],["path",{"d":"M6.003 5.125a4 4 0 0 0-2.526 5.77"}]],"heart-pulse":[["path",{"d":"M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"}],["path",{"d":"M3.22 13H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"}]],"shield":[["path",{"d":"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"}]],"clock":[["path",{"d":"M12 6v6l4 2"}],["circle",{"cx":"12","cy":"12","r":"10"}]],"calendar":[["path",{"d":"M8 2v4"}],["path",{"d":"M16 2v4"}],["rect",{"width":"18","height":"18","x":"3","y":"4","rx":"2"}],["path",{"d":"M3 10h18"}]],"layers":[["path",{"d":"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"}],["path",{"d":"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"}],["path",{"d":"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"}]],"database":[["ellipse",{"cx":"12","cy":"5","rx":"9","ry":"3"}],["path",{"d":"M3 5V19A9 3 0 0 0 21 19V5"}],["path",{"d":"M3 12A9 3 0 0 0 21 12"}]],"settings":[["path",{"d":"M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"}],["circle",{"cx":"12","cy":"12","r":"3"}]],"zap":[["path",{"d":"M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"}]],"recycle":[["path",{"d":"M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"}],["path",{"d":"M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12"}],["path",{"d":"m14 16-3 3 3 3"}],["path",{"d":"M8.293 13.596 7.196 9.5 3.1 10.598"}],["path",{"d":"m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843"}],["path",{"d":"m13.378 9.633 4.096 1.098 1.097-4.096"}]],"globe":[["circle",{"cx":"12","cy":"12","r":"10"}],["path",{"d":"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"}],["path",{"d":"M2 12h20"}]],"building-2":[["path",{"d":"M10 12h4"}],["path",{"d":"M10 8h4"}],["path",{"d":"M14 21v-3a2 2 0 0 0-4 0v3"}],["path",{"d":"M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"}],["path",{"d":"M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"}]],"landmark":[["path",{"d":"M10 18v-7"}],["path",{"d":"M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"}],["path",{"d":"M14 18v-7"}],["path",{"d":"M18 18v-7"}],["path",{"d":"M3 22h18"}],["path",{"d":"M6 18v-7"}]],"message-square":[["path",{"d":"M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"}]],"clipboard-list":[["rect",{"width":"8","height":"4","x":"8","y":"2","rx":"1","ry":"1"}],["path",{"d":"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"}],["path",{"d":"M12 11h4"}],["path",{"d":"M12 16h4"}],["path",{"d":"M8 11h.01"}],["path",{"d":"M8 16h.01"}]],"list-checks":[["path",{"d":"M13 5h8"}],["path",{"d":"M13 12h8"}],["path",{"d":"M13 19h8"}],["path",{"d":"m3 17 2 2 4-4"}],["path",{"d":"m3 7 2 2 4-4"}]],"pencil":[["path",{"d":"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"}],["path",{"d":"m15 5 4 4"}]],"network":[["rect",{"x":"16","y":"16","width":"6","height":"6","rx":"1"}],["rect",{"x":"2","y":"16","width":"6","height":"6","rx":"1"}],["rect",{"x":"9","y":"2","width":"6","height":"6","rx":"1"}],["path",{"d":"M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"}],["path",{"d":"M12 12V8"}]],"repeat":[["path",{"d":"m17 2 4 4-4 4"}],["path",{"d":"M3 11v-1a4 4 0 0 1 4-4h14"}],["path",{"d":"m7 22-4-4 4-4"}],["path",{"d":"M21 13v1a4 4 0 0 1-4 4H3"}]],"refresh-cw":[["path",{"d":"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"}],["path",{"d":"M21 3v5h-5"}],["path",{"d":"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"}],["path",{"d":"M8 16H3v5"}]],"triangle-alert":[["path",{"d":"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"}],["path",{"d":"M12 9v4"}],["path",{"d":"M12 17h.01"}]],"badge-check":[["path",{"d":"M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"}],["path",{"d":"m9 12 2 2 4-4"}]],"circle-help":[["circle",{"cx":"12","cy":"12","r":"10"}],["path",{"d":"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"}],["path",{"d":"M12 17h.01"}]],"puzzle":[["path",{"d":"M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"}]],"compass":[["path",{"d":"m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"}],["circle",{"cx":"12","cy":"12","r":"10"}]],"rocket":[["path",{"d":"M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"}],["path",{"d":"m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"}],["path",{"d":"M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"}],["path",{"d":"M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"}]],"sprout":[["path",{"d":"M14 9.536V7a4 4 0 0 1 4-4h1.5a.5.5 0 0 1 .5.5V5a4 4 0 0 1-4 4 4 4 0 0 0-4 4c0 2 1 3 1 5a5 5 0 0 1-1 3"}],["path",{"d":"M4 9a5 5 0 0 1 8 4 5 5 0 0 1-8-4"}],["path",{"d":"M5 21h14"}]],"hospital":[["path",{"d":"M12 7v4"}],["path",{"d":"M14 21v-3a2 2 0 0 0-4 0v3"}],["path",{"d":"M14 9h-4"}],["path",{"d":"M18 11h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h2"}],["path",{"d":"M18 21V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16"}]],"pill":[["path",{"d":"m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"}],["path",{"d":"m8.5 8.5 7 7"}]],"stethoscope":[["path",{"d":"M11 2v2"}],["path",{"d":"M5 2v2"}],["path",{"d":"M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"}],["path",{"d":"M8 15a6 6 0 0 0 12 0v-3"}],["circle",{"cx":"20","cy":"10","r":"2"}]],"coins":[["circle",{"cx":"8","cy":"8","r":"6"}],["path",{"d":"M18.09 10.37A6 6 0 1 1 10.34 18"}],["path",{"d":"M7 6h1v4"}],["path",{"d":"m16.71 13.88.7.71-2.82 2.82"}]],"wallet":[["path",{"d":"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"}],["path",{"d":"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"}]],"smartphone":[["rect",{"width":"14","height":"20","x":"5","y":"2","rx":"2","ry":"2"}],["path",{"d":"M12 18h.01"}]],"monitor":[["rect",{"width":"20","height":"14","x":"2","y":"3","rx":"2"}],["line",{"x1":"8","x2":"16","y1":"21","y2":"21"}],["line",{"x1":"12","x2":"12","y1":"17","y2":"21"}]],"cpu":[["path",{"d":"M12 20v2"}],["path",{"d":"M12 2v2"}],["path",{"d":"M17 20v2"}],["path",{"d":"M17 2v2"}],["path",{"d":"M2 12h2"}],["path",{"d":"M2 17h2"}],["path",{"d":"M2 7h2"}],["path",{"d":"M20 12h2"}],["path",{"d":"M20 17h2"}],["path",{"d":"M20 7h2"}],["path",{"d":"M7 20v2"}],["path",{"d":"M7 2v2"}],["rect",{"x":"4","y":"4","width":"16","height":"16","rx":"2"}],["rect",{"x":"8","y":"8","width":"8","height":"8","rx":"1"}]],"school":[["path",{"d":"M14 21v-3a2 2 0 0 0-4 0v3"}],["path",{"d":"M18 5v16"}],["path",{"d":"m4 6 7.106-3.79a2 2 0 0 1 1.788 0L20 6"}],["path",{"d":"m6 11-3.52 2.147a1 1 0 0 0-.48.854V19a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a1 1 0 0 0-.48-.853L18 11"}],["path",{"d":"M6 5v16"}],["circle",{"cx":"12","cy":"9","r":"2"}]],"house":[["path",{"d":"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"}],["path",{"d":"M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"}]],"car":[["path",{"d":"M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"}],["circle",{"cx":"7","cy":"17","r":"2"}],["path",{"d":"M9 17h6"}],["circle",{"cx":"17","cy":"17","r":"2"}]],"waves":[["path",{"d":"M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"}],["path",{"d":"M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"}],["path",{"d":"M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"}]],"mountain":[["path",{"d":"m8 3 4 8 5-5 5 15H2L8 3z"}]],"gauge":[["path",{"d":"m12 14 4-4"}],["path",{"d":"M3.34 19a10 10 0 1 1 17.32 0"}]],"activity":[["path",{"d":"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"}]],"eye":[["path",{"d":"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"}],["circle",{"cx":"12","cy":"12","r":"3"}]],"handshake":[["path",{"d":"m11 17 2 2a1 1 0 1 0 3-3"}],["path",{"d":"m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"}],["path",{"d":"m21 3 1 11h-2"}],["path",{"d":"M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"}],["path",{"d":"M3 4h8"}]],"megaphone":[["path",{"d":"M11 6a13 13 0 0 0 8.4-2.8A1 1 0 0 1 21 4v12a1 1 0 0 1-1.6.8A13 13 0 0 0 11 14H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"}],["path",{"d":"M6 14a12 12 0 0 0 2.4 7.2 2 2 0 0 0 3.2-2.4A8 8 0 0 1 10 14"}],["path",{"d":"M8 6v8"}]],"newspaper":[["path",{"d":"M15 18h-5"}],["path",{"d":"M18 14h-8"}],["path",{"d":"M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9a2 2 0 0 1 2-2h2"}],["rect",{"width":"8","height":"4","x":"10","y":"6","rx":"1"}]],"library":[["path",{"d":"m16 6 4 14"}],["path",{"d":"M12 6v14"}],["path",{"d":"M8 8v12"}],["path",{"d":"M4 4v16"}]],"scroll":[["path",{"d":"M19 17V5a2 2 0 0 0-2-2H4"}],["path",{"d":"M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"}]],"quote":[["path",{"d":"M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"}],["path",{"d":"M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"}]],"link":[["path",{"d":"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"}],["path",{"d":"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"}]],"minus":[["path",{"d":"M5 12h14"}]],"plus":[["path",{"d":"M5 12h14"}],["path",{"d":"M12 5v14"}]],"arrow-right":[["path",{"d":"M5 12h14"}],["path",{"d":"m12 5 7 7-7 7"}]],"sigma":[["path",{"d":"M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2"}]],"percent":[["line",{"x1":"19","x2":"5","y1":"5","y2":"19"}],["circle",{"cx":"6.5","cy":"6.5","r":"2.5"}],["circle",{"cx":"17.5","cy":"17.5","r":"2.5"}]],"hourglass":[["path",{"d":"M5 22h14"}],["path",{"d":"M5 2h14"}],["path",{"d":"M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"}],["path",{"d":"M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"}]],"map-pin":[["path",{"d":"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"}],["circle",{"cx":"12","cy":"10","r":"3"}]],"snowflake":[["path",{"d":"m10 20-1.25-2.5L6 18"}],["path",{"d":"M10 4 8.75 6.5 6 6"}],["path",{"d":"m14 20 1.25-2.5L18 18"}],["path",{"d":"m14 4 1.25 2.5L18 6"}],["path",{"d":"m17 21-3-6h-4"}],["path",{"d":"m17 3-3 6 1.5 3"}],["path",{"d":"M2 12h6.5L10 9"}],["path",{"d":"m20 10-1.5 2 1.5 2"}],["path",{"d":"M22 12h-6.5L14 15"}],["path",{"d":"m4 10 1.5 2L4 14"}],["path",{"d":"m7 21 3-6-1.5-3"}],["path",{"d":"m7 3 3 6h4"}]],"bug":[["path",{"d":"M12 20v-9"}],["path",{"d":"M14 7a4 4 0 0 1 4 4v3a6 6 0 0 1-12 0v-3a4 4 0 0 1 4-4z"}],["path",{"d":"M14.12 3.88 16 2"}],["path",{"d":"M21 21a4 4 0 0 0-3.81-4"}],["path",{"d":"M21 5a4 4 0 0 1-3.55 3.97"}],["path",{"d":"M22 13h-4"}],["path",{"d":"M3 21a4 4 0 0 1 3.81-4"}],["path",{"d":"M3 5a4 4 0 0 0 3.55 3.97"}],["path",{"d":"M6 13H2"}],["path",{"d":"m8 2 1.88 1.88"}],["path",{"d":"M9 7.13V6a3 3 0 1 1 6 0v1.13"}]],"ruler":[["path",{"d":"M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"}],["path",{"d":"m14.5 12.5 2-2"}],["path",{"d":"m11.5 9.5 2-2"}],["path",{"d":"m8.5 6.5 2-2"}],["path",{"d":"m17.5 15.5 2-2"}]],"book-marked":[["path",{"d":"M10 2v8l3-3 3 3V2"}],["path",{"d":"M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"}]],"file-search":[["path",{"d":"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"}],["path",{"d":"M14 2v5a1 1 0 0 0 1 1h5"}],["circle",{"cx":"11.5","cy":"14.5","r":"2.5"}],["path",{"d":"M13.3 16.3 15 18"}]],"file-x":[["path",{"d":"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"}],["path",{"d":"M14 2v5a1 1 0 0 0 1 1h5"}],["path",{"d":"m14.5 12.5-5 5"}],["path",{"d":"m9.5 12.5 5 5"}]],"files":[["path",{"d":"M15 2h-4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"}],["path",{"d":"M16.706 2.706A2.4 2.4 0 0 0 15 2v5a1 1 0 0 0 1 1h5a2.4 2.4 0 0 0-.706-1.706z"}],["path",{"d":"M5 7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 1.732-1"}]],"funnel":[["path",{"d":"M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"}]]};
+
+// ---------- temel ----------
+const W = 680, PAD = 20, LH = 1.32;
+const FONT = "'Noto Sans','Segoe UI',system-ui,-apple-system,Arial,sans-serif";
+const ctx = document.createElement('canvas').getContext('2d');
+const S = { theme: 'renkli', icons: true, gray: false, family: 'Hepsi' };
+
+const THEMES = {
+  renkli: { pal: ['#0b6aa8', '#9a5b00', '#0a7f5a', '#a3477f', '#2f7fb3', '#b2471d', '#5b4bb7', '#5c7a12'], pos: '#0a7f5a', neg: '#b42318' },
+  sade: { pal: ['#1f3a5f'], pos: '#1f3a5f', neg: '#1f3a5f' },
+};
+function th() {
+  const t = THEMES[S.theme];
+  return { ...t, sade: S.theme === 'sade', ink: '#1b2430', muted: '#4f5b69', line: '#8f99a6', soft: '#f2f4f7',
+    dark: '#1f3a5f', col: (i) => t.pal[i % t.pal.length], icons: S.icons };
+}
+
+const r1 = (v) => Math.round(v * 10) / 10;
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const fmt = (v) => Number(v).toLocaleString('tr-TR');
+
+function tint(hex, t) {
+  const n = parseInt(hex.slice(1), 16);
+  const m = (v) => Math.round(v + (255 - v) * t);
+  return '#' + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => m(v).toString(16).padStart(2, '0')).join('');
+}
+function lum(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); })
+    .reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+}
+function contrast(a, b) { const A = lum(a), B = lum(b); return (Math.max(A, B) + 0.05) / (Math.min(A, B) + 0.05); }
+function onColor(bg) { return contrast(bg, '#ffffff') >= contrast(bg, '#1b2430') ? '#ffffff' : '#1b2430'; }
+
+// Yazı: ölçülür, kelime ortasında kırılmaz. Tek kelime sığmazsa kendi satırında kalır
+// (denetim "kutudan taşma" diye yakalar).
+function tw(s, size, weight) { ctx.font = `${weight || 400} ${size}px ${FONT}`; return ctx.measureText(s).width; }
+function wrap(text, max, size, weight = 400) {
+  const words = String(text ?? '').split(/\s+/).filter(Boolean);
+  const lines = []; let cur = '';
+  for (const w of words) {
+    const t = cur ? cur + ' ' + w : w;
+    if (!cur || tw(t, size, weight) <= max) cur = t; else { lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  return { lines, size, weight, w: lines.length ? Math.max(...lines.map((l) => tw(l, size, weight))) : 0, h: lines.length * size * LH };
+}
+function T(b, x, y, o = {}) {
+  if (!b.lines.length) return '';
+  const { fill = '#1b2430', anchor = 'start', v = 'top', halo, box, extra = '' } = o;
+  const lh = b.size * LH;
+  const top = v === 'middle' ? y - b.h / 2 : v === 'bottom' ? y - b.h : y;
+  let a = `font-size="${b.size}" font-weight="${b.weight}" fill="${fill}" text-anchor="${anchor}"`;
+  if (halo) a += ` stroke="${halo}" stroke-width="4" stroke-linejoin="round" paint-order="stroke"`;
+  if (box) a += ` data-box="${box.map(r1).join(',')}"`;
+  return `<text ${a}${extra}>` + b.lines.map((l, i) => `<tspan x="${r1(x)}" y="${r1(top + i * lh + lh / 2 + b.size * 0.36)}">${esc(l)}</tspan>`).join('') + '</text>';
+}
+const rect = (x, y, w, h, o = {}) => `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" rx="${o.rx ?? 8}" fill="${o.fill || 'none'}"` +
+  (o.stroke ? ` stroke="${o.stroke}" stroke-width="${o.sw || 1}"` : '') + (o.dash ? ` stroke-dasharray="${o.dash}"` : '') + '/>';
+const line = (x1, y1, x2, y2, c, sw = 1.5, dash) => `<line x1="${r1(x1)}" y1="${r1(y1)}" x2="${r1(x2)}" y2="${r1(y2)}" stroke="${c}" stroke-width="${sw}"${dash ? ` stroke-dasharray="${dash}"` : ''} stroke-linecap="round"/>`;
+const path = (d, c, sw = 1.5, fill = 'none') => `<path d="${d}" fill="${fill}" stroke="${c}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>`;
+const circ = (cx, cy, r, fill, stroke, sw = 1.5) => `<circle cx="${r1(cx)}" cy="${r1(cy)}" r="${r}" fill="${fill}"${stroke ? ` stroke="${stroke}" stroke-width="${sw}"` : ''}/>`;
+function head(x, y, ang, c, s = 8) {
+  const a1 = ang + Math.PI * 0.84, a2 = ang - Math.PI * 0.84;
+  return `<polygon points="${r1(x)},${r1(y)} ${r1(x + s * Math.cos(a1))},${r1(y + s * Math.sin(a1))} ${r1(x + s * Math.cos(a2))},${r1(y + s * Math.sin(a2))}" fill="${c}"/>`;
+}
+function arrow(x1, y1, x2, y2, c, sw = 1.5) {
+  const a = Math.atan2(y2 - y1, x2 - x1);
+  return line(x1, y1, x2 - 6 * Math.cos(a), y2 - 6 * Math.sin(a), c, sw) + head(x2, y2, a, c);
+}
+// Simge: lucide yolu, SVG'ye gömülü; dış istek yok.
+function I(name, cx, cy, size, color, force) {
+  if ((!S.icons && !force) || !name || !ICONS[name]) return '';
+  const k = size / 24;
+  return `<g transform="translate(${r1(cx - size / 2)},${r1(cy - size / 2)}) scale(${r1(k * 1000) / 1000})" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
+    ICONS[name].map(([tag, at]) => `<${tag} ${Object.entries(at).map(([k2, v]) => `${k2}="${v}"`).join(' ')}/>`).join('') + '</g>';
+}
+function badge(cx, cy, r, i, it, t, c) {
+  c = c || t.col(i);
+  const icon = t.icons && it && it.icon && ICONS[it.icon];
+  return circ(cx, cy, r, c) + (icon ? I(it.icon, cx, cy, r * 1.0, '#ffffff')
+    : T(wrap(String(i + 1), 99, Math.round(r * 0.78), 700), cx, cy, { fill: '#ffffff', anchor: 'middle', v: 'middle' }));
+}
+// Kapsam izleyici: merkez çevresine çizilen şekiller için.
+function ext() {
+  const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  return {
+    add(x0, y0, x1, y1) { b.x0 = Math.min(b.x0, x0); b.y0 = Math.min(b.y0, y0); b.x1 = Math.max(b.x1, x1); b.y1 = Math.max(b.y1, y1); },
+    wrap(svg) {
+      const w = Math.max(W, b.x1 - b.x0 + 2 * PAD), h = b.y1 - b.y0 + 2 * PAD;
+      const tx = (w - (b.x1 + b.x0)) / 2, ty = PAD - b.y0;
+      return { w, h, svg: `<g transform="translate(${r1(tx)},${r1(ty)})">${svg}</g>` };
+    },
+  };
+}
+const range = (n) => [...Array(n).keys()];
+const pick = (arr, n, sets) => (sets && sets[n] ? sets[n].map((i) => arr[i]) : arr.slice(0, n));
+
+// ---------- örnek veriler (yalnız görünüm denemesi) ----------
+const SEQ = [
+  { label: 'Araştırma sorusunun belirlenmesi', desc: 'Kapsam ve değişkenler tanımlanır', icon: 'target', tag: '1–2. ay' },
+  { label: 'Literatürün sistematik taranması', desc: 'DergiPark, OpenAlex, TR Dizin', icon: 'search', tag: '2–4. ay' },
+  { label: 'Örneklem ve veri toplama aracı', desc: 'Ölçek uyarlaması ve pilot uygulama', icon: 'users', tag: '4. ay' },
+  { label: 'Veri toplama', desc: 'Çevrim içi anket, 412 katılımcı', icon: 'clipboard-list', tag: '5–6. ay' },
+  { label: 'Veri temizleme ve kodlama', desc: 'Eksik ve uç değer denetimi', icon: 'filter', tag: '7. ay' },
+  { label: 'İstatistiksel çözümleme', desc: 'Regresyon ve aracılık analizi', icon: 'sigma', tag: '8–9. ay' },
+  { label: 'Bulguların yorumlanması', desc: 'Kuramla ilişkilendirme', icon: 'lightbulb', tag: '10. ay' },
+  { label: 'Raporlama ve yayımlama', desc: 'APA 7 biçiminde makale', icon: 'file-text', tag: '11–12. ay' },
+];
+const STAIRS = [
+  { label: 'Farkındalık', icon: 'eye' }, { label: 'Bilgi edinme', icon: 'book-open' }, { label: 'Tutum değişimi', icon: 'brain' },
+  { label: 'Davranış niyeti', icon: 'compass' }, { label: 'Davranış', icon: 'activity' }, { label: 'Alışkanlık', icon: 'repeat' },
+  { label: 'Savunuculuk', icon: 'megaphone' }, { label: 'Toplumsal yayılım', icon: 'globe' },
+];
+const LIMITS = [
+  { label: 'Kesitsel desen', desc: 'Nedensellik çıkarımı yapılamaz', icon: 'clock' },
+  { label: 'Öz-bildirime dayalı ölçüm', desc: 'Sosyal beğenirlik yanlılığı olası', icon: 'message-square' },
+  { label: 'Tek üniversiteden örneklem', desc: 'Genellenebilirlik sınırlı', icon: 'school' },
+  { label: 'Kolayda örnekleme', desc: 'Seçim yanlılığı riski', icon: 'users' },
+  { label: 'Çevrim içi veri toplama', desc: 'İnternet erişimi olmayanlar dışarıda kaldı', icon: 'monitor' },
+  { label: 'Kısa izlem süresi', desc: 'Uzun dönemli etki bilinmiyor', icon: 'hourglass' },
+  { label: 'Ölçek uyarlamasının sınırlı kanıtı', desc: 'Ölçme değişmezliği test edilmedi', icon: 'ruler' },
+  { label: 'Kontrol değişkeni eksikliği', desc: 'Hane geliri modele alınmadı', icon: 'settings' },
+];
+const CYCLE = [
+  { label: 'Planlama', desc: 'Sorun tanımlanır, eylem planı yapılır', icon: 'clipboard-list' },
+  { label: 'Uygulama', desc: 'Plan sınıfta denenir', icon: 'settings' },
+  { label: 'Gözlem', desc: 'Veri toplanır, notlar tutulur', icon: 'eye' },
+  { label: 'Yansıtma', desc: 'Sonuçlar birlikte yorumlanır', icon: 'brain' },
+  { label: 'Yeniden planlama', desc: 'Plan güncellenir', icon: 'refresh-cw' },
+  { label: 'Paylaşım', desc: 'Meslektaşlarla tartışılır', icon: 'users' },
+  { label: 'Değerlendirme', desc: 'Kazanımlar ölçülür', icon: 'scale' },
+  { label: 'Kurumsallaşma', desc: 'Okul politikasına dönüşür', icon: 'landmark' },
+];
+const HUB = [
+  { label: 'Öğretmen desteği', icon: 'graduation-cap' }, { label: 'Akran ilişkileri', icon: 'users' },
+  { label: 'Önceki başarı deneyimleri', icon: 'badge-check' }, { label: 'Sınav kaygısı', icon: 'triangle-alert' },
+  { label: 'Ebeveyn beklentisi', icon: 'house' }, { label: 'Sosyoekonomik düzey', icon: 'wallet' },
+  { label: 'Dijital okuryazarlık', icon: 'smartphone' }, { label: 'Uyku düzeni', icon: 'clock' },
+];
+const FISH = ['Düz anlatıma dayalı öğretim', 'Kalabalık sınıflar', 'Yetersiz geri bildirim', 'Güncel olmayan ders içeriği',
+  'Teknolojik altyapı eksikliği', 'Sınav odaklı değerlendirme', 'Öğrencinin motivasyon kaybı', 'Uygunsuz ders saatleri'];
+const CHAIN = [
+  { label: 'Kentleşme', rel: 'artırır', icon: 'building-2' },
+  { label: 'Geçirimsiz yüzey oranı', rel: 'artırır', icon: 'layers' },
+  { label: 'Yüzey sıcaklığı', rel: 'artırır', icon: 'thermometer' },
+  { label: 'Soğutma için enerji tüketimi', rel: 'artırır', icon: 'zap' },
+  { label: 'Sera gazı salımı', rel: 'hızlandırır', icon: 'factory' },
+  { label: 'İklim değişikliği', rel: 'sıklaştırır', icon: 'globe' },
+  { label: 'Aşırı sıcak günler', rel: 'olumsuz etkiler', icon: 'sun' },
+  { label: 'Halk sağlığı', icon: 'heart-pulse' },
+];
+const LOOPS = {
+  3: [{ label: 'Ders başarısı', pol: '+' }, { label: 'Öz-yeterlik', pol: '+' }, { label: 'Çalışma süresi', pol: '+' }],
+  5: [{ label: 'Ürün fiyatı', pol: '+' }, { label: 'Üretici kârı', pol: '+' }, { label: 'Üretim yatırımı', pol: '+' },
+    { label: 'Arz miktarı', pol: '+' }, { label: 'Stok düzeyi', pol: '-' }],
+  8: [{ label: 'Küresel sıcaklık', pol: '+' }, { label: 'Deniz buzu erimesi', pol: '-' }, { label: 'Yansıtıcılık (albedo)', pol: '-' },
+    { label: 'Soğurulan güneş enerjisi', pol: '+' }, { label: 'Okyanus sıcaklığı', pol: '+' }, { label: 'Atmosferdeki su buharı', pol: '+' },
+    { label: 'Sera etkisi', pol: '+' }, { label: 'Yüzey sıcaklığı', pol: '+' }],
+};
+const TREE = [
+  { label: 'Bireysel', subs: ['Motivasyon', 'Öz-düzenleme'] }, { label: 'Ailesel', subs: ['Ebeveyn eğitimi', 'Ev ortamı'] },
+  { label: 'Okul', subs: ['Öğretmen niteliği', 'Sınıf mevcudu'] }, { label: 'Akran', subs: ['Akran desteği', 'Zorbalık'] },
+  { label: 'Toplumsal', subs: ['Kültürel sermaye', 'Bölgesel eşitsizlik'] }, { label: 'Dijital', subs: ['Cihaz erişimi', 'Ekran süresi'] },
+  { label: 'Sağlık', subs: ['Uyku', 'Beslenme'] }, { label: 'Ekonomik', subs: ['Hane geliri', 'Burs desteği'] },
+];
+const MIND = [
+  { label: 'Ulaşım', subs: ['Toplu taşıma', 'Bisiklet yolları'] }, { label: 'Enerji', subs: ['Yenilenebilir kaynaklar', 'Bina yalıtımı'] },
+  { label: 'Su yönetimi', subs: ['Yağmur suyu hasadı', 'Gri su kullanımı'] }, { label: 'Yeşil altyapı', subs: ['Kent ormanları', 'Çatı bahçeleri'] },
+  { label: 'Atık', subs: ['Kaynağında ayrıştırma', 'Kompost'] }, { label: 'Konut', subs: ['Karma kullanım', 'Erişilebilir konut'] },
+  { label: 'Yönetişim', subs: ['Katılımcı planlama', 'Açık veri'] }, { label: 'Ekonomi', subs: ['Yeşil istihdam', 'Döngüsel ekonomi'] },
+];
+const PYR = [
+  { label: 'Sistematik derleme ve meta-analiz', desc: 'Birden çok çalışmanın sentezi' },
+  { label: 'Randomize kontrollü çalışmalar', desc: 'Rastgele atama, kontrol grubu' },
+  { label: 'Kohort çalışmaları', desc: 'İleriye dönük izlem' },
+  { label: 'Vaka-kontrol çalışmaları', desc: 'Geriye dönük karşılaştırma' },
+  { label: 'Kesitsel çalışmalar', desc: 'Tek zamanda ölçüm' },
+  { label: 'Vaka serileri ve raporları', desc: 'Tanımlayıcı gözlem' },
+  { label: 'Uzman görüşü', desc: 'Deneyime dayalı yargı' },
+  { label: 'Laboratuvar ve hayvan çalışmaları', desc: 'Ön klinik kanıt' },
+];
+const FUNNEL = [
+  { label: 'Veri tabanlarında bulunan kayıt', value: 1312 },
+  { label: 'Mükerrerler çıkarıldıktan sonra', value: 1027, out: 'mükerrer kayıt' },
+  { label: 'Başlık taramasından geçen', value: 418, out: 'konu dışı başlık' },
+  { label: 'Özet taramasından geçen', value: 164, out: 'ölçütlere uymayan özet' },
+  { label: 'Tam metnine ulaşılan', value: 151, out: 'tam metne erişilemedi' },
+  { label: 'Tam metin değerlendirmesinden geçen', value: 58, out: 'dışlama ölçütü' },
+  { label: 'Kalite değerlendirmesinden geçen', value: 41, out: 'düşük yöntemsel kalite' },
+  { label: 'Meta-analize dahil edilen', value: 29, out: 'yetersiz istatistik verisi' },
+];
+const TWO = {
+  a: { label: 'Nicel araştırma', icon: 'chart-column' }, b: { label: 'Nitel araştırma', icon: 'message-square' },
+  rows: [
+    { k: 'Amaç', a: 'Değişkenler arası ilişkiyi test etmek', b: 'Deneyimi ve anlamı derinlemesine anlamak' },
+    { k: 'Örneklem', a: 'Geniş, olasılığa dayalı', b: 'Küçük, amaçlı' },
+    { k: 'Veri', a: 'Ölçekler, testler, sayısal kayıtlar', b: 'Görüşme, gözlem, belgeler' },
+    { k: 'Çözümleme', a: 'İstatistiksel çözümleme', b: 'Tematik ve içerik çözümlemesi' },
+    { k: 'Genelleme', a: 'Evrene genelleme hedeflenir', b: 'Aktarılabilirlik hedeflenir' },
+    { k: 'Araştırmacının rolü', a: 'Mesafeli, nesnel', b: 'Katılımcı, düşünümsel' },
+    { k: 'Geçerlik', a: 'Geçerlik ve güvenirlik katsayıları', b: 'İnandırıcılık, teyit edilebilirlik' },
+    { k: 'Çıktı', a: 'Sayısal bulgular, etki büyüklüğü', b: 'Temalar, betimsel anlatı' },
+  ],
+};
+const MULTI = {
+  opts: [{ label: 'Anket', icon: 'clipboard-list' }, { label: 'Görüşme', icon: 'message-square' }, { label: 'Gözlem', icon: 'eye' }, { label: 'Belge incelemesi', icon: 'file-search' }],
+  rows: [
+    { k: 'Maliyet', c: [[1, 'Düşük'], [3, 'Yüksek'], [3, 'Yüksek'], [1, 'Düşük']] },
+    { k: 'Veri derinliği', c: [[1, 'Sınırlı'], [3, 'Yüksek'], [2, 'Orta'], [2, 'Orta']] },
+    { k: 'Örneklem büyüklüğü', c: [[3, 'Geniş'], [1, 'Dar'], [1, 'Dar'], [2, 'Orta']] },
+    { k: 'Yanlılık riski', c: [[2, 'Orta (öz-bildirim)'], [2, 'Orta (görüşmeci etkisi)'], [2, 'Orta (gözlemci etkisi)'], [1, 'Düşük']] },
+    { k: 'Süre', c: [[1, 'Kısa'], [3, 'Uzun'], [3, 'Uzun'], [2, 'Orta']] },
+  ],
+};
+const MATRIX = [
+  { label: 'Ders kayıtlarının çevrim içi paylaşılması', q: 'hizli' },
+  { label: 'Riskli öğrenciler için erken uyarı sistemi', q: 'stratejik' },
+  { label: 'Akran mentorluğu programı', q: 'hizli' },
+  { label: 'Kampüs çapında öğrenme analitiği altyapısı', q: 'stratejik' },
+  { label: 'Bilgilendirme afişleri', q: 'kucuk' },
+  { label: 'Ek sınav haftası eklenmesi', q: 'ertele' },
+  { label: 'Kütüphane saatlerinin uzatılması', q: 'kucuk' },
+  { label: 'Yeni derslik binası yapılması', q: 'ertele' },
+];
+const VENN = {
+  sets: ['Eğitim bilimleri', 'Bilgisayar bilimi', 'Bilişsel psikoloji'],
+  only: ['Öğretim tasarımı', 'Makine öğrenmesi', 'Bellek modelleri'],
+  ab: 'Öğrenme analitiği', ac: 'Öğrenme bilimleri', bc: 'Bilişsel modelleme', abc: 'Uyarlanabilir öğrenme',
+};
+const CONCEPT = {
+  3: { nodes: ['Fotosentez', 'Glikoz', 'Oksijen'], edges: [[0, 1, 'üretir'], [0, 2, 'açığa çıkarır']] },
+  5: { nodes: ['Fotosentez', 'Kloroplast', 'Klorofil', 'Işık enerjisi', 'Glikoz'], edges: [[0, 1, 'gerçekleştiği yer'], [1, 2, 'içerir'], [2, 3, 'soğurur'], [0, 4, 'üretir']] },
+  8: { nodes: ['Fotosentez', 'Kloroplast', 'Karbondioksit', 'Su', 'Glikoz', 'Oksijen', 'Klorofil', 'Işık enerjisi'],
+    edges: [[0, 1, 'gerçekleştiği yer'], [0, 2, 'kullanır'], [0, 3, 'kullanır'], [0, 4, 'üretir'], [0, 5, 'açığa çıkarır'], [1, 6, 'içerir'], [6, 7, 'soğurur']] },
+};
+const ARG = {
+  claim: 'Ters yüz sınıf modeli lisans öğrencilerinin akademik başarısını artırır.',
+  items: [
+    { k: 'destek', label: 'Deney grubunun son test puanı kontrol grubundan anlamlı düzeyde yüksek', st: 'ok' },
+    { k: 'itiraz', label: 'Etki, ön bilgisi yüksek öğrencilerle sınırlı kalabilir', st: 'unv' },
+    { k: 'sinir', label: 'Çalışmalar çoğunlukla tek dönemlik', st: 'none' },
+    { k: 'destek', label: 'Ders öncesi video izleme oranı başarıyla pozitif ilişkili', st: 'ok' },
+    { k: 'itiraz', label: 'Bazı çalışmalarda anlamlı fark bulunmadı', st: 'ok' },
+    { k: 'destek', label: 'Meta-analizlerde orta düzey etki büyüklüğü raporlandı', st: 'ok' },
+    { k: 'destek', label: 'Öğrenciler sınıf içi etkinlikleri daha yararlı buldu', st: 'unv' },
+    { k: 'sinir', label: 'Örneklemler çoğunlukla tek kurumdan', st: 'none' },
+  ],
+};
+const EVENTS = [
+  { year: '1957', label: 'Sputnik sonrası fen eğitimi reformları' }, { year: '1983', label: 'ABD’de A Nation at Risk raporu' },
+  { year: '1997', label: 'Türkiye’de sekiz yıllık kesintisiz zorunlu eğitim' }, { year: '2000', label: 'İlk PISA uygulaması (OECD)' },
+  { year: '2005', label: 'Yapılandırmacı öğretim programlarına geçiş' }, { year: '2012', label: '4+4+4 düzenlemesi' },
+  { year: '2018', label: 'Öğretim programlarının sadeleştirilmesi' }, { year: '2024', label: 'Türkiye Yüzyılı Maarif Modeli' },
+];
+const EV_SETS = { 3: [0, 3, 7], 5: [0, 2, 3, 5, 7] };
+const KPI = [
+  { value: '412', label: 'katılımcı', icon: 'users' }, { value: '%68', label: 'kadın katılımcı oranı', icon: 'percent' },
+  { value: '0,87', label: 'Cronbach alfa', icon: 'sigma' }, { value: '24', label: 'ölçek maddesi', icon: 'list-checks' },
+  { value: '3', label: 'alt boyut', icon: 'layers' }, { value: 'r = 0,42', label: 'öz-yeterlik ile başarı arasındaki ilişki', icon: 'activity' },
+  { value: 'p < 0,001', label: 'anlamlılık düzeyi', icon: 'target' }, { value: 'η² = 0,14', label: 'etki büyüklüğü', icon: 'gauge' },
+];
+const BARS = [
+  { label: 'Eğitim bilimleri', value: 142 }, { label: 'Psikoloji', value: 97 }, { label: 'Sosyoloji', value: 64 }, { label: 'İşletme', value: 58 },
+  { label: 'Hemşirelik', value: 41 }, { label: 'Spor bilimleri', value: 33 }, { label: 'İletişim', value: 27 }, { label: 'Mühendislik', value: 19 },
+];
+const RINGS = [
+  { label: 'Kaynak bulma', value: 64 }, { label: 'Dil düzeltme', value: 58 }, { label: 'Çeviri', value: 47 }, { label: 'Özetleme', value: 41 },
+  { label: 'Fikir üretme', value: 35 }, { label: 'Atıf düzenleme', value: 29 }, { label: 'Kod yazma', value: 22 }, { label: 'Veri çözümleme', value: 18 },
+];
+
+// ---------- şablonlar ----------
+// Sıra
+function drawSteps(d, t) {
+  const n = d.items.length, per = n <= 5 ? n : Math.ceil(n / 2), rows = Math.ceil(n / per);
+  const colW = (W - 2 * PAD) / per, r = 22, tx = colW - 14;
+  const B = d.items.map((it) => ({ l: wrap(it.label, tx, 13, 600), s: wrap(it.desc, tx, 11.5) }));
+  let out = '', y = PAD, prev = null;
+  for (let row = 0; row < rows; row++) {
+    const idx = range(per).map((j) => row * per + j).filter((i) => i < n);
+    const cy = y + r, cxs = idx.map((_, j) => PAD + colW * (j + 0.5));
+    const textH = Math.max(...idx.map((i) => B[i].l.h + 4 + B[i].s.h));
+    for (let j = 0; j < idx.length - 1; j++) out += arrow(cxs[j] + r + 6, cy, cxs[j + 1] - r - 6, cy, t.line, 1.5);
+    if (prev) {
+      const gy = y - 16;
+      out += path(`M${r1(prev.x + r + 4)} ${r1(prev.y)} H${W - 8} V${r1(gy)} H8 V${r1(cy)} H${r1(cxs[0] - r - 10)}`, t.line, 1.5) + head(cxs[0] - r - 4, cy, 0, t.line);
+    }
+    idx.forEach((i, j) => {
+      out += badge(cxs[j], cy, r, i, d.items[i], t);
+      const ty = cy + r + 10;
+      out += T(B[i].l, cxs[j], ty, { fill: t.ink, anchor: 'middle' }) + T(B[i].s, cxs[j], ty + B[i].l.h + 4, { fill: t.muted, anchor: 'middle' });
+    });
+    prev = { x: cxs[idx.length - 1], y: cy };
+    y = cy + r + 10 + textH + 36;
+  }
+  return { w: W, h: y - 36 + PAD, svg: out };
+}
+function drawStairs(d, t) {
+  const n = d.items.length, gap = 8, colW = (W - 2 * PAD - (n - 1) * gap) / n;
+  const step = Math.min(30, 170 / Math.max(1, n - 1)), base = 46, bh = (i) => base + i * step;
+  const B = d.items.map((it) => wrap(it.label, colW - 6, 12.5, 600));
+  const baseY = PAD + Math.max(...B.map((b, i) => b.h + 8 + bh(i)));
+  let out = '';
+  d.items.forEach((it, i) => {
+    const x = PAD + i * (colW + gap), h = bh(i), y = baseY - h;
+    const fill = t.sade ? tint(t.col(0), 0.72 - 0.62 * i / Math.max(1, n - 1)) : t.col(i);
+    const txt = onColor(fill);
+    out += rect(x, y, colW, h, { fill, rx: 6 });
+    out += T(wrap(String(i + 1), 99, 16, 700), x + colW / 2, baseY - 15, { fill: txt, anchor: 'middle', v: 'middle' });
+    if (t.icons && it.icon && h >= 72) out += I(it.icon, x + colW / 2, y + 20, 20, txt);
+    out += T(B[i], x + colW / 2, y - 8, { fill: t.ink, anchor: 'middle', v: 'bottom' });
+  });
+  out += line(PAD, baseY, W - PAD, baseY, t.line, 1);
+  return { w: W, h: baseY + PAD, svg: out };
+}
+function drawRoadmap(d, t) {
+  const sx = PAD + 18, cx0 = sx + 34, cw = W - PAD - cx0, tx = cw - 30;
+  let y = PAD, cards = '';
+  const centers = [];
+  d.items.forEach((it, i) => {
+    const tag = wrap(it.tag || '', tx, 11, 700), l = wrap(it.label, tx, 13.5, 600), s = wrap(it.desc, tx, 11.5);
+    const h = 12 + tag.h + 2 + l.h + 4 + s.h + 12, c = t.col(i), box = [cx0, y, cw, h];
+    cards += rect(cx0, y, cw, h, { fill: tint(c, 0.92), rx: 8 }) + rect(cx0, y, 4, h, { fill: c, rx: 2 });
+    let ty = y + 12;
+    cards += T(tag, cx0 + 16, ty, { fill: c, box }); ty += tag.h + 2;
+    cards += T(l, cx0 + 16, ty, { fill: t.ink, box }); ty += l.h + 4;
+    cards += T(s, cx0 + 16, ty, { fill: t.muted, box });
+    centers.push(y + Math.min(h / 2, 30)); y += h + 12;
+  });
+  let out = line(sx, centers[0], sx, centers[centers.length - 1], t.line, 2) + cards;
+  centers.forEach((cy, i) => { out += line(sx + 16, cy, cx0, cy, t.line, 1.5) + badge(sx, cy, 16, i, d.items[i], t); });
+  return { w: W, h: y - 12 + PAD, svg: out };
+}
+function drawCards(d, t) {
+  const n = d.items.length, cols = n <= 3 ? n : n === 4 ? 2 : n <= 6 ? 3 : 4, gap = 12;
+  const cw = (W - 2 * PAD - (cols - 1) * gap) / cols, tx = cw - 28;
+  const B = d.items.map((it) => ({ l: wrap(it.label, tx, 13, 600), s: wrap(it.desc, tx, 11.5) }));
+  let y = PAD, out = '';
+  for (let r0 = 0; r0 < n; r0 += cols) {
+    const idx = range(cols).map((j) => r0 + j).filter((i) => i < n);
+    const h = Math.max(...idx.map((i) => 16 + 30 + 8 + B[i].l.h + 4 + B[i].s.h + 14));
+    idx.forEach((i, j) => {
+      const x = PAD + j * (cw + gap), c = t.col(i), box = [x, y, cw, h], it = d.items[i];
+      out += rect(x, y, cw, h, { fill: '#ffffff', stroke: tint(c, 0.5), sw: 1, rx: 10 }) + rect(x + 14, y, 30, 4, { fill: c, rx: 2 });
+      out += T(wrap(String(i + 1).padStart(2, '0'), 99, 22, 700), x + 14, y + 16, { fill: c, box });
+      if (t.icons && it.icon) out += I(it.icon, x + cw - 26, y + 31, 22, c);
+      let ty = y + 16 + 30 + 8;
+      out += T(B[i].l, x + 14, ty, { fill: t.ink, box }); ty += B[i].l.h + 4;
+      out += T(B[i].s, x + 14, ty, { fill: t.muted, box });
+    });
+    y += h + gap;
+  }
+  return { w: W, h: y - gap + PAD, svg: out };
+}
+
+// Döngü
+function drawCycle(d, t) {
+  const n = d.items.length, R = Math.min(185, 96 + 14 * n), r = 20, E = ext();
+  const ang = (i) => -Math.PI / 2 + i * 2 * Math.PI / n;
+  let out = '';
+  E.add(-R - 2, -R - 2, R + 2, R + 2);
+  const dl = (r + 8) / R;
+  range(n).forEach((i) => {
+    const a1 = ang(i) + dl, a2 = ang(i + 1) - dl;
+    const x1 = R * Math.cos(a1), y1 = R * Math.sin(a1), x2 = R * Math.cos(a2), y2 = R * Math.sin(a2);
+    out += path(`M${r1(x1)} ${r1(y1)} A${R} ${R} 0 ${a2 - a1 > Math.PI ? 1 : 0} 1 ${r1(x2)} ${r1(y2)}`, t.line, 2) + head(x2, y2, a2 + Math.PI / 2, t.line, 9);
+  });
+  d.items.forEach((it, i) => {
+    const a = ang(i), x = R * Math.cos(a), y = R * Math.sin(a);
+    out += badge(x, y, r, i, it, t); E.add(x - r, y - r, x + r, y + r);
+    const c = Math.cos(a), s = Math.sin(a), side = c > 0.35 ? 'r' : c < -0.35 ? 'l' : s < 0 ? 't' : 'b';
+    const mw = side === 't' || side === 'b' ? 180 : n >= 7 ? 120 : 140;
+    const l = wrap(it.label, mw, 12.5, 600), ds = wrap(it.desc || '', mw, 11);
+    const bh = l.h + (ds.lines.length ? 2 + ds.h : 0), bw = Math.max(l.w, ds.w);
+    let lx, ly, anchor;
+    if (side === 'r') { lx = x + r + 10; ly = y - bh / 2; anchor = 'start'; E.add(lx, ly, lx + bw, ly + bh); }
+    else if (side === 'l') { lx = x - r - 10; ly = y - bh / 2; anchor = 'end'; E.add(lx - bw, ly, lx, ly + bh); }
+    else if (side === 't') { lx = x; ly = y - r - 8 - bh; anchor = 'middle'; E.add(lx - bw / 2, ly, lx + bw / 2, ly + bh); }
+    else { lx = x; ly = y + r + 8; anchor = 'middle'; E.add(lx - bw / 2, ly, lx + bw / 2, ly + bh); }
+    out += T(l, lx, ly, { fill: t.ink, anchor }) + T(ds, lx, ly + l.h + 2, { fill: t.muted, anchor });
+  });
+  if (d.title) out += T(wrap(d.title, R * 1.05, 14, 700), 0, 0, { fill: t.dark, anchor: 'middle', v: 'middle' });
+  return E.wrap(out);
+}
+function drawHub(d, t) {
+  const n = d.items.length, R0 = 64, rx = 232, ry = Math.min(200, 110 + 12 * n), cw = 150, E = ext();
+  let lines = '', cards = '';
+  d.items.forEach((it, i) => {
+    const a = -Math.PI / 2 + i * 2 * Math.PI / n, x = rx * Math.cos(a), y = ry * Math.sin(a), c = t.col(i);
+    const l = wrap(it.label, cw - 20, 12.5, 600), ih = t.icons && it.icon ? 26 : 0, h = 12 + ih + l.h + 12;
+    lines += line(R0 * Math.cos(a), R0 * Math.sin(a), x, y, tint(c, 0.35), 1.5);
+    const bx = x - cw / 2, by = y - h / 2, box = [bx, by, cw, h];
+    cards += rect(bx, by, cw, h, { fill: tint(c, 0.9), stroke: c, sw: 1.2, rx: 10 });
+    if (ih) cards += I(it.icon, x, by + 12 + 10, 20, c);
+    cards += T(l, x, by + 12 + ih, { fill: t.ink, anchor: 'middle', box });
+    E.add(bx, by, bx + cw, by + h);
+  });
+  const center = circ(0, 0, R0, t.dark) + T(wrap(d.title, R0 * 1.6, 13, 700), 0, 0, { fill: '#ffffff', anchor: 'middle', v: 'middle' });
+  E.add(-R0, -R0, R0, R0);
+  return E.wrap(lines + center + cards);
+}
+
+// Neden
+function drawFish(d, t) {
+  const n = d.items.length, k = Math.ceil(n / 2), headW = 150, headX = W - PAD - headW;
+  const span = headX - PAD - 30, sp = span / k, L = 64, dx = 44, lw = Math.min(160, sp - 12);
+  const top = d.items.filter((_, i) => i % 2 === 0), bot = d.items.filter((_, i) => i % 2 === 1);
+  const BT = top.map((s) => wrap(s, lw, 12, 600)), BB = bot.map((s) => wrap(s, lw, 12, 600));
+  const topH = Math.max(0, ...BT.map((b) => b.h)), botH = Math.max(0, ...BB.map((b) => b.h));
+  const sy = PAD + topH + 8 + L;
+  const hb = wrap(d.effect, headW - 24, 13, 700), hh = Math.max(64, hb.h + 24);
+  let out = line(PAD, sy, headX - 8, sy, t.dark, 3) + head(headX - 1, sy, 0, t.dark, 12);
+  out += rect(headX, sy - hh / 2, headW, hh, { fill: t.dark, rx: 10 }) +
+    T(hb, headX + headW / 2, sy, { fill: '#ffffff', anchor: 'middle', v: 'middle', box: [headX, sy - hh / 2, headW, hh] });
+  const bone = (B, dir, off) => B.forEach((b, j) => {
+    const ax = PAD + 30 + sp * (j + 1) - sp * 0.25, tx = ax - dx, ty = sy - dir * L, c = t.col(2 * j + off);
+    out += line(tx, ty, ax, sy, c, 2) + circ(tx, ty, 4, c);
+    out += dir > 0 ? T(b, tx, ty - 8, { fill: t.ink, anchor: 'middle', v: 'bottom' }) : T(b, tx, ty + 8, { fill: t.ink, anchor: 'middle' });
+  });
+  bone(BT, 1, 0); bone(BB, -1, 1);
+  return { w: W, h: Math.max(sy + L + 8 + botH, sy + hh / 2) + PAD, svg: out };
+}
+function drawChain(d, t) {
+  const n = d.items.length;
+  let out = '';
+  if (n <= 3) {
+    const gap = 110, bw = (W - 2 * PAD - (n - 1) * gap) / n;
+    const B = d.items.map((it) => wrap(it.label, bw - 20, 13, 600)), bh = Math.max(...B.map((b) => b.h)) + 26, y = PAD + 40;
+    d.items.forEach((it, i) => {
+      const x = PAD + i * (bw + gap), c = t.col(i), box = [x, y, bw, bh];
+      out += rect(x, y, bw, bh, { fill: tint(c, 0.9), stroke: c, sw: 1.3, rx: 10 }) + T(B[i], x + bw / 2, y + bh / 2, { fill: t.ink, anchor: 'middle', v: 'middle', box });
+      if (i < n - 1) {
+        const x1 = x + bw + 6, x2 = x + bw + gap - 6;
+        out += arrow(x1, y + bh / 2, x2, y + bh / 2, t.dark, 1.8) + T(wrap(it.rel, gap - 14, 11, 600), (x1 + x2) / 2, y + bh / 2 - 8, { fill: t.dark, anchor: 'middle', v: 'bottom' });
+      }
+    });
+    return { w: W, h: y + bh + PAD + 10, svg: out };
+  }
+  const bw = 320, x = (W - bw) / 2, ag = 46;
+  let y = PAD;
+  d.items.forEach((it, i) => {
+    const c = t.col(i), b = wrap(it.label, bw - 84, 13, 600), bh = b.h + 22, box = [x, y, bw, bh];
+    out += rect(x, y, bw, bh, { fill: tint(c, 0.9), stroke: c, sw: 1.3, rx: 10 }) + T(b, W / 2, y + bh / 2, { fill: t.ink, anchor: 'middle', v: 'middle', box });
+    if (t.icons && it.icon) out += I(it.icon, x + 22, y + bh / 2, 18, c);
+    y += bh;
+    if (i < n - 1) { out += arrow(W / 2, y + 4, W / 2, y + ag - 4, t.dark, 1.8) + T(wrap(it.rel, 200, 11, 600), W / 2 + 12, y + ag / 2, { fill: t.dark, v: 'middle' }); y += ag; }
+  });
+  return { w: W, h: y + PAD, svg: out };
+}
+function drawLoop(d, t) {
+  const n = d.items.length, rx = Math.min(240, 110 + 18 * n), ry = Math.min(175, 90 + 12 * n), E = ext();
+  const ang = (i) => -Math.PI / 2 + i * 2 * Math.PI / n;
+  const P = (a) => [rx * Math.cos(a), ry * Math.sin(a)];
+  const speed = (a) => Math.hypot(rx * Math.sin(a), ry * Math.cos(a));
+  const L = d.items.map((it, i) => { const b = wrap(it.label, n >= 7 ? 104 : 120, 12.5, 600), a = ang(i); const [x, y] = P(a); return { b, a, x, y }; });
+  const along = (p) => { const tx = -rx * Math.sin(p.a), ty = ry * Math.cos(p.a), m = Math.hypot(tx, ty); return Math.abs(tx / m) * (p.b.w / 2 + 8) + Math.abs(ty / m) * (p.b.h / 2 + 6); };
+  let out = '';
+  E.add(-rx - 12, -ry - 12, rx + 12, ry + 12);
+  L.forEach((p, i) => {
+    const q = L[(i + 1) % n], aq = ang(i + 1);
+    const a1 = p.a + (along(p) + 4) / speed(p.a), a2 = aq - (along(q) + 8) / speed(aq);
+    const [x1, y1] = P(a1), [x2, y2] = P(a2);
+    out += path(`M${r1(x1)} ${r1(y1)} A${rx} ${ry} 0 0 1 ${r1(x2)} ${r1(y2)}`, t.line, 2) + head(x2, y2, Math.atan2(ry * Math.cos(a2), -rx * Math.sin(a2)), t.line, 9);
+    const [bx, by] = P((a1 + a2) / 2), neg = d.items[i].pol === '-', c = neg ? t.neg : t.pos;
+    out += circ(bx, by, 10, '#ffffff', c, 1.6) + T(wrap(neg ? '−' : '+', 99, 14, 700), bx, by, { fill: c, anchor: 'middle', v: 'middle' });
+  });
+  L.forEach((p, i) => {
+    const c = t.col(i), bw = p.b.w + 16, bh = p.b.h + 12, box = [p.x - bw / 2, p.y - bh / 2, bw, bh];
+    out += rect(box[0], box[1], bw, bh, { fill: tint(c, 0.9), stroke: c, sw: 1.2, rx: 8 }) + T(p.b, p.x, p.y, { fill: t.ink, anchor: 'middle', v: 'middle', box });
+    E.add(box[0], box[1], box[0] + bw, box[1] + bh);
+  });
+  const minus = d.items.filter((it) => it.pol === '-').length, reinf = minus % 2 === 0;
+  out += circ(0, -16, 20, '#ffffff', t.dark, 2) + T(wrap(reinf ? 'R' : 'B', 99, 18, 700), 0, -16, { fill: t.dark, anchor: 'middle', v: 'middle' });
+  out += T(wrap(reinf ? 'Pekiştiren döngü' : 'Dengeleyen döngü', 150, 12, 600), 0, 12, { fill: t.dark, anchor: 'middle' });
+  out += T(wrap(`eksi bağ: ${minus} (${reinf ? 'çift' : 'tek'})`, 150, 10.5), 0, 30, { fill: t.muted, anchor: 'middle' });
+  return E.wrap(out);
+}
+
+// Yapı
+function drawTree(d, t) {
+  const n = d.items.length, colW = (W - 2 * PAD) / n;
+  const rb = wrap(d.root, 280, 13.5, 700), rw = rb.w + 32, rh = rb.h + 20;
+  let out = '';
+  if (colW >= 124) {
+    const rx0 = (W - rw) / 2, y0 = PAD, busY = y0 + rh + 18, cy = busY + 18, cw = colW - 12;
+    out += rect(rx0, y0, rw, rh, { fill: t.dark, rx: 10 }) + T(rb, W / 2, y0 + rh / 2, { fill: '#ffffff', anchor: 'middle', v: 'middle', box: [rx0, y0, rw, rh] });
+    const B = d.items.map((it) => wrap(it.label, cw - 16, 12.5, 600)), ch = Math.max(...B.map((b) => b.h)) + 20;
+    const cxs = range(n).map((i) => PAD + colW * (i + 0.5));
+    out += line(W / 2, y0 + rh, W / 2, busY, t.line) + (n > 1 ? line(cxs[0], busY, cxs[n - 1], busY, t.line) : '');
+    let bottom = cy + ch;
+    d.items.forEach((it, i) => {
+      const x = cxs[i] - cw / 2, c = t.col(i), box = [x, cy, cw, ch];
+      out += line(cxs[i], busY, cxs[i], cy, t.line) + rect(x, cy, cw, ch, { fill: tint(c, 0.88), stroke: c, sw: 1.2, rx: 8 }) +
+        T(B[i], cxs[i], cy + ch / 2, { fill: t.ink, anchor: 'middle', v: 'middle', box });
+      let sy = cy + ch + 10, lastMid = null;
+      (it.subs || []).forEach((s) => {
+        const sb = wrap(s, cw - 34, 11.5), sh = sb.h + 12, sx = x + 18, sw = cw - 18, sbox = [sx, sy, sw, sh];
+        out += rect(sx, sy, sw, sh, { fill: '#ffffff', stroke: tint(c, 0.4), sw: 1, rx: 6 }) + T(sb, sx + 9, sy + sh / 2, { fill: t.ink, v: 'middle', box: sbox });
+        out += line(x + 8, sy + sh / 2, sx, sy + sh / 2, tint(c, 0.3), 1.2);
+        lastMid = sy + sh / 2; sy += sh + 6;
+      });
+      if (lastMid) out += line(x + 8, cy + ch, x + 8, lastMid, tint(c, 0.3), 1.2);
+      bottom = Math.max(bottom, sy - 6);
+    });
+    return { w: W, h: bottom + PAD, svg: out };
+  }
+  // Yatay ağaç: çok çocukta
+  const cX = PAD + 150 + 40, cW = 160, sX = cX + cW + 36, sW = W - PAD - sX;
+  const rows = d.items.map((it) => {
+    const b = wrap(it.label, cW - 20, 12.5, 600), ch = b.h + 18;
+    const subs = (it.subs || []).map((s) => { const sb = wrap(s, sW - 20, 11.5); return { sb, h: sb.h + 10 }; });
+    const sh = subs.reduce((a, s) => a + s.h, 0) + Math.max(0, subs.length - 1) * 5;
+    return { b, ch, subs, h: Math.max(ch, sh) };
+  });
+  let y = PAD;
+  const mids = [];
+  rows.forEach((r, i) => {
+    const c = t.col(i), cy = y + (r.h - r.ch) / 2, box = [cX, cy, cW, r.ch];
+    out += rect(cX, cy, cW, r.ch, { fill: tint(c, 0.88), stroke: c, sw: 1.2, rx: 8 }) + T(r.b, cX + 10, cy + r.ch / 2, { fill: t.ink, v: 'middle', box });
+    mids.push(cy + r.ch / 2);
+    const sh = r.subs.reduce((a, s) => a + s.h, 0) + Math.max(0, r.subs.length - 1) * 5;
+    let sy = y + (r.h - sh) / 2;
+    const sm = [];
+    r.subs.forEach((s) => {
+      const sbox = [sX, sy, sW, s.h];
+      out += rect(sX, sy, sW, s.h, { fill: '#ffffff', stroke: tint(c, 0.4), rx: 6 }) + T(s.sb, sX + 10, sy + s.h / 2, { fill: t.ink, v: 'middle', box: sbox });
+      sm.push(sy + s.h / 2); sy += s.h + 5;
+    });
+    if (sm.length) {
+      const bx = sX - 18;
+      out += line(cX + cW, cy + r.ch / 2, bx, cy + r.ch / 2, tint(c, 0.3), 1.2) + line(bx, Math.min(...sm), bx, Math.max(...sm), tint(c, 0.3), 1.2);
+      sm.forEach((m) => { out += line(bx, m, sX, m, tint(c, 0.3), 1.2); });
+    }
+    y += r.h + 12;
+  });
+  const H = y - 12, ry0 = (PAD + H) / 2 - rh / 2, rW = 150;
+  const rb2 = wrap(d.root, rW - 24, 13, 700), rh2 = rb2.h + 20, ryy = (PAD + H) / 2 - rh2 / 2;
+  out += rect(PAD, ryy, rW, rh2, { fill: t.dark, rx: 10 }) + T(rb2, PAD + rW / 2, ryy + rh2 / 2, { fill: '#ffffff', anchor: 'middle', v: 'middle', box: [PAD, ryy, rW, rh2] });
+  const bus = cX - 20;
+  out += line(PAD + rW, (PAD + H) / 2, bus, (PAD + H) / 2, t.line) + line(bus, mids[0], bus, mids[mids.length - 1], t.line);
+  mids.forEach((m) => { out += line(bus, m, cX, m, t.line); });
+  void ry0;
+  return { w: W, h: H + PAD, svg: out };
+}
+function drawMind(d, t) {
+  const n = d.items.length, cx = W / 2, erx = 74, nr = Math.ceil(n / 2), bw = 180, gap = 16;
+  const blocks = (arr) => arr.map((it) => {
+    const l = wrap(it.label, bw, 13, 700), subs = (it.subs || []).map((s) => wrap(s, bw - 14, 11.5));
+    return { l, subs, h: l.h + 6 + subs.reduce((a, s) => a + s.h + 3, 0) };
+  });
+  const right = d.items.slice(0, nr), left = d.items.slice(nr);
+  const BR = blocks(right), BL = blocks(left), tot = (a) => a.reduce((s, b) => s + b.h, 0) + gap * Math.max(0, a.length - 1);
+  const tb = wrap(d.title, erx * 1.6, 13.5, 700), ery = Math.max(36, tb.h / 2 + 14);
+  const H = Math.max(tot(BR), tot(BL), 2 * ery) + 2 * PAD, cy = H / 2;
+  let out = '';
+  const side = (B, dir, off) => {
+    let y = cy - tot(B) / 2;
+    B.forEach((b, j) => {
+      const c = t.col(off + j), ay = y + b.l.size * LH / 2;
+      const x = dir > 0 ? cx + erx + 56 : cx - erx - 56, anchor = dir > 0 ? 'start' : 'end';
+      const sx = cx + dir * (erx - 4), ex = x - dir * 8;
+      out += path(`M${r1(sx)} ${r1(cy)} C${r1(sx + dir * 34)} ${r1(cy)} ${r1(ex - dir * 34)} ${r1(ay)} ${r1(ex)} ${r1(ay)}`, c, 2.5) + circ(ex, ay, 3.5, c);
+      out += T(b.l, x, y, { fill: c, anchor });
+      let sy = y + b.l.h + 6;
+      b.subs.forEach((s) => {
+        const bx = dir > 0 ? x + 4 : x - 4, tx = dir > 0 ? x + 14 : x - 14;
+        out += circ(bx, sy + s.size * LH / 2, 2.2, tint(c, 0.2)) + T(s, tx, sy, { fill: t.ink, anchor });
+        sy += s.h + 3;
+      });
+      y += b.h + gap;
+    });
+  };
+  side(BR, 1, 0); side(BL, -1, nr);
+  out += `<ellipse cx="${cx}" cy="${r1(cy)}" rx="${erx}" ry="${r1(ery)}" fill="${t.dark}"/>` + T(tb, cx, cy, { fill: '#ffffff', anchor: 'middle', v: 'middle' });
+  return { w: W, h: H, svg: out };
+}
+function drawPyramid(d, t) {
+  const n = d.items.length, pw = 340, px = PAD, apexX = px + pw / 2, lx = px + pw + 40, lw = W - PAD - lx;
+  const B = d.items.map((it) => ({ l: wrap(it.label, lw, 12.5, 600), s: wrap(it.desc || '', lw, 11) }));
+  const lh = Math.max(42, ...B.map((b) => b.l.h + (b.s.lines.length ? 2 + b.s.h : 0) + 10));
+  const top = PAD, H = lh * n, wAt = (y) => pw * (y - top) / H;
+  let out = '';
+  d.items.forEach((it, i) => {
+    const y1 = top + i * lh, y2 = y1 + lh, w1 = wAt(y1), w2 = wAt(y2), ym = (y1 + y2) / 2;
+    const c = t.sade ? tint(t.col(0), 0.06 + 0.66 * i / Math.max(1, n - 1)) : t.col(i);
+    out += `<polygon points="${r1(apexX - w1 / 2)},${r1(y1)} ${r1(apexX + w1 / 2)},${r1(y1)} ${r1(apexX + w2 / 2)},${r1(y2)} ${r1(apexX - w2 / 2)},${r1(y2)}" fill="${c}" stroke="#ffffff" stroke-width="2"/>`;
+    const ny = i === 0 ? y1 + lh * 0.66 : ym;
+    out += T(wrap(String(i + 1), 99, 13, 700), apexX, ny, { fill: onColor(c), anchor: 'middle', v: 'middle' });
+    const ex = apexX + wAt(ym) / 2 + 6;
+    out += line(ex, ym, lx - 8, ym, t.line, 1, '2 3') + circ(lx - 8, ym, 2.5, t.line);
+    const bh = B[i].l.h + (B[i].s.lines.length ? 2 + B[i].s.h : 0);
+    out += T(B[i].l, lx, ym - bh / 2, { fill: t.ink }) + T(B[i].s, lx, ym - bh / 2 + B[i].l.h + 2, { fill: t.muted });
+  });
+  return { w: W, h: top + H + PAD, svg: out };
+}
+function drawFunnel(d, t) {
+  const n = d.items.length, fw = 400, minW = 200, fx = PAD, cx = fx + fw / 2, ox = fx + fw + 34, ow = W - PAD - ox;
+  let y = PAD, out = '';
+  d.items.forEach((it, i) => {
+    const w1 = fw - (fw - minW) * i / n, w2 = fw - (fw - minW) * (i + 1) / n;
+    const l = wrap(it.label, w2 - 44, 12, 600), v = wrap(fmt(it.value), 300, 17, 700), h = Math.max(56, l.h + v.h + 20);
+    const c = tint(t.col(0), t.sade ? 0.05 + 0.6 * i / n : 0.0 + 0.55 * i / n), tc = onColor(c), box = [cx - w2 / 2, y, w2, h];
+    out += `<polygon points="${r1(cx - w1 / 2)},${r1(y)} ${r1(cx + w1 / 2)},${r1(y)} ${r1(cx + w2 / 2)},${r1(y + h)} ${r1(cx - w2 / 2)},${r1(y + h)}" fill="${c}" stroke="#ffffff" stroke-width="2"/>`;
+    out += T(v, cx, y + 10, { fill: tc, anchor: 'middle', box }) + T(l, cx, y + 10 + v.h + 2, { fill: tc, anchor: 'middle', box });
+    if (it.outN) {
+      const ob = wrap(`−${fmt(it.outN)}  ${it.out}`, ow, 11.5);
+      out += arrow(cx + w1 / 2 + 6, y, ox - 6, y, t.neg, 1.4) + T(ob, ox, y, { fill: t.ink, v: 'middle' });
+    }
+    y += h;
+  });
+  return { w: W, h: y + PAD, svg: out };
+}
+
+// Karşılaştırma
+function drawTwo(d, t) {
+  const mid = W / 2, mw = 128, lx1 = PAD, lx2 = mid - mw / 2 - 10, rx1 = mid + mw / 2 + 10, cw = lx2 - lx1;
+  const ca = t.col(0), cb = t.sade ? '#5a6573' : t.col(1);
+  let out = '', y = PAD;
+  const ha = wrap(d.a.label, cw - 60, 14, 700), hb = wrap(d.b.label, cw - 60, 14, 700), hh = Math.max(ha.h, hb.h) + 22;
+  [[lx1, ca, ha, d.a], [rx1, cb, hb, d.b]].forEach(([x, c, hbk, side]) => {
+    const ic = t.icons && side.icon;
+    out += rect(x, y, cw, hh, { fill: c, rx: 10 });
+    if (ic) out += I(side.icon, x + cw / 2 - hbk.w / 2 - 16, y + hh / 2, 18, '#ffffff');
+    out += T(hbk, x + cw / 2 + (ic ? 12 : 0), y + hh / 2, { fill: '#ffffff', anchor: 'middle', v: 'middle', box: [x, y, cw, hh] });
+  });
+  out += T(wrap('Ölçüt', mw, 11.5, 700), mid, y + hh / 2, { fill: t.muted, anchor: 'middle', v: 'middle' });
+  y += hh + 8;
+  d.rows.forEach((r, i) => {
+    const al = wrap(r.a, cw - 24, 12), bl = wrap(r.b, cw - 24, 12), pl = wrap(r.k, mw - 18, 11.5, 700);
+    const ph = pl.h + 10, h = Math.max(al.h, bl.h, ph) + 18;
+    if (i % 2 === 0) out += rect(PAD, y, W - 2 * PAD, h, { fill: t.soft, rx: 6 });
+    out += rect(mid - mw / 2, y + h / 2 - ph / 2, mw, ph, { fill: '#ffffff', stroke: t.line, sw: 1, rx: ph / 2 }) +
+      T(pl, mid, y + h / 2, { fill: t.ink, anchor: 'middle', v: 'middle', box: [mid - mw / 2, y + h / 2 - ph / 2, mw, ph] });
+    out += T(al, lx2 - 12, y + h / 2, { fill: t.ink, anchor: 'end', v: 'middle' }) + T(bl, rx1 + 12, y + h / 2, { fill: t.ink, v: 'middle' });
+    y += h + 4;
+  });
+  return { w: W, h: y - 4 + PAD, svg: out };
+}
+function drawMulti(d, t) {
+  const m = d.opts.length, aw = 170, cw = (W - 2 * PAD - aw) / m;
+  let out = '', y = PAD;
+  const H = d.opts.map((o) => wrap(o.label, cw - 16, 13, 700)), ih = t.icons ? 28 : 0, hh = ih + Math.max(...H.map((b) => b.h)) + 18;
+  d.opts.forEach((o, j) => {
+    const x = PAD + aw + j * cw, c = t.col(j);
+    out += rect(x + 4, y, cw - 8, 4, { fill: c, rx: 2 });
+    if (ih) out += I(o.icon, x + cw / 2, y + 22, 20, c);
+    out += T(H[j], x + cw / 2, y + 12 + ih, { fill: t.ink, anchor: 'middle' });
+  });
+  y += hh;
+  out += line(PAD, y, W - PAD, y, t.dark, 1.2);
+  d.rows.forEach((r) => {
+    const al = wrap(r.k, aw - 16, 12.5, 600);
+    const cells = r.c.slice(0, m).map(([lv, w]) => ({ lv, w: wrap(w, cw - 16, 11.5) }));
+    const h = Math.max(al.h, ...cells.map((c) => 12 + 6 + c.w.h)) + 22;
+    out += T(al, PAD + 4, y + h / 2, { fill: t.ink, v: 'middle' });
+    cells.forEach((cell, j) => {
+      const x = PAD + aw + j * cw + cw / 2, c = t.col(j), top = y + (h - (12 + 6 + cell.w.h)) / 2;
+      range(3).forEach((k) => { out += circ(x - 13 + k * 13, top + 5, 4.5, k < cell.lv ? c : '#ffffff', c, 1.3); });
+      out += T(cell.w, x, top + 16, { fill: t.ink, anchor: 'middle' });
+    });
+    y += h;
+    out += line(PAD, y, W - PAD, y, '#d5dbe2', 1);
+  });
+  return { w: W, h: y + PAD, svg: out };
+}
+const QUAD = {
+  kucuk: { title: 'Küçük iyileştirmeler', pos: [0, 0] }, hizli: { title: 'Hızlı kazanımlar', pos: [1, 0] },
+  ertele: { title: 'Ertelenebilir', pos: [0, 1] }, stratejik: { title: 'Stratejik projeler', pos: [1, 1] },
+};
+function drawMatrix(d, t) {
+  const ax = PAD + 40, gw = W - PAD - ax, qw = (gw - 8) / 2;
+  const content = Object.keys(QUAD).map((k, qi) => {
+    const tb = wrap(QUAD[k].title, qw - 28, 13, 700), items = d.items.filter((it) => it.q === k).map((it) => wrap(it.label, qw - 44, 12));
+    const h = 14 + tb.h + 8 + (items.length ? items.reduce((a, b) => a + b.h + 6, 0) : 18) + 10;
+    return { k, qi, tb, items, h };
+  });
+  const rowH = [Math.max(110, ...content.filter((c) => QUAD[c.k].pos[1] === 0).map((c) => c.h)), Math.max(110, ...content.filter((c) => QUAD[c.k].pos[1] === 1).map((c) => c.h))];
+  let out = '';
+  const colors = { kucuk: 2, hizli: 0, ertele: 6, stratejik: 3 };
+  content.forEach((c) => {
+    const [cx, cy] = QUAD[c.k].pos, x = ax + cx * (qw + 8), y = PAD + (cy ? rowH[0] + 8 : 0), h = rowH[cy], col = t.col(colors[c.k]), box = [x, y, qw, h];
+    out += rect(x, y, qw, h, { fill: tint(col, 0.9), stroke: tint(col, 0.5), rx: 10 });
+    out += T(c.tb, x + 14, y + 14, { fill: col, box });
+    let iy = y + 14 + c.tb.h + 8;
+    if (!c.items.length) out += T(wrap('Bu bölgede öğe yok', qw - 40, 11.5), x + 14, iy, { fill: t.muted, box });
+    c.items.forEach((b) => { out += circ(x + 19, iy + b.size * LH / 2, 2.6, col) + T(b, x + 28, iy, { fill: t.ink, box }); iy += b.h + 6; });
+  });
+  const gh = rowH[0] + rowH[1] + 8, by = PAD + gh + 10;
+  out += arrow(ax, by, W - PAD, by, t.dark, 1.4) + arrow(PAD + 22, PAD + gh, PAD + 22, PAD, t.dark, 1.4);
+  out += T(wrap(d.x, 300, 12, 700), ax + gw / 2, by + 8, { fill: t.dark, anchor: 'middle' });
+  out += T(wrap('Düşük', 80, 11), ax, by + 8, { fill: t.muted }) + T(wrap('Yüksek', 80, 11), W - PAD, by + 8, { fill: t.muted, anchor: 'end' });
+  const yl = PAD + gh / 2;
+  out += T(wrap(d.y, 300, 12, 700), PAD + 8, yl, { fill: t.dark, anchor: 'middle', v: 'middle', extra: ` transform="rotate(-90 ${r1(PAD + 8)} ${r1(yl)})"` });
+  return { w: W, h: by + 8 + 16 + PAD, svg: out };
+}
+function drawVenn(d, t) {
+  const k = d.sets.length, cx = W / 2;
+  let out = '', H;
+  const cols = range(k).map((i) => t.sade ? ['#1f3a5f', '#4f5b69', '#7a8594'][i] : t.col([0, 1, 2][i]));
+  const lab = (s, x, y, mw, size = 11.5, wgt = 400) => T(wrap(s, mw, size, wgt), x, y, { fill: t.ink, anchor: 'middle', v: 'middle', halo: '#ffffff' });
+  if (k === 2) {
+    const r = 130, dx = 82, cy = PAD + 30 + r, C = [[cx - dx, cy], [cx + dx, cy]];
+    C.forEach(([x, y], i) => { out += `<circle cx="${x}" cy="${y}" r="${r}" fill="${cols[i]}" fill-opacity="0.14" stroke="${cols[i]}" stroke-width="1.8"/>`; });
+    out += T(wrap(d.sets[0], 200, 13.5, 700), cx - dx - 40, PAD + 18, { fill: cols[0], anchor: 'middle', v: 'middle' }) +
+      T(wrap(d.sets[1], 200, 13.5, 700), cx + dx + 40, PAD + 18, { fill: cols[1], anchor: 'middle', v: 'middle' });
+    out += lab(d.only[0], cx - dx - 58, cy, 96) + lab(d.only[1], cx + dx + 58, cy, 96) + lab(d.ab, cx, cy, 80, 11.5, 600);
+    H = cy + r + PAD;
+  } else {
+    const r = 138, dx = 86, cy = PAD + 30 + r, C = [[cx - dx, cy], [cx + dx, cy], [cx, cy + 148]];
+    C.forEach(([x, y], i) => { out += `<circle cx="${x}" cy="${r1(y)}" r="${r}" fill="${cols[i]}" fill-opacity="0.13" stroke="${cols[i]}" stroke-width="1.8"/>`; });
+    out += T(wrap(d.sets[0], 220, 13.5, 700), cx - dx - 50, PAD + 18, { fill: cols[0], anchor: 'middle', v: 'middle' }) +
+      T(wrap(d.sets[1], 220, 13.5, 700), cx + dx + 50, PAD + 18, { fill: cols[1], anchor: 'middle', v: 'middle' }) +
+      T(wrap(d.sets[2], 220, 13.5, 700), cx, cy + 148 + r + 16, { fill: cols[2], anchor: 'middle', v: 'middle' });
+    out += lab(d.only[0], cx - dx - 60, cy - 30, 96) + lab(d.only[1], cx + dx + 60, cy - 30, 96) + lab(d.only[2], cx, cy + 148 + 60, 110);
+    out += lab(d.ab, cx, cy - 62, 86, 11, 600) + lab(d.ac, cx - 78, cy + 92, 80, 11, 600) + lab(d.bc, cx + 78, cy + 92, 80, 11, 600) + lab(d.abc, cx, cy + 42, 84, 11, 700);
+    H = cy + 148 + r + 34 + PAD;
+  }
+  return { w: W, h: H, svg: out };
+}
+
+// İlişki
+function drawConcept(d, t) {
+  const N = d.nodes.length, layer = Array(N).fill(0);
+  for (let it = 0; it < N; it++) d.edges.forEach(([a, b]) => { layer[b] = Math.max(layer[b], layer[a] + 1); });
+  const L = Math.max(...layer) + 1, nb = d.nodes.map((s) => wrap(s, 120, 12.5, 600));
+  const bw = nb.map((b) => b.w + 26), bh = nb.map((b) => b.h + 18), rowH = 46 + 74;
+  const x = Array(N).fill(0), byL = range(L).map((l) => range(N).filter((i) => layer[i] === l));
+  byL.forEach((ids, l) => {
+    if (l === 0) { ids.forEach((i, j) => { x[i] = PAD + (W - 2 * PAD) * (j + 0.5) / ids.length; }); return; }
+    const parents = (i) => d.edges.filter((e) => e[1] === i).map((e) => x[e[0]]);
+    ids.forEach((i) => { const p = parents(i); x[i] = p.length ? p.reduce((a, v) => a + v, 0) / p.length : W / 2; });
+    if (ids.length > 1 && ids.every((i) => parents(i).length === 1) && new Set(ids.map((i) => x[i])).size === 1) {
+      ids.forEach((i, j) => { x[i] = PAD + (W - 2 * PAD) * (j + 0.5) / ids.length; });
+    }
+    ids.sort((a, b) => x[a] - x[b]);
+    for (let j = 1; j < ids.length; j++) { const a = ids[j - 1], b = ids[j], min = (bw[a] + bw[b]) / 2 + 24; if (x[b] - x[a] < min) x[b] = x[a] + min; }
+    const lo = Math.min(...ids.map((i) => x[i] - bw[i] / 2)), hi = Math.max(...ids.map((i) => x[i] + bw[i] / 2));
+    const shift = lo < PAD ? PAD - lo : hi > W - PAD ? W - PAD - hi : 0;
+    ids.forEach((i) => { x[i] += shift; });
+  });
+  const yTop = (i) => PAD + layer[i] * rowH;
+  let out = '';
+  d.edges.forEach(([a, b, label]) => {
+    const x1 = x[a], y1 = yTop(a) + bh[a], x2 = x[b], y2 = yTop(b);
+    out += arrow(x1, y1, x2, y2 - 2, t.line, 1.5);
+    const k = 0.6, lx = x1 + (x2 - x1) * k, ly = y1 + (y2 - y1) * k;
+    out += T(wrap(label, 92, 11, 600), lx, ly, { fill: t.dark, anchor: 'middle', v: 'middle', halo: '#ffffff' });
+  });
+  d.nodes.forEach((_, i) => {
+    const c = t.col(layer[i] === 0 ? 0 : i), bx = x[i] - bw[i] / 2, by = yTop(i), box = [bx, by, bw[i], bh[i]];
+    const root = layer[i] === 0;
+    out += rect(bx, by, bw[i], bh[i], { fill: root ? t.dark : tint(c, 0.9), stroke: root ? t.dark : c, sw: 1.3, rx: 10 }) +
+      T(nb[i], x[i], by + bh[i] / 2, { fill: root ? '#ffffff' : t.ink, anchor: 'middle', v: 'middle', box });
+  });
+  const H = Math.max(...range(N).map((i) => yTop(i) + bh[i])) + PAD;
+  return { w: W, h: H, svg: out };
+}
+const ARG_K = {
+  destek: { title: 'Destekleyen', c: '#0a7f5a', dash: null, icon: 'plus' },
+  itiraz: { title: 'Karşı çıkan', c: '#b42318', dash: '6 4', icon: 'minus' },
+  sinir: { title: 'Sınırlayan', c: '#8a5300', dash: '2 3', icon: 'triangle-alert' },
+};
+const ARG_ST = { ok: ['circle-check', 'Kaynak bağlı', '#0a7f5a'], unv: ['circle-help', 'Doğrulanmadı', '#8a5300'], none: ['circle-x', 'Kaynak yok', '#4f5b69'] };
+function drawArgument(d, t) {
+  const cb = wrap(d.claim, 480, 14, 700), cw = Math.max(cb.w, 120) + 44, tag = wrap('İDDİA', 100, 10.5, 700), ch = 12 + tag.h + 2 + cb.h + 14, cx = W / 2;
+  let out = rect(cx - cw / 2, PAD, cw, ch, { fill: t.dark, rx: 12 }) + T(tag, cx, PAD + 12, { fill: '#c9d6e6', anchor: 'middle' }) +
+    T(cb, cx, PAD + 12 + tag.h + 2, { fill: '#ffffff', anchor: 'middle', box: [cx - cw / 2, PAD, cw, ch] });
+  const groups = Object.keys(ARG_K).map((k) => ({ k, items: d.items.filter((it) => it.k === k) })).filter((g) => g.items.length);
+  const k = groups.length, gap = 16, gw = (W - 2 * PAD - (k - 1) * gap) / k, busY = PAD + ch + 20, hy = busY + 20;
+  const gcx = groups.map((_, j) => PAD + j * (gw + gap) + gw / 2);
+  out += line(cx, PAD + ch, cx, busY, t.line, 1.5) + (k > 1 ? line(gcx[0], busY, gcx[k - 1], busY, t.line, 1.5) : '');
+  let bottom = hy;
+  groups.forEach((g, j) => {
+    const K = ARG_K[g.k], c = t.sade ? t.dark : K.c, x = PAD + j * (gw + gap);
+    out += arrow(gcx[j], busY, gcx[j], hy - 2, t.line, 1.5);
+    const hb = wrap(`${K.title} (${g.items.length})`, gw - 40, 12.5, 700);
+    out += I(K.icon, x + 12, hy + 12, 16, c, true) + T(hb, x + 26, hy + 12, { fill: c, v: 'middle' }) + rect(x, hy + 26, gw, 3, { fill: c, rx: 1.5 });
+    let y = hy + 38;
+    g.items.forEach((it) => {
+      const lb = wrap(it.label, gw - 26, 12), st = ARG_ST[it.st], sb = wrap(st[1], gw - 46, 10.5, 600);
+      const h = 12 + lb.h + 8 + sb.h + 10, box = [x, y, gw, h], sc = t.sade ? t.muted : st[2];
+      out += rect(x, y, gw, h, { fill: '#ffffff', stroke: c, sw: 1.4, rx: 8, dash: K.dash });
+      out += T(lb, x + 13, y + 12, { fill: t.ink, box });
+      out += I(st[0], x + 20, y + 12 + lb.h + 8 + sb.h / 2, 13, sc, true) + T(sb, x + 32, y + 12 + lb.h + 8, { fill: sc, box });
+      y += h + 10;
+    });
+    bottom = Math.max(bottom, y - 10);
+  });
+  return { w: W, h: bottom + PAD, svg: out };
+}
+
+// Zaman
+function drawTimeH(d, t) {
+  // Aynı taraftaki iki etiket arası 2 adım; uçtaki etiket kaydırılmasın diye
+  // ilk ve son olay etiket yarı genişliği kadar içeride.
+  const n = d.items.length, inner = W - 2 * PAD;
+  const lw = n > 1 ? Math.min(210, (2 * inner / (n - 1) - 18) / (1 + 2 / (n - 1))) : 300;
+  const x0 = PAD + lw / 2, x1 = W - PAD - lw / 2, step = n > 1 ? (x1 - x0) / (n - 1) : 0, stem = 26;
+  const B = d.items.map((it) => wrap(it.label, lw, 12, 600));
+  const upH = Math.max(0, ...B.filter((_, i) => i % 2 === 0).map((b) => b.h)), dnH = Math.max(0, ...B.filter((_, i) => i % 2 === 1).map((b) => b.h));
+  const ay = PAD + upH + 4 + stem + 10;
+  let out = arrow(PAD, ay, W - PAD, ay, t.line, 2);
+  d.items.forEach((it, i) => {
+    const x = n > 1 ? x0 + i * step : W / 2, c = t.col(i), up = i % 2 === 0, b = B[i];
+    const lx = Math.min(Math.max(x, PAD + b.w / 2), W - PAD - b.w / 2);
+    if (up) out += line(x, ay - 10, x, ay - 10 - stem, c, 1.5) + T(b, lx, ay - 14 - stem, { fill: t.ink, anchor: 'middle', v: 'bottom' });
+    else out += line(x, ay + 10, x, ay + 10 + stem, c, 1.5) + T(b, lx, ay + 14 + stem, { fill: t.ink, anchor: 'middle' });
+    const yb = wrap(it.year, 80, 11.5, 700), yw = yb.w + 14;
+    out += rect(x - yw / 2, ay - 10, yw, 20, { fill: c, rx: 10 }) + T(yb, x, ay, { fill: '#ffffff', anchor: 'middle', v: 'middle', box: [x - yw / 2, ay - 10, yw, 20] });
+  });
+  return { w: W, h: ay + 14 + stem + dnH + PAD, svg: out };
+}
+function drawTimeV(d, t) {
+  const cx = W / 2, cw = 262, gx = 30;
+  let yl = PAD, yr = PAD, last = PAD - 40, out = '';
+  const dots = [];
+  d.items.forEach((it, i) => {
+    const left = i % 2 === 0, c = t.col(i), x = left ? cx - gx - cw : cx + gx;
+    const yb = wrap(it.year, cw - 28, 13, 700), lb = wrap(it.label, cw - 28, 12.5);
+    const h = 12 + yb.h + 3 + lb.h + 12;
+    const y = Math.max(left ? yl : yr, last + 36), box = [x, y, cw, h];
+    out += rect(x, y, cw, h, { fill: tint(c, 0.92), stroke: tint(c, 0.45), rx: 8 });
+    out += T(yb, x + 14, y + 12, { fill: c, box }) + T(lb, x + 14, y + 12 + yb.h + 3, { fill: t.ink, box });
+    const dy = y + 12 + yb.h / 2;
+    out += line(left ? x + cw : cx + 7, dy, left ? cx - 7 : x, dy, tint(c, 0.3), 1.5);
+    dots.push([dy, c]);
+    if (left) yl = y + h + 12; else yr = y + h + 12;
+    last = y;
+  });
+  const spine = line(cx, dots[0][0], cx, dots[dots.length - 1][0], t.line, 2);
+  out = spine + out + dots.map(([dy, c]) => circ(cx, dy, 7, '#ffffff', c, 3)).join('');
+  return { w: W, h: Math.max(yl, yr) - 12 + PAD, svg: out };
+}
+
+// Sayı
+function drawKpi(d, t) {
+  const n = d.items.length, cols = n <= 4 ? n : Math.ceil(n / 2), gap = 12, cw = (W - 2 * PAD - (cols - 1) * gap) / cols;
+  let out = '', y = PAD;
+  for (let r0 = 0; r0 < n; r0 += cols) {
+    const idx = range(cols).map((j) => r0 + j).filter((i) => i < n);
+    const B = idx.map((i) => ({ v: wrap(d.items[i].value, cw - 24 - (t.icons ? 30 : 0), 24, 700), l: wrap(d.items[i].label, cw - 24, 12) }));
+    const h = Math.max(...B.map((b) => 16 + b.v.h + 4 + b.l.h + 16));
+    idx.forEach((i, j) => {
+      const x = PAD + j * (cw + gap), c = t.col(i), box = [x, y, cw, h];
+      out += rect(x, y, cw, h, { fill: tint(c, 0.92), rx: 10 }) + rect(x, y + 12, 3, h - 24, { fill: c, rx: 1.5 });
+      if (t.icons) out += I(d.items[i].icon, x + cw - 24, y + 26, 20, c);
+      out += T(B[j].v, x + 14, y + 16, { fill: c, box }) + T(B[j].l, x + 14, y + 16 + B[j].v.h + 4, { fill: t.ink, box });
+    });
+    y += h + gap;
+  }
+  return { w: W, h: y - gap + PAD, svg: out };
+}
+function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); return [1, 2, 2.5, 5, 10].map((m) => m * p).find((m) => m >= v); }
+function drawBars(d, t) {
+  const lw = 160, bx = PAD + lw + 14, bwMax = W - PAD - 46 - bx, max = niceMax(Math.max(...d.items.map((it) => it.value)));
+  let out = '', y = PAD;
+  const c = t.col(0);
+  d.items.forEach((it) => {
+    const lb = wrap(it.label, lw, 12), h = Math.max(lb.h, 20) + 12, w = bwMax * it.value / max;
+    out += T(lb, bx - 10, y + h / 2, { fill: t.ink, anchor: 'end', v: 'middle' });
+    out += rect(bx, y + h / 2 - 10, w, 20, { fill: c, rx: 3 }) + T(wrap(fmt(it.value), 60, 12, 700), bx + w + 6, y + h / 2, { fill: t.ink, v: 'middle' });
+    y += h;
+  });
+  out += line(bx, PAD - 4, bx, y, t.line, 1);
+  [0, 0.5, 1].forEach((f) => {
+    const x = bx + bwMax * f;
+    out += line(x, y, x, y + 5, t.line, 1) + T(wrap(fmt(max * f), 60, 10.5), x, y + 8, { fill: t.muted, anchor: 'middle' });
+  });
+  out += T(wrap(d.axis, 300, 11.5, 600), bx + bwMax / 2, y + 26, { fill: t.muted, anchor: 'middle' });
+  return { w: W, h: y + 26 + 16 + PAD, svg: out };
+}
+function drawRings(d, t) {
+  const n = d.items.length, cols = n <= 4 ? n : Math.ceil(n / 2), cw = (W - 2 * PAD) / cols, r = 40, sw = 11;
+  let out = '', y = PAD;
+  for (let r0 = 0; r0 < n; r0 += cols) {
+    const idx = range(cols).map((j) => r0 + j).filter((i) => i < n);
+    const L = idx.map((i) => wrap(d.items[i].label, cw - 20, 12, 600)), lh = Math.max(...L.map((b) => b.h));
+    idx.forEach((i, j) => {
+      const it = d.items[i], cx = PAD + cw * (j + 0.5), cy = y + r + sw / 2, c = t.col(i), f = it.value / 100;
+      const a = -Math.PI / 2 + f * 2 * Math.PI, ex = cx + r * Math.cos(a), ey = cy + r * Math.sin(a);
+      out += circ(cx, cy, r, 'none', tint(c, 0.82), sw);
+      out += path(`M${r1(cx)} ${r1(cy - r)} A${r} ${r} 0 ${f > 0.5 ? 1 : 0} 1 ${r1(ex)} ${r1(ey)}`, c, sw).replace('stroke-linecap="round"', 'stroke-linecap="butt"');
+      out += T(wrap('%' + it.value, 80, 17, 700), cx, cy, { fill: t.ink, anchor: 'middle', v: 'middle' });
+      out += T(L[j], cx, cy + r + sw / 2 + 10, { fill: t.ink, anchor: 'middle' });
+    });
+    y += 2 * r + sw + 10 + lh + 22;
+  }
+  return { w: W, h: y - 22 + PAD, svg: out };
+}
+
+// ---------- kayıt ----------
+const FAMILIES = ['Sıra', 'Döngü', 'Neden', 'Yapı', 'Karşılaştırma', 'İlişki', 'Zaman', 'Sayı'];
+const TPL = [
+  { id: 'adimlar', fam: 'Sıra', name: 'Yatay adımlar', wo: 'akis', sig: 'Sıra bildiren bağlaçlar: “önce, ardından, son olarak”; 6+ adımda iki satıra iner.', draw: drawSteps, make: (n) => ({ items: SEQ.slice(0, n) }) },
+  { id: 'basamak', fam: 'Sıra', name: 'Basamak (yükselen)', wo: 'akis', sig: 'Aşamalı ilerleme, düzey, olgunluk: “ilk düzeyde … en üst düzeyde”.', draw: drawStairs, make: (n) => ({ items: STAIRS.slice(0, n) }) },
+  { id: 'yolharitasi', fam: 'Sıra', name: 'Dikey yol haritası', wo: 'akis', sig: 'Uzun açıklamalı adımlar, takvim, iş paketleri (tez önerisi, proje planı).', draw: drawRoadmap, make: (n) => ({ items: SEQ.slice(0, n) }) },
+  { id: 'liste', fam: 'Sıra', name: 'Numaralı liste kartları', wo: 'akis', sig: 'Numaralı ya da madde işaretli liste (WO-016 R1): sınırlılıklar, öneriler, ilkeler.', draw: drawCards, make: (n) => ({ items: LIMITS.slice(0, n) }) },
+  { id: 'dongu', fam: 'Döngü', name: 'Dairesel döngü', wo: 'dongu', sig: 'Kapanan süreç: “… ve süreç yeniden başlar”, “döngüsel olarak”.', draw: drawCycle, make: (n) => ({ title: 'Eylem araştırması döngüsü', items: pick(CYCLE, n, { 3: [0, 1, 3] }) }) },
+  { id: 'merkez', fam: 'Döngü', name: 'Merkez + uydu', wo: 'hiyerarsi', sig: 'Tek kavramı etkileyen ya da oluşturan öğeler (etkenler, bileşenler).', draw: drawHub, make: (n) => ({ title: 'Akademik öz-yeterlik', items: HUB.slice(0, n) }) },
+  { id: 'balik', fam: 'Neden', name: 'Balık kılçığı', wo: 'balik', sig: 'Çok neden → tek sonuç (WO-016 R3): “… nedenleri şunlardır”.', draw: drawFish, make: (n) => ({ effect: 'Derse katılımın düşmesi', items: FISH.slice(0, n) }) },
+  { id: 'zincir', fam: 'Neden', name: 'Etki zinciri', wo: 'akis', sig: 'Ok etiketli zincir: “A, B’yi artırır; B de C’yi …”. 4+ halkada dikeye geçer.', draw: drawChain,
+    make: (n) => ({ items: n === 3 ? [{ ...CHAIN[0], rel: 'artırır' }, { ...CHAIN[2], rel: 'olumsuz etkiler' }, CHAIN[7]] : n === 5 ? [...CHAIN.slice(0, 4), { label: 'Sera gazı salımı', icon: 'factory' }] : CHAIN }) },
+  { id: 'geri', fam: 'Neden', name: 'Geri besleme (+/−)', wo: 'geri', sig: 'Kapanan döngü ve her bağın yönü (artırır / azaltır). Döngü türü eksi bağ sayısından hesaplanır.', draw: drawLoop, make: (n) => ({ items: LOOPS[n] }) },
+  { id: 'agac', fam: 'Yapı', name: 'Ağaç', wo: 'hiyerarsi', sig: 'Sınıflama: “… üç grupta toplanır: …”. 6+ dalda yatay ağaca geçer.', draw: drawTree, make: (n) => ({ root: 'Akademik başarıyı etkileyen etmenler', items: TREE.slice(0, n) }) },
+  { id: 'zihin', fam: 'Yapı', name: 'Zihin haritası', wo: 'hiyerarsi', sig: 'Bir konunun boyutları ve alt başlıkları (kavramsal çerçeve, tartışma planı).', draw: drawMind, make: (n) => ({ title: 'Sürdürülebilir kentleşme', items: MIND.slice(0, n) }) },
+  { id: 'piramit', fam: 'Yapı', name: 'Piramit', wo: 'akis', sig: 'Sıralı düzeyler, üstteki daha seçkin ya da güçlü (kanıt düzeyi, ihtiyaç basamakları).', draw: drawPyramid, make: (n) => ({ items: PYR.slice(0, n) }) },
+  { id: 'huni', fam: 'Yapı', name: 'Huni (PRISMA)', wo: 'cubuk', sig: 'Azalan sayılar ve dışlanma gerekçeleri: sistematik derleme akışı (WO-016 R6 sayılar).', draw: drawFunnel,
+    make: (n) => { const sets = { 3: [0, 3, 7], 5: [0, 1, 3, 5, 7] }; const idx = sets[n] || range(8);
+      return { items: idx.map((k, j) => { const it = { ...FUNNEL[k] }; if (j > 0) { const prev = FUNNEL[idx[j - 1]]; it.outN = prev.value - it.value; it.out = k - idx[j - 1] === 1 ? FUNNEL[k].out : 'dışlanan kayıt'; } else { delete it.out; } return it; }) }; } },
+  { id: 'ikisutun', fam: 'Karşılaştırma', name: 'İki sütun (A / B)', wo: 'karsi', sig: 'İki yaklaşımın ölçüt ölçüt karşılaştırılması: “… iken …”, “buna karşılık”. Model kademesi (WO-C).', draw: drawTwo, make: (n) => ({ a: TWO.a, b: TWO.b, rows: TWO.rows.slice(0, n) }) },
+  { id: 'coksutun', fam: 'Karşılaştırma', name: 'Çok sütunlu karşılaştırma', wo: 'karsi', counts: [2, 3, 4], unit: 'seçenek', sig: '2–4 seçenek, ortak ölçütler (yöntem seçimi gerekçesi). Model kademesi (WO-C).', draw: drawMulti, make: (n) => ({ opts: MULTI.opts.slice(0, n), rows: MULTI.rows }) },
+  { id: 'matris', fam: 'Karşılaştırma', name: 'Dörtlü matris', wo: 'dortlu', sig: 'İki eksen, dört bölge (etki × uygulanabilirlik, SWOT benzeri). Model kademesi (WO-C).', draw: drawMatrix, make: (n) => ({ x: 'Beklenen etki', y: 'Uygulanabilirlik', items: MATRIX.slice(0, n) }) },
+  { id: 'venn', fam: 'Karşılaştırma', name: 'Venn (2–3)', wo: 'karsi', counts: [2, 3], unit: 'küme', sig: 'Ortak ve ayrık alanlar: disiplinler arası kesişim. Model kademesi (WO-C).', draw: drawVenn,
+    make: (n) => ({ ...VENN, sets: VENN.sets.slice(0, n), only: VENN.only.slice(0, n) }) },
+  { id: 'kavram', fam: 'İlişki', name: 'Kavram haritası', wo: 'kavram', sig: 'Etiketli ilişkiler: “X, Y’de gerçekleşir; Y, Z’yi içerir”.', draw: drawConcept, make: (n) => CONCEPT[n] },
+  { id: 'arguman', fam: 'İlişki', name: 'Argüman haritası', wo: 'arguman', sig: 'İddia ve gerekçeleri (WO-016 R5). Atıf durumu Kontrol’den gelir; renk yanında çizgi biçimi de türü söyler.', draw: drawArgument,
+    make: (n) => ({ claim: ARG.claim, items: n === 3 ? ARG.items.slice(0, 3) : n === 5 ? [0, 1, 2, 3, 4].map((i) => ARG.items[i]) : ARG.items }) },
+  { id: 'zamanyatay', fam: 'Zaman', name: 'Yatay zaman çizelgesi', wo: 'zaman', sig: 'Yıl içeren cümleler (WO-016 R4). Aralıklar eşit çizilir; ölçekli değildir.', draw: drawTimeH, make: (n) => ({ items: pick(EVENTS, n, EV_SETS) }) },
+  { id: 'zamandikey', fam: 'Zaman', name: 'Dikey zaman çizelgesi', wo: 'zaman', sig: 'Uzun açıklamalı olaylar; tarihsel arka plan bölümü.', draw: drawTimeV, make: (n) => ({ items: pick(EVENTS, n, EV_SETS) }) },
+  { id: 'sayikart', fam: 'Sayı', name: 'Sayı kartları', wo: 'cubuk', sig: 'Metindeki öne çıkan sayılar (WO-016 R6) ya da analiz çıktısı (WO-007). Ondalık virgülü korunur.', draw: drawKpi, make: (n) => ({ items: KPI.slice(0, n) }) },
+  { id: 'cubuk', fam: 'Sayı', name: 'Çubuk (yatay)', wo: 'cubuk', sig: 'Aynı birimde sayılar. Eksen sıfırdan başlar; tek seri tek renk.', draw: drawBars, make: (n) => ({ axis: 'Yayın sayısı', items: BARS.slice(0, n) }) },
+  { id: 'halka', fam: 'Sayı', name: 'Yüzde halkası', wo: 'pasta', sig: 'Ayrı ayrı yüzdeler (her halka kendi bütünü). Toplamı 100 olan veri için pasta.', draw: drawRings, make: (n) => ({ items: RINGS.slice(0, n) }) },
+];
+
+// ---------- galeri arayüzü ----------
+const KEY = 'sekil-galeri-v3-kararlar';
+let DEC = {};
+try { DEC = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { DEC = {}; }
+const saveDec = () => { try { localStorage.setItem(KEY, JSON.stringify(DEC)); } catch (e) { /* özel pencere */ } };
+const LABELS = { kalsin: 'Kalsın', duzelt: 'Düzelt', at: 'At' };
+
+function svgOf(r, title) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${r1(r.w)} ${r1(r.h)}" width="${r1(r.w)}" height="${r1(r.h)}" role="img" aria-label="${esc(title)}" font-family="${FONT}" style="max-width:${r1(r.w)}px">` +
+    `<title>${esc(title)}</title><rect width="100%" height="100%" fill="#ffffff"/>${r.svg}</svg>`;
+}
+
+function buildShell() {
+  const fams = document.getElementById('fams');
+  ['Hepsi', ...FAMILIES].forEach((f) => {
+    const b = document.createElement('button');
+    b.textContent = f; b.setAttribute('aria-pressed', String(f === S.family));
+    b.addEventListener('click', () => { S.family = f; fams.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); applyFilter(); });
+    fams.appendChild(b);
+  });
+  const g = document.getElementById('gallery');
+  FAMILIES.forEach((f) => {
+    const sec = document.createElement('section'); sec.dataset.fam = f;
+    sec.innerHTML = `<h2 class="fam">${esc(f)}</h2>`;
+    TPL.filter((tp) => tp.fam === f).forEach((tp) => {
+      const card = document.createElement('article'); card.className = 'card'; card.id = 'tpl-' + tp.id;
+      const counts = tp.counts || [3, 5, 8], unit = tp.unit || 'öğe';
+      card.innerHTML = `<div class="head"><h3>${esc(tp.name)}</h3><span class="meta"><code>WO-016: ${esc(tp.wo)}</code></span></div>
+        <div class="meta">${esc(tp.sig)}</div>
+        <div class="figs">${counts.map((n) => `<figure data-n="${n}" tabindex="0"><div class="svgbox"></div><figcaption><span>${n} ${unit}</span><span class="chkres"></span></figcaption></figure>`).join('')}</div>
+        <ul class="issues" hidden></ul>
+        <div class="decide"><div class="seg" role="group" aria-label="Karar">${Object.entries(LABELS).map(([v, l]) => `<button data-v="${v}" aria-pressed="false">${l}</button>`).join('')}</div>
+        <input type="text" placeholder="Not (isteğe bağlı): neyi düzeltelim?" aria-label="Not"></div>`;
+      const seg = card.querySelector('.decide .seg'), inp = card.querySelector('.decide input');
+      const sync = () => { const v = DEC[tp.id]?.d; seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v))); inp.value = DEC[tp.id]?.note || ''; };
+      seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; DEC[tp.id] = { ...(DEC[tp.id] || {}), d: DEC[tp.id]?.d === b.dataset.v ? undefined : b.dataset.v }; saveDec(); sync(); updateSum(); });
+      inp.addEventListener('input', () => { DEC[tp.id] = { ...(DEC[tp.id] || {}), note: inp.value }; saveDec(); });
+      card.querySelectorAll('figure').forEach((fg) => {
+        const open = () => openLb(fg.querySelector('.svgbox').innerHTML);
+        fg.addEventListener('click', open); fg.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+      });
+      sync();
+      sec.appendChild(card);
+    });
+    g.appendChild(sec);
+  });
+}
+
+const ISSUES = {};
+function renderAll() {
+  const t = th();
+  TPL.forEach((tp) => {
+    const card = document.getElementById('tpl-' + tp.id);
+    card.querySelectorAll('figure').forEach((fg) => {
+      const n = Number(fg.dataset.n);
+      let html;
+      try { html = svgOf(tp.draw(tp.make(n), t), `${tp.name} — ${n} ${tp.unit || 'öğe'}`); }
+      catch (e) { html = `<p style="color:#b42318">Çizim hatası: ${esc(e.message)}</p>`; console.error(tp.id, n, e); }
+      fg.querySelector('.svgbox').innerHTML = html;
+    });
+  });
+  requestAnimationFrame(checkAll);
+}
+
+// Otomatik denetim: taşma, çakışma, kutudan taşma, genişlik.
+function checkFigure(fg) {
+  const svg = fg.querySelector('svg'); if (!svg) return ['çizim yok'];
+  const vb = svg.viewBox.baseVal, sr = svg.getBoundingClientRect();
+  if (!sr.width) return null;
+  const k = sr.width / vb.width, out = [];
+  if (vb.width > W + 0.5) out.push(`genişlik ${Math.round(vb.width)} > ${W}`);
+  const texts = [...svg.querySelectorAll('text')];
+  const R = texts.map((el) => { const r = el.getBoundingClientRect(); return { el, x0: (r.left - sr.left) / k, y0: (r.top - sr.top) / k, x1: (r.right - sr.left) / k, y1: (r.bottom - sr.top) / k }; });
+  R.forEach((r) => { if (r.x0 < -1 || r.y0 < -1 || r.x1 > vb.width + 1 || r.y1 > vb.height + 1) out.push('şekil dışına taşma: “' + r.el.textContent.slice(0, 32) + '”'); });
+  let cut = 0;
+  svg.querySelectorAll('path,line,circle,polygon,ellipse,rect').forEach((el) => {
+    const r = el.getBoundingClientRect();
+    if ((r.left - sr.left) / k < -2 || (r.top - sr.top) / k < -2 || (r.right - sr.left) / k > vb.width + 2 || (r.bottom - sr.top) / k > vb.height + 2) cut++;
+  });
+  if (cut) out.push(`çizim şekil dışında kalıyor (${cut} öğe)`);
+  for (let i = 0; i < R.length; i++) for (let j = i + 1; j < R.length; j++) {
+    const a = R[i], b = R[j], ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0), oy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+    if (ox > 3 && oy > 3) out.push('çakışma: “' + a.el.textContent.slice(0, 24) + '” / “' + b.el.textContent.slice(0, 24) + '”');
+  }
+  texts.filter((el) => el.dataset.box).forEach((el) => {
+    const [x, y, w, h] = el.dataset.box.split(',').map(Number), bb = el.getBBox();
+    if (bb.x < x - 0.5 || bb.y < y - 0.5 || bb.x + bb.width > x + w + 0.5 || bb.y + bb.height > y + h + 0.5) out.push('kutudan taşma: “' + el.textContent.slice(0, 32) + '”');
+  });
+  return out;
+}
+function checkAll() {
+  let total = 0;
+  TPL.forEach((tp) => {
+    const card = document.getElementById('tpl-' + tp.id); if (card.closest('section').hidden) return;
+    const all = [];
+    card.querySelectorAll('figure').forEach((fg) => {
+      const res = checkFigure(fg), el = fg.querySelector('.chkres');
+      if (res === null) return;
+      el.className = 'chkres ' + (res.length ? 'bad' : 'ok');
+      el.textContent = res.length ? `⚠ ${res.length} sorun` : '✓ taşma / çakışma yok';
+      res.forEach((r) => all.push(`${fg.dataset.n}: ${r}`));
+    });
+    ISSUES[tp.id] = all; total += all.length;
+    const ul = card.querySelector('.issues');
+    ul.hidden = !all.length; ul.innerHTML = all.slice(0, 8).map((s) => `<li>${esc(s)}</li>`).join('') + (all.length > 8 ? `<li>… ${all.length - 8} daha</li>` : '');
+  });
+  window.__galleryIssues = ISSUES; window.__galleryTotal = total;
+  document.body.dataset.checked = '1';
+}
+
+function applyFilter() {
+  document.querySelectorAll('#gallery section').forEach((s) => { s.hidden = !(S.family === 'Hepsi' || s.dataset.fam === S.family); });
+  requestAnimationFrame(checkAll);
+}
+function updateSum() {
+  const done = TPL.filter((tp) => DEC[tp.id]?.d).length;
+  const c = (v) => TPL.filter((tp) => DEC[tp.id]?.d === v).length;
+  document.getElementById('sum').textContent = `${done}/${TPL.length} karar · kalsın ${c('kalsin')} · düzelt ${c('duzelt')} · at ${c('at')}`;
+}
+
+let lastFocus = null;
+function openLb(html) {
+  lastFocus = document.activeElement;
+  document.getElementById('lbBody').innerHTML = html;
+  document.getElementById('lb').classList.add('open');
+  document.getElementById('lbClose').focus();
+}
+function closeLb() { document.getElementById('lb').classList.remove('open'); if (lastFocus) lastFocus.focus(); }
+
+function copyDecisions() {
+  const lines = [`Şekil galerisi v3 — kararlar (${new Date().toLocaleDateString('tr-TR')})`];
+  TPL.forEach((tp) => { const d = DEC[tp.id]; lines.push(`- ${tp.name} [${tp.id}]: ${d?.d ? LABELS[d.d] : 'karar yok'}${d?.note ? ' — ' + d.note : ''}`); });
+  const text = lines.join('\n');
+  const show = () => {
+    document.getElementById('lbBody').innerHTML = '<p>Kopyalanamadı; metni seçip kopyala:</p><textarea readonly></textarea>';
+    const ta = document.querySelector('#lbBody textarea'); ta.value = text;
+    document.getElementById('lb').classList.add('open', 'modal'); ta.select();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => { const b = document.getElementById('copyBtn'); b.textContent = 'Kopyalandı ✓'; setTimeout(() => { b.textContent = 'Kararları kopyala'; }, 1600); }, show);
+  } else show();
+}
+
+function init() {
+  buildShell(); updateSum();
+  document.getElementById('themeSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    S.theme = b.dataset.theme;
+    document.querySelectorAll('#themeSeg button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    S.icons = S.theme === 'renkli'; document.getElementById('iconsChk').checked = S.icons;
+    renderAll();
+  });
+  document.getElementById('iconsChk').addEventListener('change', (e) => { S.icons = e.target.checked; renderAll(); });
+  document.getElementById('grayChk').addEventListener('change', (e) => { document.body.classList.toggle('gray', e.target.checked); });
+  document.getElementById('copyBtn').addEventListener('click', copyDecisions);
+  document.getElementById('lbClose').addEventListener('click', closeLb);
+  document.getElementById('lb').addEventListener('click', (e) => { if (e.target.id === 'lb') closeLb(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.getElementById('lb').classList.contains('open')) closeLb(); });
+  renderAll();
+}
+(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(init);
+</script>
+</body>
+</html>
