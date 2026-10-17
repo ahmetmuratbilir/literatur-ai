@@ -148,3 +148,75 @@ Kullanıcı her şablon için "kalsın / düzelt / at" der. Çiziciye yalnız
 3. **Simge kullanımı:** şekillerde simge olsun mu, isteğe bağlı mı?
    (öneri: varsayılan açık, tek tıkla kapanır; "akademik sade" temada kapalı)
 4. **Tek panel kabuk** WO-011 kontrolünden sonra mı başlasın? (öneri: evet)
+
+Kullanıcı 17.10.2026'da "plana göre yap, plan değişikliği yok" dedi: dört
+öneri kabul sayılır.
+
+---
+
+## 6. Devir: durum, sıradaki işler, fikirler (17.10.2026 gece)
+
+### 6.1 Bugün yapılanlar (`wo-008-sekil-gomme` dalı, main'e dokunulmadı)
+
+| Commit | Ne |
+| --- | --- |
+| `5d86623` | Bu yol haritası |
+| `432b144`, `bcc0b67` | Şekil galerisi v3: 24 şablon, kendi kendini denetler; v2'nin 3 gerçek paragrafı; görsel cila |
+| `80919cd` | WO-017 (tek panel kabuk), WO-018 (etkileşim altyapısı), WO-019 (çizici) taslakları |
+| `4662dbf` | `mockup-durumlar.html`: bekleme, 10 hata türü, kart durum matrisi, pencere/Esc/geri al — 40 Playwright kontrolü geçti |
+
+### 6.2 Kullanıcıdan beklenenler
+
+1. **WO-011 elle kontrol** — adım 2 ve sonrası buna bağlı.
+2. **Galeri kararları** — `mockup-sekil-galerisi.html`, her şablon Kalsın /
+   Düzelt / At, "Kararları kopyala" ile yapıştır. WO-019 kapsamı buna bağlı.
+3. **İki prototipe bakış** — `mockup-durumlar.html` (WO-018 ve WO-E2'nin
+   görünen yüzü); itiraz yoksa olduğu gibi koda geçer.
+4. **WO-017/018/019 taslaklarını Hazır'a alma** — tüzük gereği onaysız
+   uygulanmaz.
+5. **WO-015 açık soruları** (5 mi 3 mü test, Bonferroni, Welch ANOVA).
+
+### 6.3 Onay gerektirmeyen sıradaki işler (Claude, bu sırayla)
+
+1. **Galeri cilası, kalan aileler.** Piramit, huni, zaman çizelgeleri, sayı
+   kartları, matris, çok sütunlu tablo, Venn döngü/balık düzeyine gelir:
+   kalın renkli çizgi, gölgeli kart, büyük yazı. Ölçüt: ekran görüntüsüne
+   bakıp eleştirel düzeltme, öz-denetim 0 sorun. **Kullanıcı kalitede çok
+   hassas; basit kutu–ok teslim edilmez.**
+2. **Köprü iş emri taslağı** (adım 6): Yaz'da iddia seçince "son aramandan
+   ilgili olabilir" kartları; kurallar `etkilesim-ve-durumlar-plani.md` §9.
+3. **WO-E2 taslağı** (adım 7): `mockup-durumlar.html` bölüm 1–3'ün koda
+   geçişi; envanter §0.5'in açık maddeleri (arama süresi p50/p95, kaynak
+   durum alanı, Kademe 2 çağrıları) ilk faz.
+4. **WO-C taslağı** (model kademesi PR6.v2 + E5): bugünkü bulgu yüzünden
+   önemi arttı (aşağıda).
+
+### 6.4 Bulgular
+
+- **Kural kademesi gerçek paragrafların çoğunu yakalamıyor.** v2'nin üç
+  paragrafından yalnız argüman yapı verdi; süreç ve etken paragraflarında
+  sinyal var (`cycle`, `cause`) ama yapı yok. Tasarım gereği; ama kullanıcı
+  açısından ✦ çoğu yerde boş kalır. WO-019'a "elle kur" eklendi. Bu, WO-C'yi
+  WO-008'den hemen sonraya (hatta önüne) almayı tartışmaya açıyor.
+- **Arama bekleme ekranı tüzük 2.8'e aykırı** (zamanlayıcılı sahte aşamalar,
+  sabit "9 kaynak" sayısı) — `mockup-durumlar.html` bölüm 1 düzeltilmiş hali.
+
+### 6.5 Fikirler (karar bekliyor, iş emri yok)
+
+- **WO-C'yi öne almak:** WO-019 → WO-C → WO-008. Gerekçe: şekil özelliği
+  ancak model kademesiyle çoğu paragrafta çalışır; dışa aktarma bundan sonra
+  anlamlı. Risk: E5 etiketlemesi (iki kişi) WO-C'nin ön koşulu.
+- **Elle kurda "seç → öğe" etkileşimi** galeride değil yazım prototipinde
+  (`mockup-yazim-alani-v2.html`) denensin; koddan önce elle denenecek en
+  riskli etkileşim bu.
+- **Şekil üstünde kanıt rengi:** argüman haritasında kart rengi Kontrol'deki
+  kanıt sınıfından gelsin (destekliyor / kısmen / çelişiyor), "Kaynak bağlı"
+  yerine. Ürünün ayrışma noktasını (tüzük 2.3) şeklin içine taşır.
+- **Galeri → tasarım sistemi:** onaylanan şablonların renk, yazı, gölge
+  kuralları tek belgeye (`docs/design/sekil-dili.md`); WO-019 ve WO-B aynı
+  dili kullanır.
+- **PRISMA hunisini gerçek veriden:** sepet + tarama kararlarından sayılar
+  otomatik (WO-B); sayılar elle girilmez, kaynağı izlenir.
+- **Şekil erişilebilirliği:** her şekle otomatik metin karşılığı (alt
+  metin = düğümler ve bağlar listesi); Word'e `altText` olarak (WO-008).
+- **Poster / dönüştür** hâlâ ertelendi (kullanıcı kararı).
