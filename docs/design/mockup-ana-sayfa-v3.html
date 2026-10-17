@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Literatür AI — kanıta bağlı akademik yazım</title>
+<!--
+  mockup-ana-sayfa-v3.html — ANA SAYFA (vitrin) prototipi, 18.10.2026
+
+  Amaç: gören girecek. Panelin kendisi vitrinin içinde gösteriliyor
+  (sağdaki koyu ürün kartı), çünkü soyut anlatım yerine ürünü göstermek
+  dönüşümü artırır. Metin az, iddia dürüst: yapmadıklarımız da yazılı.
+
+  Kural: dış istek yok; tüm görseller CSS. Hareket azaltılabilir.
+-->
+<style>
+  :root {
+    --ink: #0b1020;
+    --ink-2: #2c3547;
+    --muted: #5d6879;
+    --line: #e6e9f0;
+    --bg: #ffffff;
+    --bg-soft: #f6f7fb;
+    --card: #ffffff;
+    --accent: #4338ca;
+    --accent-2: #7c3aed;
+    --accent-soft: #eef0ff;
+    --support: #0f766e; --support-soft: #e7f6f2;
+    --partial: #b45309; --partial-soft: #fdf3e2;
+    --none: #475569; --none-soft: #eef1f5;
+    --dark: #0b1020;
+    --radius: 18px;
+    --shadow-sm: 0 1px 2px rgba(11,16,32,.06), 0 8px 24px -18px rgba(11,16,32,.35);
+    --shadow-lg: 0 2px 6px rgba(11,16,32,.06), 0 40px 80px -40px rgba(11,16,32,.45);
+    --ease: cubic-bezier(.22,.8,.2,1);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.6 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  .wrap { width: min(1180px, 100% - 48px); margin-inline: auto; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--accent);
+    background: var(--accent-soft); border: 1px solid #dfe2ff; border-radius: 999px; padding: 5px 12px;
+  }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    border-radius: 12px; padding: 11px 18px; font: inherit; font-weight: 650; cursor: pointer;
+    transition: transform .18s var(--ease), box-shadow .22s var(--ease), background .2s, border-color .2s;
+    text-decoration: none;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+  .btn:active { transform: translateY(0); }
+  .btn--primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: transparent; color: #fff;
+    box-shadow: 0 14px 30px -14px rgba(67,56,202,.75);
+  }
+  .btn--primary:hover { box-shadow: 0 18px 38px -14px rgba(67,56,202,.85); }
+  .btn--lg { padding: 14px 24px; font-size: 16px; border-radius: 14px; }
+  .btn:focus-visible, a:focus-visible, .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* ── nav ─────────────────────────────────────────────────── */
+  header.nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255,255,255,.78); backdrop-filter: blur(14px) saturate(140%);
+    border-bottom: 1px solid transparent; transition: border-color .25s var(--ease), box-shadow .25s;
+  }
+  header.nav.stuck { border-bottom-color: var(--line); box-shadow: 0 6px 24px -22px rgba(11,16,32,.6); }
+  .nav__inner { display: flex; align-items: center; gap: 22px; padding: 14px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -.02em; font-size: 16px; }
+  .mark {
+    width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); font-size: 14px; font-weight: 800;
+    box-shadow: 0 8px 18px -10px rgba(67,56,202,.9);
+  }
+  .nav__links { display: flex; gap: 4px; margin-left: 10px; }
+  .nav__links a {
+    color: var(--ink-2); text-decoration: none; font-size: 14px; font-weight: 600;
+    padding: 7px 11px; border-radius: 9px; transition: background .16s, color .16s;
+  }
+  .nav__links a:hover { background: var(--bg-soft); color: var(--ink); }
+  .nav__cta { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  @media (max-width: 900px) { .nav__links { display: none; } }
+
+  /* ── kahraman ────────────────────────────────────────────── */
+  .hero { position: relative; padding: 64px 0 40px; }
+  .hero::before {
+    content: ""; position: absolute; inset: -120px -10% auto -10%; height: 620px; z-index: -1;
+    background:
+      radial-gradient(560px 300px at 16% 18%, rgba(99,102,241,.20), transparent 70%),
+      radial-gradient(520px 280px at 82% 8%, rgba(168,85,247,.16), transparent 70%),
+      radial-gradient(700px 320px at 50% 100%, rgba(67,56,202,.07), transparent 70%);
+    filter: blur(2px);
+  }
+  .hero__grid { display: grid; grid-template-columns: 1.02fr 1fr; gap: 44px; align-items: center; }
+  @media (max-width: 980px) { .hero__grid { grid-template-columns: 1fr; gap: 34px; } }
+
+  h1 {
+    margin: 16px 0 14px; font-size: clamp(36px, 4.6vw, 58px); line-height: 1.03;
+    letter-spacing: -.035em; font-weight: 800;
+  }
+  h1 .grad {
+    background: linear-gradient(120deg, var(--accent) 10%, var(--accent-2) 60%, #db2777 95%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sub { margin: 0 0 26px; font-size: clamp(16px, 1.5vw, 18.5px); color: var(--ink-2); max-width: 46ch; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .cta-note { font-size: 12.5px; color: var(--muted); margin-top: 12px; }
+  .hero-facts { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line); }
+  .fact { font-size: 12.5px; color: var(--muted); }
+  .fact b { display: block; font-size: 15px; color: var(--ink); letter-spacing: -.01em; }
+
+  /* ── vitrindeki ürün paneli ───────────────────────────────── */
+  .panel {
+    position: relative; border-radius: 22px; padding: 14px;
+    background: linear-gradient(180deg, #121a2e, #0b1020);
+    box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,.06) inset;
+    color: #e8ecf6; overflow: hidden;
+  }
+  .panel::after {
+    content: ""; position: absolute; inset: -40% -30% auto auto; width: 60%; height: 120%;
+    background: radial-gradient(closest-side, rgba(124,58,237,.34), transparent 70%);
+    pointer-events: none;
+  }
+  .panel__bar { display: flex; align-items: center; gap: 8px; padding: 2px 4px 12px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #2b3550; }
+  .panel__title { margin-left: 6px; font-size: 11.5px; color: #8b97b3; letter-spacing: .04em; text-transform: uppercase; font-weight: 700; }
+  .panel__body { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .doc {
+    background: #f8fafd; color: var(--ink); border-radius: 14px; padding: 14px 15px; position: relative;
+  }
+  .doc__label { font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: #7a8699; font-weight: 700; margin-bottom: 8px; }
+  .doc p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.55; }
+  .doc p:last-child { margin-bottom: 0; }
+  .hl { background: linear-gradient(180deg, transparent 58%, #e6e2ff 58%); border-radius: 3px; }
+  .ev {
+    background: #121a2e; border: 1px solid #24304c; border-radius: 12px; padding: 10px 12px;
+    display: grid; gap: 6px; opacity: 0; transform: translateY(8px);
+    transition: opacity .4s var(--ease), transform .4s var(--ease), border-color .3s;
+  }
+  .ev.on { opacity: 1; transform: none; }
+  .ev--support { border-color: #1d5c53; background: #0d2130; }
+  .ev--none { border-color: #2b3550; }
+  .ev__head { display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 700; letter-spacing: .02em; }
+  .ev__head .tag {
+    margin-left: auto; font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 999px; border: 1px solid transparent;
+  }
+  .ev--support .tag { color: #7ee0cf; background: rgba(126,224,207,.1); border-color: rgba(126,224,207,.35); }
+  .ev--none .tag { color: #9fb0cc; background: rgba(159,176,204,.1); border-color: rgba(159,176,204,.3); }
+  .ev p { margin: 0; font-size: 11.5px; line-height: 1.5; color: #b9c5dc; }
+  .caret { display: inline-block; width: 2px; height: 1em; background: var(--accent); vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0 } }
+
+  /* ── kaynak şeridi ───────────────────────────────────────── */
+  .strip { margin: 46px 0 0; padding: 18px 0; border-block: 1px solid var(--line); }
+  .strip__inner { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .strip__label { font-size: 12px; color: var(--muted); font-weight: 650; letter-spacing: .02em; }
+  .strip__items { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill-src {
+    font-size: 12.5px; color: var(--ink-2); background: var(--bg-soft); border: 1px solid var(--line);
+    border-radius: 999px; padding: 4px 11px;
+  }
+
+  /* ── bölüm başlığı ───────────────────────────────────────── */
+  section { padding: 74px 0; }
+  .sec-head { max-width: 660px; margin-bottom: 34px; }
+  .sec-head h2 { margin: 12px 0 8px; font-size: clamp(26px, 3vw, 36px); line-height: 1.12; letter-spacing: -.028em; font-weight: 780; }
+  .sec-head p { margin: 0; color: var(--ink-2); font-size: 15.5px; }
+
+  /* ── adımlar ─────────────────────────────────────────────── */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 860px) { .steps { grid-template-columns: 1fr; } }
+  .step {
+    position: relative; background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm);
+    transition: transform .22s var(--ease), box-shadow .22s var(--ease);
+  }
+  .step:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+  .step__n {
+    width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent); font-weight: 800; font-size: 14px; margin-bottom: 12px;
+  }
+  .step h3 { margin: 0 0 6px; font-size: 17px; letter-spacing: -.015em; }
+  .step p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  /* ── özellik ızgarası ────────────────────────────────────── */
+  .grid6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 980px) { .grid6 { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 640px) { .grid6 { grid-template-columns: 1fr; } }
+  .feat {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+    transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s;
+  }
+  .feat:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: #d9dcf5; }
+  .feat__icon {
+    width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; margin-bottom: 12px;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .feat h3 { margin: 0 0 5px; font-size: 15.5px; letter-spacing: -.01em; }
+  .feat p { margin: 0; font-size: 13.5px; color: var(--muted); }
+
+  /* ── kanıt sınıfları ─────────────────────────────────────── */
+  .classes { display: grid; grid-template-columns: 300px 1fr; gap: 26px; align-items: start; }
+  @media (max-width: 860px) { .classes { grid-template-columns: 1fr; } }
+  .class-list { display: grid; gap: 6px; }
+  .class-btn {
+    display: flex; align-items: center; gap: 10px; text-align: left; width: 100%;
+    border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 11px 13px;
+    font: inherit; font-size: 14px; font-weight: 650; color: var(--ink-2); cursor: pointer;
+    transition: border-color .2s, background .2s, color .2s, transform .18s var(--ease);
+  }
+  .class-btn:hover { transform: translateX(2px); }
+  .class-btn[aria-pressed="true"] { border-color: #cfd3ff; background: var(--accent-soft); color: var(--accent); }
+  .sw { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
+  .sw--support { background: var(--support); } .sw--partial { background: var(--partial); }
+  .sw--irrelevant { background: #6b7280; } .sw--contradicts { background: #b91c1c; }
+  .sw--none { background: var(--none); }
+  .class-card {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--card);
+    padding: 22px; box-shadow: var(--shadow-sm); min-height: 220px;
+  }
+  .class-card h3 { margin: 0 0 6px; font-size: 18px; letter-spacing: -.015em; }
+  .class-card .def { margin: 0 0 14px; font-size: 14px; color: var(--ink-2); }
+  .quote {
+    border-left: 3px solid var(--line); padding: 4px 0 4px 14px; font-size: 13.5px; color: var(--muted);
+    font-style: italic;
+  }
+  .class-card .verdict { margin-top: 14px; font-size: 13px; font-weight: 650; }
+  .pane { display: none; }
+  .pane.on { display: block; animation: fade .26s var(--ease); }
+  @keyframes fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+  /* ── dürüstlük ───────────────────────────────────────────── */
+  .honest { background: var(--bg-soft); border-block: 1px solid var(--line); }
+  .honest .feat { background: transparent; border-style: dashed; }
+  .honest .feat:hover { transform: none; box-shadow: none; }
+  .no { color: #b91c1c; }
+
+  /* ── son CTA ─────────────────────────────────────────────── */
+  .band {
+    position: relative; overflow: hidden; border-radius: 26px; padding: 56px 40px;
+    background: linear-gradient(135deg, #141c33, #0b1020 60%, #1a1233);
+    color: #fff; text-align: center; box-shadow: var(--shadow-lg);
+  }
+  .band::before {
+    content: ""; position: absolute; inset: auto -20% -60% -20%; height: 320px;
+    background: radial-gradient(closest-side, rgba(124,58,237,.45), transparent 70%);
+  }
+  .band h2 { position: relative; margin: 0 0 10px; font-size: clamp(26px, 3.2vw, 38px); letter-spacing: -.03em; line-height: 1.1; }
+  .band p { position: relative; margin: 0 auto 24px; color: #b9c5dc; max-width: 52ch; font-size: 15.5px; }
+  .band .cta-row { position: relative; justify-content: center; }
+
+  footer { padding: 40px 0 56px; color: var(--muted); font-size: 13px; }
+  .foot { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--line); padding-top: 22px; }
+  .foot a { color: var(--muted); text-decoration: none; }
+  .foot a:hover { color: var(--ink); }
+
+  /* ── görünür olunca yüksel ───────────────────────────────── */
+  .rise { opacity: 0; transform: translateY(14px); transition: opacity .6s var(--ease), transform .6s var(--ease); }
+  .rise.in { opacity: 1; transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    .rise { opacity: 1 !important; transform: none !important; }
+    .ev { opacity: 1 !important; transform: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="wrap nav__inner">
+    <a class="brand" href="#top" aria-label="Literatür AI ana sayfa"><span class="mark">L</span> Literatür AI</a>
+    <nav class="nav__links" aria-label="Bölümler">
+      <a href="#nasil">Nasıl çalışır</a>
+      <a href="#kanit">Kanıt sınıfları</a>
+      <a href="#ozellik">Özellikler</a>
+      <a href="#durust">Neyi yapmıyoruz</a>
+    </nav>
+    <div class="nav__cta">
+      <a class="btn" href="#giris">Giriş</a>
+      <a class="btn btn--primary" href="#giris">Ücretsiz dene</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ── kahraman ─────────────────────────────────────────── -->
+  <section class="hero" style="padding-top:56px">
+    <div class="wrap hero__grid">
+      <div>
+        <span class="eyebrow">Kanıta bağlı yazım</span>
+        <h1>Yazdığın her cümle<br /><span class="grad">bir kaynağa bağlı.</span></h1>
+        <p class="sub">
+          İddiayı yaz, pasajı gör, sınıfı oku. Kanıt yoksa cümle belgeye girmez —
+          uydurma atıf, sessiz varsayım yok.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn--primary btn--lg" href="#giris">Ücretsiz dene</a>
+          <a class="btn btn--lg" href="#nasil">Nasıl çalışır?</a>
+        </div>
+        <p class="cta-note">Beta · kredi kartı yok · Türkçe ve İngilizce kaynaklar</p>
+
+        <div class="hero-facts">
+          <div class="fact"><b>5</b>kanıt sınıfı, ayrı tutulur</div>
+          <div class="fact"><b>10</b>açık dizin, tek sorgu</div>
+          <div class="fact"><b>0</b>kaynaksız cümle</div>
+        </div>
+      </div>
+
+      <div class="panel" aria-label="Ürün önizlemesi">
+        <div class="panel__bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="panel__title">Kanıt defteri</span>
+        </div>
+        <div class="panel__body">
+          <div class="doc">
+            <div class="doc__label">Belge</div>
+            <p><span class="hl" id="hl-claim">Nükleer reaktör kazalarında insan hatası belirleyicidir.</span><span class="caret" id="caret"></span></p>
+            <p style="color:#7a8699">Bakım prosedürleri tüm reaktör tiplerinde riski azaltır.</p>
+          </div>
+          <article class="ev ev--support" id="ev1">
+            <div class="ev__head">Kaynak pasajı <span class="tag">destekliyor</span></div>
+            <p>“İnsan hatası, kaydedilen olayların %60’ında birincil etkendir.” — Europe PMC, 2021</p>
+          </article>
+          <article class="ev ev--none" id="ev2">
+            <div class="ev__head">İkinci cümle <span class="tag">kanıt yok</span></div>
+            <p>Uygun pasaj bulunamadı. Cümle belgeye eklenemez; sistem bunu söyler ve durur.</p>
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="strip">
+        <div class="strip__inner">
+          <span class="strip__label">Taranan kaynaklar</span>
+          <div class="strip__items">
+            <span class="pill-src">OpenAlex</span><span class="pill-src">Crossref</span>
+            <span class="pill-src">Europe PMC</span><span class="pill-src">PubMed</span>
+            <span class="pill-src">Semantic Scholar</span><span class="pill-src">DOAJ</span>
+            <span class="pill-src">arXiv</span><span class="pill-src">OpenAIRE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── nasıl çalışır ────────────────────────────────────── -->
+  <section id="nasil">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <span class="eyebrow">Nasıl çalışır</span>
+        <h2>Üç adım, tek kural: kaynaksız cümle yok.</h2>
+        <p>Her adımda ne olduğunu görürsün. Model pasajı yeniden yazamaz; atıf dizgesi doğrulanmış kayıttan kurulur.</p>
+      </div>
+      <div class="steps">
+        <article class="step rise">
+          <div class="step__n">1</div>
+          <h3>Ara</h3>
+          <p>Tek sorgu, on açık dizin. Sonuçlar tekilleştirilir; hangi kaynağın döndüğü görünür.</p>
+        </article>
+        <article class="step rise">
+          <div class="step__n">2</div>
+          <h3>Doğrula</h3>
+          <p>Pasaj kaynaktan birebir alınır. İddiayı destekliyor mu, kısmen mi, çelişiyor mu — sınıfı yazılır.</p>
+        </article>
+        <article class="step rise">
+          <div class="step__n">3</div>
+          <h3>Yaz</h3>
+          <p>Cümle sağ panelde durur. Belgeye ancak sen tıkladığında girer; denetim izi birlikte kaydedilir.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── özellikler ───────────────────────────────────────── -->
+  <section id="ozellik" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <span class="eyebrow">Özellikler</span>
+        <h2>Metin üretmez. Kanıt gösterir.</h2>
+        <p>Aradaki fark, çıktının savunulabilir olması.</p>
+      </div>
+      <div class="grid6">
+        <article class="feat rise">
+          <div class="feat__icon" aria-hidden="true">✓</div>
+          <h3>Birebir pasaj</h3>
+          <p>Gösterilen alıntı kaynaktan alınır, üretilmez. Model yalnız pasajı görür; atıf metadata’sı prompta girmez.</p>
+        </article>
+        <article class="feat rise">
+          <div class="feat__icon" aria-hidden="true">◱</div>
+          <h3>Kanıt defteri</h3>
+          <p>Hangi cümle, hangi kaynaktan, hangi pasajla, ne zaman girdi. Dışa aktarılabilir.</p>
+        </article>
+        <article class="feat rise">
+          <div class="feat__icon" aria-hidden="true">⌘</div>
+          <h3>Künye doğrulama</h3>
+          <p>Kaynakça satırını yapıştır: DOI, yıl, yazar farkı raporlanır. Uydurma künye “bulundu” sayılmaz.</p>
+        </article>
+        <article class="feat rise">
+          <div class="feat__icon" aria-hidden="true">⇄</div>
+          <h3>Geri çekme kontrolü</h3>
+          <p>Geri çekilmiş makale işaretlenir ve sıralamada düşer. Bu bilgi önbelleğe alınmaz.</p>
+        </article>
+        <article class="feat rise">
+          <div class="feat__icon" aria-hidden="true">文</div>
+          <h3>Türkçe korpus</h3>
+          <p>DergiPark, TR Dizin ve YÖK Tez gece toplanır, yerelde aranır. Türkçe iddia, İngilizce pasaj eşleşir.</p>
+        </article>
+        <article class="feat rise">
+          <div class="feat__icon" aria-hidden="true">↧</div>
+          <h3>Word, PDF, BibTeX</h3>
+          <p>Belge ve şekiller dışa aktarılır; yazı tipi gömülür, dış istek yok. Kaynakça biçimi tek kaynaktan gelir.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── kanıt sınıfları ──────────────────────────────────── -->
+  <section id="kanit" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <span class="eyebrow">Kanıt sınıfları</span>
+        <h2>Beş ayrı cevap. Birbirinin yerine geçmez.</h2>
+        <p>“Kaynak bulunamadı”, “kanıt bulunamadı” ve “kaynak çelişiyor” aynı şey değildir. Ürün bunları karıştırmaz.</p>
+      </div>
+
+      <div class="classes">
+        <div class="class-list" role="group" aria-label="Kanıt sınıfları">
+          <button class="class-btn" type="button" data-c="support" aria-pressed="true"><span class="sw sw--support"></span> destekliyor</button>
+          <button class="class-btn" type="button" data-c="partial" aria-pressed="false"><span class="sw sw--partial"></span> kısmen</button>
+          <button class="class-btn" type="button" data-c="irrelevant" aria-pressed="false"><span class="sw sw--irrelevant"></span> ilgisiz</button>
+          <button class="class-btn" type="button" data-c="contradicts" aria-pressed="false"><span class="sw sw--contradicts"></span> çelişiyor</button>
+          <button class="class-btn" type="button" data-c="none" aria-pressed="false"><span class="sw sw--none"></span> kanıt yok</button>
+        </div>
+
+        <div class="class-card">
+          <div class="pane on" id="c-support">
+            <h3>destekliyor</h3>
+            <p class="def">Pasaj iddiayı doğrudan söylüyor; iddiadaki her bilgi pasajda var.</p>
+            <p class="quote">“İnsan hatası, kaydedilen olayların %60’ında birincil etkendir.”</p>
+            <p class="verdict" style="color:var(--support)">Cümle eklenebilir.</p>
+          </div>
+          <div class="pane" id="c-partial">
+            <h3>kısmen</h3>
+            <p class="def">Pasaj iddianın bir kısmını destekliyor; kapsam, kesinlik ya da ayrıntı farklı.</p>
+            <p class="quote">“Tek santralde yapılan incelemede insan hatası öne çıktı.”</p>
+            <p class="verdict" style="color:var(--partial)">Kapsam farkı yazılır; kullanıcıya söylenir.</p>
+          </div>
+          <div class="pane" id="c-irrelevant">
+            <h3>ilgisiz</h3>
+            <p class="def">Pasaj konuyla ilgili ama iddia hakkında bir şey söylemiyor.</p>
+            <p class="quote">“Reaktör tipleri üç ana sınıfa ayrılır.”</p>
+            <p class="verdict" style="color:#6b7280">Konu benzerliği destek sayılmaz.</p>
+          </div>
+          <div class="pane" id="c-contradicts">
+            <h3>çelişiyor</h3>
+            <p class="def">Pasaj iddianın tersini söylüyor.</p>
+            <p class="quote">“İnsan hatası, kaydedilen olayların %12’sinde etkendir; baskın neden ekipmandır.”</p>
+            <p class="verdict" style="color:#b91c1c">En pahalı hata: çelişkiyi kaçırmak. İşaretlenir.</p>
+          </div>
+          <div class="pane" id="c-none">
+            <h3>kanıt yok</h3>
+            <p class="def">Arama yapıldı, uygun pasaj bulunamadı.</p>
+            <p class="quote">Taranan kaynaklar, zaman aralığı ve arama kapsamı yazılır.</p>
+            <p class="verdict" style="color:var(--none)">“Bu konuda çalışma yok” denmez; kapsam söylenir.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── neyi yapmıyoruz ──────────────────────────────────── -->
+  <section id="durust" class="honest">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <span class="eyebrow">Sınırlar</span>
+        <h2>Neyi <span class="no">yapmıyoruz</span> — ve neden.</h2>
+        <p>Bir ürünün güvenilirliği, yapmadıklarını söylemesiyle başlar.</p>
+      </div>
+      <div class="grid6">
+        <article class="feat rise">
+          <h3>Yazarın yerine yazmayız</h3>
+          <p>Serbest paragraf üretimi yok. Üretim yalnız getirilmiş bir pasajdan, tek cümle olarak.</p>
+        </article>
+        <article class="feat rise">
+          <h3>“AI detektörü” yok</h3>
+          <p>Kalibre olmayan bir puanı olasılık gibi sunmak, yanlış pozitifle öğrenciye zarar verir.</p>
+        </article>
+        <article class="feat rise">
+          <h3>Uydurma sayı yok</h3>
+          <p>“40M makale”, “%98 doğruluk” gibi ölçülmemiş iddialar arayüzde yer almaz.</p>
+        </article>
+        <article class="feat rise">
+          <h3>Otomatik ekleme yok</h3>
+          <p>Hiçbir cümle, diyagram ya da analiz belgeye kendiliğinden girmez.</p>
+        </article>
+        <article class="feat rise">
+          <h3>Tam metin okumuş gibi yapmayız</h3>
+          <p>Pasaj bugün özet düzeyinde. Kapsam arayüzde yazılı; sonraki adım tam metin.</p>
+        </article>
+        <article class="feat rise">
+          <h3>Sessiz kaynak düşmesi yok</h3>
+          <p>Bir kaynak yanıt vermezse sonuç ekranında görünür; sessizce kaybolmaz.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── son çağrı ────────────────────────────────────────── -->
+  <section id="giris" style="padding-top:0">
+    <div class="wrap">
+      <div class="band rise">
+        <h2>İlk cümlen için bir kaynak yeter.</h2>
+        <p>Beta açık. Alan, sorgula, pasajı gör. Kayıt olmadan deneyebilirsin.</p>
+        <div class="cta-row">
+          <a class="btn btn--primary btn--lg" href="#top">Ücretsiz dene</a>
+          <a class="btn btn--lg" href="#nasil" style="background:transparent;border-color:rgba(255,255,255,.24);color:#fff">Nasıl çalışır?</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>© 2026 Literatür AI · kanıta bağlı yazım yardımcısı</span>
+    <span style="display:flex;gap:16px">
+      <a href="#kanit">Kanıt sınıfları</a><a href="#durust">Sınırlar</a><a href="#giris">Giriş</a>
+    </span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* yapışkan nav gölgesi */
+  const nav = document.getElementById('nav');
+  const onScroll = () => nav.classList.toggle('stuck', window.scrollY > 8);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  /* görünür olunca yüksel */
+  const rises = Array.from(document.querySelectorAll('.rise'));
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.14 });
+    rises.forEach((el, i) => { el.style.transitionDelay = Math.min(i % 6, 5) * 45 + 'ms'; io.observe(el); });
+  } else {
+    rises.forEach((el) => el.classList.add('in'));
+  }
+
+  /* panel vitrini: iki kanıt kartı sırayla belirir */
+  const ev1 = document.getElementById('ev1');
+  const ev2 = document.getElementById('ev2');
+  if (reduced) { ev1.classList.add('on'); ev2.classList.add('on'); }
+  else {
+    const t1 = setTimeout(() => ev1.classList.add('on'), 500);
+    const t2 = setTimeout(() => ev2.classList.add('on'), 1300);
+    window.addEventListener('beforeunload', () => { clearTimeout(t1); clearTimeout(t2); });
+  }
+
+  /* kanıt sınıfı sekmeleri */
+  const btns = Array.from(document.querySelectorAll('.class-btn'));
+  const panes = Array.from(document.querySelectorAll('.class-card .pane'));
+  const select = (btn) => {
+    btns.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+    const id = 'c-' + btn.dataset.c;
+    panes.forEach((p) => p.classList.toggle('on', p.id === id));
+  };
+  btns.forEach((btn) => {
+    btn.addEventListener('click', () => select(btn));
+    btn.addEventListener('keydown', (event) => {
+      const i = btns.indexOf(btn);
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      event.preventDefault();
+      const next = btns[(i + (event.key === 'ArrowDown' ? 1 : btns.length - 1)) % btns.length];
+      next.focus();
+      select(next);
+    });
+  });
+})();
+</script>
+</body>
+</html>
