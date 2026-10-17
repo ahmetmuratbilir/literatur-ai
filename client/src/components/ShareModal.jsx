@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { X, Share2, CheckCircle2, Copy, Linkedin, Mail } from 'lucide-react';
 import { useI18n } from '../i18n/context.js';
+import { useLayer } from './ui/useLayer.js';
 
 // ESLint yapılandırmasında eslint-plugin-react yok; JSX içindeki motion.div
 // "kullanım" sayılmıyor. Büyük harfli takma ad bu yanlış pozitifi kaldırıyor.
@@ -20,10 +21,9 @@ export default function ShareModal({ show, onClose, shareUrl, copied, onCopy }) 
   useEffect(() => {
     if (!show) return undefined;
     inputRef.current?.select();
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [show, onClose]);
+    return undefined;
+  }, [show]);
+  useLayer(show, onClose);
 
   if (!show) return null;
 
@@ -35,7 +35,7 @@ export default function ShareModal({ show, onClose, shareUrl, copied, onCopy }) 
   ];
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'grid', placeItems: 'center', padding: '16px' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 'var(--z-modal)', display: 'grid', placeItems: 'center', padding: '16px' }}>
       <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={onClose}
         style={{ position: 'absolute', inset: 0, background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(4px)' }} />
       <MotionDiv

@@ -193,7 +193,7 @@ const HistorySidebar = ({
     <>
       <AnimatePresence>
         {isMobile && isOpen && (
-          <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', zIndex: raised ? 114 : 85 }} />
+          <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', zIndex: raised ? 'calc(var(--z-surface-over) - 1)' : 'calc(var(--z-rail) - 1)' }} />
         )}
       </AnimatePresence>
 
@@ -202,7 +202,7 @@ const HistorySidebar = ({
         animate={{ width: isOpen ? '280px' : (isMobile ? '0px' : '72px'), x: (isMobile && !isOpen) ? -280 : 0 }}
         transition={{ type: 'spring', stiffness: 400, damping: 40 }}
         aria-label={t('sidebar.label')}
-        style={{ position: 'fixed', left: 0, top: 0, bottom: 0, background: '#0f172a', color: '#f8fafc', zIndex: raised ? 115 : 90, overflow: 'visible', display: 'flex', flexDirection: 'column', boxShadow: isOpen ? '10px 0 30px -10px rgba(0,0,0,0.5)' : 'none', willChange: 'width', borderRight: '1px solid rgba(255,255,255,0.05)', paddingTop: 'env(safe-area-inset-top)' }}
+        style={{ position: 'fixed', left: 0, top: 0, bottom: 0, background: '#0f172a', color: '#f8fafc', zIndex: raised ? 'var(--z-surface-over)' : 'var(--z-rail)', overflow: 'visible', display: 'flex', flexDirection: 'column', boxShadow: isOpen ? '10px 0 30px -10px rgba(0,0,0,0.5)' : 'none', willChange: 'width', borderRight: '1px solid rgba(255,255,255,0.05)', paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Başlık */}
         <div style={{ height: '64px', padding: isOpen ? '0 20px' : '0', display: 'flex', alignItems: 'center', justifyContent: isOpen ? 'flex-start' : 'center', gap: '12px' }}>

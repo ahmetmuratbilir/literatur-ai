@@ -44,7 +44,7 @@
 .lp-nav {
   position: sticky;
   top: env(safe-area-inset-top, 0px);
-  z-index: 30;
+  z-index: var(--z-sticky);
   /* 1fr auto 1fr: iki yan sütun eşit, ortadaki menü sayfanın tam merkezine oturur.
      flex + margin auto menüyü logo ile butonların arasına ortalıyordu; sağ grup
      daha geniş olduğu için menü, altındaki ortalanmış başlıktan sola kayıyordu. */

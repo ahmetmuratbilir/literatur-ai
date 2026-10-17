@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { AlertTriangle, Check, X } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import { countBySeverity, packageStatus } from '../../audit/audit.js';
 import { MARGIN_PRESETS, PAGE_SIZES } from './pageSetup.js';
 import CheckPanel from './CheckPanel.jsx';
+import { useLayer } from '../ui/useLayer.js';
 
 const STEPS = ['check', 'preview', 'export'];
 const FORMATS = ['docx', 'print', 'bibtex', 'ris'];
@@ -30,11 +31,7 @@ export default function SubmitPrep({
   const counts = countBySeverity(items);
   const errors = counts.critical;
 
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  useLayer(true, onClose);
 
   const goTo = (next) => {
     setStep(next);

@@ -3,9 +3,21 @@ export default {
   common: {
     close: 'Kapat',
     cancel: 'Vazgeç',
+    ok: 'Tamam',
     retry: 'Tekrar dene',
     loading: 'Yükleniyor…',
     language: 'Dil',
+  },
+  dialog: {
+    renameTitle: 'Taslağı yeniden adlandır',
+    save: 'Kaydet',
+    removeTitle: 'Boş bölümler kaldırılsın mı?',
+    remove: 'Kaldır',
+    templateTitle: 'Metin şablonla değiştirilsin mi?',
+    replace: 'Değiştir',
+    bibTitle: 'Kaynakça bölümü değiştirilsin mi?',
+    irreversible: 'Bu işlem şimdilik geri alınamaz (sürüm geçmişi henüz yok).',
+    shareFailed: 'Paylaşım bağlantısı oluşturulamadı',
   },
   dev: {
     title: 'Geliştirme modu — kimlik doğrulama kapalı.',

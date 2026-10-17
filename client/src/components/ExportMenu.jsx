@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Download } from 'lucide-react';
 import { useI18n } from '../i18n/context.js';
+import { useLayer } from './ui/useLayer.js';
 
 /**
  * PDF / CSV / DOCX / BibTeX / RIS tek bir menüde. Önceki ayrı düğmeler mobilde
@@ -14,11 +15,11 @@ const ExportMenu = ({ onPdf, onCsv, onDocx, onBibtex, onRis }) => {
   useEffect(() => {
     if (!open) return undefined;
     const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+    return () => { document.removeEventListener('mousedown', onDoc); };
   }, [open]);
+  // Esc katman yığınında (WO-018): yalnız en üstteki kapanır.
+  useLayer(open, () => setOpen(false));
 
   const pick = (fn) => { setOpen(false); fn(); };
 

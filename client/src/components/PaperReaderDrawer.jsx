@@ -56,7 +56,7 @@ export default function PaperReaderDrawer({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 9998,
+        zIndex: 'var(--z-drawer)',
         background: 'rgba(9, 13, 22, 0.6)',
         backdropFilter: 'blur(6px)',
         display: 'flex',

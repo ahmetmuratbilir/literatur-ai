@@ -3,9 +3,21 @@ export default {
   common: {
     close: 'Close',
     cancel: 'Cancel',
+    ok: 'OK',
     retry: 'Try again',
     loading: 'Loading…',
     language: 'Language',
+  },
+  dialog: {
+    renameTitle: 'Rename draft',
+    save: 'Save',
+    removeTitle: 'Remove empty sections?',
+    remove: 'Remove',
+    templateTitle: 'Replace the text with the template?',
+    replace: 'Replace',
+    bibTitle: 'Replace the reference section?',
+    irreversible: 'This cannot be undone yet (version history is not available).',
+    shareFailed: 'Could not create a share link',
   },
   dev: {
     title: 'Development mode — authentication is off.',

@@ -75,7 +75,7 @@ test('kabul yolculuğu: araştırmadan teslime', async ({ page }) => {
     await shot('4-yaz-kayit');
   });
 
-  await test.step('5 · Çalışmalarım: çoğalt, yeniden adlandır, sil + geri al', async () => {
+  await test.step('5 · Çalışmalarım: çoğalt, yeniden adlandır (ürünün penceresi), sil + geri al', async () => {
     await page.locator('.wx-exit').click();
     await expect(page.locator('#topic-input')).toBeVisible();
     if (!(await page.getByTestId('sidebar-works').isVisible())) {
@@ -85,10 +85,11 @@ test('kabul yolculuğu: araştırmadan teslime', async ({ page }) => {
     await expect(drafts).toHaveCount(1);
     await page.locator('[data-action="draft-duplicate"]').first().click();
     await expect(drafts).toHaveCount(2);
-    page.once('dialog', (d) => d.accept('Kabul — yeniden adlandırıldı'));
     await page.locator('[data-action="draft-rename"]').first().click();
+    await expect(page.locator('[data-action="dialog-input"]')).toBeFocused();
+    await page.locator('[data-action="dialog-input"]').fill('Kabul — yeniden adlandırıldı');
+    await page.locator('[data-action="dialog-confirm"]').click();
     await expect(page.getByTestId('sidebar-works')).toContainText('Kabul — yeniden adlandırıldı');
-    page.once('dialog', (d) => d.accept());
     await page.locator('[data-action="draft-delete"]').first().click();
     await expect(drafts).toHaveCount(1);
     await page.locator('[data-action="toast-action"]').click();

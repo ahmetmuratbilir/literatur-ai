@@ -29,6 +29,8 @@ import { AuthedOnly, AnonOnly, useAppAuth, useAppUser } from './auth/clerkBridge
 import { useAdmin } from './hooks/useAdmin';
 import AdminPanel from './components/AdminPanel.jsx';
 import { useI18n } from './i18n/context.js';
+import { useDialogs } from './components/ui/dialogContext.js';
+import { useLayer } from './components/ui/useLayer.js';
 
 const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -151,6 +153,7 @@ const RESULT_LIMIT = 100;
 
 function App() {
   const { t, lang } = useI18n();
+  const { askText } = useDialogs();
   const [mainTopic, setMainTopic] = useState('');
   // Yazar araması arayüzden kaldırıldı (5 Eki 2026); sunucu parametresi boş gider.
   // Geçmişten açılan eski bir aramanın yazarı da geri yüklenmez: görünmeyen bir filtre olurdu.
@@ -225,7 +228,7 @@ function App() {
   }, []);
   // AI önerileri gelince sayfa onlara kaysın; kullanıcı birini seçecek.
   const aiPanelRef = useRef(null);
-  const { shareLoading, shareUrl, showShareModal, setShowShareModal, copied, handleShare, copyToClipboard } = useShare({ getToken });
+  const { shareLoading, shareUrl, showShareModal, setShowShareModal, copied, handleShare, copyToClipboard } = useShare({ getToken, onError: (msg) => pushToast({ tone: 'warn', title: t('dialog.shareFailed'), text: msg }) });
   const { exportPDF, exportExcel, exportDocx, exportBibTeX, exportRIS } = useExport();
   const [resultFilter, setResultFilter] = useState('all');
   const [selectedYear, setSelectedYear] = useState(null);
@@ -275,18 +278,15 @@ function App() {
         if (AI_WRITER_PANEL_ENABLED) setShowWriterPanel(prev => !prev);
       }
 
-      // Esc -> Modalları / Çekmeceleri kapat
-      if (e.key === 'Escape') {
-        setActiveReaderPaper(null);
-        setShowShareModal(false);
-        // Yazı yazarken (istek kutusu vb.) ESC paneli kapatmasın: istek ve metin kaybolur.
-        if (!isInput) setShowWriterPanel(false);
-      }
+      // Esc artık katman yığınında (WO-018): okuyucu, paylaşım ve yazar paneli
+      // kendi katmanlarını kaydeder; yalnız en üstteki kapanır.
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setShowShareModal]);
+  }, []);
+  useLayer(Boolean(activeReaderPaper), () => setActiveReaderPaper(null));
+  useLayer(AI_WRITER_PANEL_ENABLED && showWriterPanel, () => setShowWriterPanel(false));
 
   // Arama kutusuna odaklanma (Ctrl+K, "/"). Yazar modunda kısayol çalışmaz:
   // belgede yazarken arama kutusuna atlamak yazılanı bölerdi.
@@ -655,9 +655,9 @@ function App() {
     });
   }, [drafts, pushToast, t]);
 
-  const renameDraft = (id) => {
+  const renameDraft = async (id) => {
     const current = drafts.items.find((d) => d.id === id);
-    const next = window.prompt(t('sidebar.renamePrompt'), current?.title || '');
+    const next = await askText({ title: t('dialog.renameTitle'), label: t('sidebar.renamePrompt'), initial: current?.title || '', confirmLabel: t('dialog.save') });
     if (next === null) return;
     workspaceApi.current?.flush?.();
     if (!drafts.rename(id, next)) pushToast({ tone: 'warn', title: t('workspace.saveNone') });
@@ -670,11 +670,14 @@ function App() {
     if (!drafts.duplicate(id, lang === 'tr' ? ' (kopya)' : ' (copy)')) pushToast({ tone: 'warn', title: t('workspace.saveNone') });
   };
 
-  /** Silme onaylı; ardından bildirimde "Geri al" ile aynı yerine döner. */
+  /**
+   * Silme onay sormaz (WO-018, planın §6): geri alınabildiği için bildirimdeki
+   * "Geri al" taslağı aynı yerine döndürür. Onay kutusu yalnız geri alınamayan
+   * eylemde.
+   */
   const deleteDraft = (id) => {
     const current = drafts.items.find((d) => d.id === id);
     const name = current?.title || t('workspace.untitled');
-    if (!window.confirm(t('sidebar.deleteConfirm', { name }))) return;
     const snapshot = drafts.remove(id);
     if (!snapshot) return;
     pushToast({
@@ -682,7 +685,7 @@ function App() {
       title: t('sidebar.deleted'),
       text: name,
       action: { label: t('sidebar.undo'), onClick: () => drafts.restore(snapshot) },
-      duration: 10000,
+      duration: 8000,
     });
   };
 
@@ -1196,7 +1199,7 @@ function App() {
             aria-label={t('shell.systemStatus')}
             onClick={(e) => { if (e.target === e.currentTarget) setShowAdmin(false); }}
             style={{
-              position: 'fixed', inset: 0, zIndex: 100,
+              position: 'fixed', inset: 0, zIndex: 'var(--z-modal)',
               background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(3px)',
               overflowY: 'auto', padding: '24px 16px',
             }}

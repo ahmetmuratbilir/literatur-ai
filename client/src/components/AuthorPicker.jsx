@@ -120,7 +120,8 @@ export default function AuthorPicker({ apiUrl, getToken, value, onChange, disabl
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => (i + 1) % candidates.length); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => (i <= 0 ? candidates.length - 1 : i - 1)); }
     else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); pick(candidates[active]); }
-    else if (e.key === 'Escape') { setOpen(false); }
+    // Esc'yi liste karşıladı: katman yığını (WO-018) bu tuşa dokunmasın.
+    else if (e.key === 'Escape') { e.preventDefault(); setOpen(false); }
   };
 
   // Seçilmiş yazar: kimlik kartı gibi, ✕ ile kaldırılır.

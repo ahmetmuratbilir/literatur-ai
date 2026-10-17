@@ -1,17 +1,24 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, AlertTriangle, X } from 'lucide-react';
 import { useI18n } from '../i18n/context.js';
 
 const MotionDiv = motion.div;
 
-/** Tek bildirim; süresi dolunca kendini kapatır. */
+/**
+ * Tek bildirim; süresi dolunca kendini kapatır. Üzerine gelince ya da
+ * klavyeyle içine girilince süre durur (WO-018): "Geri al"a yetişilsin.
+ */
 const Toast = ({ toast, onDismiss }) => {
   const { t } = useI18n();
+  const [paused, setPaused] = useState(false);
+  const left = useRef(toast.duration || 6000);
   useEffect(() => {
-    const timer = setTimeout(() => onDismiss(toast.id), toast.duration || 6000);
-    return () => clearTimeout(timer);
-  }, [toast.id, toast.duration, onDismiss]);
+    if (paused) return undefined;
+    const started = Date.now();
+    const timer = setTimeout(() => onDismiss(toast.id), left.current);
+    return () => { clearTimeout(timer); left.current -= Date.now() - started; };
+  }, [paused, toast.id, onDismiss]);
 
   const warn = toast.tone === 'warn';
   const Icon = warn ? AlertTriangle : CheckCircle2;
@@ -21,8 +28,12 @@ const Toast = ({ toast, onDismiss }) => {
       initial={{ opacity: 0, x: 24 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 24 }}
-      role="status"
+      role={warn ? 'alert' : 'status'}
       className={`ui-toast ui-toast--${warn ? 'warn' : 'success'}`}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setPaused(false); }}
     >
       <Icon size={17} aria-hidden="true" />
       <div className="ui-toast__body">

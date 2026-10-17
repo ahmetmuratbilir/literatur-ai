@@ -1,4 +1,18 @@
 ﻿:root {
+  /* Katman ölçeği (WO-018, etkileşim planı §1.1): genel katmanlar yalnız
+     bu değişkenlerle yazılır. Bileşenin kendi içindeki küçük sıralama
+     (0–20, kendi yığın bağlamında) sayı kalabilir. Bildirim pencerenin de
+     üstünde: pencere açıkken "Geri al" görünmeli. */
+  --z-sticky: 40;        /* üst çubuk, seçim çubuğu */
+  --z-rail: 90;          /* kenar rayı */
+  --z-surface: 110;      /* yazım yüzeyi (rayın sağında) */
+  --z-surface-over: 115; /* yüzeyin üstüne açılan kenar çubuğu, biçim seçici */
+  --z-popover: 130;      /* açılır menü, öneri listesi */
+  --z-drawer: 140;       /* makale okuyucu, eski yazar paneli */
+  --z-modal: 150;        /* pencere: onay, paylaşım, yöntem, sistem durumu */
+  --z-toast: 160;        /* bildirim, "Geri al" */
+  --z-fly: 170;          /* sepete uçan kart animasyonu */
+
   /* Brand */
   --brand-primary: #4f46e5;
   --brand-primary-hover: #4338ca;

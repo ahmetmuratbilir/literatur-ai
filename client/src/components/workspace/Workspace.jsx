@@ -19,6 +19,8 @@ import FormatPicker from './FormatPicker.jsx';
 import CheckPanel from './CheckPanel.jsx';
 import OutlineNav from './OutlineNav.jsx';
 import SubmitPrep from './SubmitPrep.jsx';
+import { useLayer } from '../ui/useLayer.js';
+import { useDialogs } from '../ui/dialogContext.js';
 import { captionOf, citedDois, marginItems, runAudit } from '../../audit/audit.js';
 import { downloadText, toBibTeX, toRIS } from '../../utils/citationExport.js';
 import {
@@ -222,14 +224,12 @@ function Popover({ open, onClose, label, wide = false, children }) {
       const anchor = ref.current?.parentElement;
       if (anchor && !anchor.contains(e.target)) onClose();
     };
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
     };
   }, [open, onClose]);
+  useLayer(open, onClose);
   if (!open) return null;
   return (
     <div ref={ref} className={`wx-pop${wide ? ' wx-pop--wide' : ''}`} role="dialog" aria-label={label}>
@@ -253,6 +253,7 @@ export default function Workspace({
   draftId = null, onSaved = null, initialData = null, onConflict = null, panelRequest = null,
 }) {
   const { t, lang } = useI18n();
+  const { askConfirm } = useDialogs();
   // Taslak değişince bileşen yeniden kurulur (App `key={draftId}`); okuma bir kez.
   // Bellekteki taslak yalnız ilk açılışta okunur: depolama sonradan açılıp
   // taslak listeye geçince belge yeniden yüklenmesin (imleç kaybolmasın).
@@ -889,7 +890,7 @@ export default function Workspace({
    * sırasındaki yerlerine eklenir; boş ve yeni biçimde olmayan bölümler ancak
    * kullanıcı onaylarsa kaldırılır. Sayfa ayarları ve atıf stili de değişir.
    */
-  const applyFormat = ({ formatId, templateId, bibFormat: nextStyle, setup: nextSetup }) => {
+  const applyFormat = async ({ formatId, templateId, bibFormat: nextStyle, setup: nextSetup }) => {
     const el = pageRef.current;
     const template = TEMPLATES.find((x) => x.id === templateId);
     setFmtOpen(false);
@@ -910,9 +911,23 @@ export default function Workspace({
       if (nodes[0]) nodeByKey.set(section.key, nodes[0]);
     }
 
+    // Biçim önce uygulanır; boş bölümleri kaldırmak ayrıca sorulur (geri alınamaz,
+    // WO-018: ürünün penceresi, varsayılan düğme Vazgeç).
+    setSetup((s) => ({ ...s, ...nextSetup }));
+    setBibFormat(nextStyle);
+    setFormat(formatId);
+    onInput();
+
     if (plan.removable.length) {
       const names = plan.removable.map((h) => h.text).join(', ');
-      if (window.confirm(t('workspace.format.removeAsk', { n: plan.removable.length, names }))) {
+      const ok = await askConfirm({
+        title: t('dialog.removeTitle'),
+        body: `${t('workspace.format.removeAsk', { n: plan.removable.length, names })} ${t('dialog.irreversible')}`,
+        list: plan.removable.map((h) => h.text),
+        confirmLabel: t('dialog.remove'),
+        danger: true,
+      });
+      if (ok) {
         // Plan, kendi içeriği boş ve alt bölümü olmayan bölümleri seçti; yine de
         // kaldırmadan hemen önce yeniden bakılır (arada metin yazılmış olabilir).
         for (const h of plan.removable) {
@@ -926,21 +941,18 @@ export default function Workspace({
           run.forEach((n) => n.remove());
           heading.remove();
         }
+        onInput();
       }
     }
-
-    setSetup((s) => ({ ...s, ...nextSetup }));
-    setBibFormat(nextStyle);
-    setFormat(formatId);
-    onInput();
   };
 
   /** Şablon belgeyi değiştirir; metin varsa önce sorar (§8, CLAUDE.md 2.9). */
-  const applyTemplate = (id) => {
+  const applyTemplate = async (id) => {
     const el = pageRef.current;
     const template = TEMPLATES.find((x) => x.id === id);
     if (!el || !template) return;
-    if (el.textContent.trim() && !window.confirm(t('workspace.templateReplace'))) return;
+    if (el.textContent.trim() && !(await askConfirm({ title: t('dialog.templateTitle'), body: `${t('workspace.templateReplace')} ${t('dialog.irreversible')}`, confirmLabel: t('dialog.replace'), danger: true }))) return;
+    if (!el.isConnected) return;
     if (template.setup) setSetup((s) => ({ ...s, ...template.setup }));
     el.innerHTML = templateHtml(template, t);
     lastRangeRef.current = null;
@@ -1172,7 +1184,7 @@ export default function Workspace({
    * Kaynakça başlığı varsa altındaki bölüm değiştirilir; elle yazılmış
    * paragraf varsa önce sorulur. Başlık yoksa belgenin sonuna eklenir.
    */
-  const writeBibliography = () => {
+  const writeBibliography = async () => {
     const el = pageRef.current;
     const texts = bib.entries.map((e) => e.text || fallbackReference(e.key)).filter(Boolean);
     if (!el || !texts.length) return;
@@ -1190,7 +1202,8 @@ export default function Workspace({
     }
     const known = new Set(lastBibRef.current);
     const foreign = section.filter((b) => b.textContent.trim() && !known.has(b.textContent.trim()));
-    if (foreign.length && !window.confirm(t('workspace.bib.replaceConfirm', { n: foreign.length }))) return;
+    if (foreign.length && !(await askConfirm({ title: t('dialog.bibTitle'), body: t('workspace.bib.replaceConfirm', { n: foreign.length }), confirmLabel: t('dialog.replace'), danger: true }))) return;
+    if (!heading.isConnected) return;
 
     section.forEach((b) => b.remove());
     let after = heading;

@@ -114,7 +114,7 @@ test('iki taslak: ayrı içerik, aralarında geçiş, yeniden yüklemede açık 
   expect(index.items.map((d) => d.title).sort()).toEqual(['Makale A', 'Tez B']);
 });
 
-test('taslak silme onay ister ve "Geri al" taslağı geri getirir', async ({ page }) => {
+test('taslak silme onay sormaz; "Geri al" taslağı geri getirir (WO-018)', async ({ page }) => {
   await seedDraft(page, '<h1>Giriş</h1><p>Silinecek metin.</p>', 'Silinecek taslak');
   await mockApi(page);
   await page.goto('/');
@@ -122,14 +122,13 @@ test('taslak silme onay ister ve "Geri al" taslağı geri getirir', async ({ pag
   await expect(page.locator('[data-draft-id]')).toHaveCount(1);
   await expect(page.getByTestId('drafts-local-warn')).toBeVisible();
 
-  // İlk denemede vazgeçilir: hiçbir şey silinmez.
-  page.once('dialog', (d) => d.dismiss());
-  await page.locator('[data-action="draft-delete"]').click();
-  await expect(page.locator('[data-draft-id]')).toHaveCount(1);
-
-  page.once('dialog', (d) => d.accept());
+  // Geri alınabilen eylem onay sormaz: ne tarayıcı kutusu ne pencere.
+  let nativeDialog = false;
+  page.on('dialog', (d) => { nativeDialog = true; d.dismiss(); });
   await page.locator('[data-action="draft-delete"]').click();
   await expect(page.locator('[data-draft-id]')).toHaveCount(0);
+  await expect(page.getByTestId('dialog')).toHaveCount(0);
+  expect(nativeDialog).toBe(false);
   await page.locator('[data-action="toast-action"]').click();
   await expect(page.locator('[data-draft-id]')).toHaveCount(1);
   await page.locator('[data-action="draft-open"]').click();
@@ -190,9 +189,11 @@ test('biçim değiştirme: eksik bölümler eklenir, yazılmış metin silinmez'
   await page.locator('[data-action="write-format"]').click();
   await page.locator('.wx-fmt [data-action="format-thesis"]').click();
   await expect(page.getByTestId('format-plan')).toBeVisible();
-  // Boş makale bölümlerini kaldırma sorusu: hayır de, hiçbir başlık silinmesin.
-  page.once('dialog', (d) => d.dismiss());
+  // Makale → tez: makalenin bölümleri tezde de var, kaldırılacak boş bölüm yok;
+  // soru gelmez (eski test burada tarayıcı kutusu bekliyordu ama hiç gelmiyordu).
   await page.locator('.wx-fmt [data-action="format-confirm"]').click();
+  await expect(page.locator('.wx-fmt')).toHaveCount(0);
+  await expect(page.getByTestId('dialog')).toHaveCount(0);
   await expect(doc(page)).toContainText('Korunacak metin');
   await expect(doc(page).getByRole('heading', { name: 'Özgeçmiş' })).toBeVisible();
   await expect(doc(page).getByRole('heading', { name: 'Kaynakça' })).toHaveCount(1);
@@ -324,11 +325,22 @@ test('biçim gidiş-dönüşü: Makale → Tez → Makale belge yapısını baş
   const structure = () => doc(page).locator('h1, h2, h3').evaluateAll((els) => els.map((e) => `${e.tagName}|${e.dataset.templateSection || ''}|${e.textContent.trim()}`));
   const before = await structure();
 
-  page.on('dialog', (d) => d.accept());
   for (const f of ['thesis', 'article']) {
     await page.locator('[data-action="write-format"]').click();
     await page.locator(`.wx-fmt [data-action="format-${f}"]`).click();
     await page.locator('.wx-fmt [data-action="format-confirm"]').click();
+    const dialog = page.getByTestId('dialog');
+    if (f === 'article') {
+      // Tez → makale: boş tez bölümleri (Özgeçmiş …) kaldırılsın mı? Geri alınamaz;
+      // ürünün penceresi, varsayılan düğme Vazgeç, kaldırılacaklar listede (WO-018).
+      await expect(dialog).toBeVisible();
+      await expect(page.locator('[data-action="dialog-cancel"]')).toBeFocused();
+      await expect(dialog).toContainText('Özgeçmiş');
+    }
+    // Makale → tez yönünde boş Öz bölümü varsa o da sorulur: evet.
+    await dialog.waitFor({ state: 'visible', timeout: 1500 })
+      .then(() => page.locator('[data-action="dialog-confirm"]').click(), () => {});
+    await expect(dialog).toHaveCount(0);
     await expect(page.locator('.wx-fmt')).toHaveCount(0);
     if (f === 'thesis') {
       // Tez bölümleri makalenin seviyesine (h2) uyar; makale bölümlerini alt bölüm yapmaz.

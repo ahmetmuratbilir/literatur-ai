@@ -38,7 +38,7 @@
      açılan kenar çubuğunun (115), bildirimlerin (120) ve modalların altında. */
   position: fixed;
   inset: 0 0 0 var(--shell-rail, 0px);
-  z-index: 110;
+  z-index: var(--z-surface);
   display: flex;
   flex-direction: column;
   background: var(--wx-surface);
@@ -52,7 +52,7 @@
 
 /* ---------- Biçim seçici (WO-011 Faz 1) ---------- */
 .wx-fmt {
-  z-index: 115;
+  z-index: var(--z-surface-over);
   align-items: center;
   justify-content: center;
   padding: 24px 16px;

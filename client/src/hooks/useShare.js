@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const defaultApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-export function useShare({ getToken }) {
+export function useShare({ getToken, onError }) {
   const [shareLoading, setShareLoading] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [showShareModal, setShowShareModal] = useState(false);
@@ -45,7 +45,8 @@ export function useShare({ getToken }) {
       setShowShareModal(true);
     } catch (err) {
       const msg = err.response?.data?.error || err.message || 'Paylaşım linki oluşturulamadı.';
-      alert(msg);
+      // Tarayıcı kutusu yok (WO-018): hata uygulamanın bildirimiyle.
+      onError?.(msg);
     } finally {
       setShareLoading(false);
     }

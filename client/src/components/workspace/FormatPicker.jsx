@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, FileText, FolderKanban, GraduationCap, Layers, X } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import { FORMATS, TEMPLATES } from './templates.js';
+import { useLayer } from '../ui/useLayer.js';
 import { DEFAULT_SETUP, MARGIN_PRESETS, PAGE_SIZES } from './pageSetup.js';
 
 // Sunucunun gerçekten kaynakça üretebildiği stiller (bibliography.js STYLE_FILES).
@@ -33,10 +34,8 @@ export default function FormatPicker({ mode = 'create', initial = {}, planFor = 
   // Esc kapatır; açılınca odak pencereye gelir.
   useEffect(() => {
     dialogRef.current?.focus();
-    const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onCancel]);
+  }, []);
+  useLayer(true, () => onCancel?.());
 
   const confirm = () => onConfirm({
     formatId, templateId, bibFormat: style, setup, title: name.trim(),

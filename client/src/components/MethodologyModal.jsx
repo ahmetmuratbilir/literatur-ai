@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useI18n } from '../i18n/context.js';
+import { useLayer } from './ui/useLayer.js';
 
 /**
  * Sıralama metodolojisi künyesi — kullanıcı ve jüri için.
@@ -21,21 +22,19 @@ const MethodologyModal = ({ apiUrl, onClose }) => {
   const pct = (v) => `${(v * 100).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
   const num = (v, d = 4) => Number(v).toLocaleString(locale, { minimumFractionDigits: d, maximumFractionDigits: d });
 
+  useLayer(true, onClose);
   useEffect(() => {
     closeRef.current?.focus();
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
     fetch(`${apiUrl}/api/ranking/profiles`, { headers: { 'Accept-Language': lang } })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setInfo)
       .catch(() => setFailed(true));
-    return () => window.removeEventListener('keydown', onKey);
   }, [apiUrl, onClose, lang]);
 
   const m = info?.methodology;
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.5)', display: 'grid', placeItems: 'center', padding: '16px' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 'var(--z-modal)', background: 'rgba(15,23,42,0.5)', display: 'grid', placeItems: 'center', padding: '16px' }}>
       <div
         role="dialog"
         aria-modal="true"

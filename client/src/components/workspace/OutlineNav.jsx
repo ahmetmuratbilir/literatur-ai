@@ -83,7 +83,7 @@ export default function OutlineNav({
                     onBlur={(e) => commitRename(i, e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') commitRename(i, e.target.value);
-                      if (e.key === 'Escape') setRenaming(null);
+                      if (e.key === 'Escape') { e.preventDefault(); setRenaming(null); }
                     }}
                     data-action="outline-rename-input"
                   />
