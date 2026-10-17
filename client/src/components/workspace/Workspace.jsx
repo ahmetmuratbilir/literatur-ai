@@ -162,6 +162,31 @@ function rangeForOffsets(block, start, end) {
   return started ? range : null;
 }
 
+/**
+ * `insertText` değiştirilen aralığın hemen yanındaki boşluğu bölünmez boşluğa
+ * (U+00A0) çeviriyor (Chrome). Aralığın iki kenarında, önceden normal boşluk
+ * olan yer yeniden normal boşluk olur; belgenin geri kalanına dokunulmaz.
+ * Bulgu: kabul yolculuğu (e2e/kabul.spec.js), "Geri al" sonrası atıf öncesi boşluk.
+ */
+function restoreEdgeSpaces(block, origText, start, end, insertedLen) {
+  const now = block.textContent;
+  // [yeni konum, eski konum] çiftleri: aralığın solunda ve sağında ikişer karakter.
+  const spots = [[start - 2, start - 2], [start - 1, start - 1], [start + insertedLen, end], [start + insertedLen + 1, end + 1]];
+  const fix = new Set(spots.filter(([n, o]) => n >= 0 && now[n] === ' ' && origText[o] === ' ').map(([n]) => n));
+  if (!fix.size) return;
+  const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+  let pos = 0;
+  let node = walker.nextNode();
+  while (node) {
+    const len = node.textContent.length;
+    const local = [...fix].filter((i) => i >= pos && i < pos + len).map((i) => i - pos);
+    // Konumlar UTF-16 birimi (textContent ile aynı); kod noktasına bölmek emojide kaydırır.
+    if (local.length) node.textContent = node.textContent.split('').map((c, k) => (local.includes(k) ? ' ' : c)).join('');
+    pos += len;
+    node = walker.nextNode();
+  }
+}
+
 /** İnceleme listesine hangi cümle girer. Boş parça iddia tartışmasına girmez. */
 function inReview(sentence, kind) {
   if (kind === MARK.uncited) return sentence.mark === MARK.uncited;
@@ -1698,6 +1723,7 @@ export default function Workspace({
   const replaceInBlock = (block, start, end, text) => {
     const range = rangeForOffsets(block, start, end);
     if (!range) return false;
+    const origText = block.textContent;
     pageRef.current.focus({ preventScroll: true });
     const sel = window.getSelection();
     sel.removeAllRanges();
@@ -1708,6 +1734,7 @@ export default function Workspace({
       range.deleteContents();
       range.insertNode(document.createTextNode(text));
     }
+    restoreEdgeSpaces(block, origText, start, end, text.length);
     onInput();
     return true;
   };

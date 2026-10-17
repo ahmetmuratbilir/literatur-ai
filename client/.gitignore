@@ -6,3 +6,4 @@ dist
 # Playwright çıktıları (WO-010)
 test-results
 playwright-report
+kontrol-raporu
