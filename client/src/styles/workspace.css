@@ -33,10 +33,11 @@
   --wx-shadow-sm: 0 1px 2px rgba(16, 24, 40, .06);
   --wx-shadow-pop: 0 12px 32px -8px rgba(16, 24, 40, .22), 0 2px 6px rgba(16, 24, 40, .06);
 
-  /* Ayrı bir uygulama yüzeyi: tüm ekran. Kenar çubuğunun (100) ve üst
-     çubuğun üstünde; bildirimlerin (120) ve modalların (1000+) altında. */
+  /* Tek panel kabuk (WO-017): yüzey rayın sağında başlar (--shell-rail,
+     App.jsx), ray görünür kalır. Üst çubuğun ve kapalı rayın (90) üstünde;
+     açılan kenar çubuğunun (115), bildirimlerin (120) ve modalların altında. */
   position: fixed;
-  inset: 0;
+  inset: 0 0 0 var(--shell-rail, 0px);
   z-index: 110;
   display: flex;
   flex-direction: column;

@@ -43,11 +43,11 @@ const side = (page) => page.locator('.wx-side');
 const item = (page, rule) => side(page).locator(`[data-rule="${rule}"]`);
 const prep = (page) => page.getByTestId('submit-prep');
 
-/** Kontrol sekmesi açık yazar modu (`#/yazar/kontrol`). */
+/** Kontrol sekmesi açık Yaz bölümü (`#/yaz/kontrol`). */
 async function openCheck(page, { basket = [KAYA], retractions, html = DOC, title = 'Denetim taslağı', extra } = {}) {
   await seedDraft(page, html, title, extra);
   const api = await mockApi(page, { basket, retractions });
-  await page.goto('/#/yazar/kontrol');
+  await page.goto('/#/yaz/kontrol');
   await expect(page.locator('[data-action="side-check"]')).toHaveAttribute('aria-pressed', 'true');
   return api;
 }
@@ -139,7 +139,7 @@ test('aynı türden sorunlar tek satırda toplanır, açılınca liste', async (
 test('kenar işareti Kontrol\'de ilgili satırı açar', async ({ page }) => {
   await seedDraft(page, DOC, 'İşaret');
   await mockApi(page, { basket: [KAYA] });
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await page.locator('[data-action="side-sources"]').click();
   const marker = page.locator('[data-action="check-marker"][data-rule="uncitedClaim"]');
   await expect(marker).toBeVisible();
@@ -166,7 +166,7 @@ test('geri çekme sorgusu cevap vermezse kaynaklar "temiz" sayılmaz', async ({ 
   await seedDraft(page, DOC, 'Denetim taslağı');
   const api = await mockApi(page, { basket: [KAYA] });
   await page.route('http://localhost:3000/api/retractions', (route) => route.fulfill({ status: 503, body: '{}' }));
-  await page.goto('/#/yazar/kontrol');
+  await page.goto('/#/yaz/kontrol');
   await expect(item(page, 'retractionUnknown')).toBeVisible();
   expect(api.retractionCalls || 0).toBe(0);
 });

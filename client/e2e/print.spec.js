@@ -39,7 +39,7 @@ function pdfPages(buffer) {
 test('yazdırma A4 (@page) kağıda çıkar; uzun belge kırpılmadan sayfalara bölünür', async ({ page }) => {
   await seedDraft(page, LONG, 'Yazdırma');
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await expect(page.locator('.wx-page')).toContainText(`Satır ${LINES}:`);
   // Kural belgede: A4 = 210 × 297 mm
   const rule = await page.evaluate(() => [...document.querySelectorAll('style')].map((n) => n.textContent).find((x) => x.includes('@page')) || '');
@@ -62,7 +62,7 @@ test('yazdırma A4 (@page) kağıda çıkar; uzun belge kırpılmadan sayfalara 
 test('yazdırma ortamında arayüz gizlenir, yalnız belge görünür', async ({ page }) => {
   await seedDraft(page, '<h1>Giriş</h1><p>Atıfsız iddia cümlesi kaza riskini azaltır.</p><p>Bu bulgu (Yılmaz, 2023).</p>', 'Yazdırma');
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await expect(page.locator('[data-action="check-marker"]').first()).toBeVisible();
   await page.locator('[data-action="write-submit"]').click();
   await page.emulateMedia({ media: 'print' });

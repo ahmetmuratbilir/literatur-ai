@@ -414,9 +414,9 @@ export default {
     cleared: 'Tutulan makaleler temizlendi',
     label: 'AI Yazar',
     resume: 'Taslağa dön: {name}',
-    resumeAria: 'Yazar moduna dön: {name}',
-    title: 'Makalen için tutulan kaynaklarla yazar modunu aç',
-    aria: 'Yazar modunu aç ({n} makale tutuldu)',
+    resumeAria: 'Yaz bölümüne dön: {name}',
+    title: 'Makalen için tutulan kaynaklarla yazmaya geç',
+    aria: 'Yaz bölümünü aç ({n} makale tutuldu)',
   },
   yok: {
     title: 'Tez mi arıyorsun?',
@@ -442,6 +442,9 @@ export default {
     error: 'hata',
   },
   sidebar: {
+    sections: 'Bölümler',
+    research: 'Araştırma',
+    write: 'Yaz',
     works: 'Çalışmalarım',
     drafts: 'Taslaklar',
     newDraft: 'Yeni taslak',
@@ -722,7 +725,7 @@ export default {
   },
   basket: {
     title: 'Makalen için',
-    hint: 'Tuttuğun makaleler aramalar arasında burada kalır. Yazar modunda onlarla yazabilir ya da kaynakçayı dışa aktarabilirsin.',
+    hint: 'Tuttuğun makaleler aramalar arasında burada kalır. Yaz bölümünde onlarla yazabilir ya da kaynakçayı dışa aktarabilirsin.',
     empty: 'Henüz makale tutmadın. Herhangi bir sonuçta "Makalene ekle"ye bas.',
     count: '{n}/{max} tutuldu',
     open: 'Makalen için tutulanları aç',

@@ -40,7 +40,7 @@ const side = (page) => page.locator('.wx-side');
 test('belge yapısı araç çubuğundaki düğmeyle gizlenip açılıyor; iç ray yok', async ({ page }) => {
   await seedDraft(page, '<h1>Giriş</h1><p>Metin.</p><h2>Amaç</h2><p>Daha fazla metin.</p>');
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await expect(page.locator('.wx-rail')).toHaveCount(0);
   await expect(outline(page)).toBeVisible();
   await expect(outline(page).getByRole('button', { name: /Amaç/ })).toBeVisible();
@@ -52,7 +52,7 @@ test('belge yapısı araç çubuğundaki düğmeyle gizlenip açılıyor; iç ra
 
 test('sağ panel üç sekme: Kanıt, Kaynaklar, Kaynakça', async ({ page }) => {
   await mockApi(page, { basket: [SOURCE] });
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await startDraft(page);
   await expect(side(page)).toBeVisible();
   await page.locator('[data-action="side-sources"]').click();
@@ -68,7 +68,7 @@ test('sağ panel üç sekme: Kanıt, Kaynaklar, Kaynakça', async ({ page }) => 
 test('1440×900 Teslim görünümü: sağ panel açıkken A4 %100, sığmayınca belge yapısı kapanır (Faz 2)', async ({ page }) => {
   await seedDraft(page, '<h1>Giriş</h1><p>Metin.</p>');
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await expect(outline(page)).toBeVisible();
   await page.locator('[data-action="write-view-submit"]').click();
   await expect(side(page)).toBeVisible();
@@ -89,7 +89,7 @@ test('1440×900 Teslim görünümü: sağ panel açıkken A4 %100, sığmayınca
 test('Taslak görünümünde yer yeterliyse belge yapısı açık kalır', async ({ page }) => {
   await seedDraft(page, '<h1>Giriş</h1><p>Metin.</p>');
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await page.locator('[data-action="write-view-draft"]').click();
   await page.locator('[data-action="write-side"]').click();
   await page.locator('[data-action="write-side"]').click();
@@ -100,7 +100,7 @@ test('Taslak görünümünde yer yeterliyse belge yapısı açık kalır', async
 test('sığdır sayfayı küçültür, gerçek boyut A4\'ü 1:1 gösterir', async ({ page }) => {
   await seedDraft(page, '<h1>Giriş</h1><p>Metin.</p>');
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await page.locator('[data-action="write-view-submit"]').click();
   // Varsayılan %100. Kullanıcı belge yapısını kendisi açarsa kapatılmaz; o zaman sığmaz.
   await expect(page.locator('[data-action="write-zoom-actual"]')).toHaveAttribute('aria-pressed', 'true');
@@ -119,7 +119,7 @@ test('sığdır sayfayı küçültür, gerçek boyut A4\'ü 1:1 gösterir', asyn
 test('"Atıf ekle" seçili kaynağın atfını imlece koyar; kaynak yoksa Kaynaklar sekmesini açar', async ({ page }) => {
   await seedDraft(page, '<p>Pasif sistemler harici güç olmadan çalışır.</p>');
   await mockApi(page, { basket: [SOURCE] });
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   const doc = page.locator('.wx-page');
   // Henüz kaynak seçili değil: düğme kaynak listesine götürür
   await page.locator('[data-action="write-side"]').click();
@@ -139,7 +139,7 @@ test('"Atıf ekle" seçili kaynağın atfını imlece koyar; kaynak yoksa Kaynak
 test('seçim araç çubuğu: seçince çıkar, iddia kararını çevirir', async ({ page }) => {
   await seedDraft(page, '<p>Pasif sistemler kaza riskini azaltır.</p>');
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   const doc = page.locator('.wx-page p').first();
   // Paragrafın ortası boş alan olabilir; üç tık satırı seçer.
   await doc.click({ clickCount: 3 });
@@ -157,7 +157,7 @@ test('seçim araç çubuğu: seçince çıkar, iddia kararını çevirir', async
 
 test('yeni düğmelerin envanteri', async ({ page }) => {
   await mockApi(page, { basket: [SOURCE] });
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await startDraft(page);
   for (const id of ['write-outline', 'write-cite', 'write-more', 'write-side', 'write-format', 'write-view-draft', 'write-view-submit',
     'side-evidence', 'side-sources', 'side-bib']) {
@@ -173,7 +173,7 @@ const headingTexts = (page) => page.locator('.wx-page').locator('h1, h2, h3').al
 test('belge yapısı numaralı ve iç içe; katlanır, tıklayınca bölüme gider', async ({ page }) => {
   await seedDraft(page, OUTLINE_DOC);
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   const nav = outline(page);
   await expect(nav.locator('.wx-ol__num')).toHaveText(['1', '2', '2.1', '2.2', '3']);
   await nav.locator('.wx-ol').nth(1).locator('.wx-ol__fold').click();
@@ -189,7 +189,7 @@ test('belge yapısı numaralı ve iç içe; katlanır, tıklayınca bölüme gid
 test('belge yapısı: yeniden adlandır, taşı ve bölüm ekle; metin kaybolmaz', async ({ page }) => {
   await seedDraft(page, OUTLINE_DOC);
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   const nav = outline(page);
   // Yeniden adlandır
   await nav.locator('.wx-ol').nth(3).hover();
@@ -221,7 +221,7 @@ test('belge yapısı: yeniden adlandır, taşı ve bölüm ekle; metin kaybolmaz
 test('belge yapısı: tablo ve şekil başlıkları listelenir, boşken açıklama', async ({ page }) => {
   await seedDraft(page, '<h1>Bulgular</h1><p>Tablo 1. Koşullar</p><p>Şekil 1: Düzenek</p>');
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await expect(outline(page).locator('[data-action="outline-caption"]')).toHaveText(['Tablo 1. Koşullar', 'Şekil 1: Düzenek']);
   // Hedefsiz bölümde kelime sayısı gösterilmez (yalnız şablon hedefi varsa).
   await expect(outline(page).locator('.wx-ol__count')).toHaveCount(0);
@@ -230,7 +230,7 @@ test('belge yapısı: tablo ve şekil başlıkları listelenir, boşken açıkla
 test('araç çubuğu tek satır; dar ekranda gruplar "Daha fazla"ya geçer (Faz 2)', async ({ page }) => {
   await seedDraft(page, '<h1>Giriş</h1><p>Su H2O formülüyle yazılır.</p>');
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   const ribbon = page.locator('.wx-ribbon');
   // Belge yapısı ve sağ panel kapalıyken 1440 px'te yazı tipi grubu çubukta.
   await page.locator('[data-action="write-outline"]').click();
@@ -265,7 +265,7 @@ test('araç çubuğu tek satır; dar ekranda gruplar "Daha fazla"ya geçer (Faz 
 test('A4 sayfa: Ekle ile numaralı tablo başlığı, Teslim\'de sayfa numarası, atıfa tıklayınca kaynak, DOCX alt bilgisi (Faz 2)', async ({ page }) => {
   await seedDraft(page, '<h1>Bulgular</h1><p>Isı tahliyesi sürdü (Chen &amp; Wang, 2021).</p><p>Tablo 1. Koşullar</p>');
   await mockApi(page, { basket: [SOURCE] });
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   // Ekle › Tablo başlığı: sıradaki numara
   await page.locator('.wx-page p').first().click();
   await page.locator('[data-action="write-insert"]').click();
@@ -316,7 +316,7 @@ async function selectInFirstParagraph(page, from, to) {
 test('seçim menüsü: AI yalnız iki eylem; Atıf doğrula ve Yorum "Yakında"; panel üç sekme', async ({ page }) => {
   await seedDraft(page, ASSIST_DOC);
   await mockApi(page, { basket: [SOURCE] });
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await expect(side(page).locator('.wx-panel-head [role="group"] > button')).toHaveText([/Kaynaklar/, 'Asistan', /Kontrol/]);
   await page.locator('.wx-page p').first().click({ clickCount: 3 });
   await expect(page.locator('.wx-selbar')).toBeVisible();
@@ -335,7 +335,7 @@ test('Dil ve anlatımı düzelt: öneri karşılaştırmalı; Uygula yalnız se�
     sent = route.request().postDataJSON().text;
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ status: 'ok', revised: 'Pasif sistem güvenlidir ve kaza riskini azaltır (Chen & Wang, 2021).', notes: ['Yazım düzeltildi'], model: 'sahte', promptVersion: 'PR11.v1' }) });
   });
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   const before = await page.locator('.wx-page').innerText();
   await selectInFirstParagraph(page, 'Pasif', '2021).');
   await expect(page.locator('.wx-selbar')).toBeVisible();
@@ -357,7 +357,7 @@ test('Reddet belgeyi değiştirmez; kurallara takılan öneri gösterilmez', asy
   await mockApi(page, { basket: [SOURCE] });
   let answer = { status: 'ok', revised: 'İkinci paragraf aynen kalmalıdır.', notes: [], model: 'sahte', promptVersion: 'PR11.v1' };
   await page.route('http://localhost:3000/api/language-edit', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(answer) }));
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   const before = await page.locator('.wx-page').innerText();
   await page.locator('.wx-page p').nth(1).click();
   await page.locator('[data-action="side-assistant"]').click();
@@ -376,7 +376,7 @@ test('Kaynak ihtiyacını değerlendir: kural tabanlı, modelsiz; cümle bazınd
   await mockApi(page, { basket: [SOURCE] });
   let calls = 0;
   await page.route('http://localhost:3000/api/language-edit', (route) => { calls += 1; return route.fulfill({ body: '{}' }); });
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await page.locator('.wx-page p').first().click();
   await page.locator('[data-action="side-assistant"]').click();
   await page.locator('[data-action="assist-need"]').click();
@@ -390,7 +390,7 @@ test('Kaynak ihtiyacını değerlendir: kural tabanlı, modelsiz; cümle bazınd
 test('yazar modunda yüzde ya da skor gösterilmez (Faz 2)', async ({ page }) => {
   await seedDraft(page, ASSIST_DOC);
   await mockApi(page, { basket: [SOURCE] });
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   for (const view of ['write-view-draft', 'write-view-submit']) {
     await page.locator(`[data-action="${view}"]`).click();
     for (const tab of ['side-sources', 'side-assistant', 'side-check']) {

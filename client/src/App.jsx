@@ -49,7 +49,6 @@ import { useCollections } from './hooks/useCollections';
 import { useBasket } from './hooks/useBasket';
 import { flyToBasket } from './utils/flyToBasket';
 import Toasts from './components/Toasts';
-import WriterDock from './components/WriterDock';
 import CitationChecker from './components/CitationChecker';
 import AuthorPanel from './components/AuthorPanel';
 // Çalışma alanı editörüyle birlikte geliyor; sekmeye ilk girişte yüklenir,
@@ -576,6 +575,8 @@ function App() {
    */
   const openWriter = () => {
     if (AI_WRITER_PANEL_ENABLED) { setShowWriterPanel(true); return; }
+    // Yaz'a girerken açık kenar çubuğu kapanır: yüzeyin üstünde kalıp belgeyi örtmesin (WO-017).
+    setSidebarOpen(false);
     if (mode === 'workspace') return;
     if (window.location.hash !== WRITER_HASH) {
       pushedWriter.current = true;
@@ -600,6 +601,15 @@ function App() {
   };
 
   const switchMode = (next) => setMode(next);
+
+  // --- Tek panel kabuk (WO-017) -------------------------------------------
+  // Raydaki "Araştırma": Yaz'dan dönüş (belge kapanmaz, bekleyen kayıt yazılır).
+  const goResearch = () => { if (mode === 'workspace') exitWriter(); };
+  // Yazım yüzeyi rayın sağında başlar; ray onun üstünde kalır. Mobilde ray
+  // gizli (menü düğmesiyle açılır), yüzey tam genişlik.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--shell-rail', isMobile ? '0px' : '72px');
+  }, [isMobile]);
 
   // --- Taslaklar (WO-011 Faz 1) ------------------------------------------
   /** Taslağı açar: önce açık belgenin bekleyen kaydı yazılır. */
@@ -1218,7 +1228,11 @@ function App() {
           onDeleteHistoryEntry={deleteHistoryEntry}
           basket={basket}
           onOpenWriter={openWriter}
-          onNewSearch={newSearch}
+          onNewSearch={() => { goResearch(); newSearch(); }}
+          section={mode === 'workspace' ? 'write' : 'research'}
+          onGoResearch={goResearch}
+          writeExtra={drafts.active ? (drafts.active.title || t('workspace.untitled')) : null}
+          raised={mode === 'workspace'}
           drafts={drafts.items}
           activeDraftId={drafts.active?.id || null}
           onOpenDraft={openDraft}
@@ -1311,27 +1325,8 @@ function App() {
           </div>
         </main>
 
-        {/* Seçim çubuğu: yalnızca seçim varken. Önceki "0 kaynak seçildi"
-            çubuğu hiç seçim yokken de görünüyordu; yüzen "Yazar Modu" düğmesi
-            ise kartların yer imi/yıldız düğmelerini örtüyordu. */}
-        {/* Yazar modu: sağ kenarda, sayaçlı. "Makalene ekle" ile seçilen
-            makaleler buraya uçar; tıklayınca yazar paneli sağdan açılır.
-            Alt çubuk kaldırıldı: üret düğmesi orada zor bulunuyordu. */}
-        <AnimatePresence>
-          {(data || basket.papers.length > 0 || drafts.active) && !showWriterPanel && mode !== 'workspace' && (
-            <WriterDock
-              key="writer-dock"
-              count={basket.papers.length}
-              limit={basket.limit}
-              draftTitle={drafts.active ? (drafts.active.title || t('workspace.untitled')) : null}
-              onOpen={openWriter}
-              onClear={() => {
-                basket.clear();
-                pushToast({ tone: 'success', title: t('writerDock.cleared') });
-              }}
-            />
-          )}
-        </AnimatePresence>
+        {/* Sağ kenardaki yüzen "Yazar modu" düğmesi (WriterDock) kalktı (WO-017):
+            Yaz artık raydaki bir bölüm; sepet temizleme kenar çubuğundaki Sepet'te. */}
         <Toasts toasts={toasts} onDismiss={dismissToast} />
       </AuthedOnly>
 

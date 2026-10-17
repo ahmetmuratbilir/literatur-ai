@@ -2,7 +2,7 @@
 
 | Alan | Değer |
 | --- | --- |
-| Durum | Hazır (17.10.2026, kullanıcı onayı) — uygulama WO-011 elle kontrolü gelince |
+| Durum | **Bitti** (17.10.2026, `wo-017-tek-panel`) — kullanıcının yerelde son bakışı MVP sonunda |
 | Kapsam | Çapraz (istemci) |
 | Dosya değişikliği | İzinli (liste aşağıda) |
 | Tahmini süre | 2 oturum |
@@ -122,10 +122,39 @@ değişmez, geri dönüşte veri kaybı yok.
 - Mobilde alt sekme çubuğu mu, açılır ray mı (öneri: alt çubuk).
 
 ## Bitiş raporu
-- Değişen dosyalar:
-- Teknik kararlar ve gerekçeleri:
-- Çalıştırılan testler ve gerçek çıktıları:
-- Ölçülen etki:
-- Bilinen eksikler:
-- Sonraki adım:
-- **Durum:**
+- **Değişen dosyalar:** `client/src/App.jsx`, `client/src/modeRoutes.js`,
+  `client/src/components/HistorySidebar.jsx`, `client/src/styles/workspace.css`,
+  `client/src/i18n/tr.js`, `client/src/i18n/en.js`, `client/tests/modeRoutes.test.js`,
+  `client/e2e/mode.spec.js`, `client/e2e/audit.spec.js`, `client/e2e/screens.spec.js`,
+  `client/e2e/write.spec.js`, `client/e2e/baseline.spec.js`, `client/e2e/print.spec.js`
+  (adres güncellemesi), `client/e2e/shell.spec.js` (yeni).
+- **Teknik kararlar:**
+  - Yeni `LeftRail`/`Desk` bileşeni yazılmadı: mevcut kenar çubuğu zaten
+    koyu, 72 px'lik bir ray. Üstüne "Araştırma" ve "Yaz" bölüm düğmeleri
+    eklendi; Çalışmalarım, Favoriler, Makalen için altında. En küçük doğru
+    değişiklik (3.11); Masam = Çalışmalarım sekmesi, ad değişmedi (testler ve
+    kullanıcı alışkanlığı).
+  - Yazım yüzeyi portal olarak kaldı ama `inset: 0 0 0 var(--shell-rail)`:
+    rayın sağından başlıyor, ray görünür. Kenar çubuğu açılınca yüzeyin üstüne
+    çıkıyor (`raised`), Yaz'a girerken kendiliğinden kapanıyor (açık kalınca
+    "← Araştırma" düğmesini örtüyordu — e2e yakaladı).
+  - Adres `#/yaz`; `#/yazar` ve `#/yazar/kontrol` eski adres olarak yönleniyor.
+  - Sağ kenardaki yüzen WriterDock kalktı; `data-action="writer-dock"` raydaki
+    Yaz düğmesinde (açık taslağın adı ekran okuyucu metninde ve ipucunda).
+  - "Analiz", "Kaynaklar", "Teslim" ray öğesi eklenmedi: Analiz'in içeriği yok
+    (WO-007), Kaynaklar = mevcut "Makalen için" sekmesi, Teslim = Yaz içindeki
+    "Teslime hazırla". Olmayanı var gibi göstermiyoruz (2.8).
+- **Testler:** istemci birim 314/314; lint temiz; e2e 59 geçti + yeni
+  `shell.spec.js` 5/5 (ray Yaz'da görünür ve yüzey rayın sağında; bölüm
+  geçişinde sonuç ve belge korunur; Yaz düğmesi taslak adını taşır; arayüzde
+  "yazar modu" yok; 390 px'te yatay kaydırma yok). `npm run kontrol` sonucu
+  commit mesajında.
+- **Ölçülen etki:** ölçülmedi (kalite metriği yok, 4.7).
+- **Bilinen eksikler:** mobilde ray alt sekme çubuğuna dönmedi; mobilde
+  Yaz'dan dönüş yalnız "← Araştırma" düğmesiyle (ray menü düğmesi yazım
+  yüzeyinin altında kalıyor). İlk açılış yön göstericisi (prototip `#ilk`)
+  yapılmadı. CLAUDE.md 2.13 terim tablosu ("Çalışma alanı: henüz yok")
+  güncellenmedi — dosya bu iş emrinin listesinde değil.
+- **Sonraki adım:** WO-018 (pencereler, Esc, geri al).
+- **Durum:** NEEDS ATTENTION — kabul kriterleri karşılandı, testler geçti;
+  "Ahmet yerelde elle denedi" maddesi MVP sonundaki bakışa kaldı.

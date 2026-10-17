@@ -414,9 +414,9 @@ export default {
     cleared: 'Kept papers cleared',
     label: 'AI Writer',
     resume: 'Back to draft: {name}',
-    resumeAria: 'Return to writing mode: {name}',
-    title: 'Open the writer with the papers kept for your paper',
-    aria: 'Open the writer ({n} papers kept)',
+    resumeAria: 'Back to Write: {name}',
+    title: 'Start writing with the papers kept for your paper',
+    aria: 'Open Write ({n} papers kept)',
   },
   yok: {
     title: 'Looking for theses?',
@@ -442,6 +442,9 @@ export default {
     error: 'error',
   },
   sidebar: {
+    sections: 'Sections',
+    research: 'Research',
+    write: 'Write',
     works: 'My work',
     drafts: 'Drafts',
     newDraft: 'New draft',

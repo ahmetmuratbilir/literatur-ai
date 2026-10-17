@@ -51,7 +51,7 @@ const LONG_DOC = `<h1>Giriş</h1><p>Başlangıç cümlesi.</p>${'<p>Dolgu paragr
 test('araştırma ↔ yazar: metin, imleç ve kaydırma korunuyor', async ({ page }) => {
   await seedDraft(page, LONG_DOC, 'Mod geçiş taslağı');
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await typeInFirstParagraph(page, ' EKLENDİ');
 
   const desk = page.locator('.wx-desk');
@@ -60,10 +60,10 @@ test('araştırma ↔ yazar: metin, imleç ve kaydırma korunuyor', async ({ pag
   await page.locator('.wx-exit').click();
   await researchVisible(page);
   await writerHidden(page);
-  await expect(page).not.toHaveURL(/#\/yazar/);
+  await expect(page).not.toHaveURL(/#\/yaz/);
 
   await page.locator('[data-action="writer-dock"]').click();
-  await expect(page).toHaveURL(/#\/yazar$/);
+  await expect(page).toHaveURL(/#\/yaz$/);
   await expect(doc(page)).toBeVisible();
   expect(await desk.evaluate((el) => el.scrollTop)).toBeGreaterThan(500);
   // İmleç geri geldi: tıklamadan yazınca aynı yere eklenir.
@@ -89,7 +89,7 @@ test('tarayıcının geri düğmesi yazar modundan araştırmaya döner, ileri y
 
 test('iki taslak: ayrı içerik, aralarında geçiş, yeniden yüklemede açık taslak', async ({ page }) => {
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await createDraft(page, 'article', 'Makale A');
   await typeInFirstParagraph(page, 'AAA metni');
   await page.locator('.wx-exit').click();
@@ -141,12 +141,19 @@ test('eski adresler yeni yerlerine yönleniyor', async ({ page }) => {
   await mockApi(page);
 
   await page.goto('/#/yazim');
-  await expect(page).toHaveURL(/#\/yazar$/);
+  await expect(page).toHaveURL(/#\/yaz$/);
   await expect(doc(page)).toContainText('Yönlendirme.');
 
   await page.goto('/#/denetim');
-  await expect(page).toHaveURL(/#\/yazar\/kontrol$/);
+  await expect(page).toHaveURL(/#\/yaz\/kontrol$/);
   await expect(doc(page)).toBeVisible();
+
+  // WO-011'in "yazar modu" adresleri (WO-017'de ad kalktı)
+  await page.goto('/#/yazar');
+  await expect(page).toHaveURL(/#\/yaz$/);
+  await expect(doc(page)).toContainText('Yönlendirme.');
+  await page.goto('/#/yazar/kontrol');
+  await expect(page).toHaveURL(/#\/yaz\/kontrol$/);
 
   await page.goto('/#/alanim');
   await expect(page).not.toHaveURL(/#/);
@@ -159,7 +166,7 @@ test('eski adresler yeni yerlerine yönleniyor', async ({ page }) => {
 
 test('biçim seçici: tez 19 bölüm ve A4 kuruyor, yalnız desteklenen atıf stilleri', async ({ page }) => {
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await expect(page.locator('[data-action="format-style"] option')).toHaveText(['APA 7', 'IEEE', 'MLA', 'Chicago']);
   await page.locator('[data-action="format-thesis"]').click();
   await expect(page.getByTestId('format-sections').locator('li')).toHaveCount(19);
@@ -177,7 +184,7 @@ test('biçim seçici: tez 19 bölüm ve A4 kuruyor, yalnız desteklenen atıf st
 
 test('biçim değiştirme: eksik bölümler eklenir, yazılmış metin silinmez', async ({ page }) => {
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await createDraft(page, 'article', 'Biçim değişimi');
   await typeInFirstParagraph(page, 'Korunacak metin');
   await page.locator('[data-action="write-format"]').click();
@@ -193,7 +200,7 @@ test('biçim değiştirme: eksik bölümler eklenir, yazılmış metin silinmez'
 
 test('otomatik kayıt odak kaybı beklemeden yazıyor', async ({ page }) => {
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await createDraft(page, 'blank', 'Otomatik kayıt');
   await doc(page).click();
   await page.keyboard.type('Odak kaybı olmadan kaydedilmeli.');
@@ -220,14 +227,14 @@ const storedHtml = (page) => page.evaluate((key) => {
 test('iki sekme: ikincisi salt okunur, değişiklik sessizce gelir, "Burada düzenle" düzenlemeyi devralır', async ({ page, context }) => {
   await seedDraft(page, '<h1>Giriş</h1><p>Ortak.</p>', 'İki sekme');
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await typeInFirstParagraph(page, ' AAA');
   await expect.poll(() => storedHtml(page)).toContain('AAA');
 
   const b = await context.newPage();
   await b.addInitScript(BANNER);
   await mockApi(b);
-  await b.goto('/#/yazar');
+  await b.goto('/#/yaz');
   await expect(b.getByTestId('draft-locked')).toBeVisible();
   await expect(doc(b)).toHaveAttribute('contenteditable', 'false');
   await expect(doc(b)).toContainText('Ortak. AAA');
@@ -256,7 +263,7 @@ test('iki tarafta da kaydedilmemiş değişiklik varsa hiçbiri ezilmez: çakı�
   await mockApi(page);
   // A'nın zamanlayıcıları durdurulur: yazdığı kaydedilmemiş (kirli) kalır.
   await page.clock.install();
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await expect(doc(page)).toContainText('Ortak.');
   // Öbür sekme önce açılır: yeni sekme açılınca A gizlenir ve gizlenen sekme
   // bekleyen kaydını yazar (tasarım gereği). A'ya dönüp yazınca A kirli kalır.
@@ -287,7 +294,7 @@ test('iki tarafta da kaydedilmemiş değişiklik varsa hiçbiri ezilmez: çakı�
 
 test('bir sekmede başka taslak açmak öbür sekmenin belgesini değiştirmez', async ({ page, context }) => {
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await createDraft(page, 'blank', 'Birinci');
   await doc(page).click();
   await page.keyboard.type('Birinci metni.');
@@ -309,7 +316,7 @@ test('bir sekmede başka taslak açmak öbür sekmenin belgesini değiştirmez',
 
 test('biçim gidiş-dönüşü: Makale → Tez → Makale belge yapısını başlangıca döndürür, metin kalır', async ({ page }) => {
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await createDraft(page, 'article', 'Gidiş dönüş');
   const intro = doc(page).locator('h2[data-template-section="intro"] + p');
   await intro.click();
@@ -342,7 +349,7 @@ test('depolama yazılamıyorsa yazmak serbest: kalıcı uyarı, DOCX ve çıkı�
     };
   });
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await createDraft(page, 'blank', 'Kayıtsız');
   await expect(page.getByTestId('storage-warn')).toBeVisible();
   await doc(page).click();
@@ -399,11 +406,11 @@ test('kenar çubuğunda sepet temizleme iki adımlı; tek tıklama silmiyor', as
 test('boş sepetle yazar modunda "Literatürde kaynak bul" araştırmaya döner', async ({ page }) => {
   await seedDraft(page, '<h1>Giriş</h1><p>Kaynak arıyorum.</p>', 'Kaynak bul');
   await mockApi(page);
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await page.locator('[data-action="side-sources"]').click();
   await page.locator('[data-action="write-find-sources"]').click();
   await researchVisible(page);
-  await expect(page).not.toHaveURL(/#\/yazar/);
+  await expect(page).not.toHaveURL(/#\/yaz/);
 });
 
 test('dürüstlük taraması: yeni ekranlarda yasak kalıp yok', async ({ page }) => {
@@ -417,7 +424,7 @@ test('dürüstlük taraması: yeni ekranlarda yasak kalıp yok', async ({ page }
     const text = await read();
     for (const pattern of forbidden) expect(text, `${name} ${pattern}`).not.toMatch(pattern);
   }
-  await page.goto('/#/yazar');
+  await page.goto('/#/yaz');
   await expect(doc(page)).toBeVisible();
   let text = await page.locator('body').innerText();
   for (const pattern of forbidden) expect(text, `yazar ${pattern}`).not.toMatch(pattern);

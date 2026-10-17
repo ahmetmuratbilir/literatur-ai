@@ -1,12 +1,13 @@
 /**
- * Araştırma ↔ yazar modu adresleri (WO-011 Faz 1). Saf modül.
+ * Bölüm adresleri (WO-011 Faz 1, WO-017). Saf modül.
  *
- * Araştırma modu adres taşımaz (ana sayfa). Yazar modu `#/yazar`; geri tuşu
- * araştırmaya döner. WO-010 kabuğunun adresleri kırık kalmasın diye yeni
- * yerlerine çevrilir.
+ * Araştırma bölümü adres taşımaz (ana sayfa). Yaz bölümü `#/yaz`; geri tuşu
+ * araştırmaya döner. Eski adresler kırık kalmasın diye yeni yerlerine
+ * çevrilir: WO-011'in `#/yazar` adresi ("yazar modu" adı tüzük 2.13'e göre
+ * kalktı) ve WO-010 kabuğunun adresleri.
  */
 
-export const WRITER_HASH = '#/yazar';
+export const WRITER_HASH = '#/yaz';
 
 /**
  * @returns {{ mode: 'research'|'writer', panel: 'check'|null,
@@ -17,8 +18,11 @@ export function parseModeHash(hash) {
   const path = String(hash || '').replace(/^#\/?/, '').split(/[?#]/)[0].replace(/\/+$/, '').toLowerCase();
   const base = { mode: 'research', panel: null, sidebarTab: null, researchMode: null, legacy: false };
   switch (path) {
-    case 'yazar': return { ...base, mode: 'writer' };
-    case 'yazar/kontrol': return { ...base, mode: 'writer', panel: 'check' };
+    case 'yaz': return { ...base, mode: 'writer' };
+    case 'yaz/kontrol': return { ...base, mode: 'writer', panel: 'check' };
+    // WO-011'in adresleri ("yazar modu")
+    case 'yazar': return { ...base, mode: 'writer', legacy: true };
+    case 'yazar/kontrol': return { ...base, mode: 'writer', panel: 'check', legacy: true };
     // WO-010 kabuğunun adresleri
     case 'yazim': return { ...base, mode: 'writer', legacy: true };
     case 'denetim': return { ...base, mode: 'writer', panel: 'check', legacy: true };

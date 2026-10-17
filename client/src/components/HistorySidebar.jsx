@@ -4,7 +4,7 @@ const MotionAside = motion.aside;
 const MotionDiv = motion.div;
 import {
   Trash2, PlusCircle, Zap, Star, ChevronRight, ChevronLeft, BookmarkCheck, PenLine, Download, FolderOpen,
-  FileText, Pencil, Copy, AlertTriangle
+  FileText, Pencil, Copy, AlertTriangle, Search
 } from 'lucide-react';
 import { toBibTeX, toRIS, downloadText } from '../utils/citationExport.js';
 import { AppUserButton, useAppAuth, useAppUser } from '../auth/clerkBridge.js';
@@ -15,13 +15,17 @@ import { readDraft } from './workspace/drafts.js';
 // gösterilen etiket sözlükten gelir).
 const FAVORITES = 'Favoriler';
 
-const SidebarItem = ({ icon, label, isOpen, active, onClick, badge, basketTarget = false }) => (
+// Ekranda görünmez, ekran okuyucu ve metin aramasında var (ör. açık taslağın adı).
+const srOnly = { position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' };
+
+const SidebarItem = ({ icon, label, isOpen, active, onClick, badge, basketTarget = false, action, extra }) => (
   <button
     type="button"
     onClick={onClick}
     data-basket-target={basketTarget || undefined}
-    title={isOpen ? undefined : label}
-    aria-label={label}
+    data-action={action}
+    title={isOpen ? undefined : (extra ? `${label} · ${extra}` : label)}
+    aria-label={extra ? `${label} · ${extra}` : label}
     aria-current={active ? 'page' : undefined}
     style={{ width: '100%', padding: '8px 10px', background: active ? 'rgba(99, 102, 241, 0.16)' : 'transparent', border: 'none', borderRadius: '10px', color: active ? '#e0e7ff' : '#94a3b8', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: isOpen ? 'flex-start' : 'center', gap: '10px', cursor: 'pointer', transition: 'background 0.15s ease, color 0.15s ease', position: 'relative', height: '38px' }}
     onMouseOver={(e) => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#e2e8f0'; } }}
@@ -29,6 +33,7 @@ const SidebarItem = ({ icon, label, isOpen, active, onClick, badge, basketTarget
   >
     <span style={{ display: 'grid', placeItems: 'center', minWidth: '20px', color: active ? '#a5b4fc' : 'inherit' }}>{icon}</span>
     {isOpen && <span style={{ fontSize: '0.875rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{label}</span>}
+    {extra && <span style={srOnly}>{extra}</span>}
     {isOpen && badge && (
       <span style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.1)', color: '#cbd5e1', fontSize: '0.68rem', padding: '1px 7px', borderRadius: '999px', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{badge}</span>
     )}
@@ -62,6 +67,8 @@ const TAB_ALIASES = { works: 'works', history: 'works', analyses: 'works', baske
 const HistorySidebar = ({
   isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, onDeleteHistoryEntry, onNewSearch, basket, onOpenWriter,
   drafts = [], activeDraftId = null, onOpenDraft, onNewDraft, onRenameDraft, onDuplicateDraft, onDeleteDraft,
+  // Tek panel kabuk (WO-017): rayın en üstünde bölümler; sidebar yazım yüzeyinin üstüne açılabilsin diye `raised`.
+  section = 'research', onGoResearch, writeExtra = null, raised = false,
 }) => {
   const { t, lang } = useI18n();
   const locale = lang === 'tr' ? 'tr-TR' : 'en-US';
@@ -186,7 +193,7 @@ const HistorySidebar = ({
     <>
       <AnimatePresence>
         {isMobile && isOpen && (
-          <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', zIndex: 85 }} />
+          <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', zIndex: raised ? 114 : 85 }} />
         )}
       </AnimatePresence>
 
@@ -195,7 +202,7 @@ const HistorySidebar = ({
         animate={{ width: isOpen ? '280px' : (isMobile ? '0px' : '72px'), x: (isMobile && !isOpen) ? -280 : 0 }}
         transition={{ type: 'spring', stiffness: 400, damping: 40 }}
         aria-label={t('sidebar.label')}
-        style={{ position: 'fixed', left: 0, top: 0, bottom: 0, background: '#0f172a', color: '#f8fafc', zIndex: 90, overflow: 'visible', display: 'flex', flexDirection: 'column', boxShadow: isOpen ? '10px 0 30px -10px rgba(0,0,0,0.5)' : 'none', willChange: 'width', borderRight: '1px solid rgba(255,255,255,0.05)', paddingTop: 'env(safe-area-inset-top)' }}
+        style={{ position: 'fixed', left: 0, top: 0, bottom: 0, background: '#0f172a', color: '#f8fafc', zIndex: raised ? 115 : 90, overflow: 'visible', display: 'flex', flexDirection: 'column', boxShadow: isOpen ? '10px 0 30px -10px rgba(0,0,0,0.5)' : 'none', willChange: 'width', borderRight: '1px solid rgba(255,255,255,0.05)', paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Başlık */}
         <div style={{ height: '64px', padding: isOpen ? '0 20px' : '0', display: 'flex', alignItems: 'center', justifyContent: isOpen ? 'flex-start' : 'center', gap: '12px' }}>
@@ -214,6 +221,12 @@ const HistorySidebar = ({
             {isOpen && <span>{t('sidebar.newSearch')}</span>}
           </button>
         </div>
+
+        {/* Bölümler (WO-017): Araştırma ilk sırada; Yaz aynı kabukta, ayrı mod değil. */}
+        <nav aria-label={t('sidebar.sections')} style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: '4px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>
+          <SidebarItem icon={<Search size={18} />} label={t('sidebar.research')} isOpen={isOpen} active={section === 'research'} action="nav-research" onClick={() => { onGoResearch?.(); closeOnMobile(); }} />
+          <SidebarItem icon={<PenLine size={18} />} label={t('sidebar.write')} isOpen={isOpen} active={section === 'write'} action="writer-dock" extra={writeExtra} onClick={() => { onOpenWriter?.(); closeOnMobile(); if (!isMobile) setIsOpen(false); }} />
+        </nav>
 
         {/* Sekmeler */}
         <nav style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
