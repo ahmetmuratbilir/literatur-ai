@@ -1029,7 +1029,12 @@ export default {
       cancel: 'Kapat',
       trust: 'Künye dosyadan geldiği gibi okunur, doğrulanmış bir kayıt değildir. DOI’si olanların künyesi kaynakça üretilirken doi.org’dan tazelenir.',
     },
-    summaryLimit: 'Bu sayım metindeki atıf işaretlerine bakar. Pasaj doğrulaması henüz yok; “atıf var” ile “kaynak gerçekten destekliyor” aynı şey değildir.',
+    summaryLimit: 'Bu sayım metindeki atıf işaretlerine bakar. Pasaj doğrulaması yalnız tek pasajdan cümle üretilirken (bugün makale özeti üzerinde) çalışır; “atıf var” ile “kaynak gerçekten destekliyor” aynı şey değildir.',
+    refCheck: {
+      button: 'Künye doğrulama (beta)',
+      title: 'Künye doğrulama',
+      hint: 'Kaynakçandaki satırları buraya yapıştır: her satır açık indekslerde aranır ve bulunan künyeyle farkı gösterilir. Bu adım iddia–kanıt doğrulaması değildir; yalnızca künye kimliğini doğrular.',
+    },
     targetHint: 'Şablonun önerdiği yaklaşık uzunluk. Dergi ve kurum yönergesi önceliklidir.',
     goToSection: '{name} bölümüne git',
     saveDirty: 'kaydediliyor…',
@@ -1267,5 +1272,19 @@ export default {
       missingField: '{field} eksik: {canonical}',
       differs: '{field} {input} değil, {canonical}',
     },
+  },
+  // Literatür konsensüsü (arama sekmesi kartı)
+  consensus: {
+    title: 'Literatür konsensüsü ve yönetici özeti',
+    collapsedTitle: 'Akademik konsensüs ve yönetici özeti',
+    intro: 'Listelenen ilk 6 makalenin ortak bilimsel sonucunu ve araştırma boşluğunu tek tıkla çıkarın.',
+    action: 'Konsensüsü çıkar',
+    loading: 'En yüksek AHP skorlu makalelerin bilimsel konsensüsü sentezleniyor…',
+    error: 'Literatür konsensüsü oluşturulamadı.',
+    // Modelin ürettiği 60–98 arası tamsayı. Kalibre edilmiş olasılık değildir;
+    // bu yüzden etiketinde "model tahmini" yazar (CLAUDE.md 2.8).
+    score: 'Model tahmini: %{n}',
+    basedOn: '{n} makale üzerinden',
+    gapLabel: 'Öne çıkan literatür boşluğu:',
   },
 };

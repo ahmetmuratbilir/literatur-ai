@@ -49,7 +49,19 @@ const walk = (dir) => {
 walk(path.join(root, 'src'));
 const enObj = await load('en');
 const exists = (key) => key.split('.').reduce((n, p) => (n && n[p] !== undefined ? n[p] : undefined), enObj) !== undefined;
-for (const key of used) if (!exists(key)) report(`kodda kullanılıyor ama sözlükte yok: ${key}`);
+for (const key of used) {
+  // Şablon dizgesi: t(`criteria.${c}`). Son parça çalışma anında gelir, bu
+  // yüzden anahtarın kendisi aranamaz; yalnız öneğin sözlükte bir nesne
+  // olarak bulunduğu doğrulanır (eskiden "criteria." eksik anahtar sanılıp
+  // kontrolü kırıyordu).
+  if (key.endsWith('.')) {
+    const prefix = key.slice(0, -1);
+    const node = prefix.split('.').reduce((n, p) => (n && n[p] !== undefined ? n[p] : undefined), enObj);
+    if (node === undefined || typeof node !== 'object') report(`şablon anahtarının öneği sözlükte yok: ${prefix}.*`);
+    continue;
+  }
+  if (!exists(key)) report(`kodda kullanılıyor ama sözlükte yok: ${key}`);
+}
 
 console.log(`${en.size} anahtar · kodda ${used.size} doğrudan kullanım · ${problems ? `${problems} sorun` : 'sorun yok'}`);
 process.exit(problems ? 1 : 0);

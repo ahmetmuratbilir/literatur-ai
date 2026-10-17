@@ -138,9 +138,9 @@ const ResultRow = ({ row, index, basket, onAdd, apiUrl, getToken }) => {
  * makaleyle eşleştirilir, farklar (soyad yazımı, eksik ortak yazar, cilt/sayı)
  * gösterilir. Eşleşme bulunamazsa uydurulmaz: "bulunamadı" dürüst sonuçtur.
  */
-const CitationChecker = ({ apiUrl, getToken, basket, onAdd }) => {
+const CitationChecker = ({ apiUrl, getToken, basket, onAdd, initialText = '' }) => {
   const { t } = useI18n();
-  const [text, setText] = useState('');
+  const [text, setText] = useState(initialText);
   const [rows, setRows] = useState(null);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);

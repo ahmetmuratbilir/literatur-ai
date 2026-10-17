@@ -17,6 +17,7 @@ import {
 import { FORMATS, TEMPLATES, planFormatChange, templateHtml, templateWords } from './templates.js';
 import FormatPicker from './FormatPicker.jsx';
 import CheckPanel from './CheckPanel.jsx';
+import CitationChecker from '../CitationChecker.jsx';
 import OutlineNav from './OutlineNav.jsx';
 import SubmitPrep from './SubmitPrep.jsx';
 import { useLayer } from '../ui/useLayer.js';
@@ -277,6 +278,9 @@ export default function Workspace({
   const [blocks, setBlocks] = useState([]);
   const [review, setReview] = useState(null);
   const [sideView, setSideView] = useState('source');
+  // "Künye doğrulama (beta)" Kontrol adımının içinde açılır (kullanıcı kararı
+  // 18.10.2026): ayrı sekme açmak yerine mevcut Kontrol yüzeyine bağlandı.
+  const [refCheckOpen, setRefCheckOpen] = useState(false);
   const [bodyText, setBodyText] = useState('');
   const [bibFormat, setBibFormat] = useState(() => (BIB_FORMATS.includes(saved?.bibFormat) ? saved.bibFormat : 'APA 7'));
   // Kaynakça kapsamı. Varsayılan "atıf yapılanlar": akademik kaynakça
@@ -2787,12 +2791,26 @@ export default function Workspace({
                         <span>{t('workspace.stat.cited', { n: fmt(counts.cited) })}</span>
                         <button type="button" className="wx-stat wx-stat--uncited" onClick={() => openReview(MARK.uncited)}>{t('workspace.stat.uncited', { n: fmt(counts.uncited) })}</button>
                         <button type="button" className="wx-stat wx-stat--plain" onClick={() => openReview(MARK.notClaim)}>{t('workspace.stat.notClaim', { n: fmt(counts.notClaim) })}</button>
+                        <button type="button" className="wx-stat" onClick={() => setRefCheckOpen((open) => !open)} data-action="write-refcheck">
+                          {t('workspace.refCheck.button')}
+                        </button>
                         <small className="wx-muted">{t('workspace.summaryLimit')}</small>
                       </p>
                     )}
                     muted={mutedSentences}
                     onUnmute={(key) => setOverride(key, null)}
                   />
+                )}
+                {!review && sideView === 'check' && refCheckOpen && (
+                  <section className="wx-refcheck" aria-label={t('workspace.refCheck.title')}>
+                    <p className="wx-muted" style={{ margin: '0 0 var(--space-3)' }}>{t('workspace.refCheck.hint')}</p>
+                    <CitationChecker
+                      apiUrl={apiUrl}
+                      getToken={getToken}
+                      basket={basket}
+                      onAdd={(paper) => basket.add(paper)}
+                    />
+                  </section>
                 )}
                 {!review && sideView === 'list' && (
                   <section className="wx-srclist" aria-label={t('workspace.side.sources')}>

@@ -3,8 +3,10 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 const MotionDiv = motion.div;
 import { Sparkles, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { useI18n } from '../i18n/context.js';
 
 export default function ConsensusSnapshot({ topic, papers = [], apiUrl = '' }) {
+  const { t } = useI18n();
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -27,11 +29,15 @@ export default function ConsensusSnapshot({ topic, papers = [], apiUrl = '' }) {
       }
     } catch (err) {
       console.error('Consensus error', err);
-      setError('Literatür konsensüsü oluşturulamadı.');
+      setError(t('consensus.error'));
     } finally {
       setLoading(false);
     }
   };
+
+  // Modelin ürettiği puan bir olasılık değil; sayı yoksa hiç gösterilmez.
+  // (Eskiden `snapshot.consensusScore || 85` vardı: olmayan sayıyı uyduruyordu.)
+  const score = Number.isFinite(snapshot?.consensusScore) ? snapshot.consensusScore : null;
 
   if (!snapshot && !loading) {
     return (
@@ -51,10 +57,10 @@ export default function ConsensusSnapshot({ topic, papers = [], apiUrl = '' }) {
           <Sparkles size={18} color="var(--brand-primary)" />
           <div>
             <h4 style={{ margin: 0, fontSize: 'var(--fs-sm)', fontWeight: '700', color: 'var(--text-main)' }}>
-              Akademik Konsensüs & Yönetici Özeti
+              {t('consensus.collapsedTitle')}
             </h4>
             <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>
-              Listelenen ilk 6 makalenin ortak bilimsel sonucunu ve araştırma boşluğunu tek tıkla çıkarın.
+              {t('consensus.intro')}
             </p>
           </div>
         </div>
@@ -76,7 +82,7 @@ export default function ConsensusSnapshot({ topic, papers = [], apiUrl = '' }) {
             gap: '6px'
           }}
         >
-          <Sparkles size={13} /> Konsensüsü Çıkar
+          <Sparkles size={13} /> {t('consensus.action')}
         </button>
 
         {error && (
@@ -104,7 +110,7 @@ export default function ConsensusSnapshot({ topic, papers = [], apiUrl = '' }) {
       }}>
         <Loader2 size={18} className="animate-spin" color="var(--brand-primary)" />
         <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-main)' }}>
-          En yüksek AHP skorlu makalelerin bilimsel konsensüsü sentezleniyor...
+          {t('consensus.loading')}
         </span>
       </div>
     );
@@ -139,7 +145,7 @@ export default function ConsensusSnapshot({ topic, papers = [], apiUrl = '' }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Sparkles size={16} color="var(--brand-primary)" />
           <h4 style={{ margin: 0, fontSize: 'var(--fs-sm)', fontWeight: '700', color: 'var(--text-main)' }}>
-            Literatür Konsensüsü & Yönetici Özeti
+            {t('consensus.title')}
           </h4>
           <span style={{
             background: '#ecfdf5',
@@ -150,7 +156,9 @@ export default function ConsensusSnapshot({ topic, papers = [], apiUrl = '' }) {
             padding: '1px 8px',
             borderRadius: '999px'
           }}>
-            %{snapshot.consensusScore || 85} Fikir Birliği
+            {score === null
+              ? t('consensus.basedOn', { n: papers.length })
+              : t('consensus.score', { n: score })}
           </span>
         </div>
 
@@ -204,7 +212,7 @@ export default function ConsensusSnapshot({ topic, papers = [], apiUrl = '' }) {
                 gap: '8px'
               }}>
                 <AlertCircle size={14} color="#d97706" style={{ flexShrink: 0 }} />
-                <span><strong>Öne Çıkan Literatür Boşluğu:</strong> {snapshot.researchGap}</span>
+                <span><strong>{t('consensus.gapLabel')}</strong> {snapshot.researchGap}</span>
               </div>
             )}
           </MotionDiv>

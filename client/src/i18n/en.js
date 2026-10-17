@@ -1026,7 +1026,12 @@ export default {
       cancel: 'Close',
       trust: 'Details are read from the file as they are; this is not a verified record. For entries with a DOI, the details are refreshed from doi.org when the bibliography is built.',
     },
-    summaryLimit: 'This count reads citation markers in the text. Passage verification does not exist yet; "has a citation" is not the same as "the source actually supports it".',
+    summaryLimit: 'This count reads citation markers in the text. Passage verification runs only while generating a single sentence from one passage (today, an abstract); "has a citation" is not the same as "the source actually supports it".',
+    refCheck: {
+      button: 'Verify references (beta)',
+      title: 'Reference verification',
+      hint: 'Paste the lines of your reference list here: each line is searched in open indexes and any difference from the found record is shown. This step is not claim-evidence verification; it verifies the identity of the reference only.',
+    },
     targetHint: 'Approximate length suggested by the template. Journal and institution guidelines take precedence.',
     goToSection: 'Go to {name}',
     saveDirty: 'saving…',
@@ -1264,5 +1269,19 @@ export default {
       missingField: '{field} missing: {canonical}',
       differs: '{field} is {canonical}, not {input}',
     },
+  },
+  // Literature consensus (search tab card)
+  consensus: {
+    title: 'Literature consensus and executive summary',
+    collapsedTitle: 'Academic consensus and executive summary',
+    intro: 'Extract the shared finding and the research gap of the first 6 papers in one click.',
+    action: 'Build consensus',
+    loading: 'Synthesizing the consensus of the highest AHP-scoring papers…',
+    error: 'The literature consensus could not be built.',
+    // The model returns an integer between 60 and 98. It is not a calibrated
+    // probability, so the label says "model estimate" (CLAUDE.md 2.8).
+    score: 'Model estimate: {n}%',
+    basedOn: 'based on {n} papers',
+    gapLabel: 'Standout literature gap:',
   },
 };
