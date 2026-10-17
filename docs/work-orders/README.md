@@ -66,6 +66,7 @@ Taslak → Hazır → Çalışıyor → Bitti
 | [WO-020](WO-020-arastirmadan-yazima-kopru.md) | Araştırmadan yazıma köprü: Yaz'da "son aramandan ilgili olabilir", doğrulanmamış atıf | P1 | Taslak (17.10.2026) — ön koşul WO-017; onay: `Basket.query` alanı |
 | [WO-021](WO-021-bekleme-hata-kart-durumlari.md) | Bekleme, hata ve kart durumları (planlardaki WO-E2) | P1 | Taslak (17.10.2026) — ön koşul WO-018 |
 | [WO-022](WO-022-model-kademesi-pr6.md) | Görsel yapı model kademesi PR6.v2 ve E5 (planlardaki WO-C) | P3 | Taslak (17.10.2026) — ön koşul WO-019, E5 etiketlemesi |
+| [WO-023](WO-023-yapay-zeka-baglantilari.md) | Yapay zekâ bağlantıları: kullanıcının kendi API anahtarı (varsayılan Literatür AI) | P1 | Taslak (17.10.2026) — ön koşul WO-017; onay: AiConnection koleksiyonu, KEY_ENCRYPTION_KEY |
 
 **Yol haritası (17.10.2026):** `docs/design/yol-haritasi.md`. Görünür sonuç
 sırası: WO-011 kontrolü → galeri kararları → WO-017 → WO-018 → WO-019 →
