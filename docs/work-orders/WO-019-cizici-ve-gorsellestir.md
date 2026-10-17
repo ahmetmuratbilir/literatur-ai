@@ -37,6 +37,15 @@ WO-008'den önce (yol haritası sıra kararı, 17.10.2026).
   düzenlemeye açınca görünür (plan §5 WO-D notu); `relocated` uyarısız;
   `changed` / `missing` için "Yeniden oluştur / Olduğu gibi bırak".
 - Şekil durumu (yapı, şablon, tema, mühür) belgeyle saklanır.
+- **Neden bu şablon**: her önerinin altında tek satır gerekçe ("“geri döner”
+  geçiyor: dönüş kapanıyor"); uymayanlar katlanır listede nedeniyle (WO-016
+  `fit.*` / `unfit.*` kodlarının Türkçe metni). Galerideki "Gerçek paragraf"
+  bölümü bu davranışı gösteriyor.
+- **Etiketten cümleye**: şekildeki etikete tıklayınca belgede kaynak cümle
+  vurgulanır; etiket altında "n. cümle" notu (izlenebilirlik, tüzük 2.12/2).
+- **Ok etiketleri**: akış ve döngüde iki öğe arasındaki fiil okun üstünde.
+- **İndir**: şekli tek başına SVG ve PNG (2×) olarak indirme. PNG'de yazı
+  tipi gömme WO-008'de; bu iş emrinde sistem yazı tipiyle.
 
 ### Hariç
 - Word/PDF'e gömme (WO-008). Bu iş emrinde dışa aktarmada şekil yerine
@@ -90,6 +99,7 @@ WO-008'den önce (yol haritası sıra kararı, 17.10.2026).
 | Şablon öz-denetimi | `npx playwright test figure.spec.js` | Her şablon × 3/5/8 × 2 tema: 0 sorun |
 | Akış | aynı dosya | ✦ → öneri → düzenle → ekle → yenile → düzenle → kaldır → geri al |
 | Elle | Kendi paragrafını yaz, ✦, şekli düzenle, ekle | Etiketler cümleden; uyarı yalnız bakınca |
+| Elle (v2 paragrafları) | Galerideki üç paragrafı (pasif soğutma, akış kararsızlığı, KMR güvenliği) belgeye yapıştır, ✦ | Önerilen şablon galeridekiyle aynı; aynı değilse fark rapora yazılır (WO-016 kural kademesi bunları yakalamayabilir — bulgu, hata değil) |
 
 ## Ölçüm
 Görsel yapının doğruluğu E5 kümesiyle ölçülür; E5 henüz etiketlenmedi, bu

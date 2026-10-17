@@ -34,7 +34,7 @@ h2.fam{font-size:16px;margin:26px 0 10px;color:var(--primary)}
 .card h3{font-size:16px;margin:0}
 .meta{font-size:12.5px;color:var(--muted)}
 .meta code{font-size:12px;background:var(--primary-soft);color:var(--primary);padding:1px 6px;border-radius:4px}
-.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:12px;margin:10px 0}
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,600px),1fr));gap:12px;margin:10px 0}
 figure{margin:0;border:1px solid var(--line);border-radius:8px;background:#fff;padding:8px;cursor:zoom-in;display:flex;flex-direction:column}
 figure .svgbox{flex:1;display:flex;align-items:center;justify-content:center}
 figure svg{display:block;width:100%;height:auto}
@@ -46,6 +46,10 @@ body.gray figure svg{filter:grayscale(1)}
 .decide .seg button[data-v="duzelt"][aria-pressed="true"]{background:var(--warn)}
 .decide .seg button[data-v="at"][aria-pressed="true"]{background:var(--bad)}
 .decide input{flex:1;min-width:200px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:inherit;font-size:13.5px}
+.para{background:#fbfbfc;border-left:3px solid var(--primary);padding:10px 14px;font-size:14px;margin:10px 0;border-radius:0 8px 8px 0}
+.sn{display:inline-block;min-width:18px;height:18px;border-radius:9px;background:var(--primary-soft);color:var(--primary);font-size:11px;font-weight:700;text-align:center;line-height:18px}
+.rec{color:var(--ok)}
+details.unfit{font-size:13px;color:var(--muted)} details.unfit summary{cursor:pointer;color:var(--primary)}
 .issues{font-size:12px;color:var(--bad);margin:0 0 6px;padding-left:18px}
 .lb{position:fixed;inset:0;background:rgba(15,23,35,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
 .lb.open{display:flex}
@@ -155,7 +159,8 @@ function T(b, x, y, o = {}) {
   if (box) a += ` data-box="${box.map(r1).join(',')}"`;
   return `<text ${a}${extra}>` + b.lines.map((l, i) => `<tspan x="${r1(x)}" y="${r1(top + i * lh + lh / 2 + b.size * 0.36)}">${esc(l)}</tspan>`).join('') + '</text>';
 }
-const rect = (x, y, w, h, o = {}) => `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" rx="${o.rx ?? 8}" fill="${o.fill || 'none'}"` +
+// Gölge: filtre değil, kaydırılmış yarı saydam dikdörtgen (Word/LibreOffice'e aynen geçer).
+const rect = (x, y, w, h, o = {}) => (o.shadow ? `<rect x="${r1(x)}" y="${r1(y + 3)}" width="${r1(w)}" height="${r1(h)}" rx="${o.rx ?? 8}" fill="#1b2430" fill-opacity="0.07"/>` : '') + `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" rx="${o.rx ?? 8}" fill="${o.fill || 'none'}"` +
   (o.stroke ? ` stroke="${o.stroke}" stroke-width="${o.sw || 1}"` : '') + (o.dash ? ` stroke-dasharray="${o.dash}"` : '') + '/>';
 const line = (x1, y1, x2, y2, c, sw = 1.5, dash) => `<line x1="${r1(x1)}" y1="${r1(y1)}" x2="${r1(x2)}" y2="${r1(y2)}" stroke="${c}" stroke-width="${sw}"${dash ? ` stroke-dasharray="${dash}"` : ''} stroke-linecap="round"/>`;
 const path = (d, c, sw = 1.5, fill = 'none') => `<path d="${d}" fill="${fill}" stroke="${c}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>`;
@@ -178,7 +183,7 @@ function I(name, cx, cy, size, color, force) {
 function badge(cx, cy, r, i, it, t, c) {
   c = c || t.col(i);
   const icon = t.icons && it && it.icon && ICONS[it.icon];
-  return circ(cx, cy, r, c) + (icon ? I(it.icon, cx, cy, r * 1.0, '#ffffff')
+  return circ(cx, cy, r + 5, tint(c, 0.84)) + circ(cx, cy, r, c, '#ffffff', 2) + (icon ? I(it.icon, cx, cy, r * 1.0, '#ffffff')
     : T(wrap(String(i + 1), 99, Math.round(r * 0.78), 700), cx, cy, { fill: '#ffffff', anchor: 'middle', v: 'middle' }));
 }
 // Kapsam izleyici: merkez çevresine çizilen şekiller için.
@@ -373,25 +378,32 @@ const RINGS = [
 // Sıra
 function drawSteps(d, t) {
   const n = d.items.length, per = n <= 5 ? n : Math.ceil(n / 2), rows = Math.ceil(n / per);
-  const colW = (W - 2 * PAD) / per, r = 22, tx = colW - 14;
-  const B = d.items.map((it) => ({ l: wrap(it.label, tx, 13, 600), s: wrap(it.desc, tx, 11.5) }));
+  const colW = (W - 2 * PAD) / per, r = 24, tx = colW - 14;
+  const B = d.items.map((it) => ({ l: wrap(it.label, tx, 14, 700), s: wrap(it.desc, tx, 12) }));
+  // Ok etiketi (v2'den): iki adım arasındaki fiil, okun üstünde.
+  const RL = d.items.map((it) => (it.rel ? wrap(it.rel, colW - 2 * r - 20, 11, 600) : null));
+  const relH = RL.some(Boolean) ? Math.max(...RL.filter(Boolean).map((b) => b.h)) + 6 : 0;
   let out = '', y = PAD, prev = null;
   for (let row = 0; row < rows; row++) {
     const idx = range(per).map((j) => row * per + j).filter((i) => i < n);
-    const cy = y + r, cxs = idx.map((_, j) => PAD + colW * (j + 0.5));
+    const cy = y + relH + r, cxs = idx.map((_, j) => PAD + colW * (j + 0.5));
     const textH = Math.max(...idx.map((i) => B[i].l.h + 4 + B[i].s.h));
-    for (let j = 0; j < idx.length - 1; j++) out += arrow(cxs[j] + r + 6, cy, cxs[j + 1] - r - 6, cy, t.line, 1.5);
+    for (let j = 0; j < idx.length - 1; j++) {
+      const ac = t.sade ? t.dark : tint(t.col(idx[j]), 0.15);
+      out += arrow(cxs[j] + r + 9, cy, cxs[j + 1] - r - 9, cy, ac, 2.6);
+      if (RL[idx[j]]) out += T(RL[idx[j]], (cxs[j] + cxs[j + 1]) / 2, cy - 8, { fill: t.dark, anchor: 'middle', v: 'bottom', halo: '#ffffff' });
+    }
     if (prev) {
       const gy = y - 16;
       out += path(`M${r1(prev.x + r + 4)} ${r1(prev.y)} H${W - 8} V${r1(gy)} H8 V${r1(cy)} H${r1(cxs[0] - r - 10)}`, t.line, 1.5) + head(cxs[0] - r - 4, cy, 0, t.line);
     }
     idx.forEach((i, j) => {
       out += badge(cxs[j], cy, r, i, d.items[i], t);
-      const ty = cy + r + 10;
+      const ty = cy + r + 14;
       out += T(B[i].l, cxs[j], ty, { fill: t.ink, anchor: 'middle' }) + T(B[i].s, cxs[j], ty + B[i].l.h + 4, { fill: t.muted, anchor: 'middle' });
     });
     prev = { x: cxs[idx.length - 1], y: cy };
-    y = cy + r + 10 + textH + 36;
+    y = cy + r + 14 + textH + 36;
   }
   return { w: W, h: y - 36 + PAD, svg: out };
 }
@@ -420,7 +432,7 @@ function drawRoadmap(d, t) {
   d.items.forEach((it, i) => {
     const tag = wrap(it.tag || '', tx, 11, 700), l = wrap(it.label, tx, 13.5, 600), s = wrap(it.desc, tx, 11.5);
     const h = 12 + tag.h + 2 + l.h + 4 + s.h + 12, c = t.col(i), box = [cx0, y, cw, h];
-    cards += rect(cx0, y, cw, h, { fill: tint(c, 0.92), rx: 8 }) + rect(cx0, y, 4, h, { fill: c, rx: 2 });
+    cards += rect(cx0, y, cw, h, { shadow: true, fill: tint(c, 0.92), rx: 8 }) + rect(cx0, y, 4, h, { fill: c, rx: 2 });
     let ty = y + 12;
     cards += T(tag, cx0 + 16, ty, { fill: c, box }); ty += tag.h + 2;
     cards += T(l, cx0 + 16, ty, { fill: t.ink, box }); ty += l.h + 4;
@@ -441,7 +453,7 @@ function drawCards(d, t) {
     const h = Math.max(...idx.map((i) => 16 + 30 + 8 + B[i].l.h + 4 + B[i].s.h + 14));
     idx.forEach((i, j) => {
       const x = PAD + j * (cw + gap), c = t.col(i), box = [x, y, cw, h], it = d.items[i];
-      out += rect(x, y, cw, h, { fill: '#ffffff', stroke: tint(c, 0.5), sw: 1, rx: 10 }) + rect(x + 14, y, 30, 4, { fill: c, rx: 2 });
+      out += rect(x, y, cw, h, { shadow: true, fill: '#ffffff', stroke: tint(c, 0.5), sw: 1, rx: 10 }) + rect(x + 14, y, 30, 4, { fill: c, rx: 2 });
       out += T(wrap(String(i + 1).padStart(2, '0'), 99, 22, 700), x + 14, y + 16, { fill: c, box });
       if (t.icons && it.icon) out += I(it.icon, x + cw - 26, y + 31, 22, c);
       let ty = y + 16 + 30 + 8;
@@ -455,31 +467,43 @@ function drawCards(d, t) {
 
 // Döngü
 function drawCycle(d, t) {
-  const n = d.items.length, R = Math.min(185, 96 + 14 * n), r = 20, E = ext();
+  const n = d.items.length, R = Math.min(185, 100 + 14 * n), r = 24, E = ext();
   const ang = (i) => -Math.PI / 2 + i * 2 * Math.PI / n;
   let out = '';
-  E.add(-R - 2, -R - 2, R + 2, R + 2);
-  const dl = (r + 8) / R;
+  E.add(-R - 4, -R - 4, R + 4, R + 4);
+  const dl = (r + 11) / R;
   range(n).forEach((i) => {
     const a1 = ang(i) + dl, a2 = ang(i + 1) - dl;
     const x1 = R * Math.cos(a1), y1 = R * Math.sin(a1), x2 = R * Math.cos(a2), y2 = R * Math.sin(a2);
-    out += path(`M${r1(x1)} ${r1(y1)} A${R} ${R} 0 ${a2 - a1 > Math.PI ? 1 : 0} 1 ${r1(x2)} ${r1(y2)}`, t.line, 2) + head(x2, y2, a2 + Math.PI / 2, t.line, 9);
+    const ac = t.sade ? t.dark : tint(t.col(i), 0.15);
+    out += path(`M${r1(x1)} ${r1(y1)} A${R} ${R} 0 ${a2 - a1 > Math.PI ? 1 : 0} 1 ${r1(x2)} ${r1(y2)}`, ac, 3.2) + head(x2, y2, a2 + Math.PI / 2, ac, 12);
+    const rel = d.items[i].rel;
+    if (rel) {
+      const am = (a1 + a2) / 2, c = Math.cos(am), s = Math.sin(am), lx = (R + 14) * c, ly = (R + 14) * s;
+      const b = wrap(rel, 120, 10.5, 600), anchor = c > 0.3 ? 'start' : c < -0.3 ? 'end' : 'middle', v = s < -0.3 ? 'bottom' : s > 0.3 ? 'top' : 'middle';
+      out += T(b, lx, ly, { fill: t.dark, anchor, v, halo: '#ffffff' });
+      const x0 = anchor === 'start' ? lx : anchor === 'end' ? lx - b.w : lx - b.w / 2, y0 = v === 'top' ? ly : v === 'bottom' ? ly - b.h : ly - b.h / 2;
+      E.add(x0, y0, x0 + b.w, y0 + b.h);
+    }
   });
   d.items.forEach((it, i) => {
     const a = ang(i), x = R * Math.cos(a), y = R * Math.sin(a);
-    out += badge(x, y, r, i, it, t); E.add(x - r, y - r, x + r, y + r);
+    out += badge(x, y, r, i, it, t); E.add(x - r - 6, y - r - 6, x + r + 6, y + r + 6);
     const c = Math.cos(a), s = Math.sin(a), side = c > 0.35 ? 'r' : c < -0.35 ? 'l' : s < 0 ? 't' : 'b';
-    const mw = side === 't' || side === 'b' ? 180 : n >= 7 ? 120 : 140;
-    const l = wrap(it.label, mw, 12.5, 600), ds = wrap(it.desc || '', mw, 11);
-    const bh = l.h + (ds.lines.length ? 2 + ds.h : 0), bw = Math.max(l.w, ds.w);
+    const mw = side === 't' || side === 'b' ? 180 : n >= 7 ? 112 : 140;
+    const l = wrap(it.label, mw, 13.5, 700), ds = wrap(it.desc || '', mw, 11.5);
+    const bh = l.h + (ds.lines.length ? 2 + ds.h : 0), bw = Math.max(l.w, ds.w), g = r + 12;
     let lx, ly, anchor;
-    if (side === 'r') { lx = x + r + 10; ly = y - bh / 2; anchor = 'start'; E.add(lx, ly, lx + bw, ly + bh); }
-    else if (side === 'l') { lx = x - r - 10; ly = y - bh / 2; anchor = 'end'; E.add(lx - bw, ly, lx, ly + bh); }
-    else if (side === 't') { lx = x; ly = y - r - 8 - bh; anchor = 'middle'; E.add(lx - bw / 2, ly, lx + bw / 2, ly + bh); }
-    else { lx = x; ly = y + r + 8; anchor = 'middle'; E.add(lx - bw / 2, ly, lx + bw / 2, ly + bh); }
+    if (side === 'r') { lx = x + g; ly = y - bh / 2; anchor = 'start'; E.add(lx, ly, lx + bw, ly + bh); }
+    else if (side === 'l') { lx = x - g; ly = y - bh / 2; anchor = 'end'; E.add(lx - bw, ly, lx, ly + bh); }
+    else if (side === 't') { lx = x; ly = y - g - bh; anchor = 'middle'; E.add(lx - bw / 2, ly, lx + bw / 2, ly + bh); }
+    else { lx = x; ly = y + g; anchor = 'middle'; E.add(lx - bw / 2, ly, lx + bw / 2, ly + bh); }
     out += T(l, lx, ly, { fill: t.ink, anchor }) + T(ds, lx, ly + l.h + 2, { fill: t.muted, anchor });
   });
-  if (d.title) out += T(wrap(d.title, R * 1.05, 14, 700), 0, 0, { fill: t.dark, anchor: 'middle', v: 'middle' });
+  if (d.title) {
+    const tb = wrap(d.title, R * 0.95, 15, 700), pr = Math.min(R - r - 18, Math.max(tb.w, tb.h) / 2 + 26);
+    out += circ(0, 0, pr, t.sade ? '#f2f4f7' : tint(t.col(0), 0.93)) + T(tb, 0, 0, { fill: t.dark, anchor: 'middle', v: 'middle' });
+  }
   return E.wrap(out);
 }
 function drawHub(d, t) {
@@ -490,7 +514,7 @@ function drawHub(d, t) {
     const l = wrap(it.label, cw - 20, 12.5, 600), ih = t.icons && it.icon ? 26 : 0, h = 12 + ih + l.h + 12;
     lines += line(R0 * Math.cos(a), R0 * Math.sin(a), x, y, tint(c, 0.35), 1.5);
     const bx = x - cw / 2, by = y - h / 2, box = [bx, by, cw, h];
-    cards += rect(bx, by, cw, h, { fill: tint(c, 0.9), stroke: c, sw: 1.2, rx: 10 });
+    cards += rect(bx, by, cw, h, { shadow: true, fill: tint(c, 0.9), stroke: c, sw: 1.2, rx: 10 });
     if (ih) cards += I(it.icon, x, by + 12 + 10, 20, c);
     cards += T(l, x, by + 12 + ih, { fill: t.ink, anchor: 'middle', box });
     E.add(bx, by, bx + cw, by + h);
@@ -505,20 +529,23 @@ function drawFish(d, t) {
   const n = d.items.length, k = Math.ceil(n / 2), headW = 150, headX = W - PAD - headW;
   const span = headX - PAD - 30, sp = span / k, L = 64, dx = 44, lw = Math.min(160, sp - 12);
   const top = d.items.filter((_, i) => i % 2 === 0), bot = d.items.filter((_, i) => i % 2 === 1);
-  const BT = top.map((s) => wrap(s, lw, 12, 600)), BB = bot.map((s) => wrap(s, lw, 12, 600));
-  const topH = Math.max(0, ...BT.map((b) => b.h)), botH = Math.max(0, ...BB.map((b) => b.h));
-  const sy = PAD + topH + 8 + L;
-  const hb = wrap(d.effect, headW - 24, 13, 700), hh = Math.max(64, hb.h + 24);
-  let out = line(PAD, sy, headX - 8, sy, t.dark, 3) + head(headX - 1, sy, 0, t.dark, 12);
-  out += rect(headX, sy - hh / 2, headW, hh, { fill: t.dark, rx: 10 }) +
+  // Neden etiketleri kılçık ucunda renkli kutucuk; kutucuk yüksekliği taraf başına en yükseğe eşit.
+  const BT = top.map((s) => wrap(s, lw - 20, 12.5, 600)), BB = bot.map((s) => wrap(s, lw - 20, 12.5, 600));
+  const topH = Math.max(0, ...BT.map((b) => b.h + 16)), botH = Math.max(0, ...BB.map((b) => b.h + 16));
+  const sy = PAD + topH + L;
+  const hb = wrap(d.effect, headW - 28, 14, 700), hh = Math.max(70, hb.h + 28);
+  let out = line(PAD, sy, headX - 10, sy, t.dark, 4) + head(headX - 1, sy, 0, t.dark, 14);
+  out += rect(headX, sy - hh / 2, headW, hh, { shadow: true, fill: t.dark, rx: 12 }) +
     T(hb, headX + headW / 2, sy, { fill: '#ffffff', anchor: 'middle', v: 'middle', box: [headX, sy - hh / 2, headW, hh] });
-  const bone = (B, dir, off) => B.forEach((b, j) => {
+  const bone = (B, dir, off, chipH) => B.forEach((b, j) => {
     const ax = PAD + 30 + sp * (j + 1) - sp * 0.25, tx = ax - dx, ty = sy - dir * L, c = t.col(2 * j + off);
-    out += line(tx, ty, ax, sy, c, 2) + circ(tx, ty, 4, c);
-    out += dir > 0 ? T(b, tx, ty - 8, { fill: t.ink, anchor: 'middle', v: 'bottom' }) : T(b, tx, ty + 8, { fill: t.ink, anchor: 'middle' });
+    const cw = b.w + 22, cx = Math.max(PAD, Math.min(tx - cw / 2, headX - 8 - cw)), cyy = dir > 0 ? ty - chipH : ty, box = [cx, cyy, cw, chipH];
+    out += line(tx, ty, ax, sy, t.sade ? t.dark : c, 2.6);
+    out += rect(cx, cyy, cw, chipH, { shadow: true, fill: t.sade ? '#ffffff' : tint(c, 0.88), stroke: c, sw: 1.4, rx: chipH > 34 ? 10 : chipH / 2 }) +
+      T(b, cx + cw / 2, cyy + chipH / 2, { fill: t.ink, anchor: 'middle', v: 'middle', box });
   });
-  bone(BT, 1, 0); bone(BB, -1, 1);
-  return { w: W, h: Math.max(sy + L + 8 + botH, sy + hh / 2) + PAD, svg: out };
+  bone(BT, 1, 0, topH); bone(BB, -1, 1, botH);
+  return { w: W, h: Math.max(sy + L + botH, sy + hh / 2) + PAD, svg: out };
 }
 function drawChain(d, t) {
   const n = d.items.length;
@@ -528,7 +555,7 @@ function drawChain(d, t) {
     const B = d.items.map((it) => wrap(it.label, bw - 20, 13, 600)), bh = Math.max(...B.map((b) => b.h)) + 26, y = PAD + 40;
     d.items.forEach((it, i) => {
       const x = PAD + i * (bw + gap), c = t.col(i), box = [x, y, bw, bh];
-      out += rect(x, y, bw, bh, { fill: tint(c, 0.9), stroke: c, sw: 1.3, rx: 10 }) + T(B[i], x + bw / 2, y + bh / 2, { fill: t.ink, anchor: 'middle', v: 'middle', box });
+      out += rect(x, y, bw, bh, { shadow: true, fill: tint(c, 0.9), stroke: c, sw: 1.3, rx: 10 }) + T(B[i], x + bw / 2, y + bh / 2, { fill: t.ink, anchor: 'middle', v: 'middle', box });
       if (i < n - 1) {
         const x1 = x + bw + 6, x2 = x + bw + gap - 6;
         out += arrow(x1, y + bh / 2, x2, y + bh / 2, t.dark, 1.8) + T(wrap(it.rel, gap - 14, 11, 600), (x1 + x2) / 2, y + bh / 2 - 8, { fill: t.dark, anchor: 'middle', v: 'bottom' });
@@ -540,7 +567,7 @@ function drawChain(d, t) {
   let y = PAD;
   d.items.forEach((it, i) => {
     const c = t.col(i), b = wrap(it.label, bw - 84, 13, 600), bh = b.h + 22, box = [x, y, bw, bh];
-    out += rect(x, y, bw, bh, { fill: tint(c, 0.9), stroke: c, sw: 1.3, rx: 10 }) + T(b, W / 2, y + bh / 2, { fill: t.ink, anchor: 'middle', v: 'middle', box });
+    out += rect(x, y, bw, bh, { shadow: true, fill: tint(c, 0.9), stroke: c, sw: 1.3, rx: 10 }) + T(b, W / 2, y + bh / 2, { fill: t.ink, anchor: 'middle', v: 'middle', box });
     if (t.icons && it.icon) out += I(it.icon, x + 22, y + bh / 2, 18, c);
     y += bh;
     if (i < n - 1) { out += arrow(W / 2, y + 4, W / 2, y + ag - 4, t.dark, 1.8) + T(wrap(it.rel, 200, 11, 600), W / 2 + 12, y + ag / 2, { fill: t.dark, v: 'middle' }); y += ag; }
@@ -566,7 +593,7 @@ function drawLoop(d, t) {
   });
   L.forEach((p, i) => {
     const c = t.col(i), bw = p.b.w + 16, bh = p.b.h + 12, box = [p.x - bw / 2, p.y - bh / 2, bw, bh];
-    out += rect(box[0], box[1], bw, bh, { fill: tint(c, 0.9), stroke: c, sw: 1.2, rx: 8 }) + T(p.b, p.x, p.y, { fill: t.ink, anchor: 'middle', v: 'middle', box });
+    out += rect(box[0], box[1], bw, bh, { shadow: true, fill: tint(c, 0.9), stroke: c, sw: 1.2, rx: 8 }) + T(p.b, p.x, p.y, { fill: t.ink, anchor: 'middle', v: 'middle', box });
     E.add(box[0], box[1], box[0] + bw, box[1] + bh);
   });
   const minus = d.items.filter((it) => it.pol === '-').length, reinf = minus % 2 === 0;
@@ -583,14 +610,14 @@ function drawTree(d, t) {
   let out = '';
   if (colW >= 124) {
     const rx0 = (W - rw) / 2, y0 = PAD, busY = y0 + rh + 18, cy = busY + 18, cw = colW - 12;
-    out += rect(rx0, y0, rw, rh, { fill: t.dark, rx: 10 }) + T(rb, W / 2, y0 + rh / 2, { fill: '#ffffff', anchor: 'middle', v: 'middle', box: [rx0, y0, rw, rh] });
+    out += rect(rx0, y0, rw, rh, { shadow: true, fill: t.dark, rx: 10 }) + T(rb, W / 2, y0 + rh / 2, { fill: '#ffffff', anchor: 'middle', v: 'middle', box: [rx0, y0, rw, rh] });
     const B = d.items.map((it) => wrap(it.label, cw - 16, 12.5, 600)), ch = Math.max(...B.map((b) => b.h)) + 20;
     const cxs = range(n).map((i) => PAD + colW * (i + 0.5));
     out += line(W / 2, y0 + rh, W / 2, busY, t.line) + (n > 1 ? line(cxs[0], busY, cxs[n - 1], busY, t.line) : '');
     let bottom = cy + ch;
     d.items.forEach((it, i) => {
       const x = cxs[i] - cw / 2, c = t.col(i), box = [x, cy, cw, ch];
-      out += line(cxs[i], busY, cxs[i], cy, t.line) + rect(x, cy, cw, ch, { fill: tint(c, 0.88), stroke: c, sw: 1.2, rx: 8 }) +
+      out += line(cxs[i], busY, cxs[i], cy, t.line) + rect(x, cy, cw, ch, { shadow: true, fill: tint(c, 0.88), stroke: c, sw: 1.2, rx: 8 }) +
         T(B[i], cxs[i], cy + ch / 2, { fill: t.ink, anchor: 'middle', v: 'middle', box });
       let sy = cy + ch + 10, lastMid = null;
       (it.subs || []).forEach((s) => {
@@ -616,7 +643,7 @@ function drawTree(d, t) {
   const mids = [];
   rows.forEach((r, i) => {
     const c = t.col(i), cy = y + (r.h - r.ch) / 2, box = [cX, cy, cW, r.ch];
-    out += rect(cX, cy, cW, r.ch, { fill: tint(c, 0.88), stroke: c, sw: 1.2, rx: 8 }) + T(r.b, cX + 10, cy + r.ch / 2, { fill: t.ink, v: 'middle', box });
+    out += rect(cX, cy, cW, r.ch, { shadow: true, fill: tint(c, 0.88), stroke: c, sw: 1.2, rx: 8 }) + T(r.b, cX + 10, cy + r.ch / 2, { fill: t.ink, v: 'middle', box });
     mids.push(cy + r.ch / 2);
     const sh = r.subs.reduce((a, s) => a + s.h, 0) + Math.max(0, r.subs.length - 1) * 5;
     let sy = y + (r.h - sh) / 2;
@@ -635,7 +662,7 @@ function drawTree(d, t) {
   });
   const H = y - 12, ry0 = (PAD + H) / 2 - rh / 2, rW = 150;
   const rb2 = wrap(d.root, rW - 24, 13, 700), rh2 = rb2.h + 20, ryy = (PAD + H) / 2 - rh2 / 2;
-  out += rect(PAD, ryy, rW, rh2, { fill: t.dark, rx: 10 }) + T(rb2, PAD + rW / 2, ryy + rh2 / 2, { fill: '#ffffff', anchor: 'middle', v: 'middle', box: [PAD, ryy, rW, rh2] });
+  out += rect(PAD, ryy, rW, rh2, { shadow: true, fill: t.dark, rx: 10 }) + T(rb2, PAD + rW / 2, ryy + rh2 / 2, { fill: '#ffffff', anchor: 'middle', v: 'middle', box: [PAD, ryy, rW, rh2] });
   const bus = cX - 20;
   out += line(PAD + rW, (PAD + H) / 2, bus, (PAD + H) / 2, t.line) + line(bus, mids[0], bus, mids[mids.length - 1], t.line);
   mids.forEach((m) => { out += line(bus, m, cX, m, t.line); });
@@ -719,7 +746,7 @@ function drawTwo(d, t) {
   const ha = wrap(d.a.label, cw - 60, 14, 700), hb = wrap(d.b.label, cw - 60, 14, 700), hh = Math.max(ha.h, hb.h) + 22;
   [[lx1, ca, ha, d.a], [rx1, cb, hb, d.b]].forEach(([x, c, hbk, side]) => {
     const ic = t.icons && side.icon;
-    out += rect(x, y, cw, hh, { fill: c, rx: 10 });
+    out += rect(x, y, cw, hh, { shadow: true, fill: c, rx: 10 });
     if (ic) out += I(side.icon, x + cw / 2 - hbk.w / 2 - 16, y + hh / 2, 18, '#ffffff');
     out += T(hbk, x + cw / 2 + (ic ? 12 : 0), y + hh / 2, { fill: '#ffffff', anchor: 'middle', v: 'middle', box: [x, y, cw, hh] });
   });
@@ -823,7 +850,7 @@ function drawConcept(d, t) {
   const N = d.nodes.length, layer = Array(N).fill(0);
   for (let it = 0; it < N; it++) d.edges.forEach(([a, b]) => { layer[b] = Math.max(layer[b], layer[a] + 1); });
   const L = Math.max(...layer) + 1, nb = d.nodes.map((s) => wrap(s, 120, 12.5, 600));
-  const bw = nb.map((b) => b.w + 26), bh = nb.map((b) => b.h + 18), rowH = 46 + 74;
+  const bw = nb.map((b) => b.w + 26), bh = nb.map((b) => b.h + 18), rowH = 46 + (d.gap ?? 74);
   const x = Array(N).fill(0), byL = range(L).map((l) => range(N).filter((i) => layer[i] === l));
   byL.forEach((ids, l) => {
     if (l === 0) { ids.forEach((i, j) => { x[i] = PAD + (W - 2 * PAD) * (j + 0.5) / ids.length; }); return; }
@@ -843,27 +870,29 @@ function drawConcept(d, t) {
   d.edges.forEach(([a, b, label]) => {
     const x1 = x[a], y1 = yTop(a) + bh[a], x2 = x[b], y2 = yTop(b);
     out += arrow(x1, y1, x2, y2 - 2, t.line, 1.5);
-    const k = 0.6, lx = x1 + (x2 - x1) * k, ly = y1 + (y2 - y1) * k;
+    const k = d.k ?? 0.6, lx = x1 + (x2 - x1) * k, ly = y1 + (y2 - y1) * k;
     out += T(wrap(label, 92, 11, 600), lx, ly, { fill: t.dark, anchor: 'middle', v: 'middle', halo: '#ffffff' });
   });
   d.nodes.forEach((_, i) => {
     const c = t.col(layer[i] === 0 ? 0 : i), bx = x[i] - bw[i] / 2, by = yTop(i), box = [bx, by, bw[i], bh[i]];
-    const root = layer[i] === 0;
-    out += rect(bx, by, bw[i], bh[i], { fill: root ? t.dark : tint(c, 0.9), stroke: root ? t.dark : c, sw: 1.3, rx: 10 }) +
+    // Koyu düğüm: verilmişse odak (ör. çok nedenin tek sonucu), yoksa tek kök.
+    const root = d.focus != null ? i === d.focus : layer[i] === 0 && byL[0].length === 1;
+    out += rect(bx, by, bw[i], bh[i], { shadow: true, fill: root ? t.dark : tint(c, 0.9), stroke: root ? t.dark : c, sw: 1.3, rx: 10 }) +
       T(nb[i], x[i], by + bh[i] / 2, { fill: root ? '#ffffff' : t.ink, anchor: 'middle', v: 'middle', box });
   });
   const H = Math.max(...range(N).map((i) => yTop(i) + bh[i])) + PAD;
   return { w: W, h: H, svg: out };
 }
 const ARG_K = {
+  baglam: { title: 'Bağlam', c: '#4f5b69', dash: null, icon: 'book-open' },
   destek: { title: 'Destekleyen', c: '#0a7f5a', dash: null, icon: 'plus' },
   itiraz: { title: 'Karşı çıkan', c: '#b42318', dash: '6 4', icon: 'minus' },
   sinir: { title: 'Sınırlayan', c: '#8a5300', dash: '2 3', icon: 'triangle-alert' },
 };
 const ARG_ST = { ok: ['circle-check', 'Kaynak bağlı', '#0a7f5a'], unv: ['circle-help', 'Doğrulanmadı', '#8a5300'], none: ['circle-x', 'Kaynak yok', '#4f5b69'] };
 function drawArgument(d, t) {
-  const cb = wrap(d.claim, 480, 14, 700), cw = Math.max(cb.w, 120) + 44, tag = wrap('İDDİA', 100, 10.5, 700), ch = 12 + tag.h + 2 + cb.h + 14, cx = W / 2;
-  let out = rect(cx - cw / 2, PAD, cw, ch, { fill: t.dark, rx: 12 }) + T(tag, cx, PAD + 12, { fill: '#c9d6e6', anchor: 'middle' }) +
+  const cb = wrap(d.claim, 480, 14, 700), cw = Math.max(cb.w, 120) + 44, tag = wrap(d.claimSt ? `İDDİA · ${ARG_ST[d.claimSt][1]}` : 'İDDİA', 300, 10.5, 700), ch = 12 + tag.h + 2 + cb.h + 14, cx = W / 2;
+  let out = rect(cx - cw / 2, PAD, cw, ch, { shadow: true, fill: t.dark, rx: 12 }) + T(tag, cx, PAD + 12, { fill: '#c9d6e6', anchor: 'middle' }) +
     T(cb, cx, PAD + 12 + tag.h + 2, { fill: '#ffffff', anchor: 'middle', box: [cx - cw / 2, PAD, cw, ch] });
   const groups = Object.keys(ARG_K).map((k) => ({ k, items: d.items.filter((it) => it.k === k) })).filter((g) => g.items.length);
   const k = groups.length, gap = 16, gw = (W - 2 * PAD - (k - 1) * gap) / k, busY = PAD + ch + 20, hy = busY + 20;
@@ -879,7 +908,7 @@ function drawArgument(d, t) {
     g.items.forEach((it) => {
       const lb = wrap(it.label, gw - 26, 12), st = ARG_ST[it.st], sb = wrap(st[1], gw - 46, 10.5, 600);
       const h = 12 + lb.h + 8 + sb.h + 10, box = [x, y, gw, h], sc = t.sade ? t.muted : st[2];
-      out += rect(x, y, gw, h, { fill: '#ffffff', stroke: c, sw: 1.4, rx: 8, dash: K.dash });
+      out += rect(x, y, gw, h, { shadow: true, fill: '#ffffff', stroke: c, sw: 1.4, rx: 8, dash: K.dash });
       out += T(lb, x + 13, y + 12, { fill: t.ink, box });
       out += I(st[0], x + 20, y + 12 + lb.h + 8 + sb.h / 2, 13, sc, true) + T(sb, x + 32, y + 12 + lb.h + 8, { fill: sc, box });
       y += h + 10;
@@ -919,7 +948,7 @@ function drawTimeV(d, t) {
     const yb = wrap(it.year, cw - 28, 13, 700), lb = wrap(it.label, cw - 28, 12.5);
     const h = 12 + yb.h + 3 + lb.h + 12;
     const y = Math.max(left ? yl : yr, last + 36), box = [x, y, cw, h];
-    out += rect(x, y, cw, h, { fill: tint(c, 0.92), stroke: tint(c, 0.45), rx: 8 });
+    out += rect(x, y, cw, h, { shadow: true, fill: tint(c, 0.92), stroke: tint(c, 0.45), rx: 8 });
     out += T(yb, x + 14, y + 12, { fill: c, box }) + T(lb, x + 14, y + 12 + yb.h + 3, { fill: t.ink, box });
     const dy = y + 12 + yb.h / 2;
     out += line(left ? x + cw : cx + 7, dy, left ? cx - 7 : x, dy, tint(c, 0.3), 1.5);
@@ -942,7 +971,7 @@ function drawKpi(d, t) {
     const h = Math.max(...B.map((b) => 16 + b.v.h + 4 + b.l.h + 16));
     idx.forEach((i, j) => {
       const x = PAD + j * (cw + gap), c = t.col(i), box = [x, y, cw, h];
-      out += rect(x, y, cw, h, { fill: tint(c, 0.92), rx: 10 }) + rect(x, y + 12, 3, h - 24, { fill: c, rx: 1.5 });
+      out += rect(x, y, cw, h, { shadow: true, fill: tint(c, 0.92), rx: 10 }) + rect(x, y + 12, 3, h - 24, { fill: c, rx: 1.5 });
       if (t.icons) out += I(d.items[i].icon, x + cw - 24, y + 26, 20, c);
       out += T(B[j].v, x + 14, y + 16, { fill: c, box }) + T(B[j].l, x + 14, y + 16 + B[j].v.h + 4, { fill: t.ink, box });
     });
@@ -989,6 +1018,7 @@ function drawRings(d, t) {
 }
 
 // ---------- kayıt ----------
+const EX_FAM = 'Gerçek paragraf';
 const FAMILIES = ['Sıra', 'Döngü', 'Neden', 'Yapı', 'Karşılaştırma', 'İlişki', 'Zaman', 'Sayı'];
 const TPL = [
   { id: 'adimlar', fam: 'Sıra', name: 'Yatay adımlar', wo: 'akis', sig: 'Sıra bildiren bağlaçlar: “önce, ardından, son olarak”; 6+ adımda iki satıra iner.', draw: drawSteps, make: (n) => ({ items: SEQ.slice(0, n) }) },
@@ -1022,6 +1052,80 @@ const TPL = [
   { id: 'halka', fam: 'Sayı', name: 'Yüzde halkası', wo: 'pasta', sig: 'Ayrı ayrı yüzdeler (her halka kendi bütünü). Toplamı 100 olan veri için pasta.', draw: drawRings, make: (n) => ({ items: RINGS.slice(0, n) }) },
 ];
 
+// ---------- gerçek paragraf örnekleri (v2 prototipindeki üç paragraf) ----------
+// Yapı elle çıkarıldı (v2'deki gibi); her etiketin altındaki not hangi cümleden
+// geldiğini gösterir. Uygulamada yapı WO-016'dan gelir (WO-019).
+const COOL_ITEMS = [
+  { label: 'Bozunma ısısı', desc: '1. cümle', icon: 'flame', rel: 'birincil soğutucuyu ısıtarak' },
+  { label: 'Doğal sirkülasyon', desc: '2. cümle', icon: 'waves', rel: 'yukarı taşınır' },
+  { label: 'Isı değiştirici', desc: '3. cümle', icon: 'thermometer', rel: 'havuzuna aktarır' },
+  { label: 'Yoğunluğu artan su', desc: '4. cümle', icon: 'droplets', rel: 'çekirdeğe geri döner' },
+];
+const FAC = [
+  ['Düşük güç seviyesi', 'kaldırma kuvvetini zayıflatır'], ['İki fazlı akış', 'basınç düşüşünü dalgalandırır'],
+  ['Boru geometrisi ve yerel kayıplar', 'sönümlemeyi azaltır'], ['Soğutma koşulları', 'dönüş sıcaklığını değiştirir'],
+];
+const V2_NAMES = { akis: 'Akış', dongu: 'Döngü', kavram: 'Kavram haritası', hiyerarsi: 'Hiyerarşi', balik: 'Balık kılçığı', geri: 'Geri besleme', arguman: 'Argüman haritası', karsi: 'Karşılaştırma', zaman: 'Zaman çizelgesi' };
+const EXAMPLES = [
+  {
+    id: 'ex-cool', title: 'Süreç paragrafı: pasif soğutma',
+    sentences: ['Reaktör çekirdeğinde üretilen bozunma ısısı, birincil soğutucuyu ısıtarak yoğunluğunu düşürür.',
+      'Isınan soğutucu, pompa gerekmeden yükselen kolda doğal sirkülasyonla yukarı taşınır.',
+      'Üst bölgedeki ısı değiştirici, ısıyı pasif soğutma havuzuna aktarır.',
+      'Soğuyan ve yoğunluğu artan su, alçalan koldan çekirdeğe geri döner ve döngü tamamlanır.'],
+    figs: [
+      { tpl: 'dongu', rec: true, why: '“geri döner” ve “döngü tamamlanır”: dönüş kapanıyor', data: { title: 'Pasif soğutma döngüsü', items: COOL_ITEMS } },
+      { tpl: 'adimlar', why: 'Dört adım sırayla anlatılıyor (dönüş oku çizilmez)', data: { items: COOL_ITEMS.map((it, i) => (i === 3 ? { ...it, rel: undefined } : it)) } },
+      { tpl: 'zincir', why: 'Adımlar fiillerle bağlı; dikey okunur', data: { items: COOL_ITEMS.map((it, i) => (i === 3 ? { ...it, rel: undefined } : it)) } },
+    ],
+    unfit: {
+      hiyerarsi: 'Paragrafta üst–alt (tür, parça) ilişkisi yok; adımlar eşit düzeyde.',
+      balik: 'Bir sonucun nedenleri sayılmıyor; bir süreç anlatılıyor.',
+      geri: '“Artırır / azaltır” türü yönlü etki yok. Kutup işareti (+/−) metinde olmadan çizilmez.',
+      arguman: 'Paragrafta iddia ya da atıf yok; süreç anlatılıyor.',
+      karsi: 'Karşılaştırılan iki taraf yok.',
+      zaman: 'Tarih ya da dönem yok; adımlar zaman değil sıra bildiriyor. Sıra için Akış.',
+    },
+  },
+  {
+    id: 'ex-fac', title: 'Etken paragrafı: akış kararsızlığı',
+    sentences: ['Doğal sirkülasyon döngülerinde akış kararsızlığı birkaç etkene bağlıdır.', 'Düşük güç seviyesi kaldırma kuvvetini zayıflatır.',
+      'Yükselen koldaki iki fazlı akış basınç düşüşünü dalgalandırır.', 'Boru geometrisi ve yerel kayıplar sönümlemeyi azaltır.',
+      'Isı değiştiricideki soğutma koşulları ise dönüş sıcaklığını değiştirir.'],
+    figs: [
+      { tpl: 'balik', rec: true, why: '“birkaç etkene bağlıdır” ve ardından 4 etken sayılıyor', data: { effect: 'Akış kararsızlığı', items: FAC.map((f) => f[0]) } },
+      { tpl: 'kavram', why: 'Her etkenin etkisi bir fiille adlandırılmış', data: { k: 0.45, gap: 112, focus: 4, nodes: [...FAC.map((f) => f[0]), 'Akış kararsızlığı'], edges: FAC.map((f, i) => [i, 4, f[1]]) } },
+      { tpl: 'agac', why: 'Tek sonuç altında 4 etken; etki fiili alt satırda', data: { root: 'Akış kararsızlığı', items: FAC.map((f) => ({ label: f[0], subs: [f[1]] })) } },
+    ],
+    unfit: {
+      akis: 'Etkenler bir sıra izlemiyor; aynı anda etkiliyorlar.',
+      dongu: 'Sonuç nedenlere geri dönmüyor.',
+      geri: 'Yönlü etkiler var (“zayıflatır”, “azaltır”) ama döngü kapanmıyor: kararsızlığın etkenlere geri etkisi metinde yok.',
+      arguman: 'Atıf yok; iddia–destek yapısı yerine etkenler sayılıyor.',
+      karsi: 'Karşılaştırılan iki taraf yok.',
+      zaman: 'Tarih ya da dönem yok.',
+    },
+  },
+  {
+    id: 'ex-arg', title: 'Argüman paragrafı: KMR güvenliği',
+    sentences: ['Küçük modüler reaktörler (KMR), fabrikada üretilen ve sahada birleştirilen modüler yapılarıyla nükleer enerjide yatırım riskini azaltmayı hedefler (Ingersoll, 2016).',
+      'Pasif soğutma sistemleri, dış güç kaybı durumunda operatör müdahalesi olmadan çekirdek ısısını uzaklaştırarak güvenlik marjını artırır.',
+      'Ancak bu sistemlerin geçici rejimlerdeki davranışı, tasarıma özgü deneysel verilerle sınırlı biçimde doğrulanmıştır.'],
+    figs: [
+      { tpl: 'arguman', rec: true, why: 'Atıflı ve atıfsız cümleler var; “Ancak” bir sınırlılık bildiriyor', data: {
+        claim: 'Pasif soğutma sistemleri güvenlik marjını artırır.', claimSt: 'none',
+        items: [{ k: 'baglam', label: 'KMR’ler modüler yapılarıyla yatırım riskini azaltmayı hedefler (1. cümle)', st: 'ok' },
+          { k: 'sinir', label: 'Geçici rejimlerdeki davranış sınırlı biçimde doğrulanmıştır (3. cümle)', st: 'none' }] } },
+    ],
+    unfit: {
+      akis: 'Cümleler bir sıra değil, bir argüman kuruyor.', dongu: 'Dönüş yok.',
+      kavram: 'Kavramlar arasında fiille kurulmuş ilişki yok; cümleler birbirini destekliyor ya da sınırlıyor.',
+      hiyerarsi: 'Üst–alt ilişkisi yok.', balik: 'Bir sonucun nedenleri sayılmıyor.', geri: 'Yönlü etki zinciri yok.',
+      karsi: 'Karşılaştırılan iki taraf yok.', zaman: 'Tarih ya da dönem yok.',
+    },
+  },
+];
+
 // ---------- galeri arayüzü ----------
 const KEY = 'sekil-galeri-v3-kararlar';
 let DEC = {};
@@ -1036,13 +1140,32 @@ function svgOf(r, title) {
 
 function buildShell() {
   const fams = document.getElementById('fams');
-  ['Hepsi', ...FAMILIES].forEach((f) => {
+  ['Hepsi', EX_FAM, ...FAMILIES].forEach((f) => {
     const b = document.createElement('button');
     b.textContent = f; b.setAttribute('aria-pressed', String(f === S.family));
     b.addEventListener('click', () => { S.family = f; fams.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); applyFilter(); });
     fams.appendChild(b);
   });
   const g = document.getElementById('gallery');
+  const exSec = document.createElement('section'); exSec.dataset.fam = EX_FAM;
+  exSec.innerHTML = `<h2 class="fam">${EX_FAM}</h2><p class="meta">v2 prototipindeki üç paragraf, yeni şablonlarla. Yapı elle çıkarıldı (v2'deki gibi);
+    etiketlerin altındaki “n. cümle” notu etiketin hangi cümleden geldiğini gösterir. Uygulamada yapıyı WO-016 çıkarır, etikete tıklayınca cümle vurgulanır (WO-019).</p>`;
+  EXAMPLES.forEach((ex) => {
+    const card = document.createElement('article'); card.className = 'card'; card.id = ex.id;
+    const shown = new Set(ex.figs.map((f) => TPL.find((tp) => tp.id === f.tpl).wo));
+    card.innerHTML = `<div class="head"><h3>${esc(ex.title)}</h3></div>
+      <p class="para">${ex.sentences.map((s, i) => `<span class="sn">${i + 1}</span> ${esc(s)}`).join(' ')}</p>
+      <div class="figs">${ex.figs.map((f, j) => { const tp = TPL.find((x) => x.id === f.tpl);
+        return `<figure data-j="${j}" tabindex="0"><div class="svgbox"></div><figcaption><span>${f.rec ? '<b class="rec">★ Önerilen · </b>' : ''}<b>${esc(tp.name)}</b> — ${esc(f.why)}</span><span class="chkres"></span></figcaption></figure>`; }).join('')}</div>
+      <ul class="issues" hidden></ul>
+      <details class="unfit"><summary>Uymayan şablonlar ve nedenleri</summary><ul>${Object.entries(ex.unfit).filter(([k]) => !shown.has(k)).map(([k, v]) => `<li><b>${esc(V2_NAMES[k])}:</b> ${esc(v)}</li>`).join('')}</ul></details>`;
+    card.querySelectorAll('figure').forEach((fg) => {
+      const open = () => openLb(fg.querySelector('.svgbox').innerHTML);
+      fg.addEventListener('click', open); fg.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+    });
+    exSec.appendChild(card);
+  });
+  g.appendChild(exSec);
   FAMILIES.forEach((f) => {
     const sec = document.createElement('section'); sec.dataset.fam = f;
     sec.innerHTML = `<h2 class="fam">${esc(f)}</h2>`;
@@ -1083,6 +1206,15 @@ function renderAll() {
       fg.querySelector('.svgbox').innerHTML = html;
     });
   });
+  EXAMPLES.forEach((ex) => {
+    document.getElementById(ex.id).querySelectorAll('figure').forEach((fg) => {
+      const f = ex.figs[Number(fg.dataset.j)], tp = TPL.find((x) => x.id === f.tpl);
+      let html;
+      try { html = svgOf(tp.draw(f.data, t), `${ex.title} — ${tp.name}`); }
+      catch (e) { html = `<p style="color:#b42318">Çizim hatası: ${esc(e.message)}</p>`; console.error(ex.id, f.tpl, e); }
+      fg.querySelector('.svgbox').innerHTML = html;
+    });
+  });
   requestAnimationFrame(checkAll);
 }
 
@@ -1114,17 +1246,17 @@ function checkFigure(fg) {
 }
 function checkAll() {
   let total = 0;
-  TPL.forEach((tp) => {
-    const card = document.getElementById('tpl-' + tp.id); if (card.closest('section').hidden) return;
+  document.querySelectorAll('#gallery .card').forEach((card) => {
+    if (card.closest('section').hidden) return;
     const all = [];
     card.querySelectorAll('figure').forEach((fg) => {
       const res = checkFigure(fg), el = fg.querySelector('.chkres');
       if (res === null) return;
       el.className = 'chkres ' + (res.length ? 'bad' : 'ok');
       el.textContent = res.length ? `⚠ ${res.length} sorun` : '✓ taşma / çakışma yok';
-      res.forEach((r) => all.push(`${fg.dataset.n}: ${r}`));
+      res.forEach((r) => all.push(`${fg.dataset.n || 'şekil ' + (Number(fg.dataset.j) + 1)}: ${r}`));
     });
-    ISSUES[tp.id] = all; total += all.length;
+    ISSUES[card.id] = all; total += all.length;
     const ul = card.querySelector('.issues');
     ul.hidden = !all.length; ul.innerHTML = all.slice(0, 8).map((s) => `<li>${esc(s)}</li>`).join('') + (all.length > 8 ? `<li>… ${all.length - 8} daha</li>` : '');
   });
