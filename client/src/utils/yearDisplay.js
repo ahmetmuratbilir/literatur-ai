@@ -9,7 +9,9 @@ function parseYear(value) {
  */
 export function getYearDisplay(item, t) {
   const confidence = item?.yearConfidence || 'low';
-  const publicationYear = parseYear(item?.publicationYear);
+  // `year` yalnız yayın yılından doldurulur (kaynak servisleri: year = publicationYear ?? null);
+  // publicationYear taşımayan kayıtlar (paylaşım, eski geçmiş) "Yıl bilinmiyor" gösteriyordu (WO-024).
+  const publicationYear = parseYear(item?.publicationYear) || parseYear(item?.year);
   if (publicationYear) {
     return {
       label: String(publicationYear),

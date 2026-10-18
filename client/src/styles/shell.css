@@ -1,0 +1,140 @@
+/* WO-024 — kabuk: ipucu, hata sınırı, yardım/destek, tanışma, kenar çubuğu.
+   Kurallar: belirteçler (variables.css); derinlik ince çizgi + yüzeyle, ağır
+   gölge yok; vurgu rengi yalnız ana eylem, seçili öğe ve odak halkası;
+   tıklama hedefi en az 24 px; odak her zaman görünür. */
+
+/* ---------- İpucu ---------- */
+.ui-tooltip {
+  position: fixed;
+  z-index: calc(var(--z-toast) + 5);
+  max-width: 260px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: var(--slate-900);
+  color: #f8fafc;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-align: left;
+  pointer-events: none;
+  box-shadow: 0 6px 18px -8px rgb(15 23 42 / .45);
+  animation: ui-tip-in .12s ease-out;
+}
+.ui-tooltip--above { transform: translate(-50%, -100%); }
+.ui-tooltip--below { transform: translate(-50%, 0); }
+.ui-tooltip--right { transform: translate(0, -50%); }
+@keyframes ui-tip-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- Hata sınırı ---------- */
+.ui-crash {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  max-width: 520px;
+  margin: var(--space-12) auto;
+  padding: var(--space-6);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+.ui-crash--page { margin-top: 18vh; }
+.ui-crash__title { margin: 0; font-size: var(--fs-lg); font-weight: 700; color: var(--text-main); }
+.ui-crash__body { margin: 0 0 var(--space-2); color: var(--text-muted); line-height: 1.55; font-size: var(--fs-sm); }
+.ui-crash__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* ---------- Seçim çipi (yardım türü, tanışma soruları) ---------- */
+.ui-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color .15s, border-color .15s, color .15s;
+}
+.ui-chip input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.ui-chip:hover { border-color: var(--slate-300); background: var(--slate-50); }
+.ui-chip.is-on { border-color: var(--brand-primary); background: var(--brand-primary-soft); color: var(--brand-primary-hover); font-weight: 600; }
+.ui-chip.is-muted { opacity: .55; }
+.ui-chip:has(input:focus-visible) { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+
+/* ---------- Yardım ve destek ---------- */
+.ui-help { padding: var(--space-6); }
+.ui-help__head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); }
+.ui-help__head .ui-dialog__title { margin: 0; flex: 1; }
+.ui-help__icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--brand-primary-soft); color: var(--brand-primary); }
+.ui-help__close { margin-right: -8px; }
+.ui-help__faq { display: grid; margin-bottom: var(--space-5); border-block: 1px solid var(--slate-100); }
+.ui-help__faq details { border-bottom: 1px solid var(--slate-100); }
+.ui-help__faq details:last-child { border-bottom: 0; }
+.ui-help__faq summary {
+  display: flex; justify-content: space-between; gap: var(--space-3);
+  padding: 11px 2px; cursor: pointer; list-style: none;
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-main);
+}
+.ui-help__faq summary::-webkit-details-marker { display: none; }
+.ui-help__faq summary::after { content: '+'; color: var(--text-light); font-weight: 500; }
+.ui-help__faq details[open] summary::after { content: '–'; }
+.ui-help__faq summary:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; border-radius: 4px; }
+.ui-help__faq p { margin: 0 2px 12px; color: var(--text-muted); font-size: var(--fs-sm); line-height: 1.6; }
+.ui-help__form { display: grid; gap: var(--space-2); }
+.ui-help__kinds { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 var(--space-2); padding: 0; border: 0; }
+.ui-help__kinds legend, .ui-onb__q legend { width: 100%; margin-bottom: 8px; padding: 0; font-size: 0.85rem; font-weight: 600; color: var(--text-main); }
+.ui-help .ui-dialog__field { margin: 0; }
+.ui-help__text {
+  width: 100%; min-height: 112px; resize: vertical;
+  padding: 10px 12px; border: 1px solid var(--slate-300); border-radius: 10px;
+  font: inherit; font-size: var(--fs-md); line-height: 1.5; color: var(--text-main); background: var(--bg-card);
+}
+.ui-help__text:focus { outline: 2px solid var(--brand-primary); outline-offset: 1px; border-color: transparent; }
+.ui-help__text[aria-invalid='true'] { border-color: var(--score-low); }
+.ui-help__meta { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--fs-xs); }
+.ui-help__count { color: var(--text-light); font-variant-numeric: tabular-nums; }
+.ui-help__error { margin: 0; color: var(--score-low); font-size: var(--fs-xs); font-weight: 600; }
+.ui-help__error a { color: inherit; }
+.ui-help__check { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; font-size: var(--fs-sm); color: var(--text-main); cursor: pointer; }
+.ui-help__check input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--brand-primary); }
+.ui-help__muted { margin: 0; color: var(--text-muted); font-size: var(--fs-xs); line-height: 1.5; }
+.ui-help__privacy { margin-bottom: var(--space-2); }
+.ui-help__done { display: grid; justify-items: center; gap: 6px; padding: var(--space-6) 0 0; text-align: center; color: var(--score-high); }
+.ui-help__done p { margin: 0; color: var(--text-main); }
+.ui-help__done .ui-dialog__actions { margin-top: var(--space-4); }
+
+/* ---------- Tanışma ---------- */
+.ui-onb { display: grid; gap: var(--space-4); padding: var(--space-6); }
+.ui-onb .ui-dialog__body { margin: -6px 0 0; }
+.ui-onb__q { margin: 0; padding: 0; border: 0; }
+.ui-onb__opt { font-weight: 500; color: var(--text-light); }
+.ui-onb__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ui-onb .ui-help__error { margin-top: 6px; }
+
+@media (max-width: 560px) {
+  .ui-help, .ui-onb { padding: var(--space-4); }
+  .ui-dialog__actions .ui-btn { flex: 1; }
+}
+
+/* ---------- Araştırma başlığı: arama sonrası sıkışık (sonuçlar ekrana sığsın) ---------- */
+.ui-page-head__mark { flex: 0 0 auto; border-radius: 14px; box-shadow: 0 6px 18px -8px rgb(79 70 229 / .55); }
+.ui-page-head--compact { margin-bottom: var(--space-3); }
+.ui-page-head--compact .ui-page-head__logo { font-size: 1.2rem; gap: 10px; }
+.ui-page-head--compact .ui-page-head__mark { border-radius: 9px; box-shadow: none; }
+
+/* ---------- Arama formu: sonuç varken tek satır ---------- */
+.query-form { display: flex; flex-direction: column; gap: var(--space-5); }
+.query-form--inline { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--space-3); }
+.query-form--inline .ui-field-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.query-form--inline > .ui-btn--block { width: auto; height: 52px; padding: 0 24px; }
+.query-panel:has(.query-form--inline) { padding-block: var(--space-4); }
+
+/* ---------- Puan rozeti: 12 px yazıda en az 4.5:1 (eskiden 3.07–4.41) ---------- */
+.ui-score--high { color: #047857; }
+.ui-score--med { color: #b45309; }
+.ui-score--low { color: #b91c1c; }

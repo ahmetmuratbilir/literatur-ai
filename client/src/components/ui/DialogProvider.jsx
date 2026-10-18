@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useI18n } from '../../i18n/context.js';
-import { useLayer } from './useLayer.js';
+import { useModal } from './useModal.js';
 import { DialogContext } from './dialogContext.js';
 
 /**
@@ -41,15 +41,12 @@ export function DialogProvider({ children }) {
   );
 }
 
-const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
-
 function Dialog({ spec, onFinish }) {
   const { t } = useI18n();
   const id = useId();
   const rootRef = useRef(null);
   const inputRef = useRef(null);
   const cancelRef = useRef(null);
-  const openerRef = useRef(typeof document !== 'undefined' ? document.activeElement : null);
   const [value, setValue] = useState(spec.initial ?? '');
   const isText = spec.kind === 'text';
   const dirty = isText && value !== (spec.initial ?? '');
@@ -60,34 +57,12 @@ function Dialog({ spec, onFinish }) {
     onFinish(true);
   };
 
-  useLayer(true, cancel);
-
-  // Arka plan inert; açılışta odak; kapanışta odak geri.
-  useEffect(() => {
-    const root = rootRef.current;
-    const touched = [];
-    for (const el of document.body.children) {
-      if (el === root || el.contains(root) || el.inert) continue;
-      el.inert = true;
-      el.setAttribute('aria-hidden', 'true');
-      touched.push(el);
-    }
-    if (isText) { inputRef.current?.focus(); inputRef.current?.select(); } else cancelRef.current?.focus();
-    const opener = openerRef.current;
-    return () => {
-      for (const el of touched) { el.inert = false; el.removeAttribute('aria-hidden'); }
-      if (opener && opener.isConnected) opener.focus?.({ preventScroll: true });
-    };
-  }, [isText]);
+  // Arka plan inert, açılış odağı (metin alanı ya da güvenli "Vazgeç"), Tab
+  // döngüsü, Esc ve kapanışta odağın geri dönmesi: useModal (WO-024).
+  const trapTab = useModal(rootRef, { onCancel: cancel, initialFocus: isText ? inputRef : cancelRef });
 
   const onKeyDown = (e) => {
-    if (e.key === 'Tab') {
-      const items = [...rootRef.current.querySelectorAll(FOCUSABLE)];
-      if (!items.length) return;
-      const i = items.indexOf(document.activeElement);
-      if (e.shiftKey && i <= 0) { e.preventDefault(); items[items.length - 1].focus(); }
-      else if (!e.shiftKey && i === items.length - 1) { e.preventDefault(); items[0].focus(); }
-    }
+    trapTab(e);
     if (e.key === 'Enter' && isText && e.target === inputRef.current) { e.preventDefault(); confirm(); }
   };
 

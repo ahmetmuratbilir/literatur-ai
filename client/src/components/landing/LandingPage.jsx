@@ -11,8 +11,8 @@ import {
   SlidersHorizontal,
   Sun,
   Unlock,
-  Zap,
 } from 'lucide-react';
+import BrandMark from '../ui/BrandMark.jsx';
 import { AppSignInButton } from '../../auth/clerkBridge.js';
 import { useI18n } from '../../i18n/context.js';
 import LanguageSwitcher from '../LanguageSwitcher';
@@ -80,7 +80,7 @@ export default function LandingPage({ landingTheme = 'light', setLandingTheme })
     <div className="lp" data-theme={dark ? 'dark' : 'light'}>
       <header className="lp-nav">
         <a className="lp-brand" href="#top">
-          <span className="ui-brand-mark"><Zap size={16} fill="currentColor" /></span>
+          <BrandMark size={28} className="ui-brand-mark-svg" />
           Literatür AI
         </a>
         <nav className="lp-nav__links" aria-label={t('landing.nav.label')}>

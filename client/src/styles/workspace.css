@@ -16,7 +16,7 @@
   --wx-ink: #191c1e;
   --wx-ink-2: #3a3e4b;
   --wx-muted: #5c5f6e;
-  --wx-faint: #8a8d9b;
+  --wx-faint: #6b6e7b; /* WO-024: #8a8d9b küçük sayaçlarda 3.1–3.3:1 idi; şimdi her zeminde ≥ 4.5:1 */
   --wx-line: #e3e5ea;
   --wx-line-soft: #eef0f3;
   --wx-hover: #f2f3f6;
@@ -909,6 +909,10 @@ button.wx-stat {
 }
 button.wx-stat:hover { background: var(--wx-hover); color: var(--wx-ink); }
 button.wx-stat[aria-pressed="true"] { background: var(--wx-hover); color: var(--wx-ink); box-shadow: inset 0 0 0 1px var(--wx-line); }
+/* Özet satırındaki gerçek eylem (Künye doğrulama): sayaç gibi değil, düğme gibi görünsün. */
+button.wx-stat--action { margin: 2px 0 0; padding: 3px 9px; box-shadow: inset 0 0 0 1px var(--wx-line); color: var(--wx-accent); font-weight: 600; }
+button.wx-stat--action::before { display: none; }
+.wx-hint { color: var(--wx-ink); font-weight: 600; }
 .wx-stat--plain::before { display: none; }
 
 /* İncelenen cümleler: belgeye dokunmayan vurgu (CSS Custom Highlight API). */
@@ -1106,6 +1110,8 @@ button.wx-stat[aria-pressed="true"] { background: var(--wx-hover); color: var(--
 }
 strong.wx-ctl__title { cursor: default; }
 button.wx-ctl__title:hover { color: var(--wx-accent); }
+/* Başlık düğmesi tek satırda 18 px'ti; tıklama hedefi en az 24 px (WO-024). */
+button.wx-ctl__title { min-height: 24px; }
 .wx-ctl__where { color: var(--wx-muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; }
 .wx-ctl__acts { display: flex; flex-wrap: wrap; gap: 6px; }
 .wx-ctl__acts:empty { display: none; }
@@ -1136,6 +1142,8 @@ button.wx-ctl__title:hover { color: var(--wx-accent); }
   opacity: .65;
   cursor: pointer;
 }
+/* Görsel 6 px, tıklama alanı 24 px (WO-024; hedef en az 24 px). */
+.wx-marker::before { content: ''; position: absolute; inset: 0 -9px; }
 .wx-marker--critical { background: var(--wx-err); }
 .wx-marker:hover, .wx-marker:focus-visible { opacity: 1; outline: 2px solid var(--wx-accent); outline-offset: 2px; }
 @media print { .wx-marker { display: none; } }

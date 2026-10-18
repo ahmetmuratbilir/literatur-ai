@@ -419,6 +419,7 @@ export default {
     findSimilar: 'Find similar',
     copyBibtexTitle: 'Copy the BibTeX entry for this paper to the clipboard',
     bibtexCopied: 'Copied',
+    bibtexDownloaded: 'Downloaded',
     scoreShort: '{n}%',
     rank: 'Rank #{n}',
     score: 'AHP score: {n}%',
@@ -567,6 +568,8 @@ export default {
     freePlan: 'Free plan',
     collapse: 'Collapse sidebar',
     expand: 'Expand sidebar',
+    account: 'Account',
+    queryCount: '{n} search strategies',
   },
   share: {
     title: 'Share this search',
@@ -814,6 +817,7 @@ export default {
     addFailed: 'Could not add the paper. Please try again.',
   },
   workspace: {
+    citeNeedsCaret: 'Click where the citation should go in the document, then press “Insert citation” again.',
     exit: 'Research',
     toolbar: 'Formatting tools',
     navigator: 'Document navigator',
@@ -1283,5 +1287,78 @@ export default {
     score: 'Model estimate: {n}%',
     basedOn: 'based on {n} papers',
     gapLabel: 'Standout literature gap:',
+  },
+  // Error boundary (WO-024)
+  crash: {
+    title: 'Something went wrong opening this section',
+    body: 'Your work is safe. Trying again usually fixes it; if not, reload the page or report the problem.',
+    reload: 'Reload page',
+    report: 'Report problem',
+  },
+  // Help & support (WO-024)
+  help: {
+    title: 'Help & support',
+    open: 'Help & support',
+    tip: 'Ask a question, report a bug or suggest an idea',
+    faq: {
+      rank: {
+        q: 'Why are results in this order?',
+        a: 'Each paper is scored on seven criteria (topic relevance, citation impact, publication type, recency, reliability, open access…) and the scores are combined with AHP weights. The order reflects your priorities; it does not prove a paper is correct or high quality. Open “Why this rank?” on a card for details.',
+      },
+      passage: {
+        q: 'Where does the passage come from?',
+        a: 'The passage is taken verbatim from the source record; no model rewrites it. Today it mostly comes from the abstract; we never pretend the full text was read.',
+      },
+      drafts: {
+        q: 'Where are my drafts stored?',
+        a: 'For now drafts live only in this browser. If browser data is cleared they are lost; download a DOCX backup from My work for important drafts.',
+      },
+    },
+    kindLabel: 'What is it about?',
+    kind: { oneri: 'Suggestion', hata: 'Bug', soru: 'Question', diger: 'Other' },
+    messageLabel: 'Your message',
+    placeholder: {
+      oneri: 'e.g. Could the bibliography support IEEE?',
+      hata: 'What did you do, what did you expect, what happened? e.g. I pressed Add to paper and nothing appeared.',
+      soru: 'e.g. How do Turkish theses show up in search?',
+      diger: 'Anything you would like to tell us…',
+    },
+    tooShort: 'Please add a bit more detail (at least {n} characters).',
+    contactOk: 'You may reply to me by email about this',
+    privacy: 'Your message, the name of the current screen and browser details are sent to the team (info@literatur-ai.com). Your email is included only if you ask for a reply.',
+    send: 'Send',
+    sending: 'Sending…',
+    failed: 'Could not send. You can also email us directly:',
+    sentTitle: 'Thanks, your message reached the team.',
+    sentReply: 'If needed we will reply to the email on your account.',
+    sentNoReply: 'You did not ask for a reply, so we will not email you.',
+  },
+  // First-login questions (WO-024)
+  onboarding: {
+    title: 'Tell us a little about you',
+    intro: 'Three quick questions. Knowing who uses Literatür AI and why decides what we improve first. You can skip.',
+    optional: 'optional',
+    upTo: 'up to {n}',
+    role: {
+      label: 'What do you do right now?',
+      lisans: 'Undergraduate', 'yuksek-lisans': 'Master’s student', doktora: 'PhD student',
+      akademisyen: 'Academic', arastirmaci: 'Researcher (institution / industry)', diger: 'Other',
+    },
+    purpose: {
+      label: 'What will you use Literatür AI for?',
+      tez: 'Thesis', makale: 'Article', 'odev-proje': 'Assignment / project',
+      'literatur-taramasi': 'Literature review', 'proje-basvurusu': 'Grant proposal', diger: 'Other',
+    },
+    source: {
+      label: 'How did you hear about us?',
+      'hoca-arkadas': 'Professor / friend', universite: 'My university', 'sosyal-medya': 'Social media',
+      'arama-motoru': 'Search engine', etkinlik: 'Fair / event', diger: 'Other',
+    },
+    needRole: 'Pick one option.',
+    needPurpose: 'Pick at least one purpose.',
+    privacy: 'Answers are stored with your account and used only to improve the product. To have them deleted, email info@literatur-ai.com.',
+    skip: 'Skip',
+    save: 'Save',
+    saving: 'Saving…',
   },
 };

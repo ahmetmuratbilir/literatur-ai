@@ -27,7 +27,8 @@ import {
 } from 'lucide-react';
 import { AuthedOnly, AnonOnly, useAppAuth, useAppUser } from './auth/clerkBridge.js';
 import { useAdmin } from './hooks/useAdmin';
-import AdminPanel from './components/AdminPanel.jsx';
+// Yalnız yöneticide açılır; ana pakete girmesin (WO-024).
+const AdminPanel = lazy(() => import('./components/AdminPanel.jsx'));
 import { useI18n } from './i18n/context.js';
 import { useDialogs } from './components/ui/dialogContext.js';
 import { useLayer } from './components/ui/useLayer.js';
@@ -42,7 +43,8 @@ import ResultCard from './components/ResultCard';
 import AuthorPicker from './components/AuthorPicker.jsx';
 import GlobalStats from './components/GlobalStats';
 import HistorySidebar from './components/HistorySidebar';
-import WriterPanel from './components/WriterPanel';
+// Bayrağı kapalı eski panel (AI_WRITER_PANEL_ENABLED); açılırsa o an yüklenir.
+const WriterPanel = lazy(() => import('./components/WriterPanel'));
 import ShareModal from './components/ShareModal';
 import LandingPage from './components/landing/LandingPage';
 import AppTopBar from './components/AppTopBar';
@@ -55,7 +57,12 @@ import { useCollections } from './hooks/useCollections';
 import { useBasket } from './hooks/useBasket';
 import { flyToBasket } from './utils/flyToBasket';
 import Toasts from './components/Toasts';
-import CitationChecker from './components/CitationChecker';
+// "Kaynakçanı doğrula" sekmesi kapalı (VERIFY_MODE_ENABLED); açılırsa o an yüklenir.
+const CitationChecker = lazy(() => import('./components/CitationChecker'));
+import BrandMark from './components/ui/BrandMark.jsx';
+import ErrorBoundary from './components/ui/ErrorBoundary.jsx';
+import HelpDialog from './components/HelpDialog.jsx';
+import OnboardingDialog from './components/OnboardingDialog.jsx';
 import AuthorPanel from './components/AuthorPanel';
 // Çalışma alanı editörüyle birlikte geliyor; sekmeye ilk girişte yüklenir,
 // sonra bağlı kalır (belge ve ayarlar kaybolmasın).
@@ -197,6 +204,8 @@ function App() {
   const modeBeforeWorkspace = useRef('search');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
+  // Yardım ve destek (WO-024): { kind, context } ya da null.
+  const [help, setHelp] = useState(null);
   const [error, setError] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(null);
@@ -318,6 +327,18 @@ function App() {
   }, []);
   useLayer(Boolean(activeReaderPaper), () => setActiveReaderPaper(null));
   useLayer(AI_WRITER_PANEL_ENABLED && showWriterPanel, () => setShowWriterPanel(false));
+
+  // Yardım ve destek (WO-024). Bağlam: geri bildirimin hangi ekrandan geldiği.
+  const openHelp = useCallback((kind = 'oneri') => {
+    const context = mode === 'workspace' ? `yaz${window.location.hash.includes('kontrol') ? '/kontrol' : ''}` : mode;
+    setHelp({ kind, context });
+  }, [mode]);
+  // Hata ekranındaki "Sorunu bildir" gibi uzak yerlerden açılabilsin.
+  useEffect(() => {
+    const onOpen = (e) => openHelp(e.detail?.kind);
+    window.addEventListener('openHelp', onOpen);
+    return () => window.removeEventListener('openHelp', onOpen);
+  }, [openHelp]);
 
   // Arama kutusuna odaklanma (Ctrl+K, "/"). Yazar modunda kısayol çalışmaz:
   // belgede yazarken arama kutusuna atlamak yazılanı bölerdi.
@@ -901,7 +922,9 @@ function App() {
                   </button>
                 </div>
               ) : (
-                <form className="query-form" onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+                // Sonuç varken (masaüstü, konu araması) kutu ve "Ara" tek satır: sonuçlar
+                // ekrana sığsın (WO-024). Etiket ekran okuyucu için yerinde kalır.
+                <form className={`query-form${data && !isCompact && searchMode === 'topic' ? ' query-form--inline' : ''}`} onSubmit={handleSearch}>
                   {AUTHOR_MODE_ENABLED && !AUTHOR_PANEL_ENABLED && (
                     <div className="ui-mode-tabs" role="tablist" aria-label={t('search.modeLabel')}>
                       <button type="button" role="tab" className="ui-mode-tab" aria-selected={searchMode === 'topic'} onClick={() => setSearchMode('topic')}>
@@ -1190,7 +1213,9 @@ function App() {
               borderRadius: 'var(--radius-lg)', padding: '22px 24px',
               boxShadow: 'var(--shadow-lg)',
             }}>
-              <AdminPanel getToken={getToken} onClose={() => setShowAdmin(false)} />
+              <Suspense fallback={null}>
+                <AdminPanel getToken={getToken} onClose={() => setShowAdmin(false)} />
+              </Suspense>
             </div>
           </div>
         )}
@@ -1218,6 +1243,7 @@ function App() {
           writeExtra={drafts.active ? (drafts.active.title || t('workspace.untitled')) : null}
           raised={mode === 'workspace'}
           onOpenAi={() => setShowAi(true)}
+          onOpenHelp={() => openHelp()}
           drafts={drafts.items}
           activeDraftId={drafts.active?.id || null}
           onOpenDraft={openDraft}
@@ -1227,7 +1253,10 @@ function App() {
           onDeleteDraft={deleteDraft}
         />
 
-        <main className="app-main" style={{
+        {/* Yazım yüzeyi (document.body'ye çizilir) açıkken arkadaki araştırma görünümü
+            görünmüyor ama Tab ile içine gidiliyordu (WO-024): inert. Biçim seçici bu
+            görünümün içinde olduğu için o açıkken inert yok. */}
+        <main className="app-main" inert={WORKSPACE_ENABLED && !isShared && mode === 'workspace' && Boolean(drafts.active) && !creatingDraft} style={{
           marginLeft: isMobile ? '0px' : (sidebarOpen ? '280px' : '72px'),
           marginRight: (!isMobile && AI_WRITER_PANEL_ENABLED && showWriterPanel)
             // AI Yazar ayarları 420px'lik panelde; sonuçlar yanında görünür kalır.
@@ -1247,6 +1276,7 @@ function App() {
               Bileşen kendini document.body'ye çizer; burada yalnız bağlı kalır. */}
           {/* Her taslak kendi örneğinde açılır (key): taslak değişince belge yeniden okunur. */}
           {WORKSPACE_ENABLED && !isShared && workspaceOpened.current && drafts.active && (
+            <ErrorBoundary area="panel">
             <Suspense fallback={null}>
               <Workspace
                 key={drafts.active.id}
@@ -1264,6 +1294,7 @@ function App() {
                 panelRequest={writerPanel}
               />
             </Suspense>
+            </ErrorBoundary>
           )}
           {/* Yazar modunda taslak yoksa ya da "Yeni taslak" seçildiyse: biçim seçimi. */}
           {WORKSPACE_ENABLED && !isShared && mode === 'workspace' && (creatingDraft || !drafts.active) && (
@@ -1285,9 +1316,9 @@ function App() {
           }}>
 
             {!isShared && (
-              <header className="ui-page-head">
+              <header className={`ui-page-head${data || loading ? ' ui-page-head--compact' : ''}`}>
                 <h1 className="ui-page-head__logo">
-                  <span className="ui-brand-mark ui-brand-mark--lg" aria-hidden="true"><Zap size={26} fill="currentColor" /></span>
+                  <BrandMark size={data || loading ? 30 : 48} className="ui-page-head__mark" />
                   {t('shell.brand')}
                 </h1>
               </header>
@@ -1299,12 +1330,14 @@ function App() {
             {authorPanelNode}
 
             {AUTHOR_PANEL_ENABLED && mode === 'author' && !isShared ? null : VERIFY_MODE_ENABLED && mode === 'verify' && !isShared ? (
-              <CitationChecker
-                apiUrl={defaultApiUrl}
-                getToken={getToken}
-                basket={basket}
-                onAdd={handleToggleBasket}
-              />
+              <Suspense fallback={null}>
+                <CitationChecker
+                  apiUrl={defaultApiUrl}
+                  getToken={getToken}
+                  basket={basket}
+                  onAdd={handleToggleBasket}
+                />
+              </Suspense>
             ) : searchContent}
 
           </div>
@@ -1312,12 +1345,17 @@ function App() {
 
         {/* Sağ kenardaki yüzen "Yazar modu" düğmesi (WriterDock) kalktı (WO-017):
             Yaz artık raydaki bir bölüm; sepet temizleme kenar çubuğundaki Sepet'te. */}
-        <AiConnections open={showAi} onClose={() => setShowAi(false)} apiUrl={defaultApiUrl} getToken={getToken} />
+        <ErrorBoundary area="panel">
+          <AiConnections open={showAi} onClose={() => setShowAi(false)} apiUrl={defaultApiUrl} getToken={getToken} />
+        </ErrorBoundary>
         <Toasts toasts={toasts} onDismiss={dismissToast} />
+        <HelpDialog open={Boolean(help)} onClose={() => setHelp(null)} apiUrl={defaultApiUrl} context={help?.context} initialKind={help?.kind} />
+        <OnboardingDialog apiUrl={defaultApiUrl} enabled={!isShared} />
       </AuthedOnly>
 
       <AnimatePresence>
         {AI_WRITER_PANEL_ENABLED && showWriterPanel && (
+          <Suspense key="writer-panel" fallback={null}>
           <WriterPanel
             key="writer-panel"
             papers={basket.papers}
@@ -1333,6 +1371,7 @@ function App() {
               if (!document.getElementById('results-container')) target?.focus();
             }}
           />
+          </Suspense>
         )}
       </AnimatePresence>
 

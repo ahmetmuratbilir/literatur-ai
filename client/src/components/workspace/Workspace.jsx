@@ -281,6 +281,16 @@ export default function Workspace({
   // "Künye doğrulama (beta)" Kontrol adımının içinde açılır (kullanıcı kararı
   // 18.10.2026): ayrı sekme açmak yerine mevcut Kontrol yüzeyine bağlandı.
   const [refCheckOpen, setRefCheckOpen] = useState(false);
+  // Kısa yönlendirme (WO-024): ör. imleç belgede değilken "Atıf ekle". Durum
+  // çubuğunda (aria-live) görünür, birkaç saniye sonra kaybolur.
+  const [hint, setHint] = useState(null);
+  const hintTimer = useRef(0);
+  const showHint = (text) => {
+    clearTimeout(hintTimer.current);
+    setHint(text);
+    hintTimer.current = setTimeout(() => setHint(null), 5000);
+  };
+  useEffect(() => () => clearTimeout(hintTimer.current), []);
   const [bodyText, setBodyText] = useState('');
   const [bibFormat, setBibFormat] = useState(() => (BIB_FORMATS.includes(saved?.bibFormat) ? saved.bibFormat : 'APA 7'));
   // Kaynakça kapsamı. Varsayılan "atıf yapılanlar": akademik kaynakça
@@ -1790,7 +1800,13 @@ export default function Workspace({
     const sel = window.getSelection();
     const live = sel && sel.rangeCount && el.contains(sel.getRangeAt(0).startContainer) ? sel.getRangeAt(0) : null;
     const range = (live || lastRangeRef.current)?.cloneRange();
-    if (!range || !el.contains(range.startContainer)) return;
+    if (!range || !el.contains(range.startContainer)) {
+      // Eskiden sessizce hiçbir şey olmuyordu. Atıfı rastgele bir yere koymak
+      // yerine kullanıcıya nereye tıklayacağını söyle.
+      showHint(t('workspace.citeNeedsCaret'));
+      el.focus({ preventScroll: true });
+      return;
+    }
     range.collapse(false);
     // Önceki karakter boşluk değilse araya boşluk konur: "kaynaklar(Kaya, 2020)" olmasın.
     const before = range.startContainer.nodeType === Node.TEXT_NODE
@@ -2681,6 +2697,7 @@ export default function Workspace({
                 <span title={t('workspace.pageApprox')} data-testid="page-of">{t('workspace.pageOf', { i: fmt(pageInfo.i), n: fmt(pageInfo.n) })}</span>
               )}
               <span>{t('workspace.stat.words', { n: fmt(outline.words) })}</span>
+              {hint && <span className="wx-hint" data-testid="write-hint">{hint}</span>}
               {save && (
                 <span
                   className={`wx-save wx-save--${saveState.kind}`}
@@ -2747,7 +2764,7 @@ export default function Workspace({
                     </button>
                   </div>
                 )}
-                <button type="button" className="wx-icon wx-icon--sm wx-panel-head__close" onClick={() => setSideOpen(false)} aria-label={t('workspace.closePanel')}>
+                <button type="button" className="wx-icon wx-icon--sm wx-panel-head__close" onClick={() => setSideOpen(false)} aria-label={t('workspace.closePanel')} title={t('workspace.closePanel')}>
                   <X size={15} />
                 </button>
               </div>
@@ -2761,11 +2778,11 @@ export default function Workspace({
                   </div>
                   {sideView === 'source' && paper && basket.papers.length > 1 && (
                     <span className="wx-stepper">
-                      <button type="button" className="wx-icon wx-icon--sm" onClick={() => stepSource(-1)} aria-label={t('workspace.prevSource')}>
+                      <button type="button" className="wx-icon wx-icon--sm" onClick={() => stepSource(-1)} aria-label={t('workspace.prevSource')} title={t('workspace.prevSource')}>
                         <ChevronLeft size={15} />
                       </button>
                       <small>{t('workspace.sourceOf', { i: fmt(paperIndex + 1), n: fmt(basket.papers.length) })}</small>
-                      <button type="button" className="wx-icon wx-icon--sm" onClick={() => stepSource(1)} aria-label={t('workspace.nextSource')}>
+                      <button type="button" className="wx-icon wx-icon--sm" onClick={() => stepSource(1)} aria-label={t('workspace.nextSource')} title={t('workspace.nextSource')}>
                         <ChevronRight size={15} />
                       </button>
                     </span>
@@ -2791,7 +2808,7 @@ export default function Workspace({
                         <span>{t('workspace.stat.cited', { n: fmt(counts.cited) })}</span>
                         <button type="button" className="wx-stat wx-stat--uncited" onClick={() => openReview(MARK.uncited)}>{t('workspace.stat.uncited', { n: fmt(counts.uncited) })}</button>
                         <button type="button" className="wx-stat wx-stat--plain" onClick={() => openReview(MARK.notClaim)}>{t('workspace.stat.notClaim', { n: fmt(counts.notClaim) })}</button>
-                        <button type="button" className="wx-stat" onClick={() => setRefCheckOpen((open) => !open)} data-action="write-refcheck">
+                        <button type="button" className="wx-stat wx-stat--action" onClick={() => setRefCheckOpen((open) => !open)} aria-pressed={refCheckOpen} data-action="write-refcheck">
                           {t('workspace.refCheck.button')}
                         </button>
                         <small className="wx-muted">{t('workspace.summaryLimit')}</small>

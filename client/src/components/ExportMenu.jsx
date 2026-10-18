@@ -21,7 +21,8 @@ const ExportMenu = ({ onPdf, onCsv, onDocx, onBibtex, onRis }) => {
   // Esc katman yığınında (WO-018): yalnız en üstteki kapanır.
   useLayer(open, () => setOpen(false));
 
-  const pick = (fn) => { setOpen(false); fn(); };
+  // Dışa aktarma kütüphaneleri tıklamada yüklenir (WO-024); yüklenemezse sessiz kalmasın.
+  const pick = (fn) => { setOpen(false); Promise.resolve().then(fn).catch((e) => console.error('Dışa aktarma başarısız', e)); };
 
   return (
     <div className="ui-menu" ref={ref}>

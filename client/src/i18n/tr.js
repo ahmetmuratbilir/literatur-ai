@@ -422,6 +422,7 @@ export default {
     findSimilar: 'Benzerini bul',
     copyBibtexTitle: 'Bu makalenin BibTeX kaydını panoya kopyala',
     bibtexCopied: 'Kopyalandı',
+    bibtexDownloaded: 'İndirildi',
     scoreShort: '%{n}',
     rank: 'Sıra #{n}',
     score: 'AHP skoru: %{n}',
@@ -570,6 +571,8 @@ export default {
     freePlan: 'Ücretsiz plan',
     collapse: 'Kenar çubuğunu daralt',
     expand: 'Kenar çubuğunu genişlet',
+    account: 'Hesap',
+    queryCount: '{n} arama stratejisi',
   },
   share: {
     title: 'Bu aramayı paylaş',
@@ -817,6 +820,7 @@ export default {
     addFailed: 'Makale eklenemedi. Lütfen tekrar dene.',
   },
   workspace: {
+    citeNeedsCaret: 'Atıfın gireceği yere belgede tıkla, sonra tekrar “Atıf ekle”ye bas.',
     exit: 'Araştırma',
     toolbar: 'Biçimlendirme araçları',
     navigator: 'Belge gezgini',
@@ -1286,5 +1290,78 @@ export default {
     score: 'Model tahmini: %{n}',
     basedOn: '{n} makale üzerinden',
     gapLabel: 'Öne çıkan literatür boşluğu:',
+  },
+  // Hata sınırı (WO-024): bir bölüm çökünce çıkışsız beyaz sayfa yerine.
+  crash: {
+    title: 'Bu bölüm açılırken bir sorun oldu',
+    body: 'Çalışmaların kaybolmadı. Tekrar denemek çoğu zaman yeterli; olmazsa sayfayı yenile ya da sorunu bize bildir.',
+    reload: 'Sayfayı yenile',
+    report: 'Sorunu bildir',
+  },
+  // Yardım ve destek (WO-024)
+  help: {
+    title: 'Yardım ve destek',
+    open: 'Yardım ve destek',
+    tip: 'Soru sor, hata bildir ya da öneride bulun',
+    faq: {
+      rank: {
+        q: 'Sonuçlar neden bu sırada?',
+        a: 'Her makale yedi ölçütle puanlanır (konuya uygunluk, atıf etkisi, yayın türü, güncellik, güvenilirlik, açık erişim…) ve puanlar AHP ağırlıklarıyla toplanır. Sıralama önceliklerine göre yapılır; bir makalenin doğru ya da kaliteli olduğunu kanıtlamaz. Kartta “Neden bu sırada?” ile ayrıntıyı görebilirsin.',
+      },
+      passage: {
+        q: 'Pasaj nereden geliyor?',
+        a: 'Pasaj kaynağın kaydından birebir alınır, hiçbir model onu yeniden yazmaz. Bugün çoğunlukla makale özetinden gelir; tam metin okunmuş gibi davranılmaz.',
+      },
+      drafts: {
+        q: 'Taslaklarım nerede saklanıyor?',
+        a: 'Taslaklar şimdilik yalnız bu tarayıcıda durur. Tarayıcı verisi silinirse kaybolur; önemli taslaklar için Çalışmalarım’dan DOCX yedeği indir.',
+      },
+    },
+    kindLabel: 'Ne hakkında?',
+    kind: { oneri: 'Öneri', hata: 'Hata', soru: 'Soru', diger: 'Diğer' },
+    messageLabel: 'Mesajın',
+    placeholder: {
+      oneri: 'Ör. Kaynakçaya IEEE biçimi eklenebilir mi?',
+      hata: 'Ne yaptın, ne bekledin, ne oldu? Ör. Sepete ekle’ye bastım, makale görünmedi.',
+      soru: 'Ör. Türkçe tezler aramada nasıl çıkıyor?',
+      diger: 'Bize iletmek istediğin her şey…',
+    },
+    tooShort: 'Biraz daha ayrıntı yaz (en az {n} karakter).',
+    contactOk: 'Bu konuda bana e-postayla dönüş yapabilirsiniz',
+    privacy: 'Mesajın, bulunduğun ekranın adı ve tarayıcı bilgisi ekibe (info@literatur-ai.com) iletilir. E-posta adresin yalnız dönüş istersen eklenir.',
+    send: 'Gönder',
+    sending: 'Gönderiliyor…',
+    failed: 'Gönderilemedi. Doğrudan e-posta da atabilirsin:',
+    sentTitle: 'Teşekkürler, mesajın ekibe ulaştı.',
+    sentReply: 'Gerekirse hesabındaki e-posta adresine dönüş yapacağız.',
+    sentNoReply: 'Dönüş istemediğin için sana e-posta gönderilmeyecek.',
+  },
+  // İlk giriş tanışma soruları (WO-024)
+  onboarding: {
+    title: 'Seni biraz tanıyalım',
+    intro: 'Üç kısa soru. Literatür AI’yi kimin, ne için kullandığını bilmek neyi önce geliştireceğimizi belirliyor. İstersen atlayabilirsin.',
+    optional: 'isteğe bağlı',
+    upTo: 'en fazla {n}',
+    role: {
+      label: 'Şu an ne yapıyorsun?',
+      lisans: 'Lisans öğrencisi', 'yuksek-lisans': 'Yüksek lisans', doktora: 'Doktora',
+      akademisyen: 'Akademisyen', arastirmaci: 'Araştırmacı (kurum / sanayi)', diger: 'Diğer',
+    },
+    purpose: {
+      label: 'Literatür AI’yi ne için kullanacaksın?',
+      tez: 'Tez', makale: 'Makale', 'odev-proje': 'Ödev / proje',
+      'literatur-taramasi': 'Literatür taraması', 'proje-basvurusu': 'Proje başvurusu', diger: 'Diğer',
+    },
+    source: {
+      label: 'Bizi nereden duydun?',
+      'hoca-arkadas': 'Hocam / arkadaşım', universite: 'Üniversitem', 'sosyal-medya': 'Sosyal medya',
+      'arama-motoru': 'Arama motoru', etkinlik: 'Fuar / etkinlik', diger: 'Diğer',
+    },
+    needRole: 'Bir seçenek işaretle.',
+    needPurpose: 'En az bir amaç işaretle.',
+    privacy: 'Cevaplar hesabınla saklanır ve yalnız ürünü geliştirmek için kullanılır. Silinmesini istersen info@literatur-ai.com adresine yazman yeterli.',
+    skip: 'Atla',
+    save: 'Kaydet',
+    saving: 'Kaydediliyor…',
   },
 };

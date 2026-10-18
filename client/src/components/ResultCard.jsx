@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, FileText, User as UserIcon, ExternalLink, ChevronDown, ChevronUp, Quote, Star, Check, AlertCircle, Loader2, AlertTriangle, BookOpen, BookmarkPlus, BookmarkCheck, Copy, Search } from 'lucide-react';
 import { getYearDisplay } from '../utils/yearDisplay.js';
-import { toBibTeX } from '../utils/citationExport.js';
+import { toBibTeX, downloadText } from '../utils/citationExport.js';
+import { copyText } from '../utils/clipboard.js';
 import RankBreakdown from './RankBreakdown.jsx';
 import { useI18n } from '../i18n/context.js';
 
@@ -17,7 +18,8 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, isSelected, onToggleS
   const [expanded, setExpanded] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [favFeedback, setFavFeedback] = useState(null); // 'added' | 'removed' | 'error'
-  const [bibtexCopied, setBibtexCopied] = useState(false);
+  // null | 'copied' | 'downloaded'
+  const [bibtexDone, setBibtexDone] = useState(null);
 
   // Favori geri bildirimini temizle
   useEffect(() => {
@@ -223,15 +225,20 @@ const ResultCard = ({ item, rank, onFavorite, isFavorited, isSelected, onToggleS
             className="ui-btn ui-btn--ghost ui-btn--sm"
             title={t('card.copyBibtexTitle')}
             onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(toBibTeX([item]));
-                setBibtexCopied(true);
-                setTimeout(() => setBibtexCopied(false), 2000);
-              } catch { /* pano izni yoksa sessizce geç */ }
+              // Eskiden pano izni yoksa sessizce hiçbir şey olmuyordu (ölü tuş).
+              // Artık kopyalanamazsa kayıt .bib dosyası olarak iner.
+              const bib = toBibTeX([item]);
+              if (await copyText(bib)) setBibtexDone('copied');
+              else {
+                downloadText(`${String(item.doi || item.title || 'kaynak').replace(/[^\w.-]+/g, '_').slice(0, 60)}.bib`, bib, 'application/x-bibtex');
+                setBibtexDone('downloaded');
+              }
+              setTimeout(() => setBibtexDone(null), 2000);
             }}
+            aria-live="polite"
           >
-            {bibtexCopied ? <Check size={14} strokeWidth={3} /> : <Copy size={14} />}
-            {bibtexCopied ? t('card.bibtexCopied') : 'BibTeX'}
+            {bibtexDone ? <Check size={14} strokeWidth={3} /> : <Copy size={14} />}
+            {bibtexDone === 'copied' ? t('card.bibtexCopied') : bibtexDone === 'downloaded' ? t('card.bibtexDownloaded') : 'BibTeX'}
           </button>
         </div>
 

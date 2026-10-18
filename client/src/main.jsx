@@ -8,10 +8,23 @@ import { CLERK_ENABLED } from './auth/clerkBridge.js'
 import { ClerkProvider } from '@clerk/clerk-react';
 import I18nProvider from './i18n/I18nProvider.jsx';
 import { DialogProvider } from './components/ui/DialogProvider.jsx';
+import ErrorBoundary from './components/ui/ErrorBoundary.jsx';
+import TooltipLayer from './components/ui/TooltipLayer.jsx';
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const root = createRoot(document.getElementById('root'));
+
+// İki dalın (Clerk'li / Clerk'siz) ortak ağacı. En dış hata sınırı: bir
+// bileşen çökerse beyaz sayfa yerine kurtarma ekranı (WO-024).
+const shell = (
+  <DialogProvider>
+    <ErrorBoundary area="page">
+      <App />
+    </ErrorBoundary>
+    <TooltipLayer />
+  </DialogProvider>
+);
 
 const clerkAppearance = {
   variables: {
@@ -59,9 +72,7 @@ if (!CLERK_ENABLED) {
     <StrictMode>
       <I18nProvider>
         <DevModeBanner />
-        <DialogProvider>
-          <App />
-        </DialogProvider>
+        {shell}
       </I18nProvider>
     </StrictMode>,
   );
@@ -70,9 +81,7 @@ if (!CLERK_ENABLED) {
     <StrictMode>
       <I18nProvider>
         <ClerkProvider publishableKey={PUBLISHABLE_KEY} appearance={clerkAppearance}>
-          <DialogProvider>
-            <App />
-          </DialogProvider>
+          {shell}
         </ClerkProvider>
       </I18nProvider>
     </StrictMode>,

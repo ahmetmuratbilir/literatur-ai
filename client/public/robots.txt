@@ -1,0 +1,6 @@
+# Literatür AI. Not: Cloudflare yönetilen robots.txt bu dosyanın önüne
+# içerik sinyali bloğu ekleyebilir; kurallar aşağıdadır.
+User-agent: *
+Allow: /
+
+Sitemap: https://www.literatur-ai.com/sitemap.xml

@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140" width="140" height="140" fill="none">
-  <!-- logo.svg'deki marka işaretinin kare hâli: sekme simgesi, PWA ikonu ve
-       uygulama içindeki .ui-brand-mark aynı şimşeği gösterir. -->
-  <rect width="140" height="140" rx="32" fill="url(#brandGrad)"/>
-  <path d="M78 28L42 74H70L60 112L98 64H70L78 28Z" fill="#ffffff" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <defs>
-    <linearGradient id="brandGrad" x1="0" y1="0" x2="140" y2="140" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#8b5cf6"/>
-      <stop offset="100%" stop-color="#6366f1"/>
-    </linearGradient>
-  </defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140" width="140" height="140">
+  <!-- Literatür AI marka işareti: rafine şimşek. Kaynak: docs/design/marka.md.
+       Sekme simgesi, PWA ikonları, uygulama içi BrandMark ve e-posta aynı çizimi kullanır. -->
+<defs>
+  <linearGradient id="lit-bg" x1="18" y1="6" x2="122" y2="134" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#6d5dfc"/><stop offset=".55" stop-color="#5b4cf0"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+  <linearGradient id="lit-shine" x1="70" y1="0" x2="70" y2="80" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <linearGradient id="lit-bolt" x1="60" y1="22" x2="80" y2="118" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#e8e5ff"/></linearGradient>
+</defs>
+  <rect width="140" height="140" rx="34" fill="url(#lit-bg)"/>
+  <rect width="140" height="140" rx="34" fill="url(#lit-shine)"/>
+  <path d="M83 20 L41 77 H67 L57 120 L100 61 H74 Z" fill="url(#lit-bolt)" stroke="url(#lit-bolt)" stroke-width="7" stroke-linejoin="round"/>
 </svg>

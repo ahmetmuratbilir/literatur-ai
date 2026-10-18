@@ -15,6 +15,22 @@ import { useLayer } from '../ui/useLayer.js';
 const PROVIDER_NAMES = { deepseek: 'DeepSeek', gemini: 'Google Gemini', groq: 'Groq' };
 const STATUS_TONE = { ok: 'ok', invalid: 'bad', quota: 'warn', error: 'warn', unknown: '' };
 
+/**
+ * Sunucu yanıtını beklenen şekle getirir. Eskiden yanıt doğrudan duruma
+ * yayılıyordu: `connections` gelmeyince (ör. API adresi yanlışken Vercel'in
+ * döndürdüğü HTML) `.find` patlıyor, bütün uygulama beyaz sayfaya dönüyordu.
+ * @returns {object|null} null = yanıt kullanılamaz
+ */
+const shapeOf = (data) => {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  return {
+    enabled: data.enabled === true,
+    storage: typeof data.storage === 'string' ? data.storage : null,
+    providers: Array.isArray(data.providers) ? data.providers : [],
+    connections: Array.isArray(data.connections) ? data.connections : [],
+  };
+};
+
 export default function AiConnections({ open, onClose, apiUrl, getToken }) {
   const { t, lang } = useI18n();
   const id = useId();
@@ -36,7 +52,11 @@ export default function AiConnections({ open, onClose, apiUrl, getToken }) {
     if (!open) return undefined;
     let alive = true;
     request('get')
-      .then((data) => { if (alive) setState({ loading: false, error: null, ...data }); })
+      .then((data) => {
+        if (!alive) return;
+        const shaped = shapeOf(data);
+        setState((s) => (shaped ? { ...s, ...shaped, loading: false, error: null } : { ...s, loading: false, error: 'load' }));
+      })
       .catch(() => { if (alive) setState((s) => ({ ...s, loading: false, error: 'load' })); });
     firstRef.current?.focus();
     return () => { alive = false; };
@@ -47,7 +67,7 @@ export default function AiConnections({ open, onClose, apiUrl, getToken }) {
     setMessage(null);
     try {
       const data = await request(method, path, body);
-      setState((s) => ({ ...s, connections: data.connections || s.connections }));
+      setState((s) => ({ ...s, connections: Array.isArray(data?.connections) ? data.connections : s.connections }));
       after?.(data);
     } catch (err) {
       setMessage({ tone: 'bad', text: err.response?.data?.error || t('aiConn.failed') });
@@ -74,7 +94,7 @@ export default function AiConnections({ open, onClose, apiUrl, getToken }) {
       <div className="ui-dialog ui-dialog--wide" role="dialog" aria-modal="true" aria-labelledby={`${id}-t`} data-testid="ai-connections">
         <div className="ai-conn__head">
           <h2 id={`${id}-t`} className="ui-dialog__title"><KeyRound size={18} aria-hidden="true" /> {t('aiConn.title')}</h2>
-          <button ref={firstRef} type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={onClose} aria-label={t('common.close')}><X size={16} /></button>
+          <button ref={firstRef} type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={onClose} aria-label={t('common.close')} title={t('common.close')}><X size={16} /></button>
         </div>
         <p className="ui-dialog__body">{t('aiConn.intro')}</p>
 
