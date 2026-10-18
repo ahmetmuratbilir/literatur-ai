@@ -317,13 +317,34 @@
   .pane { display: none; } .pane.on { display: block; animation: fade .25s var(--ease); }
   @keyframes fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 
-  .src-table { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--card); }
-  .src-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line-2); align-items: center; }
-  .src-row:last-child { border-bottom: 0; }
-  .src-row.head { background: var(--bg-soft); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); font-weight: 750; }
-  .src-row b { font-size: 13.5px; font-weight: 650; }
-  .src-row span { font-size: 12.5px; color: var(--muted); }
-  @media (max-width: 720px) { .src-row { grid-template-columns: 1fr; gap: 3px; } .src-row.head { display: none; } }
+  /* Kaynak şeridi: iki satır, ters yönlere akar; üstüne gelince durur. */
+  .src-marquee {
+    display: grid; gap: 12px; padding: 22px 0;
+    border-block: 1px solid var(--line);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  }
+  .src-marquee__row { overflow: hidden; }
+  .src-marquee__track { display: flex; width: max-content; animation: src-marquee 38s linear infinite; }
+  .src-marquee__row--reverse .src-marquee__track { animation-duration: 46s; animation-direction: reverse; }
+  .src-marquee__group { display: flex; gap: 12px; padding-right: 12px; }
+  .src-marquee:hover .src-marquee__track { animation-play-state: paused; }
+  @keyframes src-marquee { to { transform: translateX(-50%); } }
+  .src-chip {
+    display: inline-flex; align-items: center; gap: 10px; white-space: nowrap;
+    padding: 10px 18px; font-size: 14px; font-weight: 600; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 999px; background: var(--card);
+    transition: border-color .2s, transform .2s;
+  }
+  .src-chip:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .src-chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+  .src-chip--enrich { color: var(--muted); font-weight: 500; }
+  .src-chip--enrich i { background: var(--faint); }
+  .src-chip small { font-size: 11px; font-weight: 500; color: var(--faint); text-transform: lowercase; }
+  @media (prefers-reduced-motion: reduce) {
+    .src-marquee__row { overflow-x: auto; }
+    .src-marquee__group[aria-hidden="true"] { display: none; }
+  }
 
   .eg { display: inline-block; margin-bottom: 6px; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
   .src-note { margin: 12px 2px 0; font-size: 12.5px; color: var(--muted); max-width: 72ch; }
@@ -542,21 +563,52 @@
     <div class="wrap">
       <div class="sec-head rise">
         <span class="kicker" data-i18n="src.kicker">Kaynaklar</span>
-        <h2 data-i18n="src.title">Nereden okuyoruz, ne sıklıkla, hangi koşulla.</h2>
-        <p data-i18n="src.lead">Lisans ve ticari kullanım koşulu doğrulanmayan kaynak canlıya çıkmaz.</p>
+        <h2 data-i18n="src.title">Açık akademik altyapı, birlikte taranır</h2>
+        <p data-i18n="src.lead">Her kaynak kendi sözdizimine uyarlanmış bir sorguyla aranır. Yanıt vermeyen kaynaklar sessizce atlanmaz, sonuçlarda belirtilir.</p>
       </div>
-      <div class="src-table rise">
-        <div class="src-row head"><span data-i18n="src.c1">Kaynak</span><span data-i18n="src.c2">Erişim</span><span data-i18n="src.c3">Kullanım</span></div>
-        <div class="src-row"><b>OpenAlex</b><span data-i18n="src.live">Canlı sorgu</span><span data-i18n="src.u1">Metadata omurgası</span></div>
-        <div class="src-row"><b>Crossref</b><span data-i18n="src.live">Canlı sorgu</span><span data-i18n="src.u2">DOI doğrulama, geri çekme</span></div>
-        <div class="src-row"><b>Semantic Scholar</b><span data-i18n="src.live">Canlı sorgu</span><span data-i18n="src.u3">Pasaj arama</span></div>
-        <div class="src-row"><b>Europe PMC · PubMed</b><span data-i18n="src.live">Canlı sorgu</span><span data-i18n="src.u4">Tıp literatürü</span></div>
-        <div class="src-row"><b>Unpaywall · DOAJ · OpenCitations</b><span data-i18n="src.live">Canlı sorgu</span><span data-i18n="src.u5">Açık erişim bağlantısı, dergi doğrulama, atıf ilişkileri</span></div>
-        <div class="src-row"><b>DergiPark · TR Dizin · YÖK Tez</b><span data-i18n="src.night">Gece toplanır</span><span data-i18n="src.u6">Türkçe yerel indeks</span></div>
-        <div class="src-row"><b>arXiv · CORE · OpenAIRE</b><span data-i18n="src.night">Gece toplanır</span><span data-i18n="src.u7">Ön baskı ve açık erişim, yerel indeks</span></div>
-        <div class="src-row"><b>Scopus · Web of Science · Dimensions · Lens</b><span>—</span><span data-i18n="src.u8">Yazılı izin olmadan yok</span></div>
+      <!-- Şerit, bugün kodda aranan kaynaklar (client/src/components/landing/LandingPage.jsx
+           SEARCH_SOURCES + ENRICHMENT_SOURCES). Hedeflenen ama bağlanmamış kaynak burada yok (2.7). -->
+      <div class="src-marquee rise" aria-label="Taranan açık akademik kaynaklar">
+        <div class="src-marquee__row">
+          <div class="src-marquee__track">
+            <div class="src-marquee__group">
+              <span class="src-chip" title="Yayın, yazar ve dergilerin geniş dizini"><i></i>OpenAlex</span>
+              <span class="src-chip" title="DOI üst verisi ve geri çekilme kayıtları"><i></i>Crossref</span>
+              <span class="src-chip" title="Atıf verili, yapay zekâ destekli dizin"><i></i>Semantic Scholar</span>
+              <span class="src-chip" title="Yaşam bilimleri ve biyomedikal literatür"><i></i>Europe PMC</span>
+              <span class="src-chip" title="Avrupa açık bilim ağı: kurumsal arşivler ve tezler"><i></i>OpenAIRE</span>
+              <span class="src-chip" title="DOI alan tezler, Zenodo ve arşiv kayıtları"><i></i>DataCite</span>
+            </div>
+            <div class="src-marquee__group" aria-hidden="true">
+              <span class="src-chip"><i></i>OpenAlex</span>
+              <span class="src-chip"><i></i>Crossref</span>
+              <span class="src-chip"><i></i>Semantic Scholar</span>
+              <span class="src-chip"><i></i>Europe PMC</span>
+              <span class="src-chip"><i></i>OpenAIRE</span>
+              <span class="src-chip"><i></i>DataCite</span>
+            </div>
+          </div>
+        </div>
+        <div class="src-marquee__row src-marquee__row--reverse">
+          <div class="src-marquee__track">
+            <div class="src-marquee__group">
+              <span class="src-chip" title="Hakemli açık erişimli dergiler"><i></i>DOAJ</span>
+              <span class="src-chip" title="Fizik, bilgisayar bilimi, matematik ön baskıları"><i></i>arXiv</span>
+              <span class="src-chip" title="Arşivlerden açık erişimli makaleler"><i></i>CORE</span>
+              <span class="src-chip src-chip--enrich" title="Açık atıf sayıları"><i></i>OpenCitations <small data-i18n="src.enrich">zenginleştirme</small></span>
+              <span class="src-chip src-chip--enrich" title="Yasal açık erişim kopyaları"><i></i>Unpaywall <small data-i18n="src.enrich">zenginleştirme</small></span>
+            </div>
+            <div class="src-marquee__group" aria-hidden="true">
+              <span class="src-chip"><i></i>DOAJ</span>
+              <span class="src-chip"><i></i>arXiv</span>
+              <span class="src-chip"><i></i>CORE</span>
+              <span class="src-chip src-chip--enrich"><i></i>OpenCitations <small data-i18n="src.enrich">zenginleştirme</small></span>
+              <span class="src-chip src-chip--enrich"><i></i>Unpaywall <small data-i18n="src.enrich">zenginleştirme</small></span>
+            </div>
+          </div>
+        </div>
       </div>
-      <p class="src-note" data-i18n="src.note">Tablo hedeflenen erişim biçimini gösterir. Bir kaynak; lisans, gösterim ve ticari kullanım koşulları ayrı ayrı doğrulandıktan sonra açılır.</p>
+      <p class="src-note" data-i18n="src.note">Gri olanlar liste üretmez; bulunan kayda açık erişim bağlantısı ve atıf sayısı ekler.</p>
     </div>
   </section>
 
@@ -623,6 +675,24 @@
 (() => {
   'use strict';
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* kaynak şeridi: her grup şerit genişliğini dolduracak kadar tekrarlanır,
+     yoksa az kaynaklı satırın sağında boşluk kalır. Tekrarlar ekran okuyucuya kapalı. */
+  const marquee = document.querySelector('.src-marquee');
+  if (marquee && !reduced) {
+    const width = marquee.clientWidth;
+    marquee.querySelectorAll('.src-marquee__group').forEach((group) => {
+      const chips = Array.from(group.children);
+      for (let i = 0; group.scrollWidth < width && i < 6; i += 1) {
+        chips.forEach((chip) => {
+          const copy = chip.cloneNode(true);
+          copy.setAttribute('aria-hidden', 'true');
+          copy.removeAttribute('title');
+          group.appendChild(copy);
+        });
+      }
+    });
+  }
 
   /* tema */
   const themeBtn = document.getElementById('theme');
@@ -954,9 +1024,8 @@
     'cls.kicker': 'Evidence classes', 'cls.title': 'Five separate answers. None stands in for another.',
     'cls.lead': '“Source not found”, “no evidence” and “source contradicts” are different things.',
     'c1': 'supports', 'c2': 'partial', 'c3': 'irrelevant', 'c4': 'contradicts', 'c5': 'no evidence',
-    'src.kicker': 'Sources', 'src.title': 'Where we read from, how often, under which terms.',
-    'src.lead': 'A source without verified licence and commercial terms never reaches production.',
-    'src.c1': 'Source', 'src.c2': 'Access', 'src.c3': 'Use',
+    'src.kicker': 'Sources', 'src.title': 'Open scholarly infrastructure, searched together',
+    'src.lead': 'Each source is queried with a query adapted to its own syntax. Unavailable sources are reported in the results instead of failing silently.',
     'hon.kicker': 'Limits', 'hon.title': 'What we <span class="no">do not do</span> — and why.',
     'hon.lead': 'Trust begins with saying what you do not do.',
     'faq.kicker': 'FAQ', 'faq.title': 'Short answers.',
@@ -986,11 +1055,8 @@
     'c4q': '“Human error is a factor in 12% of events; equipment is the dominant cause.”', 'c4v': 'Missing a contradiction is the most expensive mistake.',
     'c5d': 'A search was run; no suitable passage was found.',
     'c5q': 'The sources searched, the time range and the scope are written down.', 'c5v': '“No studies exist” is never said; the scope is.',
-    'src.live': 'Live query', 'src.night': 'Harvested nightly',
-    'src.u1': 'Metadata backbone', 'src.u2': 'DOI verification, retractions', 'src.u3': 'Passage search',
-    'src.u4': 'Biomedical literature', 'src.u5': 'Open-access links, journal checks, citation links',
-    'src.u6': 'Turkish local index', 'src.u7': 'Preprints and open access, local index', 'src.u8': 'Not without written permission',
-    'src.note': 'The table shows the intended access mode. A source is switched on only after its licence, display and commercial-use terms are each verified.',
+    'src.enrich': 'enrichment',
+    'src.note': 'The grey ones do not produce results; they add open-access links and citation counts to records already found.',
     'h1t': 'We do not write for the author', 'h1p': 'No free paragraph generation; one sentence, from one passage.',
     'h2t': 'No “AI detector”', 'h2p': 'Presenting an uncalibrated score as a probability does harm.',
     'h3t': 'No made-up numbers', 'h3p': 'An unmeasured “98% accuracy” never appears in the interface.',
