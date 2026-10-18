@@ -228,3 +228,13 @@ test('punto: seçili metne uygulanır, seçim yokken bütün belgeye; seçime ve
   await expect(size).toHaveValue(other);
   await expect(doc.locator('span[style*="18pt"]')).toHaveText('Pasif');
 });
+
+test('atıfsız iddia: yalnız o cümle işaretlenir (atıflı ve iddia olmayan değil); Teslim önizlemesinde işaret yok', async ({ page }) => {
+  await seedDraft(page, '<h1>Giriş</h1><p>Dijital ikiz eş zamanlı sanal modeldir (Kaya, 2020). Bu yaklaşım bakım maliyetlerini yüzde otuz azaltır. Bölüm iki yöntemi anlatır.</p><h1>Kaynakça</h1>', 'Vurgu taslağı');
+  await mockApi(page, { basket: [{ _id: 'b1', title: 'Doğal dolaşım', creator: 'Zeynep Kaya', year: 2020, doi: '10.1/kaya' }] });
+  await page.goto('/#/yaz');
+  await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get('wx-uncited') || [])].map((r) => r.toString())))
+    .toEqual(['Bu yaklaşım bakım maliyetlerini yüzde otuz azaltır.']);
+  await page.locator('[data-action="write-view-submit"]').click();
+  await expect.poll(() => page.evaluate(() => CSS.highlights.has('wx-uncited'))).toBe(false);
+});

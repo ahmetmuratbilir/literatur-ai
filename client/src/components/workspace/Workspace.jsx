@@ -1643,6 +1643,25 @@ export default function Workspace({
     return () => registry.delete('wx-cite');
   }, [blocks, basket.papers]);
 
+  // Atıf işareti olmayan iddia cümleleri (WO-024, kullanıcı: "etrafı daha belli
+  // olsun"). Eskiden yalnız paragrafın solunda soluk gri kesikli çizgi vardı;
+  // paragrafta birkaç cümle varken hangisi olduğu anlaşılmıyordu. Cümlenin
+  // kendisi CSS Highlight ile işaretlenir: DOM'a dokunmaz (imleç, geri al,
+  // DOCX etkilenmez). Teslim önizlemesinde ve baskıda görünmez.
+  useEffect(() => {
+    const registry = typeof CSS !== 'undefined' ? CSS.highlights : null;
+    if (!registry || typeof Highlight === 'undefined') return undefined;
+    if (hidden || view === 'submit') { registry.delete('wx-uncited'); return undefined; }
+    const ranges = [];
+    for (const s of sentencesRef.current) {
+      if (s.mark !== MARK.uncited || !s.block?.isConnected) continue;
+      const range = rangeForOffsets(s.block, s.start, s.end);
+      if (range) ranges.push(range);
+    }
+    registry.set('wx-uncited', new Highlight(...ranges));
+    return () => registry.delete('wx-uncited');
+  }, [sentences, hidden, view]);
+
   const openCitationAtCaret = () => {
     const sel = window.getSelection();
     if (!sel?.rangeCount || !sel.isCollapsed) return;

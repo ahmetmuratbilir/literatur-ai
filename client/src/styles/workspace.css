@@ -706,7 +706,9 @@
   transition: opacity .15s ease-out;
 }
 .wx-page > [data-mark="uncited"]::after {
-  background: repeating-linear-gradient(to bottom, var(--wx-pending) 0 4px, transparent 4px 7px);
+  /* WO-024: gri yerine amber ve daha belirgin; cümlenin kendisi ::highlight(wx-uncited). */
+  background: repeating-linear-gradient(to bottom, var(--wx-warn) 0 4px, transparent 4px 7px);
+  opacity: .85;
 }
 .wx-page > [data-mark="cited"]::after { background: var(--wx-pending); opacity: .28; }
 .wx-page > [data-mark]:hover::after { opacity: 1; }
@@ -1486,6 +1488,14 @@ button.wx-ctl__title { min-height: 24px; }
 
 /* ---------- A4 sayfa (Faz 2) ---------- */
 ::highlight(wx-cite) { color: #6750e8; }
+/* Atıf işareti olmayan iddia cümlesi: amber noktalı alt çizgi ve çok hafif zemin. */
+::highlight(wx-uncited) {
+  background-color: rgb(245 158 11 / .10);
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: #b54708;
+  text-decoration-thickness: 2px;
+}
 .wx-pnum, .wx-phead {
   position: absolute;
   text-align: center;
@@ -1497,6 +1507,7 @@ button.wx-ctl__title { min-height: 24px; }
 .wx-form__check { display: flex; align-items: center; gap: 8px; grid-column: 1 / -1; font-size: 12.5px; }
 @media print {
   ::highlight(wx-cite) { color: inherit; }
+  ::highlight(wx-uncited) { background-color: transparent; text-decoration: none; }
   .wx-pnum, .wx-phead { display: none !important; }
 }
 
