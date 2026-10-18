@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { ONBOARDING_OPTIONS } from '../config/onboarding.js';
 
 const UserProfileSchema = new mongoose.Schema({
   userId: {
@@ -36,6 +37,14 @@ const UserProfileSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
+  },
+  // İlk giriş tanışma soruları (WO-024): yalnız sabit seçenekler.
+  onboarding: {
+    role: { type: String, enum: ONBOARDING_OPTIONS.role },
+    purpose: { type: [{ type: String, enum: ONBOARDING_OPTIONS.purpose }], default: undefined },
+    source: { type: String, enum: ONBOARDING_OPTIONS.source },
+    answeredAt: Date,
+    skippedAt: Date,
   },
 });
 

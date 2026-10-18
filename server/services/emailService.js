@@ -87,11 +87,11 @@ export async function sendWelcomeDemoEmail({ email, name = 'Araştırmacı', que
         </p>
 
         <div style="background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.25); border-radius:12px; padding:16px; margin:20px 0;">
-          <h4 style="color:#c7d2fe; margin:0 0 8px 0; font-size:14px;">🎁 1 Aylık Pro Deneme Tanımlandı</h4>
+          <h4 style="color:#c7d2fe; margin:0 0 8px 0; font-size:14px;">Literatür AI ne yapar?</h4>
           <ul style="color:#94a3b8; font-size:13px; margin:0; padding-left:18px; line-height:1.5;">
-            <li>7 Küresel Akademik Veritabanı (Scopus, OpenAlex, CORE vb.)</li>
-            <li>AHP (Analitik Hiyerarşi) ile Q1/Q2 Dergi Prestij Sıralaması</li>
-            <li>Doğrulanmış Literatür Sentezi & PDF/Word Dışa Aktarımı</li>
+            <li>Açık akademik dizinleri tek sorguda tarar (OpenAlex, Crossref, Semantic Scholar…)</li>
+            <li>Her makalenin neden o sırada olduğunu şeffaf AHP puanıyla gösterir</li>
+            <li>Yazdığınız her cümleyi kaynaktan alınmış bir pasaja bağlar; Word/PDF olarak dışa aktarılır</li>
           </ul>
         </div>
 
@@ -112,7 +112,7 @@ export async function sendWelcomeDemoEmail({ email, name = 'Araştırmacı', que
   const { data, error } = await resend.emails.send({
     from: fromEmail,
     to: [email],
-    subject: '📚 LiteraturAI Canlı Demo: 1 Aylık Pro Hesabınız ve Raporunuz Hazır!',
+    subject: 'Literatür AI canlı demo: aramanız hazır',
     html,
   });
 
@@ -141,7 +141,7 @@ export async function sendWelcomeOnboardingEmail({ email, name = 'Araştırmacı
 
 LiteraturAI'ye hoş geldiniz!
 
-Akademik araştırmalarınızı hızlandırmak için hesabınız başarıyla oluşturuldu. Artık Scopus, OpenAlex, Crossref, CORE ve arXiv üzerindeki 300 milyondan fazla akademik makaleyi AHP ve yapay zekâ analiz gücüyle tarayabilirsiniz.
+Hesabınız oluşturuldu. Açık akademik dizinleri tek sorguyla tarayabilir, her makalenin neden o sırada olduğunu görebilirsiniz. Yazdığınız her cümle kaynaktan alınmış bir pasaja bağlanır.
 
 Platforma hemen erişmek için:
 ${appUrl}
@@ -168,11 +168,11 @@ https://literatur-ai.com`;
           <a href="${appUrl}" style="text-decoration:none; display:inline-block;" target="_blank" rel="noopener noreferrer">
             <table cellpadding="0" cellspacing="0" border="0" style="display:inline-table; vertical-align:middle;">
               <tr>
-                <td style="width:40px; height:40px; background:linear-gradient(135deg, #7c3aed 0%, #6366f1 100%); border-radius:10px; text-align:center; vertical-align:middle; line-height:40px; box-shadow:0 4px 10px rgba(124,58,237,0.25);">
+                <td style="width:40px; height:40px; background:#5b4cf0; background:linear-gradient(135deg, #6d5dfc 0%, #7c3aed 100%); border-radius:10px; text-align:center; vertical-align:middle; line-height:40px; box-shadow:0 4px 10px rgba(124,58,237,0.25);">
                   <span style="color:#ffffff; font-size:20px; line-height:1; display:inline-block;">⚡</span>
                 </td>
                 <td style="padding-left:12px; vertical-align:middle;">
-                  <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:22px; font-weight:900; color:#0f172a; letter-spacing:-0.03em;">Literatur <span style="color:#6366f1;">AI</span></span>
+                  <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:22px; font-weight:800; color:#0f172a; letter-spacing:-0.03em;">Literatür <span style="color:#4f46e5;">AI</span></span>
                 </td>
               </tr>
             </table>
@@ -184,11 +184,11 @@ https://literatur-ai.com`;
         </p>
 
         <p style="font-size:14px; color:#334155; margin:0 0 16px 0;">
-          LiteraturAI'ye hoş geldiniz! Hesabınız başarıyla oluşturuldu. Artık dünyanın en kapsamlı akademik veri kaynaklarında yapay zekâ ve AHP karar matrisi ile tarama yapabilirsiniz.
+          Literatür AI'ye hoş geldiniz! Hesabınız oluşturuldu.
         </p>
 
         <p style="font-size:14px; color:#334155; margin:0 0 24px 0;">
-          Scopus, OpenAlex, Crossref ve arXiv gibi 7 global veri tabanındaki 300 milyondan fazla akademik yayına anında erişebilir, Q1/Q2 dergi prestij sıralamaları ve konsensüs analizleriyle literatür taramalarınızı dakikalar içinde tamamlayabilirsiniz.
+          Açık akademik dizinleri tek sorguyla tarayabilir, her makalenin neden o sırada olduğunu şeffaf AHP puanıyla görebilirsiniz. Yazdığınız her cümle kaynaktan alınmış bir pasaja bağlanır; kanıtı olmayan cümle belgeye girmez.
         </p>
 
         <!-- CTA Button -->
@@ -337,5 +337,62 @@ export async function sendLeadThanksEmail({ name, email }) {
   }
 
   logger.info({ email }, '[EmailService] Teşekkür e-postası gönderildi.');
+  return data;
+}
+
+const FEEDBACK_LABELS = { oneri: 'Öneri', hata: 'Hata bildirimi', soru: 'Soru', diger: 'Diğer' };
+
+/**
+ * Uygulama içi "Yardım ve destek" penceresinden gelen geri bildirim (WO-024).
+ * Ekibe gider. Yanıt adresi yalnız kullanıcı dönüşe izin verdiyse konur.
+ */
+export async function sendFeedbackEmail({ kind, message, page, email, name, userId, userAgent }) {
+  const inbox = process.env.FEEDBACK_INBOX_EMAIL || process.env.LEAD_INBOX_EMAIL || 'info@literatur-ai.com';
+  const label = FEEDBACK_LABELS[kind] || 'Geri bildirim';
+  const rows = [
+    ['Tür', label],
+    ['Ekran', page || '-'],
+    ['Kullanıcı', [name, email].filter(Boolean).join(' · ') || 'Dönüş istemedi'],
+    ['Kimlik', userId],
+    ['Tarayıcı', userAgent || '-'],
+  ];
+
+  if (!resend) {
+    logger.warn({ kind }, '[EmailService] RESEND_API_KEY tanımlanmamış, geri bildirim e-postası simüle edildi.');
+    return { simulated: true };
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head><meta charset="utf-8"></head>
+    <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; color:#0f172a; padding:24px;">
+      <h2 style="margin:0 0 4px; font-size:18px;">${escapeHtml(label)}</h2>
+      <p style="margin:0 0 16px; color:#475569; font-size:13px;">Uygulama içi yardım ve destek penceresi</p>
+      <div style="white-space:pre-wrap; font-size:14px; line-height:1.6; padding:14px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:16px;">${escapeHtml(message)}</div>
+      <table style="border-collapse:collapse; font-size:13px;">
+        ${rows.map(([k, v]) => `<tr>
+          <td style="padding:4px 16px 4px 0; color:#475569; vertical-align:top;">${escapeHtml(k)}</td>
+          <td style="padding:4px 0;">${escapeHtml(v)}</td>
+        </tr>`).join('')}
+      </table>
+    </body>
+    </html>
+  `;
+
+  const { data, error } = await resend.emails.send({
+    from: fromEmail,
+    to: [inbox],
+    ...(email ? { replyTo: email } : {}),
+    subject: `${label} — ${plainLine(page || 'uygulama', 40)} — ${plainLine(message, 60)}`,
+    html,
+    text: `${message}\n\n${rows.map(([k, v]) => `${k}: ${v}`).join('\n')}`,
+  });
+
+  if (error) {
+    logger.error({ error, kind }, '[EmailService] Geri bildirim e-postası gönderilemedi');
+    throw new Error(error.message);
+  }
+  logger.info({ kind }, '[EmailService] Geri bildirim iletildi.');
   return data;
 }

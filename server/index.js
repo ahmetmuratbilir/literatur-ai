@@ -24,6 +24,9 @@ import Analysis from './models/Analysis.js';
 import Basket, { BASKET_LIMIT } from './models/Basket.js';
 import AiConnection from './models/AiConnection.js';
 import { aiContextMiddleware, createAiConnectionsRouter } from './routes/aiConnections.js';
+import { createFeedbackRouter } from './routes/feedback.js';
+import { createOnboardingRouter } from './routes/onboarding.js';
+import Feedback from './models/Feedback.js';
 import { memoryStore, mongoStore } from './services/aiConnectionService.js';
 import { vaultReady } from './services/keyVault.js';
 import { runWithAiContext } from './services/aiContext.js';
@@ -46,7 +49,7 @@ import { runRevisionCoach } from './services/revisionCoachService.js';
 import { createRequestId, runWriterPipeline } from './services/writerPipeline.js';
 import { logger } from './utils/logger.js';
 import { clerkMiddleware, getAuth as clerkGetAuth, clerkClient } from '@clerk/express';
-import { sendLeadEmail, sendLeadThanksEmail, sendWelcomeDemoEmail, sendWelcomeOnboardingEmail } from './services/emailService.js';
+import { sendFeedbackEmail, sendLeadEmail, sendLeadThanksEmail, sendWelcomeDemoEmail, sendWelcomeOnboardingEmail } from './services/emailService.js';
 import UserProfile from './models/UserProfile.js';
 import {
   buildSearchCacheFingerprint,
@@ -998,6 +1001,49 @@ app.post('/api/leads', leadLimiter, async (req, res) => {
 
   return res.json({ ok: true, saved: Boolean(lead), emailed, thanked });
 });
+
+// Yardım ve destek (WO-024): giriş yapmış kullanıcının geri bildirimi ekibe
+// gider. Sınır kullanıcı başına: 10 dakikada 5 gönderim.
+const feedbackLimiter = IS_TEST_MODE
+  ? (req, res, next) => next()
+  : rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 5,
+    keyGenerator: (req) => getAuth(req)?.userId || ipKeyGenerator(req.ip),
+    message: { error: 'Kısa sürede çok fazla gönderim yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+// Adres ve ad yalnız kimlik sağlayıcısından gelir (hoş geldin akışındaki ilkeyle aynı).
+async function lookupClerkUser(userId) {
+  if (!CLERK_CONFIGURED) return {};
+  const u = await clerkClient.users.getUser(userId);
+  const primary = u?.emailAddresses?.find((e) => e.id === u.primaryEmailAddressId) || u?.emailAddresses?.[0];
+  return { email: primary?.emailAddress || '', name: [u?.firstName, u?.lastName].filter(Boolean).join(' ') };
+}
+
+const dbReady = () => mongoose.connection.readyState === 1;
+
+app.use('/api/feedback', createFeedbackRouter({
+  getUserId: getRequestUserId,
+  lookupUser: lookupClerkUser,
+  save: (doc) => (dbReady() ? Feedback.create(doc) : null),
+  sendEmail: sendFeedbackEmail,
+  markEmailed: (saved) => Feedback.updateOne({ _id: saved._id }, { emailed: true }),
+  limiter: feedbackLimiter,
+}));
+
+// İlk giriş tanışma soruları (WO-024). Veritabanı yoksa sorulmaz.
+app.use('/api/me/onboarding', createOnboardingRouter({
+  getUserId: getRequestUserId,
+  load: (userId) => (dbReady() ? UserProfile.findOne({ userId }, { onboarding: 1 }).lean() : undefined),
+  store: async (userId, onboarding) => {
+    if (!dbReady()) return false;
+    await UserProfile.updateOne({ userId }, { $set: { onboarding } }, { upsert: true, runValidators: true });
+    return true;
+  },
+}));
 
 // Yazar adaylari: kullanici aramadan once dogru kisiyi kurum/ORCID ile secer,
 // arama sonra o kisinin kimligiyle yapilir (ayni adda yuzlerce yazar olabiliyor).
