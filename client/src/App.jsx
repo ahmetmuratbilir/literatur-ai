@@ -95,6 +95,10 @@ const WORKSPACE_ENABLED = true;
 // açılıyor; üretim yalnız tek pasajdan tek cümle olarak, kullanıcı tıklayınca.
 // Kod ve /api/writer/generate yerinde; bayrak true yapılırsa geri gelir.
 const AI_WRITER_PANEL_ENABLED = false;
+// Görsel paneli (WO-019): yazım yüzeyinde tablo — sağ panelde düzenle, seçili
+// paragrafın altına ekle. false iken Ekle menüsünde yalnız başlık satırı kalır;
+// belgedeki tablolar normal tablo olarak durur, hiçbiri silinmez.
+const VISUALS_ENABLED = true;
 // WO-010'un uygulama kabuğu (ray, sekmeler, Alanım/Kaynaklar/Denetim sayfaları)
 // kullanıcı kararıyla kaldırıldı (15.10.2026, WO-011): araştırma modu eski
 // düzeninde, yeni tasarım yalnız yazar modunda. Eski adresler modeRoutes.js'te
@@ -1292,6 +1296,7 @@ function App() {
                 initialData={drafts.memoryData}
                 onConflict={onDraftConflict}
                 panelRequest={writerPanel}
+                visualsEnabled={VISUALS_ENABLED}
               />
             </Suspense>
             </ErrorBoundary>

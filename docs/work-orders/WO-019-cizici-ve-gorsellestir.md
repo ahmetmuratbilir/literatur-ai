@@ -2,7 +2,7 @@
 
 | Alan | Değer |
 | --- | --- |
-| Durum | Taslak (18.10.2026) — kapsam kullanıcı kararıyla genişletildi; Hazır'a geçişi kullanıcı onaylar |
+| Durum | Çalışıyor (19.10.2026, kullanıcı onayı: "başla yap") — Faz 1 bitti, elle deneme bekliyor; sırada Faz 2 |
 | Kapsam | Çapraz: saf modüller + yazım yüzeyi + sağ panel |
 | Dosya değişikliği | İzinli (liste aşağıda) |
 | Tahmini süre | 4–5 oturum (faz başına bir oturum) |
@@ -255,6 +255,15 @@ R5, `arguman`). Pasif soğutma (`cycle: 1`) ve akış kararsızlığı (`cause: 
 - Faz 3 öncesi galeri kararları (hangi şablonlar girer).
 - `VISUALS_ENABLED` varsayılanı.
 - Hücreye model önerisi iş emri — yazılıp yazılmayacağı.
+
+## Faz 1 raporu (19.10.2026, `wo-019-gorsel-paneli`)
+- **Değişen dosyalar:** `client/src/visuals/table.js` (yeni), `client/src/components/workspace/TableEditor.jsx`, `VisualPanel.jsx` (yeni), `Workspace.jsx`, `client/src/App.jsx` (`VISUALS_ENABLED`), `client/src/styles/workspace.css`, `client/src/i18n/tr.js`, `en.js`, `client/tests/table.test.js`, `client/e2e/visual-panel.spec.js` (yeni), `CLAUDE.md` (3.12 bayrak satırı).
+- **Listeden sapma:** `client/e2e/write.spec.js` değişti — "panel üç sekme" testi Görsel sekmesiyle dört sekme bekliyor (beklenen davranış değişikliği). `client/scripts/kontrol.mjs` değişmedi: bütün e2e dosyalarını kendisi topluyor. `exportDocument.js` değişmedi: üst düzey `<p>` başlık + `<table>` biçimi mevcut çeviriciyle gerçek Word tablosu ve üstte başlık veriyor (e2e'de `word/document.xml` açılarak doğrulandı).
+- **Kararlar:** ✦ düğmesi Faz 3'e kaldı (paragraf kenarındaki öneri şekille anlam kazanıyor; tablo için Ekle menüsü ve Görsel sekmesi yeterli). Panel değişikliği belgeye yalnız "Güncelle" ile yazılır; belgede doğrudan hücre yazımı panele okunur, panelde kaydedilmemiş değişiklik varsa ezilmez, "belgede de değişti" uyarısı çıkar. Elle yazılmış "Tablo N." satırları sayılır ama yeniden yazılmaz (Kontrol `captionOrder` zaten uyarıyor).
+- **Testler (çalıştırıldı):** istemci birim 338/338; lint temiz; sunucu 453/453; e2e 94/95 → kalan tek test sekme sayısı (yukarıda), düzeltildi, `write.spec.js` + `visual-panel.spec.js` 20/20. `npm run build` bu makinede antivirüs esbuild geçici dosyasını kilitlediği için düştü ("Access is denied"); `vite build --minify false --target esnext` geçti.
+- **Ölçülen etki:** ölçülmedi (paket boyutu farkı Faz 4'te recharts ile ölçülecek).
+- **Bilinen eksikler:** Faz 2–4; DOCX'te tablo başlığı sırası için ayrı test var, PDF denenmedi.
+- **Durum:** NEEDS ATTENTION — Ahmet'in elle denemesi bekleniyor.
 
 ## Bitiş raporu
 - Değişen dosyalar:

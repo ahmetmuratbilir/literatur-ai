@@ -31,6 +31,8 @@ import { buildOutline, countWords } from './outline.js';
 import { inlineCitation, referenceLine } from './citation.js';
 import { citationSpans, isReferencesHeading, matchSources } from './references.js';
 import { SUPPORT_SHAPES, isSettled, locateSpan, refusalKey, supportLabel } from './evidence.js';
+import VisualPanel from './VisualPanel.jsx';
+import { captionLine, captionTitle, createGrid, gridFromRows, newVisualId, tableHtml } from '../../visuals/table.js';
 
 /**
  * Yazar yüzeyi — docs/design/tasarim-yonu.md
@@ -133,6 +135,20 @@ function serialize(el) {
     if (!node.getAttribute('class')) node.removeAttribute('class');
   });
   return clone.innerHTML;
+}
+
+/** İçinde yazı, resim ya da tablo olmayan paragraf: yeni tablo onun yerine girer. */
+const isEmptyBlock = (block) => block?.tagName === 'P' && !block.textContent.trim() && !block.querySelector('img, table');
+
+/** Hedef bloğa girecek tablonun numarası (WO-019): öncesindeki tablo başlıkları + 1. */
+function tableNumberAt(el, block) {
+  let n = 1;
+  for (const child of el.children) {
+    if (child === block && isEmptyBlock(block)) break;
+    if (captionOf(child.textContent)?.kind === 'table') n += 1;
+    if (child === block) break;
+  }
+  return n;
 }
 
 /** Belgenin üst düzey bloğu: imleç hangi paragrafta. */
@@ -252,6 +268,7 @@ export default function Workspace({
   basket, apiUrl, getToken, hidden = false, onExit,
   embedded = false, apiRef = null, onSnapshot = null, onFindSources = null,
   draftId = null, onSaved = null, initialData = null, onConflict = null, panelRequest = null,
+  visualsEnabled = false,
 }) {
   const { t, lang } = useI18n();
   const { askConfirm } = useDialogs();
@@ -356,6 +373,15 @@ export default function Workspace({
   const pageRef = useRef(null);
   const fileRef = useRef(null);
   const lastRangeRef = useRef(null);
+  // Görsel paneli (WO-019): açık tablo, yeni tablonun hedef bloğu, düzenlenen
+  // belge tablosu ve son kaldırılan (geri al için). Mod ref'i seçim
+  // dinleyicisi içindir: dinleyici bir kez kurulur.
+  const [visual, setVisual] = useState(null);
+  const [visualTarget, setVisualTarget] = useState(null);
+  const [visualRemoved, setVisualRemoved] = useState(null);
+  const visualTableRef = useRef(null);
+  const visualModeRef = useRef(null);
+  useEffect(() => { visualModeRef.current = visual?.mode || null; }, [visual?.mode]);
   // Kullanıcının "iddia / iddia değil" kararları, cümle metnine bağlı (§5).
   const overridesRef = useRef(saved?.overrides || {});
   const sentencesRef = useRef([]);
@@ -608,6 +634,11 @@ export default function Workspace({
       }
       const block = topBlock(el, range.startContainer);
       if (!block) return;
+      // Yeni tablo hazırlanırken belgede başka yere tıklanırsa yer oraya taşınır.
+      if (visualModeRef.current === 'new') {
+        setVisualTarget(block);
+        setVisual((v) => (v?.mode === 'new' ? { ...v, number: tableNumberAt(el, block) } : v));
+      }
       let index = -1;
       let heading = null;
       for (const child of el.children) {
@@ -861,6 +892,7 @@ export default function Workspace({
     markDirty();
     scan();
     setResume(null);
+    syncVisualFromDocument();
   };
 
   const exec = (command, value = null) => {
@@ -1695,6 +1727,215 @@ export default function Workspace({
     onInput();
   };
 
+  // --- Görsel paneli: tablo (WO-019 Faz 1) --------------------------------
+  // Belgedeki biçim: üst düzey <p data-caption-for> başlık + <table
+  // data-visual-id>. DOCX çevirici üst düzey tabloyu zaten gerçek Word
+  // tablosuna çeviriyor; taslak kaydı data-* alanlarını olduğu gibi saklıyor.
+
+  /** Tablonun başlık paragrafı: bağlı olan, yoksa hemen üstteki "Tablo N." satırı. */
+  const captionOfTable = (table) => {
+    const prev = table?.previousElementSibling;
+    if (!prev) return null;
+    if (prev.dataset.captionFor) return prev.dataset.captionFor === table.dataset.visualId ? prev : null;
+    return captionOf(prev.textContent)?.kind === 'table' ? prev : null;
+  };
+
+  /**
+   * Bağlı tablo başlıklarının numarasını belgedeki sıraya göre yazar. Elle
+   * yazılmış "Tablo N." satırları sayılır ama değiştirilmez: Kontrol
+   * sıra bozukluğunu zaten söylüyor (audit `captionOrder`).
+   */
+  const renumberTables = (el) => {
+    const word = t('audit.kind.table');
+    let n = 0;
+    for (const block of el.children) {
+      if (captionOf(block.textContent)?.kind !== 'table') continue;
+      n += 1;
+      if (!block.dataset.captionFor) continue;
+      const line = captionLine(word, n, captionTitle(block.textContent));
+      if (block.textContent !== line) block.textContent = line;
+    }
+  };
+
+  const readTable = (table) => gridFromRows([...table.rows].map((tr) => [...tr.cells].map((cell) => ({
+    text: cell.innerText,
+    header: cell.tagName === 'TH',
+    align: cell.style.textAlign || 'left',
+  }))));
+
+  const targetInfo = (block) => {
+    if (!block?.isConnected) return { kind: 'end', excerpt: '' };
+    if (isEmptyBlock(block)) return { kind: 'at', excerpt: '' };
+    const text = block.textContent.replace(/\s+/g, ' ').trim();
+    return { kind: 'after', excerpt: text.length > 48 ? `${text.slice(0, 47)}…` : text };
+  };
+
+  const openVisualPanel = () => {
+    setSideView('visual');
+    openSidePanel();
+  };
+
+  const startNewTable = () => {
+    closeMenu();
+    const el = pageRef.current;
+    if (!el) return;
+    const at = lastRangeRef.current && el.contains(lastRangeRef.current.startContainer)
+      ? topBlock(el, lastRangeRef.current.startContainer) : null;
+    visualTableRef.current = null;
+    setVisualTarget(at);
+    setVisualRemoved(null);
+    setVisual({ mode: 'new', id: newVisualId(), grid: createGrid(3, 3), title: '', number: tableNumberAt(el, at), dirty: false, stale: false, notice: '' });
+    openVisualPanel();
+  };
+
+  const openTableEdit = (table) => {
+    if (visual?.mode === 'edit' && visualTableRef.current === table) { openVisualPanel(); return; }
+    // Paneldeki yazılmamış iş başka tabloya tıklayınca kaybolmaz: yeni tabloda
+    // tıklama yalnız yeri taşır, düzenlemede önce güncelle ya da kapat denir.
+    if (visual?.mode === 'new') return;
+    if (visual?.dirty) {
+      setVisual((v) => ({ ...v, notice: t('workspace.visual.finishFirst') }));
+      openVisualPanel();
+      return;
+    }
+    const caption = captionOfTable(table);
+    visualTableRef.current = table;
+    setVisualTarget(null);
+    setVisual({
+      mode: 'edit',
+      id: table.dataset.visualId || newVisualId(),
+      grid: readTable(table),
+      title: caption ? captionTitle(caption.textContent) : '',
+      number: caption ? captionOf(caption.textContent)?.n ?? null : null,
+      dirty: false,
+      stale: false,
+      notice: '',
+    });
+    openVisualPanel();
+  };
+
+  const onVisualChange = (patch, { quiet = false } = {}) => {
+    setVisual((v) => (v ? { ...v, ...patch, ...(quiet ? {} : { dirty: true, notice: patch.notice ?? '' }) } : v));
+  };
+
+  /** Yazılan tabloyu belgede yerine koyar; başlığı bağlar ya da kurar. */
+  const writeTable = (el, table, caption) => {
+    const holder = document.createElement('div');
+    holder.innerHTML = tableHtml(visual.grid, visual.id);
+    const next = holder.firstElementChild;
+    if (table) table.replaceWith(next);
+    let cap = caption;
+    if (!cap) {
+      cap = document.createElement('p');
+      next.before(cap);
+    }
+    cap.dataset.captionFor = visual.id;
+    cap.textContent = captionLine(t('audit.kind.table'), 1, visual.title);
+    renumberTables(el);
+    return { table: next, caption: cap };
+  };
+
+  const insertVisualTable = () => {
+    const el = pageRef.current;
+    if (!el || visual?.mode !== 'new') return;
+    const at = visualTarget?.isConnected && visualTarget.parentNode === el ? visualTarget : null;
+    const holder = document.createElement('div');
+    holder.innerHTML = tableHtml(visual.grid, visual.id);
+    const table = holder.firstElementChild;
+    // Boş satırdaysa tablo o satırın yerine (satır altta kalır, yazmaya devam
+    // edilir); doluysa paragrafın altına. Paragraf hiçbir zaman bölünmez.
+    if (at && isEmptyBlock(at)) at.before(table);
+    else if (at) at.after(table);
+    else el.append(table);
+    if (!table.nextElementSibling) {
+      const p = document.createElement('p');
+      p.innerHTML = '<br>';
+      table.after(p);
+    }
+    const { table: placed, caption } = writeTable(el, table, null);
+    visualTableRef.current = placed;
+    setVisualTarget(null);
+    setVisual((v) => ({ ...v, mode: 'edit', dirty: false, notice: '', number: captionOf(caption.textContent)?.n ?? null }));
+    placed.scrollIntoView({ block: 'center' });
+    onInput();
+  };
+
+  const updateVisualTable = () => {
+    const el = pageRef.current;
+    const table = visualTableRef.current;
+    if (!el || !table?.isConnected) {
+      setVisual((v) => (v ? { ...v, stale: false, notice: t('workspace.visual.gone') } : v));
+      return;
+    }
+    const { table: placed, caption } = writeTable(el, table, captionOfTable(table));
+    visualTableRef.current = placed;
+    setVisual((v) => ({ ...v, dirty: false, stale: false, notice: '', number: captionOf(caption.textContent)?.n ?? null }));
+    onInput();
+  };
+
+  const removeVisualTable = () => {
+    const el = pageRef.current;
+    const table = visualTableRef.current;
+    if (!el || !table?.isConnected) { setVisual(null); return; }
+    const caption = captionOfTable(table);
+    const nodes = [caption, table].filter(Boolean);
+    setVisualRemoved({ nodes, before: table.nextSibling });
+    nodes.forEach((n) => n.remove());
+    visualTableRef.current = null;
+    setVisual(null);
+    renumberTables(el);
+    onInput();
+  };
+
+  const undoRemoveTable = () => {
+    const el = pageRef.current;
+    const removed = visualRemoved;
+    if (!el || !removed) return;
+    const before = removed.before?.isConnected && removed.before.parentNode === el ? removed.before : null;
+    for (const node of removed.nodes) el.insertBefore(node, before);
+    setVisualRemoved(null);
+    renumberTables(el);
+    onInput();
+    const table = removed.nodes.find((n) => n.tagName === 'TABLE');
+    if (table) openTableEdit(table);
+  };
+
+  /**
+   * Belgede doğrudan yazım düzenlenen tabloya dokunursa panel eskimesin:
+   * panelde kaydedilmemiş değişiklik yoksa belgeden yeniden okunur, varsa
+   * "belgede değişti" denir; kullanıcı seçer, hiçbiri sessizce ezilmez.
+   */
+  function syncVisualFromDocument() {
+    const table = visualTableRef.current;
+    if (visualModeRef.current !== 'edit' || !table) return;
+    if (!table.isConnected) {
+      visualTableRef.current = null;
+      setVisual(null);
+      return;
+    }
+    const sel = window.getSelection();
+    if (!sel?.rangeCount || !table.contains(sel.getRangeAt(0).startContainer)) return;
+    setVisual((v) => (v ? (v.dirty ? { ...v, stale: true } : { ...v, grid: readTable(table) }) : v));
+  }
+
+  const rereadVisual = () => {
+    const table = visualTableRef.current;
+    if (!table?.isConnected) return;
+    setVisual((v) => (v ? { ...v, grid: readTable(table), dirty: false, stale: false } : v));
+  };
+
+  const closeVisual = () => {
+    visualTableRef.current = null;
+    setVisual(null);
+    setVisualTarget(null);
+  };
+
+  const onPageClick = (e) => {
+    const table = visualsEnabled && !readOnly ? e.target.closest?.('table') : null;
+    if (table && table.parentNode === pageRef.current) openTableEdit(table);
+    openCitationAtCaret();
+  };
+
   // Kaydırınca aktif bölüm: masanın üstüne en yakın geçmiş başlık (Faz 2).
   const trackFrame = useRef(0);
   const trackSection = () => {
@@ -2317,6 +2558,11 @@ export default function Workspace({
             </button>
             <Popover open={menu === 'insert'} onClose={closeMenu} label={t('workspace.insert.label')}>
               <div onMouseDown={(e) => e.preventDefault()}>
+                {visualsEnabled && (
+                  <button type="button" className="wx-pop__item" onClick={startNewTable} data-action="insert-table">
+                    <strong>{t('workspace.visual.menuTable')}</strong><small>{t('workspace.visual.menuTableHint')}</small>
+                  </button>
+                )}
                 <button type="button" className="wx-pop__item" onClick={() => insertCaption('table')} data-action="insert-table-caption">
                   <strong>{t('workspace.insert.tableCaption')}</strong><small>{t('workspace.insert.captionHint')}</small>
                 </button>
@@ -2699,8 +2945,23 @@ export default function Workspace({
                   aria-label={t('workspace.document')}
                   onInput={onInput}
                   onBlur={flush}
-                  onClick={openCitationAtCaret}
+                  onClick={onPageClick}
                 />
+                {/* Yeni tablonun gireceği yer (WO-019): belgeye dokunmaz, yalnız gösterir. */}
+                {visual?.mode === 'new' && sideOpen && sideView === 'visual' && visualTarget?.isConnected && (
+                  <div
+                    className={`wx-vdrop${isEmptyBlock(visualTarget) ? ' wx-vdrop--at' : ''}`}
+                    style={{
+                      top: visualTarget.offsetTop + (isEmptyBlock(visualTarget) ? 0 : visualTarget.offsetHeight),
+                      left: visualTarget.offsetLeft,
+                      width: visualTarget.offsetWidth,
+                    }}
+                    aria-hidden="true"
+                    data-testid="visual-drop"
+                  >
+                    <span>{t('workspace.visual.dropLabel')}</span>
+                  </div>
+                )}
                 {/* Faz 2: Teslim önizlemesinde sayfa numarası ve üst bilgi (yaklaşık sayfa sınırlarına göre). */}
                 {view === 'submit' && pageBoxes.map((box) => (
                   <div key={box.i} aria-hidden="true">
@@ -2816,6 +3077,11 @@ export default function Workspace({
                     <button type="button" aria-pressed={sideView === 'check'} onClick={() => setSideView('check')} data-action="side-check">
                       {t('audit.check.tab')}{checkItems.length > 0 ? ` · ${fmt(checkItems.length)}` : ''}
                     </button>
+                    {visualsEnabled && (
+                      <button type="button" aria-pressed={sideView === 'visual'} onClick={() => setSideView('visual')} data-action="side-visual">
+                        {t('workspace.visual.tab')}
+                      </button>
+                    )}
                   </div>
                 )}
                 <button type="button" className="wx-icon wx-icon--sm wx-panel-head__close" onClick={() => setSideOpen(false)} aria-label={t('workspace.closePanel')} title={t('workspace.closePanel')}>
@@ -2847,6 +3113,21 @@ export default function Workspace({
                 {reviewView}
                 {!review && sideView === 'assistant' && assistantView}
                 {!review && sideView === 'bib' && bibView}
+                {!review && visualsEnabled && sideView === 'visual' && (
+                  <VisualPanel
+                    visual={visual}
+                    target={targetInfo(visualTarget)}
+                    removed={Boolean(visualRemoved)}
+                    onNew={startNewTable}
+                    onChange={onVisualChange}
+                    onInsert={insertVisualTable}
+                    onUpdate={updateVisualTable}
+                    onRemove={removeVisualTable}
+                    onClose={closeVisual}
+                    onReread={rereadVisual}
+                    onUndoRemove={undoRemoveTable}
+                  />
+                )}
                 {!review && sideView === 'check' && (
                   <CheckPanel
                     items={checkItems}
