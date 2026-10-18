@@ -838,6 +838,7 @@ export default {
     citeNeedSource: 'Pick a source in the right panel first',
     docFont: 'Document font',
     docFontHint: 'Applies to the whole document; visible in the submission view',
+    fontSizeHint: 'Applies to the selection if text is selected, otherwise to the whole document',
     selbar: 'Selection tools',
     claimToggle: 'Claim / not a claim',
     claimToggleHint: 'Flip the claim decision for this sentence; your decision replaces the automatic mark',

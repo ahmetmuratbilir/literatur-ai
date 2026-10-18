@@ -888,6 +888,41 @@ export default function Workspace({
 
   // Sayfa ayarı yalnız teslim önizlemesinde görünür; değiştiren kullanıcı
   // sonucu görsün diye o görünüme geçilir.
+  // Araç çubuğundaki punto (WO-024, kullanıcı isteği): metin seçiliyse yalnız
+  // seçime, seçim yoksa eskisi gibi bütün belgeye. Belge geneli için "Sayfa
+  // ayarları" ayrıca durur. Listeye tıklayınca odak belgeden çıktığı için
+  // seçim tıklamadan önce saklanır ve uygulamadan önce geri yüklenir.
+  const pendingRangeRef = useRef(null);
+  const rememberSelection = () => {
+    const el = pageRef.current;
+    const sel = window.getSelection();
+    const live = sel?.rangeCount ? sel.getRangeAt(0) : null;
+    const range = live && el?.contains(live.commonAncestorContainer) ? live : lastRangeRef.current;
+    pendingRangeRef.current = range && !range.collapsed && el?.contains(range.commonAncestorContainer) ? range.cloneRange() : null;
+  };
+  const applyFontSize = (pt) => {
+    const el = pageRef.current;
+    if (!pendingRangeRef.current) rememberSelection();
+    const range = pendingRangeRef.current;
+    pendingRangeRef.current = null;
+    if (!el || !range) { updateSetup({ fontSize: pt }); return; }
+    el.focus({ preventScroll: true });
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    // execCommand yalnız 1–7 boyut bilir: 7 ile işaretle, sonra punto değeriyle değiştir.
+    try { document.execCommand('styleWithCSS', false, false); } catch { /* yok say */ }
+    document.execCommand('fontSize', false, '7');
+    try { document.execCommand('styleWithCSS', false, true); } catch { /* yok say */ }
+    for (const font of el.querySelectorAll('font[size="7"]')) {
+      const span = document.createElement('span');
+      span.style.fontSize = `${pt}pt`;
+      while (font.firstChild) span.appendChild(font.firstChild);
+      font.replaceWith(span);
+    }
+    onInput();
+  };
+
   const updateSetup = (patch) => {
     setSetup((s) => ({ ...s, ...patch }));
     setView('submit');
@@ -2380,7 +2415,7 @@ export default function Workspace({
                 >
                   {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
                   </select>
-                  <select className="wx-sel" value={setup.fontSize} onChange={(e) => updateSetup({ fontSize: Number(e.target.value) })} aria-label={t('workspace.fontSize')} title={t('workspace.docFontHint')}>
+                  <select className="wx-sel" value={setup.fontSize} onMouseDown={rememberSelection} onChange={(e) => applyFontSize(Number(e.target.value))} aria-label={t('workspace.fontSize')} title={t('workspace.fontSizeHint')} data-action="write-font-size">
                   {FONT_SIZES.map((sz) => <option key={sz} value={sz}>{sz} pt</option>)}
                   </select>
                   <select className="wx-sel" value={setup.lineHeight} onChange={(e) => updateSetup({ lineHeight: Number(e.target.value) })} aria-label={t('workspace.lineHeight')} title={t('workspace.lineHeight')} data-action="write-line-height">
@@ -2470,7 +2505,7 @@ export default function Workspace({
                 >
                   {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
                           </select>
-                          <select className="wx-sel" value={setup.fontSize} onChange={(e) => updateSetup({ fontSize: Number(e.target.value) })} aria-label={t('workspace.fontSize')} title={t('workspace.docFontHint')}>
+                          <select className="wx-sel" value={setup.fontSize} onMouseDown={rememberSelection} onChange={(e) => applyFontSize(Number(e.target.value))} aria-label={t('workspace.fontSize')} title={t('workspace.fontSizeHint')} data-action="write-font-size">
                   {FONT_SIZES.map((sz) => <option key={sz} value={sz}>{sz} pt</option>)}
                           </select>
                           <select className="wx-sel" value={setup.lineHeight} onChange={(e) => updateSetup({ lineHeight: Number(e.target.value) })} aria-label={t('workspace.lineHeight')} title={t('workspace.lineHeight')} data-action="write-line-height">

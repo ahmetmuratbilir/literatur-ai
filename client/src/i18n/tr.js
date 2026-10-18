@@ -841,6 +841,7 @@ export default {
     citeNeedSource: 'Önce sağ panelde bir kaynak seç',
     docFont: 'Belge yazı tipi',
     docFontHint: 'Tüm belgeye uygulanır; Teslim görünümünde görünür',
+    fontSizeHint: 'Metin seçiliyse yalnız seçime, değilse tüm belgeye uygulanır',
     selbar: 'Seçim araçları',
     claimToggle: 'İddia / iddia değil',
     claimToggleHint: 'Bu cümlenin iddia kararını değiştir; otomatik işaretin yerine senin kararın geçer',

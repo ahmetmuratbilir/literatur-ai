@@ -54,6 +54,10 @@ function runsOf(node, inherited = {}) {
   // Vurgu (Daha fazla › Vurgula): arka plan rengi gölgelendirme olarak geçer.
   const bg = toHex(style.backgroundColor);
   if (bg) next.shading = { fill: bg };
+  // Seçime uygulanan punto (WO-024): docx yarım punto ister. Eskiden satır içi
+  // boyut dışa aktarımda kayboluyordu.
+  const sizePt = /pt$/.test(String(style.fontSize || '')) ? parseFloat(style.fontSize) : NaN;
+  if (sizePt > 0) next.size = Math.round(sizePt * 2);
   return [...node.childNodes].flatMap((child) => runsOf(child, next));
 }
 

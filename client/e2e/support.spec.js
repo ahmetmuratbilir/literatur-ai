@@ -168,3 +168,63 @@ test('yazım yüzeyi açıkken arkadaki araştırma görünümü klavyeyle eriş
   await page.locator('[data-action="write-cite"]').first().click();
   await expect(page.getByTestId('write-hint')).toContainText('Atıfın gireceği yere belgede tıkla');
 });
+
+test('punto: seçili metne uygulanır, seçim yokken bütün belgeye; seçime verilen boyut DOCX\'e geçer', async ({ page }) => {
+  const fs = await import('node:fs');
+  const { default: JSZip } = await import('jszip');
+  await seedDraft(page, '<h1>Giriş</h1><p>Pasif sistemler harici güç olmadan çalışır.</p><h1>Kaynakça</h1>', 'Punto taslağı');
+  await mockApi(page);
+  await page.goto('/#/yaz');
+  const doc = page.locator('[contenteditable="true"]').first();
+  await expect(doc).toContainText('Pasif sistemler');
+  // Geniş ekranda bile yazı tipi grubu sağ panel açıkken "Daha fazla"da durur.
+  const size = page.locator('[data-action="write-font-size"]:visible').first();
+  const openMore = async () => { if (!(await size.count())) await page.locator('[data-action="write-more"]').first().click(); };
+  await openMore();
+  const docSize = await size.inputValue();
+
+  // "Pasif" kelimesini seç ve 18 pt uygula.
+  await doc.evaluate((el) => {
+    const p = [...el.querySelectorAll('p')].find((x) => x.textContent.startsWith('Pasif'));
+    const r = document.createRange();
+    r.setStart(p.firstChild, 0);
+    r.setEnd(p.firstChild, 5);
+    el.focus();
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+  });
+  await openMore();
+  await size.selectOption('18');
+  const span = doc.locator('span[style*="18pt"]');
+  await expect(span).toHaveText('Pasif');
+  // Belge geneli değişmedi.
+  await openMore();
+  await expect(size).toHaveValue(docSize);
+  await page.keyboard.press('Escape');
+
+  // DOCX: seçime verilen 18 pt = 36 yarım punto.
+  await page.getByRole('button', { name: /Dışa aktar/ }).first().click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Word/ }).first().click()]);
+  const zip = await JSZip.loadAsync(fs.readFileSync(await download.path()));
+  const xml = await zip.file('word/document.xml').async('string');
+  expect(xml).toMatch(/<w:sz w:val="36"\/>[\s\S]*?Pasif/);
+
+  // Seçim yokken (yalnız imleç): bütün belge.
+  await page.keyboard.press('Escape');
+  await doc.evaluate((el) => {
+    const r = document.createRange();
+    r.selectNodeContents(el.querySelector('h1'));
+    r.collapse(false);
+    el.focus();
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+  });
+  const other = docSize === '14' ? '16' : '14';
+  await openMore();
+  await size.selectOption(other);
+  await openMore();
+  await expect(size).toHaveValue(other);
+  await expect(doc.locator('span[style*="18pt"]')).toHaveText('Pasif');
+});
