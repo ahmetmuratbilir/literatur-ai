@@ -61,8 +61,7 @@ Taslak → Hazır → Çalışıyor → Bitti
 | [WO-016](WO-016-gorsel-yapi-cekirdegi.md) | Görsel yapı çekirdeği: sinyal, kural kademesi, Türkçe toleranslı eşleştirme, şablon uygunluğu, kaynak değişimi denetimi | P3 | **Bitti** (17.10.2026, `wo-016-gorsel-yapi`, push yok) — kullanıcı kontrolü bekliyor |
 | [WO-017](WO-017-tek-panel-kabuk.md) | Tek panel kabuk: sol rayda Araştırma ilk sırada, yazım aynı kabukta | P1 | **Hazır** (17.10.2026) — WO-011 elle kontrolü gelince başlar |
 | [WO-018](WO-018-etkilesim-altyapisi.md) | Etkileşim altyapısı: katmanlar, Esc yığını, ortak pencere, geri al (planlardaki WO-E1) | P1 | Taslak (17.10.2026) — ön koşul WO-017 |
-| [WO-019](WO-019-cizici-ve-gorsellestir.md) | Çizici ve Görselleştir: paragraftan şekil, belgeye ekleme (planlardaki WO-D) | P3 | Taslak (17.10.2026) — ön koşul galeri kararları, WO-017 |
-
+| [WO-019](WO-019-cizici-ve-gorsellestir.md) | Görsel paneli: tablo, şekil, grafik — panelde düzenle, seçili paragrafın altına ekle (WO-D + WO-B'nin ilk parçası) | P3 | Taslak, kapsam genişletildi (18.10.2026) — Hazır onayı kullanıcıda; Faz 3 için galeri kararları |
 | [WO-020](WO-020-arastirmadan-yazima-kopru.md) | Araştırmadan yazıma köprü: Yaz'da "son aramandan ilgili olabilir", doğrulanmamış atıf | P1 | Taslak (17.10.2026) — ön koşul WO-017; onay: `Basket.query` alanı |
 | [WO-021](WO-021-bekleme-hata-kart-durumlari.md) | Bekleme, hata ve kart durumları (planlardaki WO-E2) | P1 | Taslak (17.10.2026) — ön koşul WO-018 |
 | [WO-022](WO-022-model-kademesi-pr6.md) | Görsel yapı model kademesi PR6.v2 ve E5 (planlardaki WO-C) | P3 | Taslak (17.10.2026) — ön koşul WO-019, E5 etiketlemesi |
