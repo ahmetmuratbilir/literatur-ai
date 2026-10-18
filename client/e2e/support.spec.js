@@ -49,8 +49,12 @@ test('yardım ve destek: kenar çubuğundan açılır, kısa mesajı reddeder, g
   await expect(dialog).toBeHidden();
 });
 
-test('yardım: gönderilemezse doğrudan e-posta yolu gösterilir; Esc kapatır ve odak geri döner', async ({ page }) => {
+test('yardım: gönderilemezse adres ve mesaj kopyalanabilir (mailto her bilgisayarda açılmaz); Esc kapatır ve odak geri döner', async ({ page }) => {
   await mockApi(page);
+  await page.addInitScript(() => {
+    window.__copied = [];
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: async (s) => { window.__copied.push(s); } }, configurable: true });
+  });
   await page.route(`${API}/api/feedback`, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
   await page.goto('/');
   const opener = page.locator('[data-action="nav-help"]');
@@ -59,6 +63,10 @@ test('yardım: gönderilemezse doğrudan e-posta yolu gösterilir; Esc kapatır 
   await dialog.locator('[data-action="help-message"]').fill('Türkçe tezler aramada nasıl çıkıyor?');
   await dialog.locator('[data-action="help-send"]').click();
   await expect(dialog.getByRole('link', { name: 'info@literatur-ai.com' })).toHaveAttribute('href', /^mailto:info@literatur-ai\.com/);
+  await dialog.locator('[data-action="help-copy-message"]').click();
+  await expect(dialog.locator('[data-action="help-copy-message"]')).toHaveText('Kopyalandı');
+  await dialog.locator('[data-action="help-copy-address"]').click();
+  expect(await page.evaluate(() => window.__copied)).toEqual(['Türkçe tezler aramada nasıl çıkıyor?', 'info@literatur-ai.com']);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(opener).toBeFocused();

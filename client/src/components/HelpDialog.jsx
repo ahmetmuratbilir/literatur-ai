@@ -4,6 +4,7 @@ import { LifeBuoy, X, CheckCircle2 } from 'lucide-react';
 import { useI18n } from '../i18n/context.js';
 import { useAppAuth } from '../auth/clerkBridge.js';
 import { useModal } from './ui/useModal.js';
+import { copyText } from '../utils/clipboard.js';
 
 const KINDS = ['oneri', 'hata', 'soru', 'diger'];
 const MIN = 10;
@@ -32,6 +33,13 @@ function HelpBody({ onClose, apiUrl, context, initialKind }) {
   const [contactOk, setContactOk] = useState(true);
   const [status, setStatus] = useState('idle'); // idle | sending | sent | failed
   const [fieldError, setFieldError] = useState('');
+  const [copied, setCopied] = useState(null); // 'address' | 'message'
+  const copy = async (what) => {
+    if (await copyText(what === 'address' ? INBOX : message.trim())) {
+      setCopied(what);
+      setTimeout(() => setCopied(null), 2000);
+    }
+  };
   const dirty = message.trim().length > 0 && status !== 'sent';
   const onKeyDown = useModal(rootRef, { onCancel: onClose });
 
@@ -124,10 +132,22 @@ function HelpBody({ onClose, apiUrl, context, initialKind }) {
               </label>
               <p className="ui-help__muted ui-help__privacy">{t('help.privacy')}</p>
 
+              {/* mailto yalnız bilgisayarda e-posta programı ayarlıysa açılır; Gmail'i
+                  tarayıcıdan kullananlar için adres ve mesaj kopyalanabilir. */}
               {status === 'failed' && (
-                <p className="ui-help__error" role="alert">
-                  {t('help.failed')} <a href={`mailto:${INBOX}?subject=${encodeURIComponent(t(`help.kind.${kind}`))}&body=${encodeURIComponent(message)}`}>{INBOX}</a>
-                </p>
+                <div className="ui-help__fallback" role="alert">
+                  <p className="ui-help__error">
+                    {t('help.failed')} <a href={`mailto:${INBOX}?subject=${encodeURIComponent(t(`help.kind.${kind}`))}&body=${encodeURIComponent(message)}`}>{INBOX}</a>
+                  </p>
+                  <div className="ui-help__copy">
+                    <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={() => copy('address')} data-action="help-copy-address">
+                      {copied === 'address' ? t('help.copied') : t('help.copyAddress')}
+                    </button>
+                    <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={() => copy('message')} disabled={!message.trim()} data-action="help-copy-message">
+                      {copied === 'message' ? t('help.copied') : t('help.copyMessage')}
+                    </button>
+                  </div>
+                </div>
               )}
 
               <div className="ui-dialog__actions">

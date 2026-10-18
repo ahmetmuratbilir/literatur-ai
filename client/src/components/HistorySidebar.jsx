@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const MotionAside = motion.aside;
 const MotionDiv = motion.div;
 import {
-  Trash2, PlusCircle, Star, BookmarkCheck, PenLine, Download, FolderOpen, PanelLeftClose, PanelLeftOpen,
+  Trash2, PlusCircle, Star, BookmarkCheck, PenLine, Download, FolderOpen, PanelLeftClose,
   FileText, Pencil, Copy, AlertTriangle, Search, KeyRound, LifeBuoy,
 } from 'lucide-react';
 import { toBibTeX, toRIS, downloadText } from '../utils/citationExport.js';
@@ -200,7 +200,14 @@ const HistorySidebar = ({
         {/* Başlık: marka ve daralt/genişlet. Düğme eskiden kenarın ortasında
             yüzüyor, içeriğin üstüne biniyordu. */}
         <div className="sb-head">
-          <BrandMark size={32} className="sb-head__mark" />
+          {/* Kapalı rayda logonun kendisi genişletir; ayrı düğme gereksiz tekrardı. */}
+          {!isMobile && !isOpen ? (
+            <button type="button" className="sb-head__expand" onClick={() => setIsOpen(true)} aria-label={toggleLabel} title={toggleLabel} data-tip-side="right">
+              <BrandMark size={32} className="sb-head__mark" />
+            </button>
+          ) : (
+            <BrandMark size={32} className="sb-head__mark" />
+          )}
           {isOpen && <span className="sb-head__brand" translate="no">{t('shell.brand')}</span>}
           {!isMobile && isOpen && (
             <button type="button" className="sb-icon-btn sb-head__toggle" onClick={() => setIsOpen(false)} aria-label={toggleLabel} title={toggleLabel}>
@@ -208,13 +215,6 @@ const HistorySidebar = ({
             </button>
           )}
         </div>
-        {!isMobile && !isOpen && (
-          <div className="sb-pad">
-            <button type="button" className="sb-icon-btn sb-rail-toggle" onClick={() => setIsOpen(true)} aria-label={toggleLabel} title={toggleLabel} data-tip-side="right">
-              <PanelLeftOpen size={18} />
-            </button>
-          </div>
-        )}
 
         {/* Yeni arama */}
         <div className="sb-pad">
