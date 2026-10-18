@@ -1,0 +1,1012 @@
+<!doctype html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Literatür AI — yüz makale değil, doğru on makale</title>
+<script>
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem('lit-theme'); } catch (e) {}
+    if (t !== 'dark' && t !== 'light') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.dataset.theme = t;
+  })();
+</script>
+<!--
+  mockup-ana-sayfa-v9.html — ANA SAYFA v9, 18.10.2026 (v6 tabanı + düzeltmeler)
+
+  v6'nın yapısı ve bütün bölümleri korunur. v7'den iki şey alındı: kanıt
+  şeridinin düzeni ve menüdeki aktif çizgi (burada gerçek kaydırma izleyicisiyle).
+  Düzeltilenler: dönen başlık sütuna göre ölçeklenir, karta binmez ve mobilde
+  yatay kaydırma yaratmaz; alt çizgi etkin ifadenin genişliğini izler; tema
+  sistem tercihiyle açılır; EN modu sayfanın tamamını çevirir; başıboş süsler
+  kaldırıldı. Kaynak iddiaları CLAUDE.md 2.7 kademelerine ve docs/sources.md'ye
+  uyduruldu: sabit sayı yok, "tam metin" iddiası yok, örnek pasajlar etiketli.
+
+  --- v6 notu ---
+  mockup-ana-sayfa-v6.html — ANA SAYFA v6, 18.10.2026 (tasarımcı geçişi)
+
+  İlke: "ince denge". Hero duvar kağıdı değil; geniş beyaz alan, tek vurgu,
+  gerçek bir uygulama penceresi gibi duran TEK kompozisyon. Hareket az ve
+  amaçlı: pencere bir kez oturur, içindeki iki kanıt satırı sırayla belirir,
+  başlığın ikinci satırı yavaşça değişir. Renk yalnız vurguda ve durum
+  çiplerinde (onlar anlam taşır, sayfayı boyamaz).
+
+  Dış istek yok. Tema ve TR/EN çalışır (dil üst bölümde).
+-->
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f6f7fa;
+    --card: #ffffff;
+    --ink: #0c1220;
+    --ink-2: #3a4556;
+    --muted: #6b7482;
+    --faint: #98a1af;
+    --line: #e8ebf1;
+    --line-2: #eef0f5;
+    --accent: #4f46e5;
+    --accent-2: #7c3aed;
+    --accent-soft: #eef0ff;
+    --ok: #0f766e; --ok-soft: #e9f6f3;
+    --warn: #b45309; --warn-soft: #fdf4e6;
+    --none: #64748b; --none-soft: #eef1f5;
+    --r: 16px;
+    --sh-1: 0 1px 2px rgba(12,18,32,.04), 0 10px 26px -22px rgba(12,18,32,.35);
+    --sh-2: 0 2px 6px rgba(12,18,32,.05), 0 30px 60px -44px rgba(12,18,32,.45);
+    --ease: cubic-bezier(.25,.8,.25,1);
+  }
+  html[data-theme="dark"] {
+    --bg: #0a0f18;
+    --bg-soft: #0e1522;
+    --card: #111a29;
+    --ink: #eef2fa;
+    --ink-2: #c2cbdb;
+    --muted: #8c98ac;
+    --faint: #6d7a8e;
+    --line: #1c2637;
+    --line-2: #172030;
+    --accent: #818cf8;
+    --accent-2: #c084fc;
+    --accent-soft: #181f38;
+    --ok: #5eead4; --ok-soft: #0e2a2a;
+    --warn: #fbbf24; --warn-soft: #2a2010;
+    --none: #9fb0c6; --none-soft: #16202f;
+    --sh-1: 0 1px 2px rgba(0,0,0,.4), 0 10px 26px -22px rgba(0,0,0,.8);
+    --sh-2: 0 2px 6px rgba(0,0,0,.5), 0 30px 60px -44px rgba(0,0,0,1);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.6 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased; overflow-x: hidden;
+    transition: background .3s var(--ease), color .3s var(--ease);
+  }
+  .wrap { width: min(1120px, 100% - 56px); margin-inline: auto; }
+  @media (max-width: 640px) { .wrap { width: min(1120px, 100% - 30px); } }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+    text-decoration: none; font: inherit; font-weight: 600; border-radius: 11px; padding: 11px 20px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    transition: transform .18s var(--ease), box-shadow .2s var(--ease), background .2s, border-color .2s, color .2s;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: var(--sh-1); }
+  .btn--primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 650; box-shadow: 0 12px 26px -18px rgba(79,70,229,.9); }
+  .btn--primary:hover { background: color-mix(in srgb, var(--accent) 90%, #000); }
+  /* Koyu temada vurgu açık mor: beyaz yazı 2,98:1 kalıyordu, koyu yazı 6,35:1. */
+  html[data-theme="dark"] .btn--primary { color: #0b1020; }
+  .btn--lg { padding: 14px 24px; font-size: 15.5px; border-radius: 12px; }
+  .btn .arw { transition: transform .2s var(--ease); }
+  .btn:hover .arw { transform: translateX(3px); }
+  .link { color: var(--ink-2); font-size: 14.5px; font-weight: 600; text-decoration: none; border-bottom: 1px solid transparent; }
+  .link:hover { color: var(--ink); border-bottom-color: currentColor; }
+  .btn:focus-visible, a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* ── NAV ─────────────────────────────────────────────── */
+  header.nav { position: sticky; top: 0; z-index: 60; background: color-mix(in srgb, var(--bg) 80%, transparent); backdrop-filter: blur(16px) saturate(150%); border-bottom: 1px solid transparent; transition: border-color .25s, box-shadow .25s; }
+  header.nav.stuck { border-bottom-color: var(--line); box-shadow: 0 8px 30px -32px rgba(12,18,32,.9); }
+  .nav__in { display: flex; align-items: center; gap: 16px; padding: 12px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 16.5px; letter-spacing: -.02em; color: var(--ink); text-decoration: none; }
+  .mark { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent-2)); font-size: 13px; font-weight: 850; }
+  .nav__links { display: flex; margin-left: auto; margin-right: auto; }
+  .nav__links a { position: relative; color: var(--ink-2); text-decoration: none; font-size: 14px; font-weight: 550; padding: 9px 13px; border-radius: 9px; transition: color .16s; }
+  .nav__links a:hover, .nav__links a.active { color: var(--ink); }
+  .nav__links a::after {
+    content: ""; position: absolute; left: 13px; right: 13px; bottom: 3px; height: 2px; border-radius: 2px;
+    background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform .25s var(--ease);
+  }
+  .nav__links a:hover::after, .nav__links a.active::after { transform: scaleX(1); }
+  .beta { font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); border-radius: 5px; padding: 1px 5px; }
+  @media (max-width: 560px) { .nav .beta { display: none; } }
+  .nav__right { display: flex; align-items: center; gap: 9px; }
+  .lang { display: inline-flex; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 9px; padding: 2px; }
+  .lang button { border: 0; background: transparent; font: inherit; font-size: 11px; font-weight: 700; color: var(--muted); padding: 4px 8px; border-radius: 7px; cursor: pointer; }
+  .lang button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(12,18,32,.14); }
+  .icon-btn { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--ink-2); display: grid; place-items: center; cursor: pointer; transition: background .16s; }
+  .icon-btn:hover { background: var(--bg-soft); }
+  .signin { font-size: 14px; font-weight: 600; color: var(--ink-2); text-decoration: none; padding: 8px 8px; white-space: nowrap; }
+  .signin:hover { color: var(--ink); }
+  @media (max-width: 1020px) { .nav__links { display: none; } }
+  @media (max-width: 700px) { .signin, .lang { display: none; } }
+
+  /* ── HERO (duvar kağıdı değil, boşluklu) ─────────────── */
+  .hero { position: relative; padding: 84px 0 32px; }
+  .hero__grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .9fr); gap: 44px; align-items: center; }
+  @media (max-width: 1000px) { .hero__grid { grid-template-columns: minmax(0, 1fr); gap: 54px; } }
+
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  .eyebrow::before { content: ""; width: 22px; height: 1px; background: var(--accent); }
+
+  .hero__copy { min-width: 0; container-type: inline-size; }
+  /* Başlık sütuna göre ölçeklenir: en uzun dönen ifade tek satıra sığar;
+     sığmazsa kırılır ama sütundan taşmaz, karta binmez. */
+  h1 { margin: 18px 0 20px; font-size: clamp(34px, 5vw, 60px); font-size: clamp(30px, 9.2cqi, 62px); line-height: 1.04; letter-spacing: -.04em; font-weight: 820; }
+  /* Katsayı en uzun ifadeye göre ölçüldü: TR 10,6×, EN 11,5× yazı boyutu. */
+  html[lang="en"] h1 { font-size: clamp(30px, 8.5cqi, 62px); }
+  h1 .l1 { display: block; color: var(--ink); }
+  /* Üç ifade aynı ızgara hücresinde üst üste: yükseklik en uzun ifadeye göre
+     sabit kalır, dönüşte sayfa zıplamaz. */
+  h1 .l2 { display: grid; grid-template-columns: minmax(0, 1fr); }
+  h1 .l2 .ph {
+    grid-area: 1 / 1; justify-self: start; max-width: 100%; position: relative;
+    opacity: 0; transform: translateY(10px); transition: opacity .6s var(--ease), transform .6s var(--ease);
+  }
+  h1 .l2 .ph.on { opacity: 1; transform: none; }
+  h1 .l2 .txt {
+    background: linear-gradient(100deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  /* Alt çizgi her ifadenin içinde; genişliği o ifadenin genişliği. */
+  h1 .l2 .swash { position: absolute; left: -2px; width: calc(100% + 4px); bottom: -0.14em; height: 0.24em; overflow: visible; pointer-events: none; }
+  h1 .l2 .swash path { fill: none; stroke: color-mix(in srgb, var(--accent) 40%, transparent); stroke-width: 7; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+  h1 .l2 .ph.on .swash path { animation: draw 1.2s var(--ease) .35s forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  .lead { margin: 0 0 28px; font-size: 16.5px; line-height: 1.66; color: var(--ink-2); max-width: 44ch; }
+  .cta { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .trust3 { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 34px; }
+  .trust3 div { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); }
+  .tick { width: 16px; height: 16px; border-radius: 50%; border: 1.4px solid color-mix(in srgb, var(--accent) 50%, transparent); display: grid; place-items: center; color: var(--accent); font-size: 9px; }
+
+  /* ── TEK uygulama penceresi ───────────────────────────── */
+  .stage { position: relative; display: grid; place-items: center; min-height: 440px; }
+  .halo {
+    position: absolute; width: min(460px, 100%); aspect-ratio: 1; border-radius: 50%;
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%);
+  }
+  .appwindow {
+    position: relative; width: min(430px, 100%); background: var(--card); border: 1px solid var(--line);
+    border-radius: 18px; box-shadow: var(--sh-2); overflow: hidden;
+    transition: opacity .7s var(--ease), transform .8s var(--ease);
+  }
+  .appwindow.pre { opacity: 0; transform: translateY(22px) scale(.97); }
+  .aw-bar { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line-2); }
+  .aw-bar .dots { display: flex; gap: 4px; }
+  .aw-bar .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+  .aw-bar .title { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-weight: 750; }
+  .aw-bar .tag { font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px dashed var(--line); border-radius: 999px; padding: 1px 7px; }
+  .aw-bar .live { margin-left: auto; font-size: 10px; font-weight: 800; letter-spacing: .04em; color: var(--ok); }
+  .aw-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 rgba(15,118,110,.4); animation: pulse 2.4s infinite; }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 6px rgba(15,118,110,0); } }
+
+  .aw-body { padding: 16px 16px 14px; display: grid; gap: 12px; }
+  .claim {
+    font-size: 13.5px; line-height: 1.55; padding: 11px 12px; border-radius: 11px;
+    background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+    transition: border-color .5s var(--ease), box-shadow .5s var(--ease);
+  }
+  .claim.ok { border-color: color-mix(in srgb, var(--ok) 42%, transparent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 10%, transparent); }
+  .claim .cite { display: inline-block; margin-left: 3px; font-size: 10px; font-weight: 800; color: var(--accent); vertical-align: super; line-height: 0; }
+  .claim .mk { font-weight: 700; color: var(--accent); }
+
+  .ev {
+    position: relative; border: 1px solid var(--line); border-radius: 12px; padding: 12px 12px 11px;
+  }
+  .ev__row { display: flex; align-items: center; gap: 8px; }
+  .chip { font-size: 9.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; border-radius: 999px; padding: 2px 8px; border: 1px solid transparent; }
+  .chip--ok { color: var(--ok); background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
+  .chip--none { color: var(--none); background: var(--none-soft); border-color: var(--line); }
+  .ev .passage { margin: 9px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--ink-2); border-left: 2px solid var(--line); padding-left: 10px; }
+  .ev .passage .hit { background: color-mix(in srgb, var(--warn) 18%, transparent); border-radius: 3px; padding: 0 2px; }
+  .ev .src { margin-top: 9px; font-size: 11px; color: var(--faint); }
+  .ev--muted { opacity: .78; }
+  .ev--muted .passage { color: var(--muted); font-style: italic; }
+
+  /* ── Kanıt defteri canlandırması ──────────────────────────
+     Durum, tarama çubuğu, iskelet ve uçan ifade her zaman tanımlı ama
+     görünmez; gizli başlangıç halleri yalnız .anim altında (JS + hareket izni). */
+  .aw-bar { position: relative; }
+  /* Dar ekranda durum metni uzayınca başlık kırılıp çubuğu büyütmesin; kısalan durum olur. */
+  .aw-bar .title, .aw-bar .tag, .aw-bar .live { white-space: nowrap; flex: 0 0 auto; }
+  @media (max-width: 420px) { .aw-bar .dots { display: none; } }
+  .aw-status { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 52%; flex: 0 1 auto; font-size: 10.5px; font-weight: 700; letter-spacing: .01em; color: var(--muted); opacity: 0; transform: translateY(3px); transition: opacity .3s var(--ease), transform .3s var(--ease), color .3s; }
+  .aw-status.on { opacity: 1; transform: none; }
+  .aw-status .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .aw-status .spin { display: none; flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+  .aw-status.scan .spin { display: block; }
+  .aw-status.ok { color: var(--ok); }
+  .aw-status.none { color: var(--none); }
+  .aw-bar .aw-status ~ .live { margin-left: 8px; }
+  .aw-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; overflow: hidden; opacity: 0; transition: opacity .3s var(--ease); }
+  .aw-progress.on { opacity: 1; }
+  .aw-progress::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 38%; background: linear-gradient(90deg, transparent, var(--accent), transparent); animation: sweep 1.1s var(--ease) infinite; }
+  .aw-body { position: relative; transition: opacity .45s var(--ease); }
+  .aw-body.resetting { opacity: 0; }
+  .aw-token { position: absolute; z-index: 3; transform-origin: 0 0; pointer-events: none; white-space: nowrap; padding: 0 2px; border-radius: 4px; color: var(--ink); background: color-mix(in srgb, var(--warn) 30%, var(--card)); box-shadow: 0 8px 22px -10px rgba(12,18,32,.55); }
+  .ev-skel { position: absolute; top: 14px; left: 14px; right: 14px; display: grid; gap: 9px; opacity: 0; pointer-events: none; transition: opacity .3s var(--ease); }
+  .ev-skel.on { opacity: 1; }
+  .ev-skel i { height: 9px; border-radius: 5px; background: linear-gradient(90deg, var(--line-2) 25%, var(--line) 50%, var(--line-2) 75%) 0 0 / 200% 100%; animation: shimmer 1.1s linear infinite; }
+  .ev-skel i:nth-child(1) { width: 24%; } .ev-skel i:nth-child(2) { width: 94%; } .ev-skel i:nth-child(3) { width: 68%; }
+
+  .appwindow.anim .ch { opacity: 0; }
+  .appwindow.anim .ch.v { opacity: 1; }
+  .appwindow.anim .ch.cur { position: relative; }
+  .appwindow.anim .ch.cur::after { content: ""; position: absolute; right: -2px; top: .12em; bottom: .08em; width: 2px; border-radius: 1px; background: var(--accent); animation: blink 1s steps(1) infinite; }
+  .appwindow.anim .claim .mk { border-radius: 3px; background: linear-gradient(color-mix(in srgb, var(--ok) 22%, transparent), color-mix(in srgb, var(--ok) 22%, transparent)) no-repeat 0 100% / 0% 100%; transition: background-size .55s var(--ease), color .45s var(--ease); }
+  .appwindow.anim .claim .mk.on { background-size: 100% 100%; color: var(--ok); }
+  .appwindow.anim .claim .cite { opacity: 0; transform: translateY(5px) scale(.4); transition: opacity .3s var(--ease), transform .5s cubic-bezier(.3,1.7,.5,1); }
+  .appwindow.anim .claim .cite.on { opacity: 1; transform: none; }
+  .appwindow.anim .ev { opacity: 0; transform: translateY(16px) scale(.97); transition: opacity .5s var(--ease), transform .65s cubic-bezier(.2,1.1,.3,1); }
+  .appwindow.anim .ev.in { opacity: 1; transform: none; }
+  .appwindow.anim .ev--muted.in { opacity: .78; }
+  .appwindow.anim .ev .chip { opacity: 0; transform: scale(.55); transition: opacity .25s var(--ease), transform .5s cubic-bezier(.3,1.7,.5,1); }
+  .appwindow.anim .ev .passage, .appwindow.anim .ev .src { opacity: 0; transform: translateY(4px); transition: opacity .45s var(--ease), transform .45s var(--ease); }
+  .appwindow.anim .ev .chip.in, .appwindow.anim .ev .passage.in, .appwindow.anim .ev .src.in { opacity: 1; transform: none; }
+  .appwindow.anim .ev .src.shake { animation: nudge .5s var(--ease) .1s; }
+  .appwindow.anim .ev .passage .hit { background: linear-gradient(color-mix(in srgb, var(--warn) 18%, transparent), color-mix(in srgb, var(--warn) 18%, transparent)) no-repeat 0 0 / 0% 100%; transition: background-size .6s var(--ease); }
+  .appwindow.anim .ev .passage .hit.on { background-size: 100% 100%; }
+  .appwindow.anim .aw-foot > span:last-child { opacity: 0; transition: opacity .5s var(--ease); }
+  .appwindow.anim .aw-foot > span:last-child.in { opacity: 1; }
+  .halo { animation: breathe 7s ease-in-out infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(270%); } }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes nudge { 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(1px); } }
+  @keyframes breathe { 50% { transform: scale(1.07); opacity: .8; } }
+
+  .aw-foot { padding: 10px 16px; border-top: 1px solid var(--line-2); display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--faint); }
+  .aw-foot b { color: var(--ink-2); font-weight: 650; }
+
+
+  /* ── kanıt çubuğu ─────────────────────────────────────── */
+  .proofbar { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 26px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+  @media (max-width: 820px) { .proofbar { grid-template-columns: repeat(2, 1fr); } }
+  .proofbar > div { display: flex; gap: 10px; min-width: 0; }
+  .proofbar .glyph { color: var(--accent); flex: 0 0 auto; }
+  .proofbar b { display: block; font-size: 13.5px; letter-spacing: -.01em; }
+  .proofbar span { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+
+  /* ── bölümler ─────────────────────────────────────────── */
+  section { padding: 88px 0; }
+  .sec-head { max-width: 640px; margin-bottom: 40px; }
+  .kicker { display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  .sec-head h2 { margin: 14px 0 10px; font-size: clamp(26px, 3vw, 36px); line-height: 1.1; letter-spacing: -.03em; font-weight: 800; }
+  .sec-head p { margin: 0; color: var(--ink-2); font-size: 15.5px; }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 900px) { .steps { grid-template-columns: 1fr; } }
+  .step { border: 1px solid var(--line); border-radius: var(--r); padding: 26px; background: var(--card); }
+  .step__n { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 14px; background: var(--accent-soft); color: var(--accent); font-weight: 800; font-size: 13px; }
+  .step h3 { margin: 0 0 6px; font-size: 17.5px; letter-spacing: -.02em; }
+  .step p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 940px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+  .feat { border: 1px solid var(--line); border-radius: 14px; padding: 22px; background: var(--card); }
+  .feat__ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 12px; background: var(--accent-soft); color: var(--accent); }
+  .feat h3 { margin: 0 0 5px; font-size: 15px; letter-spacing: -.012em; }
+  .feat p { margin: 0; font-size: 13px; color: var(--muted); }
+
+  .classes { display: grid; grid-template-columns: 280px 1fr; gap: 26px; align-items: start; }
+  @media (max-width: 900px) { .classes { grid-template-columns: 1fr; } }
+  .class-list { display: grid; gap: 6px; }
+  .class-btn { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; cursor: pointer; border: 1px solid var(--line); background: var(--card); border-radius: 11px; padding: 11px 13px; font: inherit; font-size: 14px; font-weight: 600; color: var(--ink-2); transition: border-color .2s, background .2s, color .2s; }
+  .class-btn[aria-pressed="true"] { border-color: color-mix(in srgb, var(--accent) 36%, var(--line)); background: var(--accent-soft); color: var(--accent); }
+  .sw { width: 9px; height: 9px; border-radius: 3px; flex: 0 0 auto; }
+  .sw-ok { background: var(--ok); } .sw-warn { background: var(--warn); } .sw-gray { background: var(--none); } .sw-bad { background: #b91c1c; } .sw-none { background: var(--none); opacity: .55; }
+  .class-card { border: 1px solid var(--line); border-radius: var(--r); background: var(--card); padding: 26px; min-height: 236px; }
+  .class-card h3 { margin: 0 0 6px; font-size: 19px; letter-spacing: -.02em; }
+  .class-card .def { margin: 0 0 16px; font-size: 14.5px; color: var(--ink-2); }
+  .quote { border-left: 3px solid var(--line); padding: 3px 0 3px 14px; font-size: 14px; color: var(--muted); font-style: italic; }
+  .verdict { margin-top: 16px; font-size: 13.5px; font-weight: 700; }
+  .pane { display: none; } .pane.on { display: block; animation: fade .25s var(--ease); }
+  @keyframes fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+  .src-table { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--card); }
+  .src-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line-2); align-items: center; }
+  .src-row:last-child { border-bottom: 0; }
+  .src-row.head { background: var(--bg-soft); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); font-weight: 750; }
+  .src-row b { font-size: 13.5px; font-weight: 650; }
+  .src-row span { font-size: 12.5px; color: var(--muted); }
+  @media (max-width: 720px) { .src-row { grid-template-columns: 1fr; gap: 3px; } .src-row.head { display: none; } }
+
+  .eg { display: inline-block; margin-bottom: 6px; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+  .src-note { margin: 12px 2px 0; font-size: 12.5px; color: var(--muted); max-width: 72ch; }
+
+  .honest { background: var(--bg-soft); border-block: 1px solid var(--line); }
+  .honest .feat { background: transparent; border-style: dashed; }
+  .no { color: #b91c1c; }
+
+  details.faq { border: 1px solid var(--line); border-radius: 13px; background: var(--card); margin-bottom: 10px; overflow: hidden; }
+  details.faq summary { cursor: pointer; padding: 17px 20px; font-size: 15px; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+  details.faq summary::-webkit-details-marker { display: none; }
+  details.faq summary::after { content: "+"; color: var(--muted); }
+  details.faq[open] summary::after { content: "–"; }
+  details.faq p { margin: 0; padding: 0 20px 17px; color: var(--ink-2); font-size: 14px; }
+
+  .band { position: relative; overflow: hidden; border-radius: 24px; padding: 60px 40px; text-align: center; background: linear-gradient(135deg, #0c1220, #121c38 55%, #241a4d); color: #fff; box-shadow: var(--sh-2); }
+  .band::after { content: ""; position: absolute; inset: auto -20% -60% -20%; height: 320px; background: radial-gradient(closest-side, rgba(124,58,237,.5), transparent 70%); }
+  .band h2 { position: relative; margin: 0 0 12px; font-size: clamp(26px, 3.2vw, 38px); letter-spacing: -.032em; line-height: 1.08; }
+  .band p { position: relative; margin: 0 auto 26px; color: #c6cee2; max-width: 52ch; font-size: 15.5px; }
+  .band .cta { position: relative; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn--ghostlight { background: transparent; border-color: rgba(255,255,255,.3); color: #fff; }
+
+  footer { padding: 44px 0 60px; color: var(--muted); font-size: 13px; }
+  .foot { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 26px; border-top: 1px solid var(--line); padding-top: 28px; }
+  @media (max-width: 820px) { .foot { grid-template-columns: 1fr 1fr; } }
+  .foot h4 { margin: 0 0 10px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+  .foot a { display: block; text-decoration: none; color: var(--muted); padding: 3px 0; }
+  .foot a:hover { color: var(--ink); }
+
+  .rise { opacity: 0; transform: translateY(14px); transition: opacity .6s var(--ease), transform .6s var(--ease); }
+  .rise.in { opacity: 1; transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    .rise, .appwindow, .claim, .ev { opacity: 1 !important; transform: none !important; }
+    h1 .l2 .ph:not(.on) { display: none; } h1 .l2 .ph.on { opacity: 1; transform: none; }
+    h1 .l2 .swash path { stroke-dashoffset: 0; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="wrap nav__in">
+    <a class="brand" href="#top"><span class="mark" aria-hidden="true">L</span> Literatür AI <span class="beta">beta</span></a>
+    <nav class="nav__links" aria-label="Ana menü">
+      <a href="#nasil" data-i18n="nav.how">Nasıl çalışır</a>
+      <a href="#ozellikler" data-i18n="nav.features">Özellikler</a>
+      <a href="#kaynaklar" data-i18n="nav.sources">Kaynaklar</a>
+      <a href="#sss" data-i18n="nav.faq">SSS</a>
+    </nav>
+    <div class="nav__right">
+      <div class="lang" role="group" aria-label="Dil">
+        <button type="button" id="lang-en" aria-pressed="false">EN</button>
+        <button type="button" id="lang-tr" aria-pressed="true">TR</button>
+      </div>
+      <button class="icon-btn" type="button" id="theme" aria-label="Koyu tema"><span id="theme-icon">☾</span></button>
+      <a class="signin" href="#giris" data-i18n="nav.signin">Giriş yap</a>
+      <a class="btn btn--primary" href="#giris" data-i18n="nav.start">Başlayın</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <!-- ══ HERO ══════════════════════════════════════════ -->
+  <section class="hero">
+    <div class="wrap hero__grid">
+      <div class="hero__copy">
+        <span class="eyebrow" data-i18n="hero.eyebrow">Akademik arama · şeffaf AHP sıralaması</span>
+        <h1>
+          <span class="l1" data-i18n="hero.l1">Yüz makale değil,</span>
+          <span class="l2" id="l2">
+            <span class="ph on"><span class="txt" data-i18n="hero.r1">doğru on makale.</span><svg class="swash" viewBox="0 0 220 12" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M2 9 C 40 3, 90 2, 130 6 S 200 8, 218 4"/></svg></span>
+            <span class="ph" aria-hidden="true"><span class="txt" data-i18n="hero.r2">kanıtı görünen cümle.</span><svg class="swash" viewBox="0 0 220 12" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M2 9 C 40 3, 90 2, 130 6 S 200 8, 218 4"/></svg></span>
+            <span class="ph" aria-hidden="true"><span class="txt" data-i18n="hero.r3">savunulabilir kaynakça.</span><svg class="swash" viewBox="0 0 220 12" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M2 9 C 40 3, 90 2, 130 6 S 200 8, 218 4"/></svg></span>
+          </span>
+        </h1>
+        <p class="lead" data-i18n="hero.lead">
+          Açık akademik dizinler, tek sorgu. Her makalenin neden o sırada olduğunu görürsünüz —
+          ve yazdığınız her cümle kaynaktan alınmış bir pasaja bağlanır.
+        </p>
+        <div class="cta">
+          <a class="btn btn--primary btn--lg" href="#giris" data-i18n="hero.cta">Başlayın <span class="arw" aria-hidden="true">→</span></a>
+          <a class="link" href="#nasil" data-i18n="hero.cta2">Nasıl çalışır?</a>
+        </div>
+        <div class="trust3">
+          <div><span class="tick" aria-hidden="true">✓</span><span data-i18n="hero.t1">Kredi kartı gerekmez</span></div>
+          <div><span class="tick" aria-hidden="true">✓</span><span data-i18n="hero.t2">Kanıtsız cümle belgeye girmez</span></div>
+          <div><span class="tick" aria-hidden="true">✓</span><span data-i18n="hero.t3">Dilediğin an çık</span></div>
+        </div>
+      </div>
+
+      <!-- TEK kompozisyon -->
+      <div class="stage" aria-label="Ürün önizlemesi">
+        <div class="halo" aria-hidden="true"></div>
+
+        <div class="appwindow" id="appwindow">
+          <div class="aw-bar">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <span class="title" data-i18n="aw.title">Kanıt defteri</span><span class="tag" data-i18n="aw.tag">örnek</span>
+            <span class="aw-status" aria-hidden="true"><i class="spin"></i><span class="t"></span></span>
+            <span class="live aw-live-dot"></span>
+            <span class="aw-progress" aria-hidden="true"></span>
+          </div>
+          <div class="aw-body">
+            <div class="claim" id="aw-claim"><span data-i18n="aw.claim">Nükleer reaktör kazalarında <span class="mk">insan hatası</span> belirleyicidir.</span><sup class="cite" aria-hidden="true">[1]</sup></div>
+            <div class="ev" id="aw-ev1">
+              <div class="ev__row">
+                <span class="chip chip--ok" data-i18n="aw.c1">destekliyor</span>
+                <span class="chip" style="color:var(--faint);background:var(--none-soft);border-color:var(--line)" data-i18n="aw.c2">birebir pasaj</span>
+              </div>
+              <div class="passage" data-i18n="aw.p1">“<span class="hit">İnsan hatası</span>, kaydedilen olayların %60’ında birincil etkendir.”</div>
+              <div class="src" data-i18n="aw.s1">Örnek kayıt · 2021</div>
+            </div>
+            <div class="ev ev--muted" id="aw-ev2">
+              <div class="ev-skel" aria-hidden="true"><i></i><i></i><i></i></div>
+              <div class="ev__row"><span class="chip chip--none" data-i18n="aw.c3">kanıt yok</span></div>
+              <div class="passage" data-i18n="aw.p2">“Bakım prosedürleri tüm reaktör tiplerinde riski azaltır.” — uygun pasaj bulunamadı.</div>
+              <div class="src" data-i18n="aw.s2">Cümle belgeye eklenemez</div>
+            </div>
+          </div>
+          <div class="aw-foot">
+            <span data-i18n="aw.f1">Denetim izi: <b>24 pasaj</b> bağlandı</span>
+            <span data-i18n="aw.f2">Dışa aktarılabilir</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="proofbar">
+        <div><span class="glyph" aria-hidden="true">“</span><div><b data-i18n="pb1t">Birebir pasaj</b><span data-i18n="pb1p">Kaynaktan alınır, üretilmez.</span></div></div>
+        <div><span class="glyph" aria-hidden="true">◱</span><div><b data-i18n="pb2t">Kanıt defteri</b><span data-i18n="pb2p">Her cümle kaynağına bağlı.</span></div></div>
+        <div><span class="glyph" aria-hidden="true">✓</span><div><b data-i18n="pb3t">Beş kanıt sınıfı</b><span data-i18n="pb3p">Hiçbiri diğerinin yerine geçmez.</span></div></div>
+        <div><span class="glyph" aria-hidden="true">文</span><div><b data-i18n="pb4t">Türkçe korpus</b><span>DergiPark · TR Dizin · YÖK Tez</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ NASIL ÇALIŞIR ════════════════════════════════ -->
+  <section id="nasil">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <span class="kicker" data-i18n="how.kicker">Nasıl çalışır</span>
+        <h2 data-i18n="how.title">Üç adım, tek kural: kaynaksız cümle yok.</h2>
+        <p data-i18n="how.lead">Model pasajı yeniden yazamaz; atıf dizgesi doğrulanmış kayıttan kurulur.</p>
+      </div>
+      <div class="steps">
+        <article class="step rise"><div class="step__n">1</div><h3 data-i18n="how.s1t">Ara</h3><p data-i18n="how.s1p">Tek sorgu, birden çok açık dizin. Sonuçlar tekilleştirilir; hangi kaynağın döndüğü görünür.</p></article>
+        <article class="step rise"><div class="step__n">2</div><h3 data-i18n="how.s2t">Doğrula</h3><p data-i18n="how.s2p">Pasaj kaynaktan birebir alınır. Destekliyor mu, kısmen mi, çelişiyor mu — sınıfı yazılır.</p></article>
+        <article class="step rise"><div class="step__n">3</div><h3 data-i18n="how.s3t">Yaz</h3><p data-i18n="how.s3p">Cümle sağ panelde durur. Belgeye ancak siz tıkladığınızda girer; iz kaydedilir.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ÖZELLİKLER ═══════════════════════════════════ -->
+  <section id="ozellikler" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <span class="kicker" data-i18n="feat.kicker">Özellikler</span>
+        <h2 data-i18n="feat.title">Metin üretmez. Kanıt gösterir.</h2>
+        <p data-i18n="feat.lead">Aradaki fark, çıktının savunulabilir olması.</p>
+      </div>
+      <div class="grid">
+        <article class="feat rise"><div class="feat__ico">✓</div><h3 data-i18n="f1t">Birebir pasaj</h3><p data-i18n="f1p">Alıntı kaynaktan alınır; atıf metadata’sı prompta girmez.</p></article>
+        <article class="feat rise"><div class="feat__ico">◱</div><h3 data-i18n="f2t">Kanıt defteri</h3><p data-i18n="f2p">Hangi cümle, hangi kaynaktan, hangi pasajla, ne zaman. Dışa aktarılabilir.</p></article>
+        <article class="feat rise"><div class="feat__ico">⌘</div><h3 data-i18n="f3t">Künye doğrulama</h3><p data-i18n="f3p">DOI, yıl, yazar farkı raporlanır. Uydurma künye “bulundu” sayılmaz.</p></article>
+        <article class="feat rise"><div class="feat__ico">⇄</div><h3 data-i18n="f4t">Geri çekme kontrolü</h3><p data-i18n="f4p">Geri çekilmiş makale işaretlenir; bu bilgi önbelleğe alınmaz.</p></article>
+        <article class="feat rise"><div class="feat__ico">文</div><h3 data-i18n="f5t">Türkçe korpus</h3><p data-i18n="f5p">DergiPark, TR Dizin, YÖK Tez gece toplanır, yerelde aranır.</p></article>
+        <article class="feat rise"><div class="feat__ico">◈</div><h3 data-i18n="f6t">Şeffaf AHP</h3><p data-i18n="f6p">Her puanın nedeni görünür; sıralama kalite kanıtı sayılmaz.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ KANIT SINIFLARI ══════════════════════════════ -->
+  <section id="kanit" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <span class="kicker" data-i18n="cls.kicker">Kanıt sınıfları</span>
+        <h2 data-i18n="cls.title">Beş ayrı cevap. Birbirinin yerine geçmez.</h2>
+        <p data-i18n="cls.lead">“Kaynak bulunamadı”, “kanıt bulunamadı” ve “kaynak çelişiyor” aynı şey değildir.</p>
+      </div>
+      <div class="classes">
+        <div class="class-list" role="group" aria-label="Kanıt sınıfları">
+          <button class="class-btn" type="button" data-c="ok" aria-pressed="true"><span class="sw sw-ok"></span> <span data-i18n="c1">destekliyor</span></button>
+          <button class="class-btn" type="button" data-c="warn" aria-pressed="false"><span class="sw sw-warn"></span> <span data-i18n="c2">kısmen</span></button>
+          <button class="class-btn" type="button" data-c="gray" aria-pressed="false"><span class="sw sw-gray"></span> <span data-i18n="c3">ilgisiz</span></button>
+          <button class="class-btn" type="button" data-c="bad" aria-pressed="false"><span class="sw sw-bad"></span> <span data-i18n="c4">çelişiyor</span></button>
+          <button class="class-btn" type="button" data-c="none" aria-pressed="false"><span class="sw sw-none"></span> <span data-i18n="c5">kanıt yok</span></button>
+        </div>
+        <div class="class-card">
+          <div class="pane on" id="c-ok"><h3 data-i18n="c1">destekliyor</h3><p class="def" data-i18n="c1d">Pasaj iddiayı doğrudan söylüyor; her bilgi pasajda var.</p><span class="eg" data-i18n="eg">örnek pasaj</span><p class="quote" data-i18n="c1q">“İnsan hatası, kaydedilen olayların %60’ında birincil etkendir.”</p><p class="verdict" style="color:var(--ok)" data-i18n="c1v">Cümle belgeye eklenebilir.</p></div>
+          <div class="pane" id="c-warn"><h3 data-i18n="c2">kısmen</h3><p class="def" data-i18n="c2d">Bir kısmını destekliyor; kapsam, kesinlik ya da ayrıntı farklı.</p><span class="eg" data-i18n="eg">örnek pasaj</span><p class="quote" data-i18n="c2q">“Tek santralde yapılan incelemede insan hatası öne çıktı.”</p><p class="verdict" style="color:var(--warn)" data-i18n="c2v">Kapsam farkı yazılır ve size söylenir.</p></div>
+          <div class="pane" id="c-gray"><h3 data-i18n="c3">ilgisiz</h3><p class="def" data-i18n="c3d">Konuyla ilgili ama iddia hakkında bir şey söylemiyor.</p><span class="eg" data-i18n="eg">örnek pasaj</span><p class="quote" data-i18n="c3q">“Reaktör tipleri üç ana sınıfa ayrılır.”</p><p class="verdict" style="color:var(--muted)" data-i18n="c3v">Konu benzerliği destek sayılmaz.</p></div>
+          <div class="pane" id="c-bad"><h3 data-i18n="c4">çelişiyor</h3><p class="def" data-i18n="c4d">Pasaj iddianın tersini söylüyor.</p><span class="eg" data-i18n="eg">örnek pasaj</span><p class="quote" data-i18n="c4q">“İnsan hatası, olayların %12’sinde etkendir; baskın neden ekipmandır.”</p><p class="verdict" style="color:#b91c1c" data-i18n="c4v">Çelişkiyi kaçırmak en pahalı hatadır.</p></div>
+          <div class="pane" id="c-none"><h3 data-i18n="c5">kanıt yok</h3><p class="def" data-i18n="c5d">Arama yapıldı, uygun pasaj bulunamadı.</p><p class="quote" data-i18n="c5q">Taranan kaynaklar, zaman aralığı ve kapsam yazılır.</p><p class="verdict" style="color:var(--muted)" data-i18n="c5v">“Çalışma yok” denmez; kapsam söylenir.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ KAYNAKLAR ════════════════════════════════════ -->
+  <section id="kaynaklar" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <span class="kicker" data-i18n="src.kicker">Kaynaklar</span>
+        <h2 data-i18n="src.title">Nereden okuyoruz, ne sıklıkla, hangi koşulla.</h2>
+        <p data-i18n="src.lead">Lisans ve ticari kullanım koşulu doğrulanmayan kaynak canlıya çıkmaz.</p>
+      </div>
+      <div class="src-table rise">
+        <div class="src-row head"><span data-i18n="src.c1">Kaynak</span><span data-i18n="src.c2">Erişim</span><span data-i18n="src.c3">Kullanım</span></div>
+        <div class="src-row"><b>OpenAlex</b><span data-i18n="src.live">Canlı sorgu</span><span data-i18n="src.u1">Metadata omurgası</span></div>
+        <div class="src-row"><b>Crossref</b><span data-i18n="src.live">Canlı sorgu</span><span data-i18n="src.u2">DOI doğrulama, geri çekme</span></div>
+        <div class="src-row"><b>Semantic Scholar</b><span data-i18n="src.live">Canlı sorgu</span><span data-i18n="src.u3">Pasaj arama</span></div>
+        <div class="src-row"><b>Europe PMC · PubMed</b><span data-i18n="src.live">Canlı sorgu</span><span data-i18n="src.u4">Tıp literatürü</span></div>
+        <div class="src-row"><b>Unpaywall · DOAJ · OpenCitations</b><span data-i18n="src.live">Canlı sorgu</span><span data-i18n="src.u5">Açık erişim bağlantısı, dergi doğrulama, atıf ilişkileri</span></div>
+        <div class="src-row"><b>DergiPark · TR Dizin · YÖK Tez</b><span data-i18n="src.night">Gece toplanır</span><span data-i18n="src.u6">Türkçe yerel indeks</span></div>
+        <div class="src-row"><b>arXiv · CORE · OpenAIRE</b><span data-i18n="src.night">Gece toplanır</span><span data-i18n="src.u7">Ön baskı ve açık erişim, yerel indeks</span></div>
+        <div class="src-row"><b>Scopus · Web of Science · Dimensions · Lens</b><span>—</span><span data-i18n="src.u8">Yazılı izin olmadan yok</span></div>
+      </div>
+      <p class="src-note" data-i18n="src.note">Tablo hedeflenen erişim biçimini gösterir. Bir kaynak; lisans, gösterim ve ticari kullanım koşulları ayrı ayrı doğrulandıktan sonra açılır.</p>
+    </div>
+  </section>
+
+  <!-- ══ SINIRLAR ═════════════════════════════════════ -->
+  <section class="honest" id="durust">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <span class="kicker" data-i18n="hon.kicker">Sınırlar</span>
+        <h2 data-i18n="hon.title">Neyi <span class="no">yapmıyoruz</span> — ve neden.</h2>
+        <p data-i18n="hon.lead">Güvenilirlik, yapmadıklarını söylemekle başlar.</p>
+      </div>
+      <div class="grid">
+        <article class="feat rise"><h3 data-i18n="h1t">Yazarın yerine yazmayız</h3><p data-i18n="h1p">Serbest paragraf üretimi yok; üretim tek pasajdan, tek cümle.</p></article>
+        <article class="feat rise"><h3 data-i18n="h2t">“AI detektörü” yok</h3><p data-i18n="h2p">Kalibre olmayan puanı olasılık gibi sunmak zarar verir.</p></article>
+        <article class="feat rise"><h3 data-i18n="h3t">Uydurma sayı yok</h3><p data-i18n="h3p">Ölçülmemiş “%98 doğruluk” arayüzde yer almaz.</p></article>
+        <article class="feat rise"><h3 data-i18n="h4t">Otomatik ekleme yok</h3><p data-i18n="h4p">Hiçbir cümle ya da diyagram belgeye kendiliğinden girmez.</p></article>
+        <article class="feat rise"><h3 data-i18n="h5t">Tam metin okumuş gibi yapmayız</h3><p data-i18n="h5p">Pasaj bugün özet düzeyinde; kapsam yazılı.</p></article>
+        <article class="feat rise"><h3 data-i18n="h6t">Sessiz kaynak düşmesi yok</h3><p data-i18n="h6p">Kaynak yanıt vermezse ekranda görünür.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SSS ══════════════════════════════════════════ -->
+  <section id="sss">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <span class="kicker" data-i18n="faq.kicker">Sık sorulanlar</span>
+        <h2 data-i18n="faq.title">Kısa cevaplar.</h2>
+      </div>
+      <div class="rise">
+        <details class="faq"><summary data-i18n="q1">Pasaj gerçekten kaynaktan mı geliyor?</summary><p data-i18n="a1">Evet. Pasaj kayıttan geldiği gibi saklanır ve o haliyle gösterilir; hiçbir model çağrısından geçmez.</p></details>
+        <details class="faq"><summary data-i18n="q2">Tam metni mi okuyorsunuz?</summary><p data-i18n="a2">Bugün pasaj çoğunlukla özetten geliyor; arayüzde açıkça yazılır.</p></details>
+        <details class="faq"><summary data-i18n="q3">Atıfları model mi yazıyor?</summary><p data-i18n="a3">Hayır. DOI, yazar, yıl yalnızca doğrulanmış kayıttan gelir.</p></details>
+        <details class="faq"><summary data-i18n="q4">AHP puanı kalite mi gösterir?</summary><p data-i18n="a4">Hayır. AHP yalnızca önceliklerinize göre sıralar.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ CTA ══════════════════════════════════════════ -->
+  <section id="giris" style="padding-top:0">
+    <div class="wrap">
+      <div class="band rise">
+        <h2 data-i18n="band.title">İlk cümleniz için bir kaynak yeter.</h2>
+        <p data-i18n="band.lead">Beta açık. Arayın, sorgulayın, pasajı görün. Kayıt olmadan deneyebilirsiniz.</p>
+        <div class="cta">
+          <a class="btn btn--primary btn--lg" href="#top" data-i18n="band.cta">Başlayın <span class="arw" aria-hidden="true">→</span></a>
+          <a class="btn btn--lg btn--ghostlight" href="#nasil" data-i18n="band.cta2">Nasıl çalışır?</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div><a class="brand" href="#top" style="margin-bottom:10px"><span class="mark" aria-hidden="true">L</span> Literatür AI</a><p style="margin:0;max-width:34ch" data-i18n="ft.desc">Kanıta bağlı yazım yardımcısı. Her cümle doğrulanabilir bir pasaja bağlanır.</p></div>
+    <div><h4 data-i18n="ft.h1">Ürün</h4><a href="#nasil" data-i18n="nav.how">Nasıl çalışır</a><a href="#ozellikler" data-i18n="nav.features">Özellikler</a><a href="#kanit" data-i18n="cls.kicker">Kanıt sınıfları</a></div>
+    <div><h4 data-i18n="ft.h2">Kaynaklar</h4><a href="#kaynaklar" data-i18n="ft.data">Veri kaynakları</a><a href="#durust" data-i18n="hon.kicker">Sınırlar</a><a href="#sss" data-i18n="nav.faq">SSS</a></div>
+    <div><h4 data-i18n="ft.h3">Hesap</h4><a href="#giris" data-i18n="nav.signin">Giriş yap</a><a href="#giris" data-i18n="nav.start">Başlayın</a><a href="#giris" data-i18n="ft.contact">İletişim</a></div>
+  </div>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* tema */
+  const themeBtn = document.getElementById('theme');
+  const themeIcon = document.getElementById('theme-icon');
+  const sysDark = window.matchMedia('(prefers-color-scheme: dark)');
+  const savedTheme = () => { try { return localStorage.getItem('lit-theme'); } catch { return null; } };
+  const applyTheme = (dark) => {
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    themeIcon.textContent = dark ? '☀' : '☾';
+    themeBtn.setAttribute('aria-label', dark ? 'Açık tema' : 'Koyu tema');
+  };
+  applyTheme(document.documentElement.dataset.theme === 'dark');
+  themeBtn.addEventListener('click', () => {
+    const dark = document.documentElement.dataset.theme !== 'dark';
+    applyTheme(dark);
+    try { localStorage.setItem('lit-theme', dark ? 'dark' : 'light'); } catch {}
+  });
+  // Kullanıcı elle seçmediyse sistem değişikliğini izle.
+  sysDark.addEventListener('change', (e) => { if (!savedTheme()) applyTheme(e.matches); });
+
+  /* nav */
+  const nav = document.getElementById('nav');
+  const onScroll = () => nav.classList.toggle('stuck', window.scrollY > 8);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  const navLinks = Array.from(document.querySelectorAll('.nav__links a'));
+  const markActive = (id) => navLinks.forEach((a) => {
+    const on = id !== null && a.getAttribute('href') === '#' + id;
+    a.classList.toggle('active', on);
+    if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
+  });
+  if ('IntersectionObserver' in window) {
+    const spy = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) markActive(e.target.id); });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    navLinks.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean).forEach((sec) => spy.observe(sec));
+    window.addEventListener('scroll', () => { if (window.scrollY < 200) markActive(null); }, { passive: true });
+  }
+
+  /* ── Kanıt defteri: ürünün yaptığını gösteren döngü ─────────
+     Cümle yazılır → kaynaklar taranır → pasaj bulunur, vurgulanan ifade
+     cümleye uçar ve [1] atfı düşer → ikinci iddiaya pasaj yok, cümle belgeye
+     giremez. Ekranda değilken ya da sekme gizliyken durur ve son hal
+     durağan kalır; hareket azaltılmışsa hiç başlamaz. */
+  const win = document.getElementById('appwindow');
+  const ledger = (() => {
+    const body = win.querySelector('.aw-body');
+    const claim = document.getElementById('aw-claim');
+    const claimText = claim.querySelector('[data-i18n]');
+    const cite = claim.querySelector('.cite');
+    const ev1 = document.getElementById('aw-ev1');
+    const ev2 = document.getElementById('aw-ev2');
+    const skel = ev2.querySelector('.ev-skel');
+    const status = win.querySelector('.aw-status');
+    const statusText = status.querySelector('.t');
+    const progress = win.querySelector('.aw-progress');
+    const foot = win.querySelector('.aw-foot');
+    const exportNote = foot.lastElementChild;
+    const WORDS = {
+      tr: { typing: 'yazılıyor', scan: 'taranıyor', found: 'pasaj bulundu', match: '✓ pasaja bağlandı', none: 'kanıt bulunamadı', ready: 'hazır' },
+      en: { typing: 'writing', scan: 'searching', found: 'passage found', match: '✓ linked to a passage', none: 'no evidence found', ready: 'ready' },
+    };
+    const STOP = Symbol('stop');
+    let token = 0;
+    let running = false;
+    let clean = null;
+
+    const wait = (ms, t) => new Promise((resolve, reject) => setTimeout(() => (t === token ? resolve() : reject(STOP)), ms));
+    const say = (key, extra = '', mode = '') => {
+      const w = WORDS[document.documentElement.lang === 'en' ? 'en' : 'tr'];
+      // Dar çubukta kaynak adı sığmaz; yalnız durum yazılır.
+      const roomy = status.parentElement.clientWidth >= 360;
+      statusText.textContent = key ? w[key] + (extra && roomy ? ' · ' + extra : '') : '';
+      status.className = 'aw-status' + (key ? ' on' : '') + (mode ? ' ' + mode : '');
+    };
+    const parts = () => [ev1, ev2].flatMap((ev) => [...ev.querySelectorAll('.chip, .passage, .src')]);
+    const counter = () => foot.querySelector('b');
+
+    // Cümleyi harf harf açmak için metin düğümlerini harf span'lerine böler;
+    // .mk gibi iç öğeler yerinde kalır. Temiz hal her turda geri yüklenir.
+    const split = () => {
+      if (claimText.querySelector('.ch')) claimText.innerHTML = clean;
+      else clean = claimText.innerHTML;
+      const chars = [];
+      const walk = (node) => [...node.childNodes].forEach((n) => {
+        if (n.nodeType === Node.TEXT_NODE) {
+          const frag = document.createDocumentFragment();
+          for (const c of n.textContent) {
+            const el = document.createElement('span');
+            el.className = 'ch';
+            el.textContent = c;
+            frag.append(el);
+            chars.push(el);
+          }
+          n.replaceWith(frag);
+        } else if (n.nodeType === Node.ELEMENT_NODE) walk(n);
+      });
+      walk(claimText);
+      return chars;
+    };
+
+    const countUp = (t, ms) => {
+      const b = counter();
+      if (!b || !b.dataset.target) return;
+      const end = parseInt(b.dataset.target, 10);
+      const rest = b.dataset.target.replace(/^\d+/, '');
+      const t0 = performance.now();
+      const step = (now) => {
+        if (t !== token || !b.isConnected) return;
+        const k = Math.min(1, (now - t0) / ms);
+        b.textContent = Math.round(end * (1 - Math.pow(1 - k, 3))) + rest;
+        if (k < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    };
+
+    // Pasajda boyanan ifade kopyalanıp kavis çizerek cümledeki karşılığına uçar.
+    const fly = () => {
+      const hit = ev1.querySelector('.hit');
+      const mk = claim.querySelector('.mk');
+      if (!hit || !mk) return;
+      const box = body.getBoundingClientRect();
+      const from = hit.getBoundingClientRect();
+      const to = mk.getClientRects()[0];
+      const cs = getComputedStyle(hit);
+      const tok = document.createElement('span');
+      tok.className = 'aw-token';
+      tok.textContent = hit.textContent;
+      Object.assign(tok.style, {
+        left: (from.left - box.left) + 'px', top: (from.top - box.top) + 'px',
+        fontFamily: cs.fontFamily, fontSize: cs.fontSize, fontWeight: cs.fontWeight, lineHeight: cs.lineHeight,
+      });
+      body.append(tok);
+      const dx = to.left - from.left;
+      const dy = to.top - from.top;
+      const k = parseFloat(getComputedStyle(mk).fontSize) / parseFloat(cs.fontSize);
+      tok.animate([
+        { transform: 'translate(0, 0) scale(1)', opacity: 0 },
+        { transform: 'translate(0, -2px) scale(1.06)', opacity: 1, offset: 0.12 },
+        { transform: `translate(${dx * 0.55}px, ${dy * 0.5 - 18}px) scale(1.14)`, opacity: 1, offset: 0.55 },
+        { transform: `translate(${dx}px, ${dy}px) scale(${k})`, opacity: 1, offset: 0.88 },
+        { transform: `translate(${dx}px, ${dy}px) scale(${k})`, opacity: 0 },
+      ], { duration: 950, easing: 'cubic-bezier(.45,.05,.25,1)' }).onfinish = () => tok.remove();
+    };
+
+    const reset = () => {
+      win.classList.add('anim');
+      body.querySelectorAll('.aw-token').forEach((el) => el.remove());
+      [claim, cite, ev1, ev2, exportNote, skel, ...parts()].forEach((el) => el.classList.remove('in', 'on', 'ok', 'shake'));
+      ev1.querySelector('.hit')?.classList.remove('on');
+      progress.classList.remove('on');
+      say('');
+      const b = counter();
+      if (b) {
+        b.dataset.target = b.dataset.target || b.textContent;
+        b.textContent = b.dataset.target.replace(/^\d+/, '0');
+      }
+      const chars = split();
+      claim.querySelector('.mk')?.classList.remove('on');
+      return chars;
+    };
+
+    const showFinal = () => {
+      win.classList.remove('anim');
+      body.classList.remove('resetting');
+      body.querySelectorAll('.aw-token').forEach((el) => el.remove());
+      if (clean !== null && claimText.querySelector('.ch')) claimText.innerHTML = clean;
+      [claim, skel].forEach((el) => el.classList.remove('ok', 'on'));
+      progress.classList.remove('on');
+      say('');
+      const b = counter();
+      if (b && b.dataset.target) b.textContent = b.dataset.target;
+    };
+
+    const play = async (t, fade) => {
+      if (fade) { body.classList.add('resetting'); await wait(450, t); }
+      const chars = reset();
+      body.classList.remove('resetting');
+      await wait(fade ? 300 : 650, t);
+
+      say('typing');
+      for (let i = 0; i < chars.length; i++) {
+        if (i) chars[i - 1].classList.remove('cur');
+        chars[i].classList.add('v', 'cur');
+        await wait(chars[i].textContent === ' ' ? 14 : 28, t);
+      }
+      await wait(380, t);
+      chars.at(-1)?.classList.remove('cur');
+
+      progress.classList.add('on');
+      for (const src of ['OpenAlex', 'Crossref', 'Semantic Scholar', 'Europe PMC']) { say('scan', src, 'scan'); await wait(360, t); }
+      progress.classList.remove('on');
+      say('found');
+
+      ev1.classList.add('in'); await wait(380, t);
+      const [chipA, chipB] = ev1.querySelectorAll('.chip');
+      chipA.classList.add('in'); await wait(110, t);
+      chipB.classList.add('in'); await wait(200, t);
+      ev1.querySelector('.passage').classList.add('in'); await wait(320, t);
+      ev1.querySelector('.hit')?.classList.add('on'); await wait(650, t);
+      fly(); await wait(840, t);
+      claim.querySelector('.mk')?.classList.add('on');
+      claim.classList.add('ok');
+      cite.classList.add('on');
+      say('match', '', 'ok');
+      ev1.querySelector('.src').classList.add('in');
+      countUp(t, 1100);
+      await wait(1000, t);
+
+      ev2.classList.add('in'); skel.classList.add('on'); progress.classList.add('on');
+      for (const src of ['Crossref', 'OpenAlex']) { say('scan', src, 'scan'); await wait(480, t); }
+      skel.classList.remove('on'); progress.classList.remove('on');
+      ev2.querySelector('.chip').classList.add('in'); await wait(140, t);
+      ev2.querySelector('.passage').classList.add('in'); await wait(320, t);
+      ev2.querySelector('.src').classList.add('in', 'shake');
+      say('none', '', 'none');
+      await wait(800, t);
+
+      exportNote.classList.add('in');
+      say('ready', '', 'ok');
+      await wait(1600, t);
+      say('');
+      await wait(2800, t);
+    };
+
+    const loop = async (t, fade) => {
+      try {
+        for (let first = true; ; first = false) await play(t, fade || !first);
+      } catch (err) {
+        if (err !== STOP) throw err;
+      }
+    };
+    const start = (fade) => {
+      if (running) return;
+      running = true;
+      loop(++token, fade);
+    };
+    const stop = () => {
+      if (!running) return;
+      running = false;
+      token++;
+      showFinal();
+    };
+    return { start, stop, restart: () => { if (running) { stop(); start(true); } } };
+  })();
+
+  if (!reduced) {
+    win.classList.add('pre');
+    let seen = false;
+    let onScreen = false;
+    new IntersectionObserver(([entry]) => {
+      onScreen = entry.isIntersecting;
+      if (!onScreen) { ledger.stop(); return; }
+      if (document.hidden) return;
+      ledger.start(seen);
+      if (!seen) { seen = true; setTimeout(() => win.classList.remove('pre'), 120); }
+    }, { threshold: 0.2 }).observe(win);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) ledger.stop();
+      else if (onScreen) ledger.start(true);
+    });
+    document.addEventListener('lit:lang', () => ledger.restart());
+  }
+
+  /* başlığın ikinci satırı yavaş döner */
+  const l2 = document.getElementById('l2');
+  const variants = Array.from(l2.querySelectorAll('.ph'));
+  let vi = 0;
+  if (!reduced) setInterval(() => {
+    variants[vi].classList.remove('on');
+    variants[vi].setAttribute('aria-hidden', 'true');
+    vi = (vi + 1) % variants.length;
+    variants[vi].classList.add('on');
+    variants[vi].removeAttribute('aria-hidden');
+  }, 6800);
+
+  /* bölüm yükselmesi */
+  const rises = Array.from(document.querySelectorAll('.rise'));
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.12 });
+    rises.forEach((el) => io.observe(el));
+  } else rises.forEach((el) => el.classList.add('in'));
+
+  /* sınıf sekmeleri */
+  const btns = Array.from(document.querySelectorAll('.class-btn'));
+  const panes = Array.from(document.querySelectorAll('.class-card .pane'));
+  const pick = (btn) => {
+    btns.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+    const id = 'c-' + btn.dataset.c;
+    panes.forEach((p) => p.classList.toggle('on', p.id === id));
+  };
+  btns.forEach((btn) => {
+    btn.addEventListener('click', () => pick(btn));
+    btn.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      e.preventDefault();
+      const i = btns.indexOf(btn);
+      const next = btns[(i + (e.key === 'ArrowDown' ? 1 : btns.length - 1)) % btns.length];
+      next.focus(); pick(next);
+    });
+  });
+
+  /* TR/EN — prototipte yalnız anahtar taşınan bölümler */
+  const EN = {
+    'nav.how': 'How it works', 'nav.features': 'Features', 'nav.sources': 'Sources', 'nav.faq': 'FAQ',
+    'nav.signin': 'Sign in', 'nav.start': 'Get started',
+    'hero.eyebrow': 'Academic search · transparent AHP ranking',
+    'hero.l1': 'Not a hundred papers,',
+    'hero.r1': 'the right ten.', 'hero.r2': 'a claim you can defend.', 'hero.r3': 'a reference you can trust.',
+    'hero.lead': 'Open academic indexes, one query. You see why each paper ranks where it does — and every sentence you write is tied to a passage taken from the source.',
+    'hero.cta': 'Get started', 'hero.cta2': 'How it works?',
+    'hero.t1': 'No credit card', 'hero.t2': 'No unsourced sentence', 'hero.t3': 'Leave anytime',
+    'how.kicker': 'How it works', 'how.title': 'Three steps, one rule: no sentence without a source.',
+    'how.lead': 'The model cannot rewrite the passage; the citation is built from the verified record.',
+    'how.s1t': 'Search', 'how.s1p': 'One query, several open indexes. Results are merged; the answering source stays visible.',
+    'how.s2t': 'Verify', 'how.s2p': 'The passage is taken verbatim. Supported, partial or contradicting — the class is written.',
+    'how.s3t': 'Write', 'how.s3p': 'The sentence waits in the side panel; it enters only when you click.',
+    'feat.kicker': 'Features', 'feat.title': 'It does not generate text. It shows evidence.',
+    'feat.lead': 'The difference is whether the output can be defended.',
+    'f1t': 'Verbatim passage', 'f1p': 'The quote comes from the source; citation metadata never enters the prompt.',
+    'f2t': 'Evidence ledger', 'f2p': 'Which sentence, from which source, with which passage, when. Exportable.',
+    'f3t': 'Reference check', 'f3p': 'DOI, year and author differences are reported. A fabricated reference never counts as found.',
+    'f4t': 'Retraction watch', 'f4p': 'A retracted paper is flagged; that status is never cached.',
+    'f5t': 'Turkish corpus', 'f5p': 'DergiPark, TR Dizin, YÖK Tez harvested nightly, searched locally.',
+    'f6t': 'Transparent AHP', 'f6p': 'Every score and its reason is visible; ranking is not proof of quality.',
+    'cls.kicker': 'Evidence classes', 'cls.title': 'Five separate answers. None stands in for another.',
+    'cls.lead': '“Source not found”, “no evidence” and “source contradicts” are different things.',
+    'c1': 'supports', 'c2': 'partial', 'c3': 'irrelevant', 'c4': 'contradicts', 'c5': 'no evidence',
+    'src.kicker': 'Sources', 'src.title': 'Where we read from, how often, under which terms.',
+    'src.lead': 'A source without verified licence and commercial terms never reaches production.',
+    'src.c1': 'Source', 'src.c2': 'Access', 'src.c3': 'Use',
+    'hon.kicker': 'Limits', 'hon.title': 'What we <span class="no">do not do</span> — and why.',
+    'hon.lead': 'Trust begins with saying what you do not do.',
+    'faq.kicker': 'FAQ', 'faq.title': 'Short answers.',
+    'band.title': 'One source is enough for your first sentence.',
+    'band.lead': 'Beta is open. Search, query, see the passage. Try it without signing up.',
+    'band.cta': 'Get started', 'band.cta2': 'How it works?',
+    'aw.title': 'Evidence ledger', 'aw.tag': 'example',
+    'aw.claim': 'In nuclear reactor accidents, <span class="mk">human error</span> is decisive.',
+    'aw.c1': 'supports', 'aw.c2': 'verbatim passage', 'aw.c3': 'no evidence',
+    'aw.p1': '“<span class="hit">Human error</span> is the primary factor in 60% of recorded events.”',
+    'aw.s1': 'Example record · 2021',
+    'aw.p2': '“Maintenance procedures reduce risk in every reactor type.” — no suitable passage found.',
+    'aw.s2': 'Sentence cannot be added to the document',
+    'aw.f1': 'Audit trail: <b>24 passages</b> linked', 'aw.f2': 'Exportable',
+    'pb1t': 'Verbatim passage', 'pb1p': 'Taken from the source, never generated.',
+    'pb2t': 'Evidence ledger', 'pb2p': 'Every sentence tied to its source.',
+    'pb3t': 'Five evidence classes', 'pb3p': 'None stands in for another.',
+    'pb4t': 'Turkish corpus',
+    'eg': 'example passage',
+    'c1d': 'The passage states the claim directly; every detail is in the passage.',
+    'c1q': '“Human error is the primary factor in 60% of recorded events.”', 'c1v': 'The sentence can be added to the document.',
+    'c2d': 'It supports part of the claim; scope, certainty or detail differ.',
+    'c2q': '“In a study of a single plant, human error stood out.”', 'c2v': 'The scope difference is written down and shown to you.',
+    'c3d': 'On topic, but it says nothing about the claim.',
+    'c3q': '“Reactors fall into three main types.”', 'c3v': 'Topical similarity does not count as support.',
+    'c4d': 'The passage says the opposite of the claim.',
+    'c4q': '“Human error is a factor in 12% of events; equipment is the dominant cause.”', 'c4v': 'Missing a contradiction is the most expensive mistake.',
+    'c5d': 'A search was run; no suitable passage was found.',
+    'c5q': 'The sources searched, the time range and the scope are written down.', 'c5v': '“No studies exist” is never said; the scope is.',
+    'src.live': 'Live query', 'src.night': 'Harvested nightly',
+    'src.u1': 'Metadata backbone', 'src.u2': 'DOI verification, retractions', 'src.u3': 'Passage search',
+    'src.u4': 'Biomedical literature', 'src.u5': 'Open-access links, journal checks, citation links',
+    'src.u6': 'Turkish local index', 'src.u7': 'Preprints and open access, local index', 'src.u8': 'Not without written permission',
+    'src.note': 'The table shows the intended access mode. A source is switched on only after its licence, display and commercial-use terms are each verified.',
+    'h1t': 'We do not write for the author', 'h1p': 'No free paragraph generation; one sentence, from one passage.',
+    'h2t': 'No “AI detector”', 'h2p': 'Presenting an uncalibrated score as a probability does harm.',
+    'h3t': 'No made-up numbers', 'h3p': 'An unmeasured “98% accuracy” never appears in the interface.',
+    'h4t': 'No automatic insertion', 'h4p': 'No sentence or diagram enters the document on its own.',
+    'h5t': 'We do not pretend to read full text', 'h5p': 'Passages are abstract-level today; the scope is stated.',
+    'h6t': 'No silent source drop', 'h6p': 'If a source does not answer, you see it on screen.',
+    'q1': 'Does the passage really come from the source?', 'a1': 'Yes. The passage is stored exactly as it arrives from the record and shown that way; it never passes through a model call.',
+    'q2': 'Do you read the full text?', 'a2': 'Today the passage mostly comes from the abstract; the interface says so plainly.',
+    'q3': 'Does a model write the citations?', 'a3': 'No. DOI, author and year come only from the verified record.',
+    'q4': 'Does the AHP score show quality?', 'a4': 'No. AHP only ranks by your priorities.',
+    'ft.desc': 'Evidence-bound writing assistant. Every sentence is tied to a verifiable passage.',
+    'ft.h1': 'Product', 'ft.h2': 'Sources', 'ft.h3': 'Account', 'ft.data': 'Data sources', 'ft.contact': 'Contact'
+  };
+  const nodes = Array.from(document.querySelectorAll('[data-i18n]'));
+  const tr = new Map(nodes.map((n) => [n.dataset.i18n, n.innerHTML]));
+  const langs = [document.getElementById('lang-tr'), document.getElementById('lang-en')];
+  const setLang = (lang) => {
+    langs.forEach((b) => b.setAttribute('aria-pressed', String(b.id === 'lang-' + lang)));
+    document.documentElement.lang = lang;
+    nodes.forEach((n) => {
+      const key = n.dataset.i18n;
+      if (lang === 'en' && EN[key]) n.innerHTML = EN[key];
+      else if (lang === 'tr' && tr.has(key)) n.innerHTML = tr.get(key);
+    });
+    document.dispatchEvent(new Event('lit:lang'));
+  };
+  langs.forEach((b) => b.addEventListener('click', () => setLang(b.id === 'lang-en' ? 'en' : 'tr')));
+})();
+</script>
+</body>
+</html>
