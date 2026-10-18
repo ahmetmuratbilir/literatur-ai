@@ -67,6 +67,7 @@ Taslak → Hazır → Çalışıyor → Bitti
 | [WO-021](WO-021-bekleme-hata-kart-durumlari.md) | Bekleme, hata ve kart durumları (planlardaki WO-E2) | P1 | Taslak (17.10.2026) — ön koşul WO-018 |
 | [WO-022](WO-022-model-kademesi-pr6.md) | Görsel yapı model kademesi PR6.v2 ve E5 (planlardaki WO-C) | P3 | Taslak (17.10.2026) — ön koşul WO-019, E5 etiketlemesi |
 | [WO-023](WO-023-yapay-zeka-baglantilari.md) | Yapay zekâ bağlantıları: kullanıcının kendi API anahtarı (varsayılan Literatür AI) | P1 | Taslak (17.10.2026) — ön koşul WO-017; onay: AiConnection koleksiyonu, KEY_ENCRYPTION_KEY |
+| [WO-024](WO-024-kabuk-denetimi-marka-destek.md) | Kabuk denetimi, marka ve destek: tuş tuş denetim, ipucu, hata sınırı, kenar çubuğu, yardım ve geri bildirim, tanışma soruları, simge seti | P1 | Bitti (18.10.2026, `design/marka-panel-denetimi`) — elle deneme bekliyor |
 
 **Yol haritası (17.10.2026):** `docs/design/yol-haritasi.md`. Görünür sonuç
 sırası: WO-011 kontrolü → galeri kararları → WO-017 → WO-018 → WO-019 →
