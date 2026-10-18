@@ -35,9 +35,8 @@ export default function ConsensusSnapshot({ topic, papers = [], apiUrl = '' }) {
     }
   };
 
-  // Modelin ürettiği puan bir olasılık değil; sayı yoksa hiç gösterilmez.
-  // (Eskiden `snapshot.consensusScore || 85` vardı: olmayan sayıyı uyduruyordu.)
-  const score = Number.isFinite(snapshot?.consensusScore) ? snapshot.consensusScore : null;
+  // Uzlaşı yüzdesi gösterilmez: modelin yazdığı bir tahmindi, ölçüm değil (tüzük 2.8).
+  // Rozet yalnız kaç makaleye bakıldığını söyler.
 
   if (!snapshot && !loading) {
     return (
@@ -156,9 +155,7 @@ export default function ConsensusSnapshot({ topic, papers = [], apiUrl = '' }) {
             padding: '1px 8px',
             borderRadius: '999px'
           }}>
-            {score === null
-              ? t('consensus.basedOn', { n: papers.length })
-              : t('consensus.score', { n: score })}
+            {t('consensus.basedOn', { n: papers.length })}
           </span>
         </div>
 

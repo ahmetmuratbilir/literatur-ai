@@ -1985,8 +1985,7 @@ app.post('/api/analyses', async (req, res) => {
 
     const cleanQueries = Array.isArray(queries)
       ? queries.slice(0, 10).map(q => ({
-          text: typeof q?.text === 'string' ? q.text.trim().slice(0, 180) : '',
-          relevanceScore: Math.max(0, Math.min(100, Number(q?.relevanceScore) || 0))
+          text: typeof q?.text === 'string' ? q.text.trim().slice(0, 180) : ''
         }))
       : [];
 

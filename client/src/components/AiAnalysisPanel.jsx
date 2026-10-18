@@ -64,7 +64,6 @@ const AiAnalysisPanel = forwardRef(({ analysis, onPick }, ref) => {
                 <span key={c} className={`ai-row__concept${coreConcepts.has(String(c).toLowerCase()) ? ' ai-row__concept--core' : ''}`}>{c}</span>
               ))}
             </span>
-            <span className="badge badge-info ai-row__score">%{q.relevanceScore}</span>
           </button>
         ))}
       </div>

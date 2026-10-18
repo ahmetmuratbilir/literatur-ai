@@ -735,7 +735,6 @@
   background: var(--slate-50); color: var(--text-main); font-size: var(--fs-xs); font-weight: 500; line-height: 1.6;
 }
 .ai-row__concept--core { background: var(--brand-primary-soft); border-color: #c7d2fe; color: var(--brand-primary); font-weight: 700; }
-.ai-row__score { flex-shrink: 0; }
 
 /* ---------- Arama türü sekmeleri (Konuya göre / Yazara göre) ---------- */
 .ui-mode-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--slate-100); border: 1px solid var(--border-light); align-self: flex-start; }

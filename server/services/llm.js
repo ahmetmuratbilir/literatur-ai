@@ -36,8 +36,7 @@ Return ONLY a JSON object with exactly this structure:
       "label": "2-6 word title of this search approach (${display})",
       "focus": "one sentence: what this search emphasizes (${display})",
       "text": "Boolean search query in English",
-      "keywords": ["2-4 concepts this approach covers (${display})"],
-      "relevanceScore": 92
+      "keywords": ["2-4 concepts this approach covers (${display})"]
     }
   ],
   "explanation": "one or two sentences on how the approaches differ (${display})"
@@ -48,8 +47,7 @@ RULES:
 2. keywords: 6 to 12 concepts. weight 3 = core concept of the topic, 2 = important aspect, 1 = related or broader term. Include established synonyms and abbreviations as separate keywords.
 3. queries: exactly 5, each a different angle: broad overview, specific/narrow, methods, applications or outcomes, reviews and recent work.
 4. Boolean syntax: put multi-word phrases in double quotes, join synonyms of one concept with OR inside parentheses, join different concepts with AND, at most 3 AND groups. Never mix OR and AND without parentheses. Do not use wildcards (*) or field tags such as TITLE( or abs:. Keep proper names untranslated.
-5. relevanceScore: integer 70-99, how closely the approach matches the topic.
-6. No markdown, no backticks, only raw JSON.`;
+5. No markdown, no backticks, only raw JSON.`;
 }
 
 const clip = (value, max) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -93,7 +91,7 @@ export function normalizeQueryAnalysis(raw, lang = 'tr') {
         label: clip(q?.label, 80) || terms.slice(0, 3).join(', ') || clip(text.replace(/[()"]/g, ' ').replace(/\b(AND|OR|NOT)\b/g, ' '), 80),
         focus: clip(q?.focus, 200),
         keywords: terms,
-        relevanceScore: clampInt(q?.relevanceScore, 50, 99, 80),
+        // Modelden "yakınlık yüzdesi" istenmez: ölçüm değil, hep yüksek çıkan bir tahmindi (tüzük 2.8).
       };
     })
     // Parantezi dengesiz ya da terimsiz sorgu kaynaklarda sıfır sonuç veriyor.
@@ -183,7 +181,6 @@ export async function generateConsensusSnapshot(topic, papers = []) {
 Analyze the provided scientific papers on the research topic and synthesize a clear academic consensus snapshot in TURKISH.
 You MUST ALWAYS return a valid JSON object with the following structure:
 {
-  "consensusScore": 85,
   "consensusSummary": "1-2 sentence core scientific conclusion in Turkish",
   "keyTakeaways": [
     "Takeaway 1 in Turkish",
@@ -194,9 +191,8 @@ You MUST ALWAYS return a valid JSON object with the following structure:
 }
 RULES:
 1. All text fields MUST be in Turkish.
-2. consensusScore is an integer between 60 and 98.
-3. keyTakeaways MUST contain exactly 3 concise points.
-4. NO markdown, NO code block formatting, ONLY valid raw JSON.`;
+2. keyTakeaways MUST contain exactly 3 concise points.
+3. NO markdown, NO code block formatting, ONLY valid raw JSON.`;
 
   const userPrompt = `Topic: "${topic}"\n\nPapers:\n${paperSummaries}`;
 
@@ -228,7 +224,9 @@ RULES:
   const data = await response.json();
   const content = data.choices?.[0]?.message?.content || '{}';
   try {
-    return JSON.parse(content);
+    // Model kendiliğinden bir uzlaşı yüzdesi yazsa da istemciye gitmez (tüzük 2.8).
+    const { consensusScore: _ignored, ...snapshot } = JSON.parse(content);
+    return snapshot;
   } catch {
     throw new Error('AI returned invalid consensus JSON format');
   }

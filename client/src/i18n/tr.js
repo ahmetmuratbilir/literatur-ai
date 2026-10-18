@@ -1288,7 +1288,6 @@ export default {
     error: 'Literatür konsensüsü oluşturulamadı.',
     // Modelin ürettiği 60–98 arası tamsayı. Kalibre edilmiş olasılık değildir;
     // bu yüzden etiketinde "model tahmini" yazar (CLAUDE.md 2.8).
-    score: 'Model tahmini: %{n}',
     basedOn: '{n} makale üzerinden',
     gapLabel: 'Öne çıkan literatür boşluğu:',
   },

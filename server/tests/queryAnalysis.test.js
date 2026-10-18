@@ -19,7 +19,7 @@ test('normalize: agirlik sinirlanir, tekrar eden terim atilir, bozuk sorgu eleni
   assert.equal(r.keywords.length, 2);
   assert.equal(r.keywords[1].weight, 3);
   assert.equal(r.queries.length, 1);
-  assert.equal(r.queries[0].relevanceScore, 99);
+  assert.equal('relevanceScore' in r.queries[0], false, 'modelin uydurduğu yüzde taşınmaz');
   assert.equal(r.lang, 'tr');
 });
 
@@ -38,6 +38,7 @@ test('tidyBooleanQuery: parantezsiz OR/AND karisimi gruplanir, joker atilir', ()
 test('prompt gorunen alanlarin dilini arayuz diline baglar', () => {
   assert.match(buildQueryAnalysisPrompt('en'), /MUST be in English, whatever language the topic/);
   assert.match(buildQueryAnalysisPrompt('tr'), /MUST be in Turkish/);
+  assert.doesNotMatch(buildQueryAnalysisPrompt('tr'), /relevanceScore/);
 });
 
 function fakeProvider(name, handler) {

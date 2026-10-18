@@ -1285,7 +1285,6 @@ export default {
     error: 'The literature consensus could not be built.',
     // The model returns an integer between 60 and 98. It is not a calibrated
     // probability, so the label says "model estimate" (CLAUDE.md 2.8).
-    score: 'Model estimate: {n}%',
     basedOn: 'based on {n} papers',
     gapLabel: 'Standout literature gap:',
   },
