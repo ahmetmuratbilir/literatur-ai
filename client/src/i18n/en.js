@@ -184,7 +184,7 @@ export default {
   },
   search: {
     title: 'Search the literature',
-    subtitle: 'Nine open scholarly sources, ranked with a transparent method you control.',
+    subtitle: 'Open scholarly sources, ranked with a transparent method whose reasons you can see.',
     sourcesLine: 'Searches OpenAlex, Crossref, Semantic Scholar, Europe PMC, OpenAIRE, DataCite, DOAJ, arXiv and CORE',
     topicLabel: 'Research topic',
     topicPlaceholder: 'e.g. passive cooling in small modular reactors',
@@ -740,7 +740,7 @@ export default {
     hero: {
       eyebrow: 'Academic search · transparent AHP ranking',
       title: 'Not a hundred papers. The right ten.',
-      lead: 'Nine scholarly databases, one query. See why every paper ranks where it does.',
+      lead: 'Open scholarly indexes, one query. See why every paper ranks where it does.',
       placeholder: 'Describe your research topic…',
       search: 'Search',
       try: 'Try:',
@@ -765,7 +765,7 @@ export default {
       explain: { title: 'Explainable scores', text: 'See how much each criterion contributed to a paper’s rank, and why a missing value scored zero.' },
       retraction: { title: 'Retraction check', text: 'Every result with a DOI is checked against Crossref retraction notices; retracted papers are flagged and pushed down.' },
       oa: { title: 'Open-access copies', text: 'Find legal free versions of paywalled papers through Unpaywall.' },
-      writer: { title: 'AI writer', text: 'Draft a literature review, introduction or discussion from the papers you select — citations limited to your selection.' },
+      writer: { title: 'Evidence-bound writing', text: 'Every sentence you write is tied to a passage taken verbatim from a source. You write the text; nothing enters your document unless you add it.' },
       export: { title: 'Export and share', text: 'Download results as PDF, Word or CSV, or share a link to the result list.' },
     },
     sources: {

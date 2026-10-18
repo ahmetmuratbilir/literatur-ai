@@ -185,7 +185,7 @@ export default {
   },
   search: {
     title: 'Literatürü tara',
-    subtitle: 'Dokuz açık akademik kaynak, kontrolü sende olan şeffaf bir yöntemle sıralanır.',
+    subtitle: 'Açık akademik kaynaklar, nedenini görebildiğin şeffaf bir yöntemle sıralanır.',
     sourcesLine: 'OpenAlex, Crossref, Semantic Scholar, Europe PMC, OpenAIRE, DataCite, DOAJ, arXiv ve CORE taranır',
     topicLabel: 'Araştırma konusu',
     topicPlaceholder: 'Örn: küçük modüler reaktörlerde pasif soğutma',
@@ -743,7 +743,7 @@ export default {
     hero: {
       eyebrow: 'Akademik arama · şeffaf AHP sıralaması',
       title: 'Yüz makale değil, doğru on makale.',
-      lead: 'Dokuz akademik veri tabanı, tek sorgu. Her makalenin neden o sırada olduğunu görürsünüz.',
+      lead: 'Açık akademik dizinler, tek sorgu. Her makalenin neden o sırada olduğunu görürsünüz.',
       placeholder: 'Araştırma konunuzu yazın…',
       search: 'Ara',
       try: 'Örnekler:',
@@ -768,7 +768,7 @@ export default {
       explain: { title: 'Açıklanabilir puanlar', text: 'Her ölçütün makalenin sırasına katkısını ve eksik bir değerin neden sıfır aldığını görün.' },
       retraction: { title: 'Geri çekilme kontrolü', text: 'DOI’si olan her sonuç Crossref geri çekilme kayıtlarıyla karşılaştırılır; geri çekilen makaleler işaretlenir ve aşağı iner.' },
       oa: { title: 'Açık erişim kopyaları', text: 'Ücretli makalelerin yasal ücretsiz sürümlerini Unpaywall üzerinden bulun.' },
-      writer: { title: 'Yapay zekâ yazar', text: 'Seçtiğiniz makalelerden literatür incelemesi, giriş ya da tartışma taslağı oluşturun; atıflar yalnızca seçtiklerinizle sınırlıdır.' },
+      writer: { title: 'Kanıta bağlı yazım', text: 'Yazdığınız her cümle kaynaktan birebir alınmış bir pasaja bağlanır. Metni siz yazarsınız; hiçbir şey belgeye siz eklemeden girmez.' },
       export: { title: 'Dışa aktar ve paylaş', text: 'Sonuçları PDF, Word ya da CSV olarak indirin veya sonuç listesinin bağlantısını paylaşın.' },
     },
     sources: {
