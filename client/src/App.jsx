@@ -47,6 +47,10 @@ import HistorySidebar from './components/HistorySidebar';
 const WriterPanel = lazy(() => import('./components/WriterPanel'));
 import ShareModal from './components/ShareModal';
 import LandingPage from './components/landing/LandingPage';
+// Yeni açılış sayfası (ana sayfa v9). Varsayılan değil: yalnız ?giris=yeni ile
+// açılır; eski LandingPage'in silinmesi kullanıcı kararı (19.10.2026).
+const LandingNew = lazy(() => import('./components/landing/LandingNew.jsx'));
+const wantsNewLanding = () => new URLSearchParams(window.location.search).get('giris') === 'yeni';
 import AppTopBar from './components/AppTopBar';
 import ExportMenu from './components/ExportMenu';
 import PublicationTimeline from './components/PublicationTimeline.jsx';
@@ -1184,19 +1188,27 @@ function App() {
   // Yalnızca geliştirmede: Clerk kapalıyken tanıtım sayfası hiç görünmediği
   // için ?landing ile önizlenebilir.
   if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('landing')) {
-    return <LandingPage landingTheme={landingTheme} setLandingTheme={setLandingTheme} />;
+    return wantsNewLanding()
+      ? <Suspense fallback={null}><LandingNew landingTheme={landingTheme} setLandingTheme={setLandingTheme} /></Suspense>
+      : <LandingPage landingTheme={landingTheme} setLandingTheme={setLandingTheme} />;
   }
 
   return (
     <>
       <AnonOnly>
-        <LandingPage
-          landingTheme={landingTheme}
-          activeLandingTab={activeLandingTab}
-          setActiveLandingTab={setActiveLandingTab}
-          setLandingTheme={setLandingTheme}
-          isMobile={isMobile}
-        />
+        {wantsNewLanding() ? (
+          <Suspense fallback={null}>
+            <LandingNew landingTheme={landingTheme} setLandingTheme={setLandingTheme} />
+          </Suspense>
+        ) : (
+          <LandingPage
+            landingTheme={landingTheme}
+            activeLandingTab={activeLandingTab}
+            setActiveLandingTab={setActiveLandingTab}
+            setLandingTheme={setLandingTheme}
+            isMobile={isMobile}
+          />
+        )}
       </AnonOnly>
 
       <AuthedOnly>
