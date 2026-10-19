@@ -66,7 +66,10 @@ export async function activeConnection(store, userId, { now = Date.now(), secret
   const row = await store.active(userId);
   let conn = null;
   if (row) {
-    try { conn = { provider: row.provider, key: openKey(row, secret) }; } catch { conn = null; }
+    // Çözülemeyen anahtar (ör. KEY_ENCRYPTION_KEY değişti) sessizce platform
+    // anahtarına düşmez: bağlam "okunamadı" olarak işaretlenir, istek durur,
+    // kullanıcıya söylenir (WO-027, tüzük 2.8).
+    try { conn = { provider: row.provider, key: openKey(row, secret) }; } catch { conn = { provider: row.provider, key: null, unreadable: true }; }
   }
   cache.set(userId, { at: now, conn });
   return conn;

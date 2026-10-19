@@ -256,7 +256,7 @@ function App() {
       pushToast({
         tone: 'warn',
         title: t('aiConn.keyFailedTitle'),
-        text: t(status === 'quota' ? 'aiConn.keyQuota' : 'aiConn.keyInvalid'),
+        text: t({ quota: 'aiConn.keyQuota', model: 'aiConn.keyModel', unreadable: 'aiConn.keyUnreadable' }[status] || 'aiConn.keyInvalid'),
         action: { label: t('aiConn.open'), onClick: () => setShowAi(true) },
         duration: 12000,
       });
@@ -1122,6 +1122,7 @@ function App() {
                   topic={mainTopic}
                   papers={data.results}
                   apiUrl={defaultApiUrl}
+                  getToken={getToken}
                 />
 
                 <PublicationTimeline

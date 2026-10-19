@@ -36,7 +36,9 @@ export default {
     fine: 'Anahtarın sunucuda şifreli saklanır; tamamı bir daha gösterilmez, yalnız son 4 karakter. Kendi anahtarınla gönderilen metin o sağlayıcının kullanım şartlarına tabidir. Anahtarın çalışmazsa bizim anahtarımıza sessizce geçilmez; sana söylenir.',
     keyFailedTitle: 'Kendi yapay zekâ anahtarın çalışmadı.',
     keyInvalid: 'Sağlayıcı anahtarı reddetti. Bağlantıyı kontrol et ya da varsayılana dön.',
-    keyQuota: 'Anahtarının kotası dolmuş görünüyor. Varsayılana dönebilir ya da sonra tekrar deneyebilirsin.',
+    keyQuota: 'Anahtarının kotası ya da bakiyesi dolmuş görünüyor. Varsayılana dönebilir ya da sonra tekrar deneyebilirsin.',
+    keyModel: 'Seçili model bu hesapta açık değil. Bağlantıdan başka bir sağlayıcı seç ya da varsayılana dön.',
+    keyUnreadable: 'Kayıtlı anahtarın şu an okunamıyor; istek Literatür AI anahtarıyla da yapılmadı. Anahtarı yeniden ekle ya da varsayılana dön.',
     open: 'Bağlantıları aç',
   },
   dialog: {

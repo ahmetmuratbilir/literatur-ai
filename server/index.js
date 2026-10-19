@@ -2327,7 +2327,19 @@ app.post('/api/auth/sync-user', async (req, res) => {
 });
 
 
-app.post('/api/consensus', async (req, res) => {
+// Konsensüs (WO-027): eskiden girişsiz ve sınırsızdı; herkes platformun yapay
+// zekâ bütçesini harcayabiliyordu ve kullanıcı anahtarı hiç kullanılmıyordu.
+const consensusLimiter = IS_TEST_MODE ? (req, res, next) => next() : rateLimit({
+  windowMs: 60 * 1000,
+  max: 6,
+  keyGenerator: (req) => getAuth(req)?.userId || ipKeyGenerator(req.ip),
+  message: { error: 'Çok fazla istek gönderildi. Lütfen 1 dakika bekleyin.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.post('/api/consensus', consensusLimiter, async (req, res) => {
+  if (!getAuth(req)?.userId) return res.status(401).json({ error: 'Lütfen giriş yapın' });
   try {
     const { topic = '', papers = [] } = req.body || {};
     if (!topic || typeof topic !== 'string' || topic.trim().length === 0) {

@@ -87,7 +87,8 @@ const ENV_KEYS = { deepseek: 'DEEPSEEK_API_KEY', gemini: 'GEMINI_API_KEY', groq:
  */
 export function keyFor(provider, env = process.env) {
   const conn = env === process.env ? currentAiConnection() : null;
-  if (conn) return conn.provider === provider ? conn.key : null;
+  // Okunamayan kullanıcı anahtarı: hiçbir anahtar yok (platforma düşülmez).
+  if (conn) return conn.provider === provider && !conn.unreadable ? conn.key : null;
   return env[ENV_KEYS[provider]] || null;
 }
 
@@ -100,7 +101,7 @@ function keySourceOf(provider) {
 /** Sağlayıcının anahtarı tanımlı mı. */
 export function isProviderConfigured(provider, env = process.env) {
   const conn = env === process.env ? currentAiConnection() : null;
-  if (conn) return conn.provider === provider;
+  if (conn) return conn.provider === provider && !conn.unreadable;
   if (provider === 'deepseek') return Boolean(env.DEEPSEEK_API_KEY);
   if (provider === 'gemini') return Boolean(env.GEMINI_API_KEY);
   if (provider === 'groq') return Boolean(env.GROQ_API_KEY);
@@ -112,7 +113,7 @@ export function isProviderConfigured(provider, env = process.env) {
  */
 export function getActiveProviders(env = process.env) {
   const conn = env === process.env ? currentAiConnection() : null;
-  if (conn) return [conn.provider];
+  if (conn) return conn.unreadable ? [] : [conn.provider];
   return getProviderOrder().filter((provider) => isProviderConfigured(provider, env));
 }
 

@@ -5,7 +5,7 @@ const MotionDiv = motion.div;
 import { Sparkles, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useI18n } from '../i18n/context.js';
 
-export default function ConsensusSnapshot({ topic, papers = [], apiUrl = '' }) {
+export default function ConsensusSnapshot({ topic, papers = [], apiUrl = '', getToken = null }) {
   const { t } = useI18n();
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -19,10 +19,12 @@ export default function ConsensusSnapshot({ topic, papers = [], apiUrl = '' }) {
 
     try {
       const endpoint = `${apiUrl || 'http://localhost:3000'}/api/consensus`;
+      // Giriş zorunlu (WO-027): kullanıcının kendi anahtarı da ancak böyle kullanılır.
+      const token = getToken ? await getToken() : null;
       const res = await axios.post(endpoint, {
         topic,
         papers: papers.slice(0, 8)
-      });
+      }, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
 
       if (res.data?.snapshot) {
         setSnapshot(res.data.snapshot);

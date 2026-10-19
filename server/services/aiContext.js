@@ -39,7 +39,11 @@ export function currentKeySource() {
 export function noteProviderResponse(provider, status) {
   const ctx = store.getStore();
   if (!ctx?.connection || provider?.keySource !== 'user') return;
-  const kind = status === 401 || status === 403 ? 'invalid' : status === 429 ? 'quota' : null;
+  // 402: bakiye/kredi bitti (DeepSeek, OpenRouter, Anthropic billing_error) → kota;
+  // 404: model bu hesaba açık değil → model.
+  const kind = status === 401 || status === 403 ? 'invalid'
+    : status === 429 || status === 402 ? 'quota'
+      : status === 404 ? 'model' : null;
   if (!kind) return;
   ctx.failure = { provider: provider.name, kind };
   if (ctx.res && !ctx.res.headersSent) ctx.res.setHeader('X-AI-Key-Status', kind);

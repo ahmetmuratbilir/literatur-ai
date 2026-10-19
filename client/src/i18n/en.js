@@ -35,7 +35,9 @@ export default {
     fine: 'Your key is stored encrypted on the server and never shown in full again, only its last 4 characters. Text sent with your own key is subject to that provider\'s terms. If your key fails we do not silently switch to ours; we tell you.',
     keyFailedTitle: 'Your own AI key did not work.',
     keyInvalid: 'The provider rejected the key. Check the connection or switch back to default.',
-    keyQuota: 'Your key\'s quota seems to be used up. Switch back to default or try again later.',
+    keyQuota: 'Your key\'s quota or balance seems to be used up. Switch back to default or try again later.',
+    keyModel: 'The selected model is not available on this account. Pick another provider or switch back to default.',
+    keyUnreadable: 'Your saved key cannot be read right now; the request was not sent with the Literatür AI key either. Add the key again or switch back to default.',
     open: 'Open connections',
   },
   dialog: {

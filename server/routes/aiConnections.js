@@ -106,6 +106,7 @@ export function aiContextMiddleware({ getAuth, getStore, enabled, runWithAiConte
     let connection = null;
     try { connection = await activeConnection(store, userId, { secret }); } catch { connection = null; }
     if (!connection) return next();
+    if (connection.unreadable) res.setHeader('X-AI-Key-Status', 'unreadable');
     const onFailure = (provider, kind) => {
       Promise.resolve(store.upsert(userId, provider, { lastStatus: kind, lastCheckedAt: new Date() }))
         .then(() => invalidateConnection(userId))

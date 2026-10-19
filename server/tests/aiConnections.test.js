@@ -123,3 +123,28 @@ test('bağlam dışında anahtar kaynağı "platform"', () => {
   assert.equal(currentKeySource(), 'platform');
   runWithAiContext({ connection: { provider: 'groq', key: 'x' } }, () => assert.equal(currentKeySource(), 'user'));
 });
+
+test('okunamayan kullanıcı anahtarı platform anahtarına sessizce düşmez (WO-027)', () => {
+  const prev = process.env.DEEPSEEK_API_KEY;
+  process.env.DEEPSEEK_API_KEY = 'PLATFORM-DS';
+  try {
+    runWithAiContext({ connection: { provider: 'deepseek', key: null, unreadable: true } }, () => {
+      assert.deepEqual(getActiveProviders(), []);
+      assert.equal(resolveChatProvider({ profile: 'fast' }), null);
+    });
+  } finally {
+    if (prev === undefined) delete process.env.DEEPSEEK_API_KEY; else process.env.DEEPSEEK_API_KEY = prev;
+  }
+});
+
+test('402 (bakiye) kota, 404 (model yok) model olarak bildirilir (WO-027)', () => {
+  const seen = [];
+  const res = { headersSent: false, headers: {}, setHeader(k, v) { this.headers[k] = v; } };
+  runWithAiContext({ connection: { provider: 'deepseek', key: 'k' }, res, onFailure: (p, kind) => seen.push(kind) }, () => {
+    noteProviderResponse({ name: 'deepseek', keySource: 'user' }, 402);
+    assert.equal(res.headers['X-AI-Key-Status'], 'quota');
+    noteProviderResponse({ name: 'deepseek', keySource: 'user' }, 404);
+    assert.equal(res.headers['X-AI-Key-Status'], 'model');
+  });
+  assert.deepEqual(seen, ['quota', 'model']);
+});
