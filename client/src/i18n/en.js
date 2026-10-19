@@ -563,6 +563,8 @@ export default {
     collapse: 'Collapse sidebar',
     expand: 'Expand sidebar',
     account: 'Account',
+    accountMenu: 'Account menu',
+    newSearchKey: 'Ctrl K',
     queryCount: '{n} search strategies',
   },
   share: {

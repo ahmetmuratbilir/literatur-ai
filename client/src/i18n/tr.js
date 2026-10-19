@@ -566,6 +566,8 @@ export default {
     collapse: 'Kenar çubuğunu daralt',
     expand: 'Kenar çubuğunu genişlet',
     account: 'Hesap',
+    accountMenu: 'Hesap menüsü',
+    newSearchKey: 'Ctrl K',
     queryCount: '{n} arama stratejisi',
   },
   share: {

@@ -11,6 +11,7 @@ import { AppUserButton, useAppAuth, useAppUser } from '../auth/clerkBridge.js';
 import { useI18n } from '../i18n/context.js';
 import { readDraft } from './workspace/drafts.js';
 import BrandMark from './ui/BrandMark.jsx';
+import AccountMenu from './AccountMenu.jsx';
 
 // Sunucudaki favoriler koleksiyonunun adı (veri anahtarı; kullanıcıya
 // gösterilen etiket sözlükten gelir).
@@ -228,7 +229,7 @@ const HistorySidebar = ({
         <div className="sb-pad">
           <button type="button" className="sb-primary" onClick={() => { onNewSearch(); closeOnMobile(); }} title={isOpen ? undefined : t('sidebar.newSearch')} data-tip-side={isOpen ? undefined : 'right'} aria-label={t('sidebar.newSearch')}>
             <PlusCircle size={16} strokeWidth={2} />
-            {isOpen && <span>{t('sidebar.newSearch')}</span>}
+            {isOpen && <span>{t('sidebar.newSearch')}</span>}{isOpen && <kbd className="sb-kbd">{t('sidebar.newSearchKey')}</kbd>}
           </button>
         </div>
 
@@ -380,19 +381,24 @@ const HistorySidebar = ({
 
         {/* Hesap: ayarlar ve destek içerik sekmelerinin arasında değil, burada. */}
         <div className="sb-foot">
-          <nav aria-label={t('sidebar.account')} className="sb-group sb-group--util">
-            {onOpenAi && <SidebarItem kind="util" icon={<KeyRound size={17} />} label={t('sidebar.ai')} isOpen={isOpen} action="nav-ai" onClick={() => { onOpenAi(); closeOnMobile(); }} />}
-            {onOpenHelp && <SidebarItem kind="util" icon={<LifeBuoy size={17} />} label={t('help.open')} isOpen={isOpen} action="nav-help" onClick={() => { onOpenHelp(); closeOnMobile(); }} />}
-          </nav>
+          {/* K1 (WO-026): açıkken bağlantılar ve yardım hesap satırının ⋯ menüsünde;
+              kapalı rayda küçük simge olarak kalır (yardım bir tık derine gömülmesin). */}
+          {(!isOpen || !user) && (
+            <nav aria-label={t('sidebar.account')} className="sb-group sb-group--util">
+              {onOpenAi && <SidebarItem kind="util" icon={<KeyRound size={17} />} label={t('sidebar.ai')} isOpen={isOpen} action="nav-ai" onClick={() => { onOpenAi(); closeOnMobile(); }} />}
+              {onOpenHelp && <SidebarItem kind="util" icon={<LifeBuoy size={17} />} label={t('help.open')} isOpen={isOpen} action="nav-help" onClick={() => { onOpenHelp(); closeOnMobile(); }} />}
+            </nav>
+          )}
           {user && (
             <div className={`sb-user${isOpen ? '' : ' is-rail'}`}>
-              <AppUserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: { width: '34px', height: '34px' } } }} />
+              <AppUserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: { width: '32px', height: '32px' } } }} />
               {isOpen && (
                 <div className="sb-user__text">
                   <span className="sb-user__name">{user.fullName}</span>
                   <span className="sb-meta">{t('sidebar.freePlan')}</span>
                 </div>
               )}
+              {isOpen && <AccountMenu onOpenAi={onOpenAi} onOpenHelp={onOpenHelp} onPicked={closeOnMobile} />}
             </div>
           )}
         </div>

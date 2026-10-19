@@ -771,6 +771,21 @@ function App() {
     setError(null);
   };
 
+  // Ctrl/⌘ K: yeni arama, konu kutusuna odak (WO-026 Faz 2; kenar çubuğunda yazılı).
+  // Her render'da tazelenen kapanışlar ref'te; dinleyici bir kez kurulur.
+  const newSearchKeyRef = useRef(null);
+  newSearchKeyRef.current = () => { goResearch(); newSearch(); };
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'k') return;
+      e.preventDefault();
+      newSearchKeyRef.current?.();
+      requestAnimationFrame(() => document.getElementById('topic-input')?.focus());
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // Gosterilen sonuc sayisi bu `data` icin; yeni arama ya da yeniden siralama 25'e doner.
   const shownCount = visible.data === data ? visible.n : PAGE_SIZE;
 
