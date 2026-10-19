@@ -12,8 +12,9 @@ import { useLayer } from '../ui/useLayer.js';
  * göstermez (yalnız son 4 karakter). Tarayıcıda saklanmaz (tüzük 3.8).
  */
 
-const PROVIDER_NAMES = { deepseek: 'DeepSeek', gemini: 'Google Gemini', groq: 'Groq' };
-const STATUS_TONE = { ok: 'ok', invalid: 'bad', quota: 'warn', error: 'warn', unknown: '' };
+// WO-027: Claude (deneme: OpenAI uyumlu ucu), Kimi ve OpenAI eklendi; liste sunucudan gelir.
+const PROVIDER_NAMES = { deepseek: 'DeepSeek', gemini: 'Google Gemini', groq: 'Groq', openai: 'OpenAI', moonshot: 'Kimi (Moonshot)', anthropic: 'Claude (Anthropic) · deneme' };
+const STATUS_TONE = { ok: 'ok', invalid: 'bad', quota: 'warn', model: 'warn', error: 'warn', unknown: '' };
 
 /**
  * Sunucu yanıtını beklenen şekle getirir. Eskiden yanıt doğrudan duruma

@@ -69,7 +69,7 @@ test('geçersiz anahtar kaydedilir ama etkin yapılmaz; durum "invalid"', async 
 test('girdi denetimi, giriş zorunlu, kapalıyken 503 ve "enabled: false"', async () => {
   const on = await startApp();
   try {
-    assert.equal((await on.call('POST', '/api/ai-connections', { provider: 'openai', key: GOOD })).status, 400);
+    assert.equal((await on.call('POST', '/api/ai-connections', { provider: 'bilinmeyen-ai', key: GOOD })).status, 400);
     assert.equal((await on.call('POST', '/api/ai-connections', { provider: 'groq', key: 'kısa' })).status, 400);
     assert.equal((await on.call('GET', '/api/ai-connections', null, null)).status, 401);
   } finally { await on.close(); }

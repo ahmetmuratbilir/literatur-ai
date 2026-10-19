@@ -1,5 +1,5 @@
 import { fetch } from 'undici';
-import { resolveChatProvider, chatProvidersInOrder } from '../config/aiModels.js';
+import { resolveChatProvider, chatProvidersInOrder, chatBody } from '../config/aiModels.js';
 import { logAiUsage } from '../utils/aiUsage.js';
 import { noteProviderResponse } from './aiContext.js';
 import { tokenizeBoolean, isWellFormed } from './sourceQuery.js';
@@ -117,7 +117,7 @@ async function requestQueryAnalysis(provider, topic, lang) {
     method: 'POST',
     headers: { Authorization: `Bearer ${provider.key}`, 'Content-Type': 'application/json' },
     signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
-    body: JSON.stringify({
+    body: JSON.stringify(chatBody(provider, {
       model: provider.model,
       messages: [
         { role: 'system', content: buildQueryAnalysisPrompt(lang) },
@@ -130,8 +130,7 @@ async function requestQueryAnalysis(provider, topic, lang) {
       response_format: { type: 'json_object' },
       // Düşünme açık kalırsa akıl yürütme max_tokens bütçesini tüketiyor ve
       // içerik boş dönüyor; bu çağrı kısa ve kesin bir JSON istiyor.
-      ...(provider.body || {}),
-    }),
+    })),
   });
   noteProviderResponse(provider, response.status);
   if (!response.ok) {
@@ -202,7 +201,7 @@ RULES:
       'Authorization': `Bearer ${provider.key}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
+    body: JSON.stringify(chatBody(provider, {
       model: provider.model,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -211,8 +210,7 @@ RULES:
       temperature: 0.2,
       max_tokens: 800,
       response_format: { type: "json_object" },
-      ...(provider.body || {})
-    })
+    }))
   });
 
   noteProviderResponse(provider, response.status);

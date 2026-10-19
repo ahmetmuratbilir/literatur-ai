@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { keyFor } from '../config/aiModels.js';
 
 
 import crypto from 'crypto';
@@ -44,7 +45,9 @@ export function cosineSimilarity(vecA, vecB) {
  * (Prompt için cache kullanmıyoruz, çok kısa ve dinamik)
  */
 export async function getEmbedding(text) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  // Ortak kapıdan (WO-027): kullanıcı Gemini dışında bir anahtar bağladıysa null →
+  // vektör araması yapılmaz, platform anahtarına sessizce düşülmez.
+  const apiKey = keyFor('gemini');
   if (!apiKey || apiKey === 'FAKE_API_KEY_FOR_TESTING') {
     throw new Error('GEMINI_API_KEY bulunamadı veya geçersiz.');
   }
@@ -60,7 +63,9 @@ export async function getEmbedding(text) {
  * Faz 3D-1: MongoDB Caching
  */
 export async function getEmbeddingsForChunks(chunks) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  // Ortak kapıdan (WO-027): kullanıcı Gemini dışında bir anahtar bağladıysa null →
+  // vektör araması yapılmaz, platform anahtarına sessizce düşülmez.
+  const apiKey = keyFor('gemini');
   if (!apiKey || apiKey === 'FAKE_API_KEY_FOR_TESTING') {
     throw new Error('GEMINI_API_KEY bulunamadı veya geçersiz.');
   }

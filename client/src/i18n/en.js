@@ -29,7 +29,7 @@ export default {
     checked: 'last test: {when}',
     failed: 'That did not work.',
     loadFailed: 'Could not load connections. The server may be unreachable.',
-    status: { ok: 'Working', invalid: 'Key rejected', quota: 'Quota used up', error: 'Unreachable', unknown: 'Not tested' },
+    status: { ok: 'Working', invalid: 'Key rejected', quota: 'Quota used up', model: 'Model not available', error: 'Unreachable', unknown: 'Not tested' },
     saved: { ok: 'The key works; AI steps now use it.', invalid: 'The provider rejected the key; saved but not used.', quota: 'The key\'s quota is used up; saved but not used.', error: 'Could not reach the provider; saved but not used. Try "Test" later.' },
     tested: { ok: 'The key works.', invalid: 'The provider rejected the key.', quota: 'The key\'s quota is used up.', error: 'Could not reach the provider.' },
     fine: 'Your key is stored encrypted on the server and never shown in full again, only its last 4 characters. Text sent with your own key is subject to that provider\'s terms. If your key fails we do not silently switch to ours; we tell you.',

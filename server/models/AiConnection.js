@@ -6,8 +6,10 @@ import mongoose from 'mongoose';
  * Arayüze yalnız `provider`, `last4`, `active`, `lastStatus`, `lastCheckedAt`
  * gider. Kullanıcı başına sağlayıcı başına bir kayıt; en fazla biri etkin.
  */
-export const AI_PROVIDERS = ['deepseek', 'gemini', 'groq'];
-export const AI_STATUSES = ['ok', 'invalid', 'quota', 'error', 'unknown'];
+// WO-027: openai, moonshot (Kimi), anthropic (Claude) eklendi; 'model' durumu (404)
+// eklendi. Yalnız ekleme: var olan kayıtlar geçerli kalır, veri göçü yok.
+export const AI_PROVIDERS = ['deepseek', 'gemini', 'groq', 'openai', 'moonshot', 'anthropic'];
+export const AI_STATUSES = ['ok', 'invalid', 'quota', 'model', 'error', 'unknown'];
 
 const AiConnectionSchema = new mongoose.Schema({
   userId: { type: String, required: true, index: true, maxlength: 64 },

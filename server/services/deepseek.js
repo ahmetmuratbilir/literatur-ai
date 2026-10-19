@@ -15,7 +15,7 @@
  * ön eki bölmüştür.
  */
 import { fetch } from 'undici';
-import { DEEPSEEK_BASE_URL, getDeepseekModel } from '../config/aiModels.js';
+import { DEEPSEEK_BASE_URL, getDeepseekModel, keyFor } from '../config/aiModels.js';
 import { logAiUsage } from '../utils/aiUsage.js';
 
 const DEFAULT_TIMEOUT_MS = 180000;
@@ -43,7 +43,8 @@ function thinkingConfigFor(profile) {
 }
 
 function requireKey() {
-  const key = process.env.DEEPSEEK_API_KEY;
+  // Anahtar ortak kapıdan: kullanıcı kendi anahtarını bağladıysa onunki (WO-027).
+  const key = keyFor('deepseek');
   if (!key || !key.trim()) {
     throw new Error('DEEPSEEK_API_KEY tanımlı değil.');
   }

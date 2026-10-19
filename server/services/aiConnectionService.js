@@ -100,7 +100,15 @@ const TEST_URLS = {
   deepseek: 'https://api.deepseek.com/models',
   groq: 'https://api.groq.com/openai/v1/models',
   gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/models',
+  openai: 'https://api.openai.com/v1/models',
+  moonshot: 'https://api.moonshot.ai/v1/models',
+  anthropic: 'https://api.anthropic.com/v1/models',
 };
+
+// Anthropic'in model listesi kendi başlıklarını ister; diğerleri Bearer.
+const testHeaders = (provider, key) => (provider === 'anthropic'
+  ? { 'x-api-key': key, 'anthropic-version': '2023-06-01' }
+  : { Authorization: `Bearer ${key}` });
 
 /**
  * Anahtarı en küçük çağrıyla dener: model listesi (token harcamaz).
@@ -108,10 +116,10 @@ const TEST_URLS = {
  */
 export async function testKey(provider, key, fetchImpl = fetch) {
   try {
-    const res = await fetchImpl(TEST_URLS[provider], { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) });
+    const res = await fetchImpl(TEST_URLS[provider], { headers: testHeaders(provider, key), signal: AbortSignal.timeout(8000) });
     if (res.ok) return 'ok';
     if (res.status === 401 || res.status === 403) return 'invalid';
-    if (res.status === 429) return 'quota';
+    if (res.status === 429 || res.status === 402) return 'quota';
     return 'error';
   } catch {
     return 'error';

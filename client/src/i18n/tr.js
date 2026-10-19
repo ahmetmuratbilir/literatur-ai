@@ -30,7 +30,7 @@ export default {
     checked: 'son deneme: {when}',
     failed: 'İşlem yapılamadı.',
     loadFailed: 'Bağlantılar yüklenemedi. Sunucuya ulaşılamıyor olabilir.',
-    status: { ok: 'Çalışıyor', invalid: 'Anahtar geçersiz', quota: 'Kota dolu', error: 'Ulaşılamadı', unknown: 'Denenmedi' },
+    status: { ok: 'Çalışıyor', invalid: 'Anahtar geçersiz', quota: 'Kota dolu', model: 'Model açık değil', error: 'Ulaşılamadı', unknown: 'Denenmedi' },
     saved: { ok: 'Anahtar çalışıyor; artık yapay zekâ adımları bununla yapılıyor.', invalid: 'Sağlayıcı anahtarı reddetti; kaydedildi ama kullanılmıyor.', quota: 'Anahtarın kotası dolu; kaydedildi ama kullanılmıyor.', error: 'Sağlayıcıya ulaşılamadı; kaydedildi ama kullanılmıyor. Sonra "Dene" ile tekrar dene.' },
     tested: { ok: 'Anahtar çalışıyor.', invalid: 'Sağlayıcı anahtarı reddetti.', quota: 'Anahtarın kotası dolu.', error: 'Sağlayıcıya ulaşılamadı.' },
     fine: 'Anahtarın sunucuda şifreli saklanır; tamamı bir daha gösterilmez, yalnız son 4 karakter. Kendi anahtarınla gönderilen metin o sağlayıcının kullanım şartlarına tabidir. Anahtarın çalışmazsa bizim anahtarımıza sessizce geçilmez; sana söylenir.',

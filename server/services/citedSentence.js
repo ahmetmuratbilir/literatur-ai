@@ -1,5 +1,5 @@
 import { fetch } from 'undici';
-import { resolveChatProvider } from '../config/aiModels.js';
+import { resolveChatProvider, chatBody } from '../config/aiModels.js';
 import { noteProviderResponse } from './aiContext.js';
 
 /**
@@ -239,7 +239,7 @@ async function callJson(provider, body) {
   const response = await fetch(provider.url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${provider.key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(chatBody(provider, body)),
   });
   noteProviderResponse(provider, response.status);
   if (!response.ok) throw new Error(`AI saglayicisi hatasi (${response.status})`);

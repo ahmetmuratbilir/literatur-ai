@@ -78,7 +78,38 @@ export function getProviderOrder() {
   return requested.length > 0 ? requested : [...KNOWN_PROVIDERS];
 }
 
-const ENV_KEYS = { deepseek: 'DEEPSEEK_API_KEY', gemini: 'GEMINI_API_KEY', groq: 'GROQ_API_KEY' };
+const ENV_KEYS = {
+  deepseek: 'DEEPSEEK_API_KEY', gemini: 'GEMINI_API_KEY', groq: 'GROQ_API_KEY',
+  // Yalnız kullanıcının kendi anahtarıyla (WO-027); platform sırasında yoklar.
+  openai: 'OPENAI_API_KEY', moonshot: 'MOONSHOT_API_KEY', anthropic: 'ANTHROPIC_API_KEY',
+};
+
+/**
+ * Kullanıcı anahtarıyla açılan ek sağlayıcılar (WO-027). Hepsi OpenAI uyumlu
+ * sohbet ucundan çağrılır; desteklemedikleri parametreler `drop` ile atılır.
+ * Model kimlikleri ortam değişkeniyle değişir (sağlayıcı ad değiştirirse 404 →
+ * arayüz "model" der). Kaynak: sağlayıcı belgeleri, 2026-10-19 okundu.
+ *  - anthropic: OpenAI uyumlu uç; sıcaklık < 1 reddediliyor, response_format yok
+ *    sayılıyor (JSON istemde zaten isteniyor). Anthropic bu ucu "üretime hazır
+ *    değil" diye niteliyor; arayüzde "deneme" etiketi.
+ *  - moonshot (Kimi): sıcaklık sabit; düşünme kapatılır.
+ *  - openai: akıl yürüten modellerde sıcaklık desteği belgede doğrulanmadı; atılır.
+ */
+const EXTRA = {
+  openai: { url: 'https://api.openai.com/v1/chat/completions', model: () => readEnv('OPENAI_MODEL', 'gpt-6-luna'), body: {}, drop: ['temperature'] },
+  moonshot: { url: 'https://api.moonshot.ai/v1/chat/completions', model: () => readEnv('MOONSHOT_MODEL', 'kimi-k2.6'), body: { thinking: { type: 'disabled' } }, drop: ['temperature'] },
+  anthropic: { url: 'https://api.anthropic.com/v1/chat/completions', model: (profile) => (profile === 'quality' ? readEnv('ANTHROPIC_MODEL_QUALITY', 'claude-sonnet-5-5') : readEnv('ANTHROPIC_MODEL', 'claude-haiku-5-5')), body: {}, drop: ['temperature', 'response_format'] },
+};
+
+/**
+ * Sohbet isteği gövdesi: çağrının alanları + sağlayıcıya özgü alanlar, sağlayıcının
+ * desteklemediği alanlar çıkarılmış. Bütün yapay zekâ çağrıları buradan geçer.
+ */
+export function chatBody(provider, base) {
+  const body = { ...base, ...(provider?.body || {}) };
+  for (const key of provider?.drop || []) delete body[key];
+  return body;
+}
 
 /**
  * Sağlayıcının anahtarı (WO-023). Kullanıcının etkin bağlantısı varsa yalnız
@@ -105,7 +136,7 @@ export function isProviderConfigured(provider, env = process.env) {
   if (provider === 'deepseek') return Boolean(env.DEEPSEEK_API_KEY);
   if (provider === 'gemini') return Boolean(env.GEMINI_API_KEY);
   if (provider === 'groq') return Boolean(env.GROQ_API_KEY);
-  return false;
+  return Boolean(ENV_KEYS[provider] && env[ENV_KEYS[provider]]);
 }
 
 /**
@@ -154,9 +185,12 @@ export function resolveChatProvider({ profile = 'fast', preferProvider = null } 
         body: { thinking: { type: 'disabled' } },
       };
     }
-    // Gemini platform sırasında yok (yukarıdaki not); kullanıcı kendi Gemini
-    // anahtarını bağladıysa OpenAI uyumlu ucuyla kullanılır (WO-023).
-    if (provider === 'gemini' && currentAiConnection()) return chatProviderConfig('gemini', { profile });
+    // Gemini ve ek sağlayıcılar platform sırasında yok; kullanıcı kendi
+    // anahtarını bağladıysa OpenAI uyumlu ucuyla kullanılır (WO-023, WO-027).
+    if (currentAiConnection()) {
+      const config = chatProviderConfig(provider, { profile });
+      if (config) return config;
+    }
   }
   return null;
 }
@@ -177,6 +211,10 @@ export function chatProviderConfig(name, { profile = 'fast' } = {}) {
   }
   if (name === 'gemini') {
     return { name, url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', key: keyFor('gemini'), keySource: keySourceOf('gemini'), model: getGeminiModel(), body: { reasoning_effort: 'none' } };
+  }
+  const extra = EXTRA[name];
+  if (extra) {
+    return { name, url: extra.url, key: keyFor(name), keySource: keySourceOf(name), model: extra.model(profile), body: extra.body, drop: extra.drop };
   }
   return null;
 }

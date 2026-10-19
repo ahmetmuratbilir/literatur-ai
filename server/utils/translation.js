@@ -1,5 +1,5 @@
 import { fetch } from 'undici';
-import { resolveChatProvider } from '../config/aiModels.js';
+import { resolveChatProvider, chatBody } from '../config/aiModels.js';
 import { withTimeout } from './http.js';
 import { logAiUsage } from './aiUsage.js';
 import { noteProviderResponse } from '../services/aiContext.js';
@@ -36,13 +36,12 @@ async function requestGroqJson({ apiKey, prompt, temperature, timeoutMessage, ta
             Authorization: `Bearer ${provider.key}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
+          body: JSON.stringify(chatBody(provider, {
             model: provider.model,
             messages: [{ role: 'user', content: prompt }],
             temperature,
             response_format: { type: 'json_object' },
-            ...(provider.body || {}),
-          }),
+          })),
         }),
         TRANSLATE_TIMEOUT_MS,
         timeoutMessage

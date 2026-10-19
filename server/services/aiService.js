@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { getGroqModel, getGeminiModel, getDeepseekModel, getActiveProviders } from '../config/aiModels.js';
+import { getGroqModel, getGeminiModel, getDeepseekModel, getActiveProviders, keyFor } from '../config/aiModels.js';
 import { streamWithDeepseek } from './deepseek.js';
 import { fetch } from 'undici';
 import { createChunksFromArticles, scoreChunksByKeywords, buildContextFromChunks } from './ragService.js';
@@ -131,8 +131,9 @@ export function resolveGeminiFallback({ tokensSent }) {
 }
 
 export async function generateAcademicText(safePapers, prompt, outputType, tone, length, language, res, req, bibliographyFormat = 'APA 7') {
-  const geminiKey = process.env.GEMINI_API_KEY;
-  const groqKey = process.env.GROQ_API_KEY;
+  // Anahtarlar ortak kapıdan (WO-027): kullanıcı anahtarı varken platform anahtarı okunmaz.
+  const geminiKey = keyFor('gemini');
+  const groqKey = keyFor('groq');
   const isRequestAborted = () => Boolean(req?.aborted || res?.writableEnded || res?.destroyed);
   const buildRequestHash = (fingerprint) =>
     crypto.createHash('sha256').update(JSON.stringify(fingerprint)).digest('hex');
