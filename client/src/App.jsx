@@ -45,6 +45,7 @@ import HistorySidebar from './components/HistorySidebar';
 const WriterPanel = lazy(() => import('./components/WriterPanel'));
 import ShareModal from './components/ShareModal';
 import LandingPage from './components/landing/LandingPage';
+import HomeResume from './components/HomeResume.jsx';
 // Yeni açılış sayfası (ana sayfa v9). Varsayılan değil: yalnız ?giris=yeni ile
 // açılır; eski LandingPage'in silinmesi kullanıcı kararı (19.10.2026).
 const LandingNew = lazy(() => import('./components/landing/LandingNew.jsx'));
@@ -70,7 +71,7 @@ import AuthorPanel from './components/AuthorPanel';
 // sonra bağlı kalır (belge ve ayarlar kaybolmasın).
 const Workspace = lazy(() => import('./components/workspace/Workspace'));
 import { mergeAuthorPage, applyRetractions } from './utils/authorResults';
-import AiAnalysisPanel from './components/AiAnalysisPanel';
+import AiAnalysisPanel, { AiAnalysisSkeleton } from './components/AiAnalysisPanel';
 import { useShare } from './hooks/useShare';
 import { useExport } from './hooks/useExport';
 import { useDrafts } from './components/workspace/useDrafts.js';
@@ -1016,11 +1017,24 @@ function App() {
               )}
             </section>
 
+            {/* A2 (WO-026 Faz 4): kaldığın yer — yalnız kullanıcının kendi verisi. */}
+            {!data && !loading && !aiAnalysis && !aiLoading && !error && (
+              <HomeResume
+                drafts={drafts.items}
+                basketCount={basket.papers.length}
+                onOpenDraft={openDraft}
+                onOpenBasket={() => window.dispatchEvent(new Event('openBasket'))}
+                onPickTopic={(topic) => { setMainTopic(topic); requestAnimationFrame(() => document.getElementById('topic-input')?.focus()); }}
+              />
+            )}
+
             <AnimatePresence>
               {/* Bekleme (WO-021, §3.1): < 2 sn yalnız düğme; sonra iskelet, gerçek süre, İptal. */}
               {loading && <SearchWaiting key="wait" elapsed={searchElapsed} onCancel={cancelSearch} />}
             </AnimatePresence>
 
+            {/* T3 (WO-026 Faz 4): AI yaklaşımları beklenirken sonuç biçiminde iskelet. */}
+            {aiLoading && !aiAnalysis && !loading && <AiAnalysisSkeleton />}
             <AnimatePresence>
               {aiAnalysis && !loading && (
                 <AiAnalysisPanel

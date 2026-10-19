@@ -1,9 +1,27 @@
 import { forwardRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { useI18n } from '../i18n/context.js';
 
 const MotionDiv = motion.div;
+const MotionButton = motion.button;
+
+/**
+ * "AI ile geliştir" beklerken (WO-026 Faz 4, T3): sonuç biçiminde iskelet satırlar.
+ * Bekleme gerçek (istek sürüyor); sahte "düşünüyor" aşaması yok.
+ */
+export function AiAnalysisSkeleton() {
+  const { t } = useI18n();
+  return (
+    <div className="ui-panel ai-panel ai-panel--skel" role="status" aria-live="polite" data-testid="ai-skeleton">
+      <span className="ui-sr-only">{t('ai.loading')}</span>
+      <div className="ai-skel ai-skel--title" aria-hidden="true" />
+      {[78, 64, 86, 58, 70].map((w) => (
+        <div key={w} className="ai-skel ai-skel--row" style={{ width: `${w}%` }} aria-hidden="true" />
+      ))}
+    </div>
+  );
+}
 
 /** Yaklaşımın kavramları; eski kayıtlarda (kavram listesi yokken) Boolean sorgudan çıkarılır. */
 function conceptsOf(query) {
@@ -24,6 +42,7 @@ function conceptsOf(query) {
  */
 const AiAnalysisPanel = forwardRef(({ analysis, onPick }, ref) => {
   const { t } = useI18n();
+  const reduced = useReducedMotion();
   const queries = Array.isArray(analysis.queries) ? analysis.queries : [];
   const coreConcepts = new Set(
     (Array.isArray(analysis.keywords) ? analysis.keywords : [])
@@ -52,8 +71,12 @@ const AiAnalysisPanel = forwardRef(({ analysis, onPick }, ref) => {
       <h4 className="ui-section-label ai-panel__label">{t('ai.suggested')}</h4>
       <div className="ai-rows">
         {queries.map((q, i) => (
-          <button
+          // T1: satırlar 80 ms arayla yerine oturur; hareket azaltmada hemen.
+          <MotionButton
             key={`${i}-${q.text}`}
+            initial={reduced ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: reduced ? 0 : i * 0.08, duration: 0.22 }}
             type="button"
             className="ai-row"
             onClick={() => onPick(q)}
@@ -64,7 +87,7 @@ const AiAnalysisPanel = forwardRef(({ analysis, onPick }, ref) => {
                 <span key={c} className={`ai-row__concept${coreConcepts.has(String(c).toLowerCase()) ? ' ai-row__concept--core' : ''}`}>{c}</span>
               ))}
             </span>
-          </button>
+          </MotionButton>
         ))}
       </div>
     </MotionDiv>

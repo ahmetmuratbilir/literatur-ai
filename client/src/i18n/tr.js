@@ -286,6 +286,7 @@ export default {
     title: 'AI araştırma analizi',
     goal: 'Hedef:',
     suggested: 'Önerilen aramalar',
+    loading: 'Arama yaklaşımları hazırlanıyor…',
   },
   results: {
     filter: {
@@ -891,6 +892,16 @@ export default {
       desc: 'Kanıta bağlı yazım yardımcısı. Her cümle doğrulanabilir bir pasaja bağlanır.',
       h1: 'Ürün', h2: 'Kaynaklar', h3: 'Hesap', data: 'Veri kaynakları', contact: 'İletişim',
     },
+  },
+  // Arama ana sayfası "kaldığın yer" (WO-026 Faz 4)
+  home: {
+    resumeLabel: 'Kaldığın yer',
+    lastDraft: 'Son taslağın',
+    basketCount: '{n} makale tuttun',
+    basketHint: 'Yaz bölümünde onlarla yazabilirsin',
+    examplesLabel: 'Örnek konular',
+    examplesLead: 'Nereden başlayacağını bilmiyorsan bir konu dene',
+    example: 'örnek',
   },
   basket: {
     title: 'Makalen için',

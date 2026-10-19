@@ -283,6 +283,7 @@ export default {
     title: 'AI research analysis',
     goal: 'Goal:',
     suggested: 'Suggested searches',
+    loading: 'Preparing search approaches…',
   },
   results: {
     filter: {
@@ -888,6 +889,16 @@ export default {
       desc: 'Evidence-bound writing assistant. Every sentence is tied to a verifiable passage.',
       h1: 'Product', h2: 'Sources', h3: 'Account', data: 'Data sources', contact: 'Contact',
     },
+  },
+  // Search home "where you left off" (WO-026 Phase 4)
+  home: {
+    resumeLabel: 'Where you left off',
+    lastDraft: 'Your last draft',
+    basketCount: '{n} papers kept',
+    basketHint: 'Write with them in the Write section',
+    examplesLabel: 'Example topics',
+    examplesLead: 'Not sure where to start? Try a topic',
+    example: 'example',
   },
   basket: {
     title: 'Kept for your paper',
