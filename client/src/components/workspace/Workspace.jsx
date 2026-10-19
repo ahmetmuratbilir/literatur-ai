@@ -4,7 +4,7 @@ import axios from 'axios';
 import {
   AlignCenter, AlignJustify, AlignLeft, ArrowLeft, Bold, Check, ChevronDown, ChevronLeft, ChevronRight,
   ClipboardCheck, Download, FileText, History, Info, Italic, LayoutTemplate, Library, List, ListChecks, ListOrdered, ListTree,
-  PanelRightClose, PanelRightOpen, Plus, Printer, Quote, Redo2, RefreshCw, RotateCcw, Search, SlidersHorizontal, Table2,
+  PanelRightClose, PanelRightOpen, Plus, Printer, Quote, Redo2, RefreshCw, RotateCcw, Search, SlidersHorizontal, Table2, Shapes, BarChart3,
   Underline, Undo2, Upload, X, MoreHorizontal, PlusSquare, Sparkles, Superscript, Subscript, Highlighter, RemoveFormatting,
 } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
@@ -34,6 +34,7 @@ import { SUPPORT_SHAPES, isSettled, locateSpan, refusalKey, supportLabel } from 
 import VisualPanel from './VisualPanel.jsx';
 import TableGridPicker from './TableGridPicker.jsx';
 import TableToolbar from './TableToolbar.jsx';
+import FigureDraft from './FigureDraft.jsx';
 import {
   captionHtml, captionLine, captionTitle, createGrid, emptyTableHtml, gridFromRows, newVisualId, tableHtml,
 } from '../../visuals/table.js';
@@ -137,6 +138,8 @@ const cssFont = (f) => `"${String(f || 'Times New Roman').replace(/"/g, '')}", s
 function serialize(el) {
   if (!el) return '';
   const clone = el.cloneNode(true);
+  // Şekil/grafik taslak alanının yer tutucusu belgede değildir (WO-028, tüzük 2.9).
+  clone.querySelectorAll('[data-draft-spacer]').forEach((node) => node.remove());
   clone.querySelectorAll('.wx-flash').forEach((node) => {
     node.classList.remove('wx-flash');
     if (!node.getAttribute('class')) node.removeAttribute('class');
@@ -145,7 +148,9 @@ function serialize(el) {
 }
 
 /** İçinde yazı, resim ya da tablo olmayan paragraf: yeni tablo onun yerine girer. */
-const isEmptyBlock = (block) => block?.tagName === 'P' && !block.textContent.trim() && !block.querySelector('img, table');
+const isEmptyBlock = (block) => block?.tagName === 'P' && !block.textContent.trim() && !block.querySelector('img, table, svg');
+/** Öznitelik değeri için kaçış (şekil durumu JSON'u data-visual-state içinde). */
+const escapeAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** Hedef bloğa girecek tablonun numarası (WO-019): öncesindeki tablo başlıkları + 1. */
 function tableNumberAt(el, block) {
@@ -168,10 +173,18 @@ function tableNumberAt(el, block) {
  *    başlık sayılır ama değiştirilmez (Kontrol sıra bozukluğunu söylüyor).
  */
 function syncCaptions(el, word) {
+  // Tablo başlığı tablonun ÜSTÜNDE, şekil başlığı şeklin ALTINDA (WO-028; Türkçe
+  // tez kılavuzlarının yaygın düzeni).
+  const ownerOf = (p) => {
+    const kind = captionOf(p.textContent)?.kind;
+    const next = p.nextElementSibling;
+    const prev = p.previousElementSibling;
+    if (kind === 'table' && next?.tagName === 'TABLE' && next.dataset.visualId === p.dataset.captionFor) return next;
+    if (kind === 'figure' && prev?.tagName === 'FIGURE' && prev.dataset.visualId === p.dataset.captionFor) return prev;
+    return null;
+  };
   for (const p of el.querySelectorAll(':scope > p[data-caption-for]')) {
-    const table = p.nextElementSibling;
-    const linked = table?.tagName === 'TABLE' && table.dataset.visualId === p.dataset.captionFor;
-    if (!linked || captionOf(p.textContent)?.kind !== 'table') {
+    if (!ownerOf(p)) {
       p.removeAttribute('data-caption-for');
       p.classList.remove('wx-caption');
       if (!p.getAttribute('class')) p.removeAttribute('class');
@@ -184,11 +197,25 @@ function syncCaptions(el, word) {
       prev.classList.add('wx-caption');
     }
   }
-  let n = 0;
+  for (const fig of el.querySelectorAll(':scope > figure[data-visual-id]')) {
+    const next = fig.nextElementSibling;
+    if (next?.tagName === 'P' && !next.dataset.captionFor && captionOf(next.textContent)?.kind === 'figure') {
+      next.dataset.captionFor = fig.dataset.visualId;
+      next.classList.add('wx-caption');
+    }
+  }
+  const counts = { table: 0, figure: 0 };
   for (const block of el.children) {
-    if (captionOf(block.textContent)?.kind !== 'table') continue;
-    n += 1;
+    const kind = captionOf(block.textContent)?.kind;
+    if (!kind) continue;
+    counts[kind] += 1;
+    const n = counts[kind];
     if (!block.dataset.captionFor) continue;
+    if (kind === 'figure') {
+      const seq = block.querySelector('[data-seq]');
+      if (seq && seq.textContent !== String(n)) seq.textContent = String(n);
+      continue;
+    }
     const seq = block.querySelector('[data-seq]');
     if (seq) {
       if (seq.textContent !== String(n)) seq.textContent = String(n);
@@ -317,7 +344,7 @@ export default function Workspace({
   basket, apiUrl, getToken, hidden = false, onExit,
   embedded = false, apiRef = null, onSnapshot = null, onFindSources = null,
   draftId = null, onSaved = null, initialData = null, onConflict = null, panelRequest = null,
-  visualsEnabled = false, tablesEnabled = false,
+  visualsEnabled = false, tablesEnabled = false, figuresEnabled = false,
 }) {
   const { t, lang } = useI18n();
   const { askConfirm } = useDialogs();
@@ -432,6 +459,8 @@ export default function Workspace({
   const visualModeRef = useRef(null);
   // Word gibi tablo (WO-025): imlecin bulunduğu belge tablosu ve hücresi.
   const [tableCtx, setTableCtx] = useState(null);
+  // Şekil/grafik taslak alanı (WO-028): { mode, editId, initial, number, sourceText, sourceRows } ya da null.
+  const [figDraft, setFigDraft] = useState(null);
   useEffect(() => { visualModeRef.current = visual?.mode || null; }, [visual?.mode]);
   // Kullanıcının "iddia / iddia değil" kararları, cümle metnine bağlı (§5).
   const overridesRef = useRef(saved?.overrides || {});
@@ -576,6 +605,10 @@ export default function Workspace({
     let refsLevel = 0;
 
     for (const block of el.children) {
+      // Şekil/grafik ve taslak yer tutucusu metin değildir (WO-028): kelime
+      // sayımına, iddia taramasına ve denetime girmez (şekildeki etiketler
+      // cümle sayılıp "atıfsız iddia" diye işaretleniyordu).
+      if (block.tagName === 'FIGURE' || block.dataset?.draftSpacer) continue;
       // Rehber satırı yalnız başlığın hemen altındaki paragrafta kalır. Enter
       // özniteliği yeni paragrafa kopyalar; her boş satırda rehber çıkmasın.
       if (block.hasAttribute('data-hint') && !/^H[1-6]$/.test(block.previousElementSibling?.tagName || '')) {
@@ -1459,7 +1492,7 @@ export default function Workspace({
   const exportWord = async () => {
     closeMenu();
     const { exportDocx } = await import('./exportDocument.js');
-    await exportDocx({ root: pageRef.current, setup, title: title || t('workspace.untitled'), pageLabel: t('workspace.pageWord') });
+    await exportDocx({ root: pageRef.current, setup, title: title || t('workspace.untitled'), pageLabel: t('workspace.pageWord'), figurePlaceholder: (n) => t('workspace.figure.wordPlaceholder', { n }) });
   };
 
   const printDocument = () => {
@@ -1995,6 +2028,9 @@ export default function Workspace({
   };
 
   const onPageClick = (e) => {
+    // Belgedeki şekle/grafiğe tıklamak taslak alanı yeniden açar (WO-028).
+    const fig = figuresEnabled && !readOnly ? e.target.closest?.('figure.wx-vfig') : null;
+    if (fig && fig.parentNode === pageRef.current) { openFigureDraft(fig.dataset.visualKind === 'chart' ? 'chart' : 'figure', fig); return; }
     const table = visualsEnabled && !readOnly ? e.target.closest?.('table') : null;
     if (table && table.parentNode === pageRef.current) openTableEdit(table);
     openCitationAtCaret();
@@ -2163,6 +2199,99 @@ export default function Workspace({
       case 'delete': deleteWordTable(table); break;
       default: break;
     }
+  };
+
+  // --- Şekil ve grafik: Napkin gibi taslak alan (WO-028) ----------------------
+  // Belgeye yalnız boş bir yer tutucu (contenteditable=false, kayda girmez) konur;
+  // düzenleyici belgenin DIŞINDA onun üstünde durur (tarayıcı düzenlemesi React'i
+  // bozmasın). "Tamam" yer tutucuyu şekil + "Şekil N." başlığıyla değiştirir
+  // (insertHTML: Ctrl+Z geri alır). "Vazgeç" yer tutucuyu kaldırır.
+  const DRAFT_H = 520;
+
+  const removeSpacer = () => {
+    const el = pageRef.current;
+    el?.querySelectorAll('[data-draft-spacer]').forEach((n) => n.remove());
+  };
+
+  const openFigureDraft = (mode, figure = null) => {
+    closeMenu();
+    const el = pageRef.current;
+    if (!el || readOnly) return;
+    removeSpacer();
+    let anchor = figure;
+    if (!anchor) {
+      anchor = lastRangeRef.current && el.contains(lastRangeRef.current.startContainer)
+        ? topBlock(el, lastRangeRef.current.startContainer) : null;
+    }
+    const spacer = document.createElement('div');
+    spacer.className = 'wx-draft-spacer';
+    spacer.dataset.draftSpacer = '1';
+    spacer.contentEditable = 'false';
+    spacer.style.height = `${DRAFT_H}px`;
+    if (figure) {
+      const cap = figure.nextElementSibling?.dataset.captionFor === figure.dataset.visualId ? figure.nextElementSibling : null;
+      (cap || figure).after(spacer);
+    } else if (anchor && isEmptyBlock(anchor)) anchor.before(spacer);
+    else if (anchor) anchor.after(spacer);
+    else el.append(spacer);
+    // "Paragraftan al" / "Tablodan al": hedef paragrafın metni, hedef tablonun ilk iki sütunu.
+    const sourceText = anchor && !figure && anchor.tagName !== 'TABLE' ? anchor.textContent : '';
+    const table = anchor?.tagName === 'TABLE' ? anchor : (anchor?.previousElementSibling?.tagName === 'TABLE' ? anchor.previousElementSibling : null);
+    const sourceRows = table ? [...table.tBodies].flatMap((b) => [...b.rows]).map((tr) => ({ label: tr.cells[0]?.textContent.trim() || '', value: tr.cells[1]?.textContent.trim() || '' })).filter((r) => r.label || r.value) : [];
+    let initial = null;
+    if (figure) {
+      try { initial = JSON.parse(figure.dataset.visualState || 'null'); } catch { initial = null; }
+    }
+    const figs = [...el.children].filter((b) => captionOf(b.textContent)?.kind === 'figure');
+    const number = figure
+      ? (captionOf(figure.nextElementSibling?.textContent)?.n || figs.length)
+      : [...el.children].slice(0, [...el.children].indexOf(spacer)).filter((b) => captionOf(b.textContent)?.kind === 'figure').length + 1;
+    setFigDraft({ mode: initial?.mode || mode, editId: figure?.dataset.visualId || null, initial, number, sourceText, sourceRows, spacer, tick: Date.now() });
+    requestAnimationFrame(() => spacer.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+  };
+
+  const cancelFigureDraft = () => {
+    removeSpacer();
+    setFigDraft(null);
+  };
+
+  const finishFigureDraft = ({ type, data, title, svg }) => {
+    const el = pageRef.current;
+    const spacer = el?.querySelector('[data-draft-spacer]');
+    if (!el || !figDraft) return;
+    const id = figDraft.editId || newVisualId();
+    const state = { mode: figDraft.mode, type, data, title };
+    const word = t('audit.kind.figure');
+    const html = `<figure class="wx-vfig" data-visual-id="${id}" data-visual-kind="${figDraft.mode}" data-visual-state="${escapeAttr(JSON.stringify(state))}" contenteditable="false">${svg}</figure>`
+      + captionHtml({ id, word, n: figDraft.number, title, kind: 'figure' });
+    el.focus({ preventScroll: true });
+    const range = document.createRange();
+    const editing = figDraft.editId ? [...el.querySelectorAll(':scope > figure')].find((f) => f.dataset.visualId === figDraft.editId) : null;
+    // Şeklin arkasında yazmaya devam edilecek bir satır her zaman olsun.
+    let trailing = false;
+    if (editing) {
+      removeSpacer();
+      const cap = editing.nextElementSibling?.dataset.captionFor === editing.dataset.visualId ? editing.nextElementSibling : null;
+      range.setStartBefore(editing);
+      range.setEndAfter(cap || editing);
+    } else if (spacer) {
+      const after = spacer.nextSibling;
+      const parent = spacer.parentNode;
+      spacer.remove();
+      if (after) range.setStartBefore(after); else range.setStart(parent, parent.childNodes.length);
+      range.collapse(true);
+      trailing = !after;
+    } else {
+      range.setStart(el, el.childNodes.length);
+      range.collapse(true);
+      trailing = true;
+    }
+    selectRange(range);
+    // Sonda her zaman boş satır: yoksa Chrome başlık paragrafını sonraki paragrafla
+    // birleştiriyor ve numara düğümü kayboluyordu (e2e ile yakalandı).
+    document.execCommand('insertHTML', false, html + (trailing || !editing ? '<p><br></p>' : ''));
+    syncCaptions(el, t('audit.kind.table'));
+    setFigDraft(null);
   };
 
   /** Hücre içinde klavye (Word): Tab gezinir, son hücrede yeni satır; Enter satır sonu; Alt+Shift+↑↓ satırı taşır. */
@@ -2893,12 +3022,23 @@ export default function Workspace({
                       title={t('workspace.table.button')}
                       data-action="write-table"
                     >
-                      <Table2 size={15} /> <span className="wx-hide-sm">{t('workspace.table.button')}</span> <ChevronDown size={13} />
+                      <Table2 size={15} /> <ChevronDown size={13} />
                     </button>
                     <Popover open={menu === 'table'} onClose={closeMenu} label={t('workspace.table.gridLabel')}>
                       <TableGridPicker onPick={insertWordTable} />
                     </Popover>
                   </div>
+                  {/* Şekil ve grafik (WO-028): seçili paragrafın altında taslak alan açar. */}
+                  {figuresEnabled && (
+                    <>
+                      <button type="button" className="wx-btn wx-btn--ghost wx-tablebtn" onMouseDown={(e) => e.preventDefault()} onClick={() => openFigureDraft('figure')} title={t('workspace.figure.figureButtonHint')} aria-label={t('workspace.figure.figureButton')} data-action="write-figure">
+                        <Shapes size={15} />
+                      </button>
+                      <button type="button" className="wx-btn wx-btn--ghost wx-tablebtn" onMouseDown={(e) => e.preventDefault()} onClick={() => openFigureDraft('chart')} title={t('workspace.figure.chartButtonHint')} aria-label={t('workspace.figure.chartButton')} data-action="write-chart">
+                        <BarChart3 size={15} />
+                      </button>
+                    </>
+                  )}
                   <span className="wx-divider" />
                 </>
               )}
@@ -3078,8 +3218,8 @@ export default function Workspace({
                   </Popover>
                 </div>
                 <div className="wx-anchor">
-                  <button type="button" className="wx-btn wx-btn--ghost" aria-expanded={menu === 'page'} onClick={() => toggleMenu('page')}>
-                    <SlidersHorizontal size={15} /> <span className="wx-hide-sm">{t('workspace.pageSettings')}</span>
+                  <button type="button" className="wx-btn wx-btn--ghost" aria-expanded={menu === 'page'} onClick={() => toggleMenu('page')} title={t('workspace.pageSettings')} aria-label={t('workspace.pageSettings')}>
+                    <SlidersHorizontal size={15} />
                   </button>
                   <Popover open={menu === 'page'} onClose={closeMenu} label={t('workspace.pageSettings')}>
                     <div className="wx-form">
@@ -3285,6 +3425,23 @@ export default function Workspace({
                   onClick={onPageClick}
                   onKeyDown={onPageKeyDown}
                 />
+                {/* Şekil/grafik taslak alanı (WO-028): belgedeki yer tutucunun üstünde, belgenin dışında. */}
+                {figuresEnabled && figDraft?.spacer?.isConnected && (() => {
+                  const { spacer } = figDraft;
+                  return (
+                    <FigureDraft
+                      key={figDraft.tick}
+                      mode={figDraft.mode}
+                      initial={figDraft.initial}
+                      sourceText={figDraft.sourceText}
+                      sourceRows={figDraft.sourceRows}
+                      number={figDraft.number}
+                      style={{ top: spacer.offsetTop, left: spacer.offsetLeft, width: spacer.offsetWidth, height: DRAFT_H }}
+                      onDone={finishFigureDraft}
+                      onCancel={cancelFigureDraft}
+                    />
+                  );
+                })()}
                 {/* Yeni tablonun gireceği yer (WO-019): belgeye dokunmaz, yalnız gösterir. */}
                 {visual?.mode === 'new' && sideOpen && sideView === 'visual' && visualTarget?.isConnected && (
                   <div

@@ -108,6 +108,9 @@ const VISUALS_ENABLED = false;
 // tablo araç çubuğu. false iken düğme ve araç çubuğu görünmez; belgedeki
 // tablolar normal tablo olarak kalır.
 const TABLES_ENABLED = true;
+// Şekil ve grafik (WO-028): biçim çubuğunda Şekil/Grafik, seçili paragrafın
+// altında taslak alan, "Tamam" ile belgeye. false iken belgedeki şekiller kalır.
+const FIGURES_ENABLED = true;
 // WO-010'un uygulama kabuğu (ray, sekmeler, Alanım/Kaynaklar/Denetim sayfaları)
 // kullanıcı kararıyla kaldırıldı (15.10.2026, WO-011): araştırma modu eski
 // düzeninde, yeni tasarım yalnız yazar modunda. Eski adresler modeRoutes.js'te
@@ -1328,6 +1331,7 @@ function App() {
                 panelRequest={writerPanel}
                 visualsEnabled={VISUALS_ENABLED}
                 tablesEnabled={TABLES_ENABLED}
+                figuresEnabled={FIGURES_ENABLED}
               />
             </Suspense>
             </ErrorBoundary>

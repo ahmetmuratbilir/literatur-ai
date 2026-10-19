@@ -771,6 +771,7 @@ gerçek değerler bu tabloda tutulmaz, panelden okunur.
 | `AUTHOR_MODE_ENABLED` | `client/src/App.jsx` (sabit) | `true` | Yazar araması (panel bayrağı kapalıyken arama kartında sekme) |
 | `AUTHOR_PANEL_ENABLED` | `client/src/App.jsx` (sabit) | `true` — yalnız `wo-002-yazar-paneli` dalında | Araştırmacı paneli sekmesi (WO-002) |
 | `WORKSPACE_ENABLED` | `client/src/App.jsx` (sabit) | `true` — yalnız aynı dalda | Çalışma alanı sekmesi (WO-003) |
+| `FIGURES_ENABLED` | `client/src/App.jsx` (sabit) | `true` — yalnız `wo-028-sekil-grafik` dalında | Şekil ve grafik (WO-028): biçim çubuğunda Şekil/Grafik, seçili paragrafın altında taslak alan, "Tamam" ile belgeye; Word'e SVG + PNG yedeği |
 | `TABLES_ENABLED` | `client/src/App.jsx` (sabit) | `true` — yalnız `wo-025-word-tablo` dalında | Word gibi tablo (WO-025): biçim çubuğunda Tablo ızgarası, belgede düzenleme, tablo araç çubuğu |
 | `AI_WRITER_PANEL_ENABLED` | `client/src/App.jsx` (sabit) | `false` (13 Eki 2026 ürün kararı) | Eski "AI Yazar" paneli: bölüm üreten akış. Kapalıyken "AI Yazar" düğmesi çalışma alanını açar |
 | `VISUALS_ENABLED` | `client/src/App.jsx` (sabit) | `false` (19.10.2026: sağ panel düzenleyicisi beğenilmedi, Word'deki gibi yeniden yapılacak) | Görsel paneli (WO-019 Faz 1): Ekle › Tablo…, sağ panelde "Görsel" sekmesi, belgedeki tabloya tıklayınca düzenleme. Kapalıyken tablolar belgede normal tablo olarak kalır |

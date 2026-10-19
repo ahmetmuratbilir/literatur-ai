@@ -1,5 +1,5 @@
 import {
-  AlignmentType, BorderStyle, Document, Footer, Header, HeadingLevel, Packer, PageNumber, Paragraph, SequentialIdentifier,
+  AlignmentType, BorderStyle, Document, Footer, Header, HeadingLevel, ImageRun, Packer, PageNumber, Paragraph, SequentialIdentifier,
   Table, TableCell, TableRow, TextRun, WidthType, convertMillimetersToTwip,
 } from 'docx';
 import { saveAs } from 'file-saver';
@@ -99,11 +99,55 @@ function tableOf(el) {
   return new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE }, borders });
 }
 
-/** Belge gövdesindeki öğeleri docx paragraflarına çevirir. */
-export function blocksToParagraphs(root) {
+/**
+ * Şekli (WO-028) Word'e gömülecek biçime çevirir: SVG (Word 365 vektör çizer) +
+ * PNG yedeği (eski Word). Tarayıcıda tuvalle; olmazsa null → yer tutucu metin.
+ */
+export async function figureImage(svgText, { maxWidth = 580, scale = 2 } = {}) {
+  try {
+    const m = svgText.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+    const w = m ? Number(m[1]) : 640;
+    const h = m ? Number(m[2]) : 360;
+    const url = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml' }));
+    try {
+      const img = new Image();
+      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = url; });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(w * scale);
+      canvas.height = Math.round(h * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) return null;
+      const k = Math.min(1, maxWidth / w);
+      return { svg: new TextEncoder().encode(svgText), png: new Uint8Array(await blob.arrayBuffer()), width: Math.round(w * k), height: Math.round(h * k) };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  } catch {
+    return null;
+  }
+}
+
+/** Belge gövdesindeki öğeleri docx paragraflarına çevirir. `images`: şekil öğesi → figureImage sonucu. */
+export function blocksToParagraphs(root, { images = new Map(), figurePlaceholder = (n) => `[Şekil ${n}]` } = {}) {
   const out = [];
+  let figureNo = 0;
   for (const el of root.children) {
     const tag = el.tagName;
+    // Taslak alanın yer tutucusu belgede değildir (WO-028).
+    if (el.dataset?.draftSpacer) continue;
+    if (tag === 'FIGURE' && el.classList.contains('wx-vfig')) {
+      figureNo += 1;
+      const image = images.get(el);
+      out.push(image
+        ? new Paragraph({ alignment: AlignmentType.CENTER, keepNext: true, children: [new ImageRun({ type: 'svg', data: image.svg, fallback: { type: 'png', data: image.png }, transformation: { width: image.width, height: image.height }, altText: { name: `figure-${figureNo}`, description: el.querySelector('svg')?.getAttribute('aria-label') || '', title: `figure-${figureNo}` } })] })
+        // Görüntü üretilemezse sessizce kaybolmaz (2.8).
+        : new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: figurePlaceholder(figureNo), italics: true })] }));
+      continue;
+    }
     if (HEADINGS[tag]) {
       out.push(paragraphOf(el, { heading: HEADINGS[tag] }));
     } else if (tag === 'UL' || tag === 'OL') {
@@ -130,7 +174,14 @@ export function blocksToParagraphs(root) {
 /**
  * @param pageLabel  sayfa numarası öneki ("Sayfa"); `setup.pageNumbers` kapalıysa numara yok
  */
-export async function exportDocx({ root, setup, title, pageLabel = 'Sayfa' }) {
+export async function exportDocx({ root, setup, title, pageLabel = 'Sayfa', figurePlaceholder }) {
+  const images = new Map();
+  for (const fig of root.querySelectorAll(':scope > figure.wx-vfig')) {
+    const svgEl = fig.querySelector('svg');
+    if (!svgEl) continue;
+    const image = await figureImage(svgEl.outerHTML);
+    if (image) images.set(fig, image);
+  }
   const g = pageGeometry(setup);
   // Sayfa numarası ve üst bilgi (WO-011 Faz 2): ekrandaki Teslim önizlemesiyle aynı ayar.
   const footers = setup.pageNumbers === false ? undefined : {
@@ -170,7 +221,7 @@ export async function exportDocx({ root, setup, title, pageLabel = 'Sayfa' }) {
       },
       headers,
       footers,
-      children: blocksToParagraphs(root),
+      children: blocksToParagraphs(root, { images, figurePlaceholder }),
     }],
   });
   const blob = await Packer.toBlob(doc);

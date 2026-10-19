@@ -2,7 +2,7 @@
 
 | Alan | Değer |
 | --- | --- |
-| Durum | Taslak (19.10.2026) — kapsam kullanıcı kararından; ayrıntı WO-026 sonrası netleşir |
+| Durum | Çalışıyor (19.10.2026, kullanıcı: "devam et"). İlk sürüm şablonları Claude seçti (galeri kararı verilmemişti; karar daha önce Claude'a bırakılmıştı): Akış, Döngü, Karşılaştırma, Zaman çizelgesi; grafik: Çubuk, Çizgi |
 | Kapsam | Yazım yüzeyi + çizici + dışa aktarma |
 | Dosya değişikliği | İzinli (liste aşağıda) |
 | Tahmini süre | 2–3 oturum |
@@ -51,11 +51,16 @@
 ## Onay gereken noktalar
 - Galerideki şablonlardan hangileri ilk sürüme girer (öneri: galeride "Kalsın" alanlar).
 
-## Bitiş raporu
-- Değişen dosyalar:
-- Teknik kararlar ve gerekçeleri:
-- Çalıştırılan testler ve gerçek çıktıları:
-- Ölçülen etki:
-- Bilinen eksikler:
-- Sonraki adım:
-- **Durum:**
+## Bitiş raporu (19.10.2026, dal `wo-028-sekil-grafik`)
+- **Değişen dosyalar:** yeni `client/src/visuals/draw.js` (saf SVG çizici), `client/src/components/workspace/FigureDraft.jsx` (taslak alan), `client/tests/draw.test.js`, `client/e2e/figure-chart.spec.js`; `Workspace.jsx` (düğmeler, yer tutucu, Tamam/Vazgeç, şekle tıklayınca düzenleme, şekil başlığı numarası, şekiller sayım ve taramadan hariç), `exportDocument.js` (Word'e SVG + PNG yedeği), `workspace.css`, i18n, `App.jsx` (`FIGURES_ENABLED`), `CLAUDE.md` 3.12.
+- **Kararlar:**
+  - İlk sürüm şablonları Claude seçti (galeri kararı yoktu): Akış, Döngü, Karşılaştırma, Zaman çizelgesi; Çubuk ve Çizgi grafik.
+  - Grafikler recharts yerine kendi SVG çizicimizle: belgeye ve Word'e tek parça, foreignObject'siz SVG gerekiyor. recharts bağımlılığı duruyor.
+  - Şekil başlığı şeklin altında, tablo başlığı tablonun üstünde (Türkçe tez düzeni). Numara ayrı düğüm, kendini onarır (WO-025 altyapısı).
+  - Eklemenin sonunda her zaman boş satır: yoksa Chrome başlığı sonraki paragrafla birleştirip numarayı siliyordu (e2e yakaladı).
+  - Biçim çubuğunda yer açmak için Tablo, Şekil, Grafik ve Sayfa ayarları yalnız simge (ipucu ve erişilebilir ad var).
+- **Testler (çalıştırıldı):** istemci birim 345/345, lint temiz, sunucu 462/462, e2e 103 geçti / 3 atlandı (yeni figure-chart 2/2: taslak belgede değil, Paragraftan al, Tamam, Ctrl+Z/Y, yeniden düzenle, grafikte sayı olmayan satır sayılır, numara 1-2, Word'de 2 görüntü + SEQ Şekil). `npm run build` antivirüs kilidiyle düştü (bilinen); `vite build` ile ayrıca denenmedi.
+- **Ölçülen etki:** ölçülmedi (görsel tasarım, tüzük 4.7).
+- **Bilinen eksikler:** galerinin diğer 20 şablonu; şekilde etiketten kaynak cümleye bağ (WO-016 eşleştirme) yok; PDF'e gömme ayrıca denenmedi; Word'deki SVG'nin yazı tipi sistemden (gömülü Noto yok, WO-008).
+- **Sonraki adım:** Ahmet elle dener; hangi şablonların ekleneceğini galeriden seçer.
+- **Durum:** NEEDS ATTENTION — elle deneme bekliyor.
