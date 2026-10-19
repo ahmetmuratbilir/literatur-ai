@@ -235,19 +235,12 @@ export default {
     viewing: 'Viewing a shared search',
     startOwn: 'Start your own search',
   },
-  features: {
-    aiTitle: 'AI query expansion',
-    aiText: 'Your topic becomes an English Boolean query, with five alternatives to choose from.',
-    ahpTitle: 'Transparent AHP ranking',
-    ahpText: 'Every paper is scored on relevance, citations, quality and recency, and you can see why.',
-    exportTitle: 'One-click export',
-    exportText: 'Download results as a ready-made PDF, Word or Excel report.',
-  },
   loading: {
     title: 'Searching…',
   },
   states: {
     searching: 'Searching the sources',
+    searchingText: 'Open academic indexes are queried at the same time; answers are merged and ranked as they arrive.',
     elapsed: '{n} s',
     cancel: 'Cancel',
     slow: 'This is taking longer than expected.',

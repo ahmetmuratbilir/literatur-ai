@@ -236,14 +236,6 @@ export default {
     viewing: 'Paylaşılan bir arama görüntüleniyor',
     startOwn: 'Kendi aramanı başlat',
   },
-  features: {
-    aiTitle: 'AI sorgu genişletme',
-    aiText: 'Konun İngilizce bir Boolean sorguya çevrilir; seçebileceğin beş alternatif sunulur.',
-    ahpTitle: 'Şeffaf AHP sıralaması',
-    ahpText: 'Her makale konu uyumu, atıf, kalite ve güncelliğe göre puanlanır; nedenini görürsün.',
-    exportTitle: 'Tek tıkla dışa aktarım',
-    exportText: 'Sonuçları hazır bir PDF, Word veya Excel raporu olarak indir.',
-  },
   loading: {
     title: 'Taranıyor…',
   },
@@ -251,6 +243,7 @@ export default {
   // ne oldu, kaybedilen var mı, ne yapılacak (etkileşim planı §5).
   states: {
     searching: 'Kaynaklar taranıyor',
+    searchingText: 'Açık akademik dizinler aynı anda sorgulanıyor; yanıtlar gelince birleştirilip sıralanır.',
     elapsed: '{n} sn',
     cancel: 'İptal',
     slow: 'Beklenenden uzun sürüyor.',

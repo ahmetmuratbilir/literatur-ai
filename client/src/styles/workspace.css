@@ -1632,3 +1632,19 @@ button.wx-ctl__title { min-height: 24px; }
   field-sizing: content;
   outline: none;
 }
+
+/* ---------- Belge yapısı aç/kapa: tek düğme (19.10.2026) ----------
+   Açıkken panel başlığında (×'in yerinde), kapalıyken masanın sol üstünde.
+   Yükseklik 0, yapışkan: belgeyi itmez, kaydırınca yerinde kalır. */
+.wx-panel-head__toggle { margin-left: auto; }
+.wx-panel-head > small + .wx-panel-head__toggle { margin-left: 0; }
+.wx-panel-head__toggle[aria-pressed="true"] { background: var(--wx-hover); color: var(--wx-ink); }
+.wx-outline-dock { position: sticky; top: 0; left: 0; z-index: 6; height: 0; }
+.wx-outline-dock .wx-tool {
+  position: absolute;
+  top: -16px;
+  left: -12px;
+  background: var(--wx-surface);
+  box-shadow: inset 0 0 0 1px var(--wx-line), var(--wx-shadow-sm);
+}
+@media print { .wx-outline-dock { display: none; } }

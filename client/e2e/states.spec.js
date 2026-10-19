@@ -25,7 +25,7 @@ async function routeSearch(page, handler) {
   await page.route(`${API}/api/search**`, handler);
 }
 
-test('bekleme: < 2 sn iskelet yok; sonra gerçek süre, iskelet ve İptal; sahte aşama metni yok', async ({ page }) => {
+test('bekleme: anında dönen aramada yanıp sönmez; sonra hareketli kart, gerçek süre ve İptal; sahte aşama metni yok', async ({ page }) => {
   await mockApi(page);
   let release;
   await routeSearch(page, async (route) => { await new Promise((r) => { release = r; }); await route.fulfill({ json: SEARCH_RESULT }); });
@@ -33,9 +33,10 @@ test('bekleme: < 2 sn iskelet yok; sonra gerçek süre, iskelet ve İptal; sahte
   await search(page);
   await page.waitForTimeout(150);
   await expect(page.getByRole('button', { name: 'Ara', exact: true })).toBeVisible(); // < 300 ms: düğme değişmedi
+  await expect(page.getByTestId('search-waiting')).toHaveCount(0); // < 400 ms: kart yok
   await expect(submit(page)).toHaveText('Aranıyor…', { timeout: 1500 });
-  await expect(page.getByTestId('search-waiting')).toHaveCount(0);
-  await expect(page.getByTestId('search-waiting')).toBeVisible({ timeout: 3000 });
+  // Kart aramadan hemen sonra görünür (kullanıcı isteği 19.10.2026), 2 sn beklemez.
+  await expect(page.getByTestId('search-waiting')).toBeVisible({ timeout: 1500 });
   await expect(page.getByTestId('search-waiting')).toContainText(/Kaynaklar taranıyor · \d+ sn/);
   const body = await page.locator('body').innerText();
   expect(body).not.toMatch(/9 Açık Kaynak|AHP ağırlıklarınla|Dokuz açık akademik kaynak|SJR Q1-Q4/);

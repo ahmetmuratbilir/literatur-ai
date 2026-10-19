@@ -313,12 +313,12 @@ async function selectInFirstParagraph(page, from, to) {
   }, [from, to]);
 }
 
-test('seçim menüsü: AI yalnız iki eylem; Atıf doğrula ve Yorum "Yakında"; panel dört sekme', async ({ page }) => {
+test('seçim menüsü: AI yalnız iki eylem; Atıf doğrula ve Yorum "Yakında"; panel üç sekme', async ({ page }) => {
   await seedDraft(page, ASSIST_DOC);
   await mockApi(page, { basket: [SOURCE] });
   await page.goto('/#/yaz');
-  // Görsel sekmesi WO-019 ile eklendi (VISUALS_ENABLED).
-  await expect(side(page).locator('.wx-panel-head [role="group"] > button')).toHaveText([/Kaynaklar/, 'Asistan', /Kontrol/, 'Görsel']);
+  // Görsel sekmesi kapalı (VISUALS_ENABLED=false, 19.10.2026).
+  await expect(side(page).locator('.wx-panel-head [role="group"] > button')).toHaveText([/Kaynaklar/, 'Asistan', /Kontrol/]);
   await page.locator('.wx-page p').first().click({ clickCount: 3 });
   await expect(page.locator('.wx-selbar')).toBeVisible();
   await expect(page.locator('[data-action="selbar-verify"]')).toBeDisabled();

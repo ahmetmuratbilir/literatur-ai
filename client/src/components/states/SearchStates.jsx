@@ -1,41 +1,43 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, AlertTriangle, Info, Loader2, WifiOff } from 'lucide-react';
+import { Activity, AlertCircle, AlertTriangle, Info, WifiOff } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import { failedNames, sourceLabel } from './errorClass.js';
 
 /**
  * Arama ekranının bekleme, hata, boş ve kısmi sonuç durumları (WO-021,
  * etkileşim planı §3–§5; prototip docs/design/mockup-durumlar.html).
- * Yalnız doğru olan gösterilir: geçen süre, sonuç şeklinde iskelet, İptal.
+ * Yalnız doğru olan gösterilir: geçen süre, kaynakların aynı anda sorgulandığı, İptal.
  * Aşama metni ya da sabit kaynak sayısı yok (tüzük 2.8).
  */
 
-/** > 2 sn: iskelet + gerçek süre + İptal; > 20 sn: "beklenenden uzun". */
+/**
+ * Arama sürerken hareketli bekleme kartı (kullanıcı isteği 19.10.2026: eski
+ * dönen halka geri gelsin). Eskisindeki zamanlayıcıyla ilerleyen sahte
+ * aşamalar ("9 kaynak", "SJR Q1–Q4") geri gelmez; yazan her şey doğru:
+ * süre gerçek, kaynaklar gerçekten aynı anda sorgulanıyor.
+ * < 0,4 sn hiçbir şey (anında dönen aramada yanıp sönmesin); > 20 sn "beklenenden uzun".
+ */
 export function SearchWaiting({ elapsed, onCancel }) {
   const { t } = useI18n();
-  if (elapsed < 2000) return null;
+  if (elapsed < 400) return null;
   return (
-    <div className="ui-wait" role="status" aria-live="polite" data-testid="search-waiting">
-      <div className="ui-wait__row">
-        <Loader2 className="animate-spin" size={16} aria-hidden="true" />
-        <span><strong>{t('states.searching')}</strong> · {t('states.elapsed', { n: Math.floor(elapsed / 1000) })}</span>
-        <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={onCancel} data-action="search-cancel">{t('states.cancel')}</button>
+    <div className="ui-wait ui-wait--live" role="status" aria-live="polite" data-testid="search-waiting">
+      <div className="ui-wait__orb" aria-hidden="true">
+        <span className="ui-wait__ring" />
+        <span className="ui-wait__core"><Activity size={22} /></span>
       </div>
+      <h3 className="ui-wait__title">
+        {t('states.searching')} <span className="ui-wait__time">· {t('states.elapsed', { n: Math.floor(elapsed / 1000) })}</span>
+      </h3>
+      <p className="ui-wait__text">{t('states.searchingText')}</p>
+      <div className="ui-wait__bar" aria-hidden="true"><span /></div>
       {elapsed >= 20000 && (
         <div className="ui-notice ui-notice--warn" data-testid="search-slow">
           <AlertTriangle size={18} aria-hidden="true" />
           <div><strong>{t('states.slow')}</strong> {t('states.slowText')}</div>
         </div>
       )}
-      <div aria-hidden="true">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="ui-skel-card">
-            <div className="ui-skel" style={{ width: '82%', height: 16 }} />
-            <div className="ui-skel" style={{ width: '46%', height: 12 }} />
-            <div className="ui-skel" style={{ width: '100%', height: 44 }} />
-          </div>
-        ))}
-      </div>
+      <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={onCancel} data-action="search-cancel">{t('states.cancel')}</button>
     </div>
   );
 }

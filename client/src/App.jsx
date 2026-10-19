@@ -7,7 +7,6 @@ import {
   Loader2,
   Search,
   User,
-  Download,
   Settings,
   AlertCircle,
   AlertTriangle,
@@ -17,7 +16,6 @@ import {
   CheckCircle2,
   Share2,
   PenLine,
-  BarChart2,
   ChevronDown,
   GraduationCap,
   ExternalLink,
@@ -102,7 +100,9 @@ const AI_WRITER_PANEL_ENABLED = false;
 // Görsel paneli (WO-019): yazım yüzeyinde tablo — sağ panelde düzenle, seçili
 // paragrafın altına ekle. false iken Ekle menüsünde yalnız başlık satırı kalır;
 // belgedeki tablolar normal tablo olarak durur, hiçbiri silinmez.
-const VISUALS_ENABLED = true;
+// Kapalı (19.10.2026): sağ panelde düzenleyici beğenilmedi; tablo/şekil/grafik
+// Word'deki gibi ızgara seçici ve belgede yerinde düzenlemeyle yeniden gelecek.
+const VISUALS_ENABLED = false;
 // WO-010'un uygulama kabuğu (ray, sekmeler, Alanım/Kaynaklar/Denetim sayfaları)
 // kullanıcı kararıyla kaldırıldı (15.10.2026, WO-011): araştırma modu eski
 // düzeninde, yeni tasarım yalnız yazar modunda. Eski adresler modeRoutes.js'te
@@ -140,32 +140,6 @@ function filterResults(results, filter, year) {
     return true;
   });
 }
-
-const FEATURES = [
-  { icon: Sparkles, title: 'features.aiTitle', text: 'features.aiText' },
-  { icon: BarChart2, title: 'features.ahpTitle', text: 'features.ahpText' },
-  { icon: Download, title: 'features.exportTitle', text: 'features.exportText' },
-];
-
-const FeatureHighlights = () => {
-  const { t } = useI18n();
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-4)' }}>
-      {FEATURES.map((feature) => {
-        const FeatureIcon = feature.icon;
-        return (
-          <div key={feature.title} className="ui-panel" style={{ padding: 'var(--space-5)', boxShadow: 'none' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--brand-primary-soft)', color: 'var(--brand-primary)', display: 'grid', placeItems: 'center', marginBottom: 'var(--space-3)' }}>
-              <FeatureIcon size={18} strokeWidth={2.25} />
-            </div>
-            <h3 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, margin: '0 0 4px', letterSpacing: '-0.01em' }}>{t(feature.title)}</h3>
-            <p style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--text-muted)', margin: 0 }}>{t(feature.text)}</p>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
 
 const PAGE_SIZE = 25;
 const RESULT_LIMIT = 100;
@@ -1015,8 +989,6 @@ function App() {
                 </form>
               )}
             </section>
-
-            {!data && !loading && !aiAnalysis && !error && <FeatureHighlights />}
 
             <AnimatePresence>
               {/* Bekleme (WO-021, §3.1): < 2 sn yalnız düğme; sonra iskelet, gerçek süre, İptal. */}

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const MotionAside = motion.aside;
 const MotionDiv = motion.div;
 import {
-  Trash2, PlusCircle, Star, BookmarkCheck, PenLine, Download, FolderOpen, PanelLeftClose,
+  Trash2, PlusCircle, Star, BookmarkCheck, PenLine, Download, FolderOpen,
   FileText, Pencil, Copy, AlertTriangle, Search, KeyRound, LifeBuoy,
 } from 'lucide-react';
 import { toBibTeX, toRIS, downloadText } from '../utils/citationExport.js';
@@ -22,6 +22,8 @@ const FAVORITES = 'Favoriler';
  * sakin seçili hal; `util` hesap grubu (bağlantılar, yardım). Kapalı rayda
  * ipucu sağa açılır (TooltipLayer, `data-tip-side`).
  */
+// Gezinme satırı (kind="nav") bir sayfadır: aria-current. Bölüm satırı
+// (kind="tab") aç/kapa'dır: aria-expanded.
 const SidebarItem = ({ icon, label, isOpen, active, onClick, badge, basketTarget = false, action, extra, kind = 'tab' }) => (
   <button
     type="button"
@@ -32,7 +34,8 @@ const SidebarItem = ({ icon, label, isOpen, active, onClick, badge, basketTarget
     title={isOpen ? undefined : (extra ? `${label} · ${extra}` : label)}
     data-tip-side={isOpen ? undefined : 'right'}
     aria-label={extra ? `${label} · ${extra}` : label}
-    aria-current={active ? 'page' : undefined}
+    aria-current={kind === 'nav' && active ? 'page' : undefined}
+    aria-expanded={kind === 'tab' && isOpen ? Boolean(active) : undefined}
   >
     <span className="sb-item__icon">{icon}</span>
     {isOpen && <span className="sb-item__label">{label}</span>}
@@ -66,7 +69,9 @@ const HistorySidebar = ({
   const { t, lang } = useI18n();
   const locale = lang === 'tr' ? 'tr-TR' : 'en-US';
   const [history, setHistory] = useState([]);
-  const [activeTab, setActiveTab] = useState('works');
+  // Hiçbir bölüm kendiliğinden açık gelmez (kullanıcı kararı 19.10.2026: "Makalen
+  // için" boşken bile yer kaplıyordu). Tıklayınca açılır, yeniden tıklayınca kapanır.
+  const [activeTab, setActiveTab] = useState(null);
   const [backupFailed, setBackupFailed] = useState(null);
   // Sepeti temizlemek iki adımlı: 30 makale tek yanlış tıklamayla gitmesin.
   const [clearArmed, setClearArmed] = useState(false);
@@ -94,7 +99,10 @@ const HistorySidebar = ({
   const closeOnMobile = () => { if (isMobile) setIsOpen(false); };
   // Kapalı raydayken bir sekmeye basmak eskiden yalnızca sekmeyi değiştiriyor,
   // paneli açmıyordu: kullanıcı hiçbir şey görmüyordu.
-  const openTab = (tab) => { setActiveTab(tab); if (!isOpen) setIsOpen(true); };
+  const openTab = (tab) => {
+    if (!isOpen) { setActiveTab(tab); setIsOpen(true); return; }
+    setActiveTab((current) => (current === tab ? null : tab));
+  };
 
   const removePaper = async (collectionId, paperId) => {
     try {
@@ -200,20 +208,20 @@ const HistorySidebar = ({
         {/* Başlık: marka ve daralt/genişlet. Düğme eskiden kenarın ortasında
             yüzüyor, içeriğin üstüne biniyordu. */}
         <div className="sb-head">
-          {/* Kapalı rayda logonun kendisi genişletir; ayrı düğme gereksiz tekrardı. */}
-          {!isMobile && !isOpen ? (
-            <button type="button" className="sb-head__expand" onClick={() => setIsOpen(true)} aria-label={toggleLabel} title={toggleLabel} data-tip-side="right">
-              <BrandMark size={32} className="sb-head__mark" />
-            </button>
-          ) : (
+          {/* Logo hem açar hem kapatır; ayrı daralt düğmesi kaldırıldı (kullanıcı kararı 19.10.2026). */}
+          <button
+            type="button"
+            className="sb-head__expand"
+            onClick={() => setIsOpen((open) => !open)}
+            aria-label={toggleLabel}
+            aria-expanded={isOpen}
+            title={toggleLabel}
+            data-tip-side={isOpen ? undefined : 'right'}
+            data-action="sidebar-toggle"
+          >
             <BrandMark size={32} className="sb-head__mark" />
-          )}
+          </button>
           {isOpen && <span className="sb-head__brand" translate="no">{t('shell.brand')}</span>}
-          {!isMobile && isOpen && (
-            <button type="button" className="sb-icon-btn sb-head__toggle" onClick={() => setIsOpen(false)} aria-label={toggleLabel} title={toggleLabel}>
-              <PanelLeftClose size={18} />
-            </button>
-          )}
         </div>
 
         {/* Yeni arama */}

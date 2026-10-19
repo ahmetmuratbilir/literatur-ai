@@ -160,7 +160,7 @@ test('eski adresler yeni yerlerine yönleniyor', async ({ page }) => {
 
   await page.goto('/#/kaynaklar/sepet');
   await expect(page).not.toHaveURL(/#/);
-  await expect(page.getByRole('button', { name: 'Makalen için', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('button', { name: 'Makalen için', exact: true })).toHaveAttribute('aria-expanded', 'true');
 });
 
 test('biçim seçici: tez 19 bölüm ve A4 kuruyor, yalnız desteklenen atıf stilleri', async ({ page }) => {

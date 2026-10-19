@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical, Pencil, Plus, Table2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical, Pencil, Plus, ListTree, Table2 } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 
 /**
@@ -45,8 +45,9 @@ export default function OutlineNav({
       <div className="wx-panel-head">
         <strong>{t('workspace.outline')}</strong>
         {words > 0 && <small>{t('workspace.stat.words', { n: fmt(words) })}</small>}
-        <button type="button" className="wx-icon wx-icon--sm" onClick={onClose} aria-label={t('workspace.outlineHide')} title={t('workspace.outlineHide')}>
-          <X size={14} />
+        {/* Aç/kapa tek düğme: kapalıyken aynı simge masanın sol üstünde (Workspace). */}
+        <button type="button" className="wx-tool wx-panel-head__toggle" onClick={onClose} aria-pressed="true" aria-label={t('workspace.outlineHide')} title={t('workspace.outlineHide')} data-action="write-outline">
+          <ListTree size={16} />
         </button>
       </div>
       <div className="wx-nav__body">

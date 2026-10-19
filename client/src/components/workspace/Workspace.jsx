@@ -2512,19 +2512,6 @@ export default function Workspace({
             aria-label={t('workspace.title')}
             readOnly={readOnly}
           />
-          {/* Biçim etiketi (WO-011): atıf stili · sayfa boyutu; tıklayınca biçim değişir.
-              Kayıt durumundan önce durur: kayıt yazısı genişleyince düğme kaymasın
-              (odak kaybı kaydı tetikliyor, kayan düğmede tıklama boşa gidiyordu). */}
-          <button
-            type="button"
-            className="wx-fmtlabel"
-            onClick={() => setFmtOpen(true)}
-            disabled={readOnly}
-            title={t('workspace.format.labelHint')}
-            data-action="write-format"
-          >
-            {t('workspace.format.label', { style: bibFormat, size: PAGE_SIZES[setup.size]?.label || setup.size })}
-          </button>
           <span className="wx-top__spacer" />
 
           <div className="wx-anchor">
@@ -2644,18 +2631,6 @@ export default function Workspace({
           {/* --- Belge --- */}
           <main className="wx-main">
             <div ref={ribbonRef} className={`wx-ribbon${tools.labels ? '' : ' wx-ribbon--compact'}`} role="toolbar" aria-label={t('workspace.toolbar')} inert={readOnly || undefined}>
-              <button
-                type="button"
-                className="wx-tool"
-                aria-pressed={navPanel === 'sections'}
-                onClick={() => toggleNav('sections')}
-                title={navPanel ? t('workspace.outlineHide') : t('workspace.outlineShow')}
-                aria-label={navPanel ? t('workspace.outlineHide') : t('workspace.outlineShow')}
-                data-action="write-outline"
-              >
-                <ListTree size={16} />
-              </button>
-              <span className="wx-divider" />
               <select className="wx-sel" defaultValue="p"
                 onChange={(e) => { exec('formatBlock', e.target.value); e.target.value = 'p'; }}
                 aria-label={t('workspace.style')}>
@@ -2781,6 +2756,19 @@ export default function Workspace({
                     </div>
                   </Popover>
                 </div>
+                {/* Biçim etiketi (WO-011): atıf stili · sayfa boyutu; tıklayınca biçim
+                    değişir. Belge adının yanından buraya, sayfa ayarlarının yanına
+                    taşındı (kullanıcı kararı 19.10.2026): ikisi de belgenin biçimi. */}
+                <button
+                  type="button"
+                  className="wx-fmtlabel"
+                  onClick={() => setFmtOpen(true)}
+                  disabled={readOnly}
+                  title={t('workspace.format.labelHint')}
+                  data-action="write-format"
+                >
+                  {t('workspace.format.label', { style: bibFormat, size: PAGE_SIZES[setup.size]?.label || setup.size })}
+                </button>
                 <div className="wx-anchor">
                   <button type="button" className="wx-btn wx-btn--ghost" aria-expanded={menu === 'page'} onClick={() => toggleMenu('page')}>
                     <SlidersHorizontal size={15} /> <span className="wx-hide-sm">{t('workspace.pageSettings')}</span>
@@ -2897,6 +2885,23 @@ export default function Workspace({
                 trackSection();
               }}
             >
+              {/* Belge yapısı tek düğmeyle açılıp kapanır (kullanıcı kararı 19.10.2026):
+                  açıkken panel başlığında, kapalıyken masanın sol üstünde durur. */}
+              {!navPanel && (
+                <div className="wx-outline-dock">
+                  <button
+                    type="button"
+                    className="wx-tool"
+                    aria-pressed="false"
+                    onClick={() => toggleNav('sections')}
+                    title={t('workspace.outlineShow')}
+                    aria-label={t('workspace.outlineShow')}
+                    data-action="write-outline"
+                  >
+                    <ListTree size={16} />
+                  </button>
+                </div>
+              )}
               {/* Seçim araç çubuğu (WO-010 1.4): fare ile basınca seçim kaybolmasın. */}
               {/* Seçim menüsü (Faz 2): koyu, kompakt. AI yalnız iki eylem (kullanıcı kararı 1). */}
               {selBar && (

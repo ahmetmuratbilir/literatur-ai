@@ -8,6 +8,10 @@ import { mockApi, seedDraft } from './fixtures.js';
  * düzenleyiciyi açar; tablo yalnız "Belgeye ekle" ile, seçili paragrafın
  * altına, üstünde "Tablo N." başlığıyla girer (CLAUDE.md 2.9). Word'e gerçek
  * tablo olarak çıkar.
+ *
+ * ATLANIYOR (19.10.2026): VISUALS_ENABLED kapalı; kullanıcı sağ paneldeki
+ * düzenleyiciyi beğenmedi. Tablo Word'deki gibi (ızgara seçici, belgede yerinde
+ * düzenleme) yeniden yapılınca bu testler yeni akışa göre yazılır.
  */
 
 const DOC = '<h1>Giriş</h1><p>Birinci paragraf burada.</p><p>İkinci paragraf.</p>';
@@ -44,7 +48,7 @@ async function openNewTable(page, blockText) {
   await expect(page.locator('[data-action="side-visual"]')).toHaveAttribute('aria-pressed', 'true');
 }
 
-test('tablo: Excel\'den yapıştır, başlık yaz, seçili paragrafın altına ekle; yenile, düzenle, numara, kaldır + geri al, Word', async ({ page }) => {
+test.skip('tablo: Excel\'den yapıştır, başlık yaz, seçili paragrafın altına ekle; yenile, düzenle, numara, kaldır + geri al, Word', async ({ page }) => {
   await seedDraft(page, DOC, 'Tablo taslağı');
   await mockApi(page);
   await page.goto('/#/yaz');
@@ -117,7 +121,7 @@ test('tablo: Excel\'den yapıştır, başlık yaz, seçili paragrafın altına e
   expect(xml.slice(caption, xml.indexOf('</w:tbl>', caption))).toContain('Grup');
 });
 
-test('tablo düzenleyici: Word tablosu yapıştırma, Enter/Tab, belgede doğrudan yazım panele geçer, yer tıklamayla taşınır', async ({ page }) => {
+test.skip('tablo düzenleyici: Word tablosu yapıştırma, Enter/Tab, belgede doğrudan yazım panele geçer, yer tıklamayla taşınır', async ({ page }) => {
   await seedDraft(page, DOC, 'Düzenleyici taslağı');
   await mockApi(page);
   await page.goto('/#/yaz');

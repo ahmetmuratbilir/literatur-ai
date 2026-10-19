@@ -178,12 +178,32 @@
 
 /* ---------- Arama bekleme ve sonuç durumları (WO-021) ---------- */
 .ui-wait { margin: var(--space-6, 24px) 0 0; display: grid; gap: 12px; }
-.ui-wait__row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; color: var(--text-muted, #475569); font-size: var(--fs-sm, 0.875rem); }
-.ui-wait__row strong { color: var(--text-main, #0f172a); }
-.ui-skel-card { display: grid; gap: 10px; padding: 18px; margin-bottom: 12px; border: 1px solid var(--slate-200, #e2e8f0); border-radius: 14px; background: #fff; }
-.ui-skel { border-radius: 6px; background: linear-gradient(90deg, #eef0f6 0, #f7f8fc 40%, #eef0f6 80%); background-size: 300% 100%; animation: ui-skel 1.4s ease infinite; }
-@keyframes ui-skel { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
 .ui-notice__acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .ui-notice__tech { margin-top: 8px; font-size: 12px; opacity: 0.85; }
 .ui-notice__tech summary { cursor: pointer; }
-@media (prefers-reduced-motion: reduce) { .ui-skel { animation: none; } }
+
+/* Hareketli bekleme kartı (19.10.2026): eski dönen halka geri geldi; içerik doğru kalır. */
+.ui-wait--live {
+  justify-items: center;
+  gap: 10px;
+  padding: 32px 24px 26px;
+  border: 1px solid var(--slate-200, #e2e8f0);
+  border-radius: 18px;
+  background: var(--bg-card, #fff);
+  box-shadow: 0 1px 2px rgb(15 23 42 / .04), 0 18px 40px -30px rgb(79 70 229 / .45);
+  text-align: center;
+}
+.ui-wait__orb { position: relative; width: 64px; height: 64px; margin-bottom: 4px; }
+.ui-wait__orb::before { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 3px solid var(--brand-primary-soft, #eef0ff); }
+.ui-wait__ring { position: absolute; inset: 0; border-radius: 50%; border: 3px solid transparent; border-top-color: var(--brand-primary, #4f46e5); animation: ui-wait-spin 1s linear infinite; }
+.ui-wait__core { position: absolute; inset: 9px; display: grid; place-items: center; border-radius: 50%; background: var(--brand-primary-soft, #eef0ff); color: var(--brand-primary, #4f46e5); animation: ui-wait-pulse 2s ease-in-out infinite; }
+.ui-wait__title { margin: 0; font-size: var(--fs-lg, 1.125rem); font-weight: 700; color: var(--text-main, #0f172a); }
+.ui-wait__time { font-weight: 500; color: var(--text-muted, #475569); font-variant-numeric: tabular-nums; }
+.ui-wait__text { margin: 0; max-width: 46ch; color: var(--text-muted, #475569); font-size: var(--fs-sm, 0.875rem); line-height: 1.55; }
+.ui-wait__bar { position: relative; width: min(320px, 80%); height: 3px; margin: 6px 0 4px; overflow: hidden; border-radius: 3px; background: var(--brand-primary-soft, #eef0ff); }
+.ui-wait__bar span { position: absolute; inset: 0 auto 0 0; width: 36%; border-radius: 3px; background: linear-gradient(90deg, transparent, var(--brand-primary, #4f46e5), transparent); animation: ui-wait-sweep 1.3s ease-in-out infinite; }
+.ui-wait--live .ui-notice { text-align: left; }
+@keyframes ui-wait-spin { to { transform: rotate(360deg); } }
+@keyframes ui-wait-pulse { 50% { transform: scale(.92); } }
+@keyframes ui-wait-sweep { from { transform: translateX(-100%); } to { transform: translateX(280%); } }
+@media (prefers-reduced-motion: reduce) { .ui-wait__ring, .ui-wait__core, .ui-wait__bar span { animation: none; } }
