@@ -64,7 +64,10 @@ export const searchSemanticScholar = async (query, count = 10) => {
           continue;
         }
 
-        if (status === 429 && !isLast) {
+        // Anahtarsizken 429 ortak havuzun dolu oldugu demek: 1 + 2 sn beklemek
+        // 6,5 sn kaynak suresini yiyor ve havuzu daha da yukluyordu (olculdu
+        // 19.10.2026, 6 aramanin 6'sinda 429). Kesici 10 dk atlatir; yeniden denenmez.
+        if (status === 429 && !isLast && useKey) {
           const waitMs = BASE_DELAY_MS * Math.pow(2, attempt - 1); // 1s, 2s, 4s
           console.warn(`[S2] 429 Rate limit (${attempt}/${MAX_RETRIES}). ${waitMs}ms bekleniyor...`);
           await sleep(waitMs);

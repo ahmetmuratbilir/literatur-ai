@@ -123,7 +123,8 @@ export function PartialSources({ failedSources, scanned }) {
   return (
     <div className="ui-notice ui-notice--warn" role="status" data-testid="search-partial">
       <AlertTriangle size={18} aria-hidden="true" />
-      <div><strong>{t('states.partial', { n: names.length, list: names.join(', ') })}</strong> {t('states.partialText', { n: scanned })}</div>
+      {/* Boş sonuçta "sonuçlar N kaynaktan" denmez (scanned=null); kapsamı EmptyResult söyler. */}
+      <div><strong>{t('states.partial', { n: names.length, list: names.join(', ') })}</strong>{scanned != null && <> {t('states.partialText', { n: scanned })}</>}</div>
     </div>
   );
 }

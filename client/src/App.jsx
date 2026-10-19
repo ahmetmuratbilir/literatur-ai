@@ -30,7 +30,7 @@ const AdminPanel = lazy(() => import('./components/AdminPanel.jsx'));
 import { useI18n } from './i18n/context.js';
 import { useDialogs } from './components/ui/dialogContext.js';
 import { useLayer } from './components/ui/useLayer.js';
-import { classifyError } from './components/states/errorClass.js';
+import { answeredSources, classifyError } from './components/states/errorClass.js';
 import { EmptyResult, ErrorNotice, PartialSources, SearchCancelled, SearchWaiting } from './components/states/SearchStates.jsx';
 import { useElapsed } from './components/states/useElapsed.js';
 import AiConnections from './components/settings/AiConnections.jsx';
@@ -1006,14 +1006,19 @@ function App() {
               )}
             </AnimatePresence>
 
+            {/* Boş sonuçta da yanıt vermeyen kaynaklar söylenir; "taranan" listesi
+                yalnız gerçekten yanıt verenler (tüzük 2.8, ölçüm 19.10.2026). */}
             {data && data.results?.length === 0 && !data.demoMode && (
-              <EmptyResult sources={data.sourcesQueried} onImprove={mainTopic.trim() ? handleAiSuggest : null} />
+              <>
+                <PartialSources failedSources={data.failedSources} scanned={null} />
+                <EmptyResult sources={answeredSources(data.sourcesQueried, data.failedSources)} onImprove={mainTopic.trim() ? handleAiSuggest : null} />
+              </>
             )}
 
             {data && data.results?.length > 0 && (
               <div>
                 {/* Kaynakların bir kısmı yanıt vermediyse adlarıyla söylenir (2.11). */}
-                {!data.demoMode && <PartialSources failedSources={data.failedSources} scanned={data.sourcesQueried?.length || 0} />}
+                {!data.demoMode && <PartialSources failedSources={data.failedSources} scanned={answeredSources(data.sourcesQueried, data.failedSources).length} />}
                 {/* Sunucu hicbir kaynaga ulasamadiginda yerel ornek veri seti
                     donuyor (demoMode); kullanici bunu gercek sonuc sanmamali. */}
                 {data.demoMode && (

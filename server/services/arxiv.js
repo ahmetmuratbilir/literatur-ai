@@ -39,9 +39,13 @@ export function isThrottled(error) {
  * arXiv baglantiyi sik sik yarida kesiyor (ECONNRESET). Olculen (5 Eki 2026):
  * ayni sorgu dogrudan 117 sonuc, bizim istek ECONNRESET ile basarisiz. Bu
  * hata hizli geldigi icin tek kisa yeniden deneme kaynak suresini asmiyor.
+ *
+ * ECONNABORTED sayilmaz: axios zaman asimini bu kodla bildiriyor. Eskiden 6 sn
+ * zaman asimi "kesilme" sanilip yeniden deneniyordu (0,8 + 6 sn); toplam 12,8 sn
+ * kaynak suresine (6,5 sn) hic sigmiyordu (olculdu 19.10.2026).
  */
 export function isConnectionReset(error) {
-  return ['ECONNRESET', 'EPIPE', 'ECONNABORTED'].includes(error?.code) && !error?.response;
+  return ['ECONNRESET', 'EPIPE'].includes(error?.code) && !error?.response;
 }
 const RESET_RETRY_DELAY_MS = 800;
 

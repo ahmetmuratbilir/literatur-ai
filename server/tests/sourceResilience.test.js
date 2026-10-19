@@ -8,6 +8,8 @@ test('arXiv baglanti kesilmesi yeniden denenecek hata sayilir, HTTP yaniti sayil
   assert.equal(isConnectionReset({ code: 'ECONNRESET' }), true);
   assert.equal(isConnectionReset({ code: 'ECONNRESET', response: { status: 500 } }), false);
   assert.equal(isConnectionReset({ code: 'ENOTFOUND' }), false);
+  // axios zaman asimi: yeniden denenmez (kaynak suresine sigmaz)
+  assert.equal(isConnectionReset({ code: 'ECONNABORTED' }), false);
 });
 
 test('arXiv kota asimini 406 uzerinden tanir', () => {

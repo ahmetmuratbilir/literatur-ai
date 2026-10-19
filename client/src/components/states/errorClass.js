@@ -49,6 +49,16 @@ export function sourceLabel(name) {
   return SOURCE_LABELS[name] || String(name || '');
 }
 
+/**
+ * Gerçekten yanıt veren kaynaklar: sorgulananlardan yanıt vermeyenler çıkar.
+ * Sunucunun `sourcesQueried` listesi düşen ve kesicinin atladığı kaynakları da
+ * içeriyor; "taranan" ya da "yanıt veren N kaynak" diye onlar sayılmaz (2.8).
+ */
+export function answeredSources(sourcesQueried, failedSources) {
+  const failed = new Set((failedSources || []).map((f) => sourceLabel(f?.name)));
+  return [...new Set((sourcesQueried || []).map(sourceLabel).filter((name) => name && !failed.has(name)))];
+}
+
 /** Yanıt vermeyen kaynakların tekil, okunur adları. */
 export function failedNames(failedSources) {
   return [...new Set((failedSources || []).map((f) => sourceLabel(f?.name)).filter(Boolean))];

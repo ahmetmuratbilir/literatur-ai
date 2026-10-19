@@ -375,8 +375,10 @@ export async function searchAll(params, queryContext, scopusQuery, booleanQuery,
       sourceBreakdown.openalex += trResults.length;
       console.log(`[OpenAlex TR] "${turkishQuery}" -> ${trResults.length} Turkce eser`);
     } else if (turkishResult.status === 'rejected') {
-      // Ek arama; basarisizligi ana OpenAlex sonucunu dusurmesin.
+      // Ek arama; basarisizligi ana OpenAlex sonucunu dusurmesin. Ama sessizce
+      // de dusmesin (tuzuk 2.8): kullaniciya "yanit vermedi" listesinde gorunur.
       console.warn('[OpenAlex TR] basarisiz:', turkishResult.reason?.message);
+      failedSources.push({ name: 'OpenAlex TR', type: categorizeError(turkishResult.reason), message: turkishResult.reason?.message });
     }
   }
 

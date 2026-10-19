@@ -1344,8 +1344,13 @@ app.get('/api/search', searchLimiter, requireSubscription, async (req, res) => {
     try {
       // Sadece dolu sonuçları cache'e kaydet
       const resultCount = Array.isArray(results.results) ? results.results.length : 0;
+      const missingSources = Array.isArray(results.failedSources) ? results.failedSources.length : 0;
       if (authorId) {
         // Yukaridaki okuma ile ayni gerekce: yazar aramasi onbellege yazilmaz.
+      } else if (missingSources > 0) {
+        // Eksik sonuc (yanit vermeyen kaynak var) 30 gun onbellekte kalirsa kaynak
+        // duzelse bile ayni arama hep eksik doner. Yazilmaz; sonraki arama tazeler.
+        console.warn(`[SearchCache] ${missingSources} kaynak yanit vermedi, cache'e kaydedilmiyor.`);
       } else if (resultCount > 0) {
         cacheSave = await saveSharedSearchCache(cacheFingerprint, results);
         if (cacheSave.saved) {

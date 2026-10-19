@@ -40,6 +40,23 @@ test('zaman asimi ancak art arda 3 kez olursa kapatir; genel hata kapatmaz', () 
   assert.equal(b.check('Y').skip, false);
 });
 
+test('yari acik deneme zaman asimina ugrarsa kesici hemen yeniden acilir (3 deneme daha beklemez)', () => {
+  let t = 0;
+  const b = createBreaker({ now: () => t });
+  for (let i = 0; i < TIMEOUTS_TO_OPEN; i++) b.record('CORE', 'TIMEOUT');
+  assert.equal(b.check('CORE').skip, true);
+  t = COOLDOWN_MS.TIMEOUT + 1;
+  assert.equal(b.check('CORE').probe, true);
+  b.record('CORE', 'TIMEOUT');
+  assert.equal(b.check('CORE').skip, true, 'basarisiz deneme kesiciyi yeniden acmali');
+  // deneme genel hatayla dusse de onceki nedenin suresiyle yeniden acilir
+  t += COOLDOWN_MS.TIMEOUT + 1;
+  assert.equal(b.check('CORE').probe, true);
+  b.record('CORE', 'ERROR');
+  assert.equal(b.check('CORE').skip, true);
+  assert.equal(b.snapshot().CORE.reason, 'TIMEOUT');
+});
+
 test('guarded: kesici aciksa kaynak hic cagrilmiyor, hata turu korunuyor', async () => {
   const b = createBreaker({ now: () => 0 });
   let calls = 0;

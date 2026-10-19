@@ -119,5 +119,26 @@ test('kısmi sonuç: yanıt vermeyen kaynak adıyla; sonuçlar görünür', asyn
   const partial = page.getByTestId('search-partial');
   await expect(partial).toBeVisible();
   await expect(partial).toContainText('1 kaynak yanıt vermedi: Semantic Scholar');
+  // Sayı yalnız yanıt verenler: 3 sorgulandı, 1 düştü → 2 (eskiden 3 yazıyordu).
+  await expect(partial).toContainText('Sonuçlar yanıt veren 2 kaynaktan.');
   await expect(page.getByRole('button', { name: 'Makalene ekle' })).toHaveCount(2);
+});
+
+test('boş sonuç + düşen kaynak: düşen kaynak "taranan" sayılmaz, adıyla söylenir (2.8)', async ({ page }) => {
+  await mockApi(page);
+  await routeSearch(page, (route) => route.fulfill({ json: {
+    results: [], totalFound: 0, analyzedCount: 0, empty: true,
+    sourcesQueried: ['OpenAlex', 'CORE', 'SemanticScholar', 'DOAJ'],
+    failedSources: [{ name: 'CORE', type: 'TIMEOUT' }, { name: 'SemanticScholar', type: 'QUOTA' }],
+    relevance: { level: 'none', dropped: 0 },
+  } }));
+  await page.goto('/');
+  await search(page);
+  const partial = page.getByTestId('search-partial');
+  await expect(partial).toContainText('2 kaynak yanıt vermedi: CORE, Semantic Scholar');
+  await expect(partial).not.toContainText('Sonuçlar yanıt veren');
+  const empty = page.getByTestId('search-empty');
+  await expect(empty).toContainText('taranan 2 kaynakta kayıt bulunamadı');
+  await expect(empty).toContainText('Taranan kaynaklar: OpenAlex, DOAJ.');
+  await expect(empty).not.toContainText('CORE');
 });

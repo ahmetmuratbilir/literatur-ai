@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyError, failedNames, sourceLabel } from '../src/components/states/errorClass.js';
+import { answeredSources, classifyError, failedNames, sourceLabel } from '../src/components/states/errorClass.js';
 
 const http = (status, data = {}, headers = {}) => ({ response: { status, data, headers } });
 
@@ -35,4 +35,14 @@ test('kaynak adları okunur; tekrar eden ad bir kez', () => {
   assert.equal(sourceLabel('ArXiv'), 'arXiv');
   assert.equal(sourceLabel('Bilinmeyen'), 'Bilinmeyen');
   assert.deepEqual(failedNames([{ name: 'OpenAlex' }, { name: 'OpenAlex' }, null]), ['OpenAlex']);
+});
+
+test('yanıt veren kaynaklar: düşen ve atlanan kaynak "taranan" sayılmaz (2.8)', () => {
+  const queried = ['OpenAlex', 'CORE', 'SemanticScholar', 'DOAJ'];
+  const failed = [{ name: 'CORE', type: 'TIMEOUT' }, { name: 'SemanticScholar', type: 'QUOTA' }];
+  assert.deepEqual(answeredSources(queried, failed), ['OpenAlex', 'DOAJ']);
+  assert.deepEqual(answeredSources(queried, []), ['OpenAlex', 'CORE', 'Semantic Scholar', 'DOAJ']);
+  // Türkçe OpenAlex araması ayrı ad taşır; ana OpenAlex yanıt vermiş sayılır
+  assert.deepEqual(answeredSources(['OpenAlex'], [{ name: 'OpenAlex TR' }]), ['OpenAlex']);
+  assert.deepEqual(answeredSources(undefined, undefined), []);
 });

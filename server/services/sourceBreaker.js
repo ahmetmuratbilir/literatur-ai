@@ -39,16 +39,20 @@ export function createBreaker({ now = () => Date.now() } = {}) {
     /** Sonucu kaydeder. `type`: classifySourceError çıktısı; başarıda null. */
     record(source, type) {
       const s = get(source);
+      const wasProbe = s.probing;
       s.probing = false;
       if (!type) { state.set(source, { openUntil: 0, reason: null, timeouts: 0, probing: false }); return; }
-      if (type === 'TIMEOUT') {
+      // Yarı açık deneme başarısızsa kesici hemen yeniden açılır. Eskiden sayaç
+      // sıfırdan başladığı için 3 zaman aşımı daha geçiyordu (her biri 6,5 sn):
+      // CORE ve arXiv her 2 dakikada üç aramayı yavaşlatıyordu (ölçüldü 19.10.2026).
+      if (type === 'TIMEOUT' && !wasProbe) {
         s.timeouts += 1;
         if (s.timeouts < TIMEOUTS_TO_OPEN) return;
       }
-      const cooldown = COOLDOWN_MS[type];
+      const cooldown = COOLDOWN_MS[type] ?? (wasProbe ? COOLDOWN_MS[s.reason] : undefined);
       if (!cooldown) return;
       s.openUntil = now() + cooldown;
-      s.reason = type;
+      if (COOLDOWN_MS[type]) s.reason = type;
       s.timeouts = 0;
     },
     snapshot() {
