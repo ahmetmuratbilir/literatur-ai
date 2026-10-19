@@ -4,7 +4,7 @@ import axios from 'axios';
 import {
   AlignCenter, AlignJustify, AlignLeft, ArrowLeft, Bold, Check, ChevronDown, ChevronLeft, ChevronRight,
   ClipboardCheck, Download, FileText, History, Info, Italic, LayoutTemplate, Library, List, ListChecks, ListOrdered, ListTree,
-  PanelRightClose, PanelRightOpen, Plus, Printer, Quote, Redo2, RefreshCw, RotateCcw, Search, SlidersHorizontal,
+  PanelRightClose, PanelRightOpen, Plus, Printer, Quote, Redo2, RefreshCw, RotateCcw, Search, SlidersHorizontal, Table2,
   Underline, Undo2, Upload, X, MoreHorizontal, PlusSquare, Sparkles, Superscript, Subscript, Highlighter, RemoveFormatting,
 } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
@@ -32,7 +32,14 @@ import { inlineCitation, referenceLine } from './citation.js';
 import { citationSpans, isReferencesHeading, matchSources } from './references.js';
 import { SUPPORT_SHAPES, isSettled, locateSpan, refusalKey, supportLabel } from './evidence.js';
 import VisualPanel from './VisualPanel.jsx';
-import { captionLine, captionTitle, createGrid, gridFromRows, newVisualId, tableHtml } from '../../visuals/table.js';
+import TableGridPicker from './TableGridPicker.jsx';
+import TableToolbar from './TableToolbar.jsx';
+import {
+  captionHtml, captionLine, captionTitle, createGrid, emptyTableHtml, gridFromRows, newVisualId, tableHtml,
+} from '../../visuals/table.js';
+import {
+  cellAt, deleteCol, deleteRow, insertCol, insertRow, moveRow, setColumnAlign, setHeaderRow, tableShape,
+} from './tableDom.js';
 
 /**
  * Yazar yüzeyi — docs/design/tasarim-yonu.md
@@ -149,6 +156,48 @@ function tableNumberAt(el, block) {
     if (child === block) break;
   }
   return n;
+}
+
+/**
+ * Tablo başlıklarını onarır ve numaralar (WO-025). Her girdiden sonra çalışır;
+ * belgeye dokunduğu tek yer bağ öznitelikleri ve numara düğümüdür, bu yüzden
+ * geri al yığınını bozmaz ve geri almadan sonra da kendini düzeltir:
+ *  - tablonun hemen üstündeki "Tablo N." satırı bağlı değilse bağlanır;
+ *  - tablosu kalmayan ya da artık "Tablo N." olmayan başlığın bağı çözülür;
+ *  - bağlı başlıkların numarası belgedeki sıraya göre yazılır. Elle yazılmış
+ *    başlık sayılır ama değiştirilmez (Kontrol sıra bozukluğunu söylüyor).
+ */
+function syncCaptions(el, word) {
+  for (const p of el.querySelectorAll(':scope > p[data-caption-for]')) {
+    const table = p.nextElementSibling;
+    const linked = table?.tagName === 'TABLE' && table.dataset.visualId === p.dataset.captionFor;
+    if (!linked || captionOf(p.textContent)?.kind !== 'table') {
+      p.removeAttribute('data-caption-for');
+      p.classList.remove('wx-caption');
+      if (!p.getAttribute('class')) p.removeAttribute('class');
+    }
+  }
+  for (const table of el.querySelectorAll(':scope > table[data-visual-id]')) {
+    const prev = table.previousElementSibling;
+    if (prev?.tagName === 'P' && !prev.dataset.captionFor && captionOf(prev.textContent)?.kind === 'table') {
+      prev.dataset.captionFor = table.dataset.visualId;
+      prev.classList.add('wx-caption');
+    }
+  }
+  let n = 0;
+  for (const block of el.children) {
+    if (captionOf(block.textContent)?.kind !== 'table') continue;
+    n += 1;
+    if (!block.dataset.captionFor) continue;
+    const seq = block.querySelector('[data-seq]');
+    if (seq) {
+      if (seq.textContent !== String(n)) seq.textContent = String(n);
+    } else {
+      // Faz 1 başlığı (numara düğümü yok): yalnız numara farklıysa metin yazılır.
+      const line = captionLine(word, n, captionTitle(block.textContent));
+      if (captionOf(block.textContent)?.n !== n) block.textContent = line;
+    }
+  }
 }
 
 /** Belgenin üst düzey bloğu: imleç hangi paragrafta. */
@@ -268,7 +317,7 @@ export default function Workspace({
   basket, apiUrl, getToken, hidden = false, onExit,
   embedded = false, apiRef = null, onSnapshot = null, onFindSources = null,
   draftId = null, onSaved = null, initialData = null, onConflict = null, panelRequest = null,
-  visualsEnabled = false,
+  visualsEnabled = false, tablesEnabled = false,
 }) {
   const { t, lang } = useI18n();
   const { askConfirm } = useDialogs();
@@ -381,6 +430,8 @@ export default function Workspace({
   const [visualRemoved, setVisualRemoved] = useState(null);
   const visualTableRef = useRef(null);
   const visualModeRef = useRef(null);
+  // Word gibi tablo (WO-025): imlecin bulunduğu belge tablosu ve hücresi.
+  const [tableCtx, setTableCtx] = useState(null);
   useEffect(() => { visualModeRef.current = visual?.mode || null; }, [visual?.mode]);
   // Kullanıcının "iddia / iddia değil" kararları, cümle metnine bağlı (§5).
   const overridesRef = useRef(saved?.overrides || {});
@@ -620,7 +671,12 @@ export default function Workspace({
       // Seçim varsa üstünde küçük araç çubuğu (WO-010 1.4). Konum masanın
       // kaydırılan içeriğine göre: çubuk metinle birlikte kayar.
       const desk = deskRef.current;
-      if (desk && !range.collapsed && range.toString().trim().length >= 2) {
+      // Tablo hücresi içindeki seçimde çubuk açılmaz: Tab her hücrenin içeriğini
+      // seçiyor (Word gibi), çubuk her Tab'da açılıp başlığı örtüyordu (WO-025).
+      // Geri alınca tarayıcı geri gelen tablonun tamamını seçili bırakıyor; o da sayılır.
+      const inCell = Boolean(cellAt(range.startContainer, el) || cellAt(range.endContainer, el))
+        || (!range.collapsed && Boolean(range.cloneContents().querySelector?.('table, td, th')));
+      if (desk && !inCell && !range.collapsed && range.toString().trim().length >= 2) {
         const rect = range.getBoundingClientRect();
         const box = desk.getBoundingClientRect();
         if (rect.width > 0) {
@@ -632,6 +688,13 @@ export default function Workspace({
       } else {
         setSelBar(null);
       }
+      // İmleç tablodaysa tablo araç çubuğu onun üstünde görünür (WO-025).
+      const hit = cellAt(range.startContainer, el);
+      setTableCtx((prev) => {
+        if (!hit) return prev ? null : prev;
+        if (prev && prev.table === hit.table && prev.row === hit.row && prev.col === hit.col) return prev;
+        return { table: hit.table, row: hit.row, col: hit.col };
+      });
       const block = topBlock(el, range.startContainer);
       if (!block) return;
       // Yeni tablo hazırlanırken belgede başka yere tıklanırsa yer oraya taşınır.
@@ -893,6 +956,7 @@ export default function Workspace({
     scan();
     setResume(null);
     syncVisualFromDocument();
+    if (pageRef.current) syncCaptions(pageRef.current, t('audit.kind.table'));
   };
 
   const exec = (command, value = null) => {
@@ -1936,6 +2000,207 @@ export default function Workspace({
     openCitationAtCaret();
   };
 
+  // --- Word gibi tablo (WO-025) ----------------------------------------------
+  // Her değişiklik tarayıcının kendi komutuyla (insertHTML / delete) yapılır:
+  // Ctrl+Z ekleme, satır/sütun işlemi ve silmeyi geri alır (ölçüldü 19.10.2026).
+  // Yapı işlemleri tablonun kopyasında yapılıp kopya tablonun yerine yazılır.
+
+  const selectRange = (range) => {
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  };
+
+  /** Hücreye gider; Word gibi içeriği seçer, boşsa imleci başına koyar. */
+  const selectCell = (cell, { collapse = false } = {}) => {
+    if (!cell) return;
+    const range = document.createRange();
+    range.selectNodeContents(cell);
+    if (collapse || !cell.textContent.trim()) range.collapse(true);
+    selectRange(range);
+    lastRangeRef.current = range.cloneRange();
+  };
+
+  const tableById = (id) => {
+    const el = pageRef.current;
+    if (!el || !id) return null;
+    return [...el.querySelectorAll(':scope > table')].find((tb) => tb.dataset.visualId === id) || null;
+  };
+
+  const linkedCaption = (table) => {
+    const prev = table?.previousElementSibling;
+    return prev?.dataset.captionFor && prev.dataset.captionFor === table.dataset.visualId ? prev : null;
+  };
+
+  /** Izgaradan seçilen boyutta boş tablo: imlecin paragrafının altına (boş satırdaysa oraya). */
+  const insertWordTable = ({ rows, cols, caption }) => {
+    closeMenu();
+    const el = pageRef.current;
+    if (!el || readOnly) return;
+    const at = lastRangeRef.current && el.contains(lastRangeRef.current.startContainer)
+      ? topBlock(el, lastRangeRef.current.startContainer) : null;
+    const id = newVisualId();
+    const onEmpty = Boolean(at && isEmptyBlock(at));
+    const html = (caption ? captionHtml({ id, word: t('audit.kind.table'), n: tableNumberAt(el, at) }) : '')
+      + emptyTableHtml(rows, cols, id)
+      // Tablodan sonra yazmaya devam edilecek bir satır her zaman olsun.
+      + (onEmpty || at?.nextElementSibling ? '' : '<p><br></p>');
+    el.focus({ preventScroll: true });
+    const range = document.createRange();
+    if (onEmpty) range.setStartBefore(at);
+    else if (at) range.setStartAfter(at);
+    else range.setStart(el, el.childNodes.length);
+    range.collapse(true);
+    selectRange(range);
+    document.execCommand('insertHTML', false, html);
+    const placed = tableById(id);
+    if (placed) {
+      selectCell(placed.rows[0]?.cells[0], { collapse: true });
+      placed.scrollIntoView({ block: 'nearest' });
+    }
+  };
+
+  /** Tablonun kopyasını değiştirip yerine yazar; `mutate` hedef hücreyi ya da false (tabloyu sil) döner. */
+  const replaceTable = (table, mutate) => {
+    const el = pageRef.current;
+    if (!el || !table?.isConnected) return;
+    const copy = table.cloneNode(true);
+    if (!copy.dataset.visualId) {
+      // Yapıştırılan (Word'den gelen) tablo ilk düzenlemede bizim tablomuz olur.
+      copy.dataset.visualId = newVisualId();
+      copy.dataset.visualKind = 'table';
+      copy.classList.add('wx-vtable');
+    }
+    const target = mutate(copy);
+    if (target === false) { deleteWordTable(table); return; }
+    const after = table.nextElementSibling;
+    const takeEmpty = isEmptyBlock(after);
+    el.focus({ preventScroll: true });
+    const range = document.createRange();
+    range.setStartBefore(table);
+    // Arkadaki boş satır da seçilip yeniden yazılır; yoksa tarayıcı onu yutuyor (ölçüldü).
+    if (takeEmpty) range.setEndAfter(after);
+    else range.setEndAfter(table);
+    selectRange(range);
+    document.execCommand('insertHTML', false, copy.outerHTML + (takeEmpty ? '<p><br></p>' : ''));
+    const placed = tableById(copy.dataset.visualId);
+    if (placed && target) {
+      const row = placed.rows[Math.max(0, Math.min(target.row, placed.rows.length - 1))];
+      selectCell(row?.cells[Math.max(0, Math.min(target.col, (row?.cells.length || 1) - 1))], { collapse: true });
+    }
+    return placed;
+  };
+
+  /** Tabloyu (ve bağlı başlığını) siler; geri alınabilir. */
+  const deleteWordTable = (table) => {
+    const el = pageRef.current;
+    if (!el || !table?.isConnected) return;
+    const caption = linkedCaption(table);
+    el.focus({ preventScroll: true });
+    const range = document.createRange();
+    range.setStartBefore(caption || table);
+    range.setEndAfter(table);
+    selectRange(range);
+    document.execCommand('delete');
+    // Tarayıcı silinen başlığın sınıfını komşu paragrafa taşıyabiliyor; onarım çözer.
+    syncCaptions(el, t('audit.kind.table'));
+    setTableCtx(null);
+  };
+
+  /** Başlık ekle / kaldır (Word: Resim Yazısı Ekle). */
+  const toggleTableCaption = (table) => {
+    const el = pageRef.current;
+    if (!el || !table?.isConnected) return;
+    const caption = linkedCaption(table);
+    el.focus({ preventScroll: true });
+    const range = document.createRange();
+    if (caption) {
+      range.setStartBefore(caption);
+      range.setEndBefore(table);
+      selectRange(range);
+      document.execCommand('delete');
+      syncCaptions(el, t('audit.kind.table'));
+      const back = tableById(table.dataset.visualId) || table;
+      selectCell(back.rows[0]?.cells[0], { collapse: true });
+      return;
+    }
+    // Yapıştırılmış tablo: önce kimlik alır (yeniden yazılarak, geri alınabilir).
+    const target = table.dataset.visualId ? table : replaceTable(table, () => ({ row: 0, col: 0 }));
+    const id = target?.dataset.visualId;
+    if (!id) return;
+    range.setStartBefore(target);
+    range.collapse(true);
+    selectRange(range);
+    document.execCommand('insertHTML', false, captionHtml({ id, word: t('audit.kind.table'), n: tableNumberAt(el, target.previousElementSibling) }));
+    syncCaptions(el, t('audit.kind.table'));
+    // İmleç başlığın sonunda: kullanıcı başlığı yazar.
+    const cap = linkedCaption(tableById(id));
+    if (cap) {
+      const end = document.createRange();
+      end.selectNodeContents(cap);
+      end.collapse(false);
+      selectRange(end);
+    }
+  };
+
+  const tableAction = (kind, at = null) => {
+    const ctx = at || (tableCtx?.table?.isConnected ? tableCtx : null);
+    if (!ctx || readOnly) return;
+    const { table, row, col } = ctx;
+    const align = { 'align-left': 'left', 'align-center': 'center', 'align-right': 'right' }[kind];
+    if (align) { replaceTable(table, (c) => { setColumnAlign(c, col, align); return { row, col }; }); return; }
+    switch (kind) {
+      case 'row-above': replaceTable(table, (c) => ({ row: insertRow(c, row, 'above'), col })); break;
+      case 'row-below': replaceTable(table, (c) => ({ row: insertRow(c, row, 'below'), col })); break;
+      case 'col-left': replaceTable(table, (c) => ({ row, col: insertCol(c, col, 'left') })); break;
+      case 'col-right': replaceTable(table, (c) => ({ row, col: insertCol(c, col, 'right') })); break;
+      case 'row-up': replaceTable(table, (c) => ({ row: moveRow(c, row, -1), col })); break;
+      case 'row-down': replaceTable(table, (c) => ({ row: moveRow(c, row, 1), col })); break;
+      case 'del-row': replaceTable(table, (c) => deleteRow(c, row) && { row, col }); break;
+      case 'del-col': replaceTable(table, (c) => deleteCol(c, col) && { row, col: Math.max(0, col - 1) }); break;
+      case 'header': replaceTable(table, (c) => { setHeaderRow(c, !tableShape(c).header); return { row, col }; }); break;
+      case 'caption': toggleTableCaption(table); break;
+      case 'delete': deleteWordTable(table); break;
+      default: break;
+    }
+  };
+
+  /** Hücre içinde klavye (Word): Tab gezinir, son hücrede yeni satır; Enter satır sonu; Alt+Shift+↑↓ satırı taşır. */
+  const onPageKeyDown = (e) => {
+    if (!tablesEnabled || readOnly || e.isComposing) return;
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return;
+    const hit = cellAt(sel.anchorNode, pageRef.current);
+    if (!hit) return;
+    if (e.key === 'Tab' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      const cells = [...hit.table.querySelectorAll('th, td')];
+      const i = cells.indexOf(hit.cell);
+      if (e.shiftKey) { if (i > 0) selectCell(cells[i - 1]); return; }
+      if (i < cells.length - 1) { selectCell(cells[i + 1]); return; }
+      replaceTable(hit.table, (c) => ({ row: insertRow(c, hit.row, 'below'), col: 0 }));
+      return;
+    }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      document.execCommand('insertLineBreak');
+      return;
+    }
+    if (e.altKey && e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault();
+      tableAction(e.key === 'ArrowUp' ? 'row-up' : 'row-down', hit);
+      return;
+    }
+    // Hücre sınırında silme tabloyu yırtmaz (komşu hücreyle birleşmez).
+    if ((e.key === 'Backspace' || e.key === 'Delete') && sel.isCollapsed) {
+      const probe = document.createRange();
+      probe.selectNodeContents(hit.cell);
+      if (e.key === 'Backspace') probe.setEnd(sel.anchorNode, sel.anchorOffset);
+      else probe.setStart(sel.anchorNode, sel.anchorOffset);
+      if (!probe.toString()) e.preventDefault();
+    }
+  };
+
   // Kaydırınca aktif bölüm: masanın üstüne en yakın geçmiş başlık (Faz 2).
   const trackFrame = useRef(0);
   const trackSection = () => {
@@ -2631,6 +2896,29 @@ export default function Workspace({
           {/* --- Belge --- */}
           <main className="wx-main">
             <div ref={ribbonRef} className={`wx-ribbon${tools.labels ? '' : ' wx-ribbon--compact'}`} role="toolbar" aria-label={t('workspace.toolbar')} inert={readOnly || undefined}>
+              {/* Tablo (WO-025): belge yapısı düğmesinin boşalttığı yerde, Word'deki gibi ızgara. */}
+              {tablesEnabled && (
+                <>
+                  <div className="wx-anchor">
+                    <button
+                      type="button"
+                      className="wx-btn wx-btn--ghost wx-tablebtn"
+                      aria-expanded={menu === 'table'}
+                      aria-haspopup="dialog"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => toggleMenu('table')}
+                      title={t('workspace.table.button')}
+                      data-action="write-table"
+                    >
+                      <Table2 size={15} /> <span className="wx-hide-sm">{t('workspace.table.button')}</span> <ChevronDown size={13} />
+                    </button>
+                    <Popover open={menu === 'table'} onClose={closeMenu} label={t('workspace.table.gridLabel')}>
+                      <TableGridPicker onPick={insertWordTable} />
+                    </Popover>
+                  </div>
+                  <span className="wx-divider" />
+                </>
+              )}
               <select className="wx-sel" defaultValue="p"
                 onChange={(e) => { exec('formatBlock', e.target.value); e.target.value = 'p'; }}
                 aria-label={t('workspace.style')}>
@@ -2902,6 +3190,30 @@ export default function Workspace({
                   </button>
                 </div>
               )}
+              {/* Tablo araç çubuğu (WO-025): Word'ün bağlamsal "Tablo" sekmesi gibi;
+                  imleç tablodayken masanın üstünde yapışık durur, tablonun çevresindeki
+                  metni örtmez (tablonun üstüne konunca önceki paragrafı örtüyordu). */}
+              {tablesEnabled && !readOnly && tableCtx?.table?.isConnected && (() => {
+                const table = tableCtx.table;
+                const shape = tableShape(table);
+                const rowEl = table.rows[tableCtx.row];
+                const cell = rowEl?.cells[tableCtx.col];
+                return (
+                  <div className="wx-ttdock">
+                    <TableToolbar
+                      ctx={{
+                        ...shape,
+                        row: tableCtx.row,
+                        col: tableCtx.col,
+                        inHeader: rowEl?.parentElement?.tagName === 'THEAD',
+                        hasCaption: Boolean(linkedCaption(table)),
+                        align: cell?.style.textAlign || 'left',
+                      }}
+                      onAction={(kind) => tableAction(kind)}
+                    />
+                  </div>
+                );
+              })()}
               {/* Seçim araç çubuğu (WO-010 1.4): fare ile basınca seçim kaybolmasın. */}
               {/* Seçim menüsü (Faz 2): koyu, kompakt. AI yalnız iki eylem (kullanıcı kararı 1). */}
               {selBar && (
@@ -2951,6 +3263,7 @@ export default function Workspace({
                   onInput={onInput}
                   onBlur={flush}
                   onClick={onPageClick}
+                  onKeyDown={onPageKeyDown}
                 />
                 {/* Yeni tablonun gireceği yer (WO-019): belgeye dokunmaz, yalnız gösterir. */}
                 {visual?.mode === 'new' && sideOpen && sideView === 'visual' && visualTarget?.isConnected && (

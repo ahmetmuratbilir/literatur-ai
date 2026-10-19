@@ -104,3 +104,20 @@ test('başlık satırı denetimin tanıdığı biçimde', () => {
   assert.equal(captionTitle('Tablo 12. Bulgular'), 'Bulgular');
   assert.equal(captionTitle('Table 3: Results'), 'Results');
 });
+
+test('Word gibi tablo: boş tablo başlık satırıyla; başlık numarası ayrı düğüm', async () => {
+  const { emptyTableHtml, captionHtml, pickerSize, PICKER_COLS, PICKER_ROWS } = await import('../src/visuals/table.js');
+  const html = emptyTableHtml(4, 3, 'v9');
+  assert.equal((html.match(/<th scope="col"><br><\/th>/g) || []).length, 3);
+  assert.equal((html.match(/<tr>/g) || []).length, 4);
+  assert.match(html, /^<table class="wx-vtable" data-visual-id="v9" data-visual-kind="table"><thead>/);
+  const plain = emptyTableHtml(2, 2, 'v1', { header: false });
+  assert.equal(plain.includes('<thead>'), false);
+  assert.equal((plain.match(/<tr>/g) || []).length, 2);
+  const cap = captionHtml({ id: 'v9', word: 'Tablo', n: 3, title: '<Örnek>' });
+  assert.equal(cap, '<p class="wx-caption" data-caption-for="v9">Tablo <span data-seq="table" data-seq-label="Tablo" contenteditable="false">3</span>. &lt;Örnek&gt;</p>');
+  // Denetimin başlık tanıması metinden: "Tablo 3. …"
+  assert.deepEqual(captionOf('Tablo 3. <Örnek>'), { kind: 'table', n: 3 });
+  assert.deepEqual(pickerSize(2, 3), { rows: 3, cols: 4 });
+  assert.deepEqual(pickerSize(99, 99), { rows: PICKER_ROWS, cols: PICKER_COLS });
+});

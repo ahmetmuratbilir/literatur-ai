@@ -1,6 +1,6 @@
 import {
-  AlignmentType, Document, Footer, Header, HeadingLevel, Packer, PageNumber, Paragraph, Table, TableCell, TableRow,
-  TextRun, WidthType, convertMillimetersToTwip,
+  AlignmentType, BorderStyle, Document, Footer, Header, HeadingLevel, Packer, PageNumber, Paragraph, SequentialIdentifier,
+  Table, TableCell, TableRow, TextRun, WidthType, convertMillimetersToTwip,
 } from 'docx';
 import { saveAs } from 'file-saver';
 import { pageGeometry } from './pageSetup.js';
@@ -32,6 +32,8 @@ function runsOf(node, inherited = {}) {
   const style = node.style || {};
   const tag = node.tagName;
   if (tag === 'BR') return [new TextRun({ break: 1 })];
+  // Başlık numarası (WO-025): Word'ün SEQ alanı; Word'de F9 ile yeniden numaralanır.
+  if (node.dataset?.seq) return [new SequentialIdentifier(node.dataset.seqLabel || node.textContent || 'Tablo')];
 
   const decoration = String(style.textDecoration || '');
   const bold = Boolean(inherited.bold) || tag === 'B' || tag === 'STRONG'
@@ -61,21 +63,40 @@ function runsOf(node, inherited = {}) {
   return [...node.childNodes].flatMap((child) => runsOf(child, next));
 }
 
-function paragraphOf(el, extra = {}) {
+function paragraphOf(el, extra = {}, inherited = {}) {
   const alignment = ALIGN[el.style?.textAlign];
-  const children = runsOf(el);
+  const children = runsOf(el, inherited);
   return new Paragraph({ children, alignment, ...extra });
 }
 
-/** Izgara tabloyu docx tablosuna çevirir; başlık satırı kalın kalır. */
+const LINE = { style: BorderStyle.SINGLE, size: 8, color: '000000' };
+const THIN = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
+const NONE = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+
+/**
+ * Izgara tabloyu docx tablosuna çevirir. Belgede eklenen tablo (`wx-vtable`,
+ * WO-025) APA 7 düzeninde çıkar: yalnız yatay çizgiler, başlık satırı kalın ve
+ * her sayfada tekrarlanır, satır sayfa arasında bölünmez. Yapıştırılan diğer
+ * tablolar eskisi gibi tam ızgarayla.
+ */
 function tableOf(el) {
-  const rows = [...el.querySelectorAll('tr')].map((tr) => new TableRow({
-    children: [...tr.children].map((cell) => new TableCell({
-      children: [paragraphOf(cell)],
-      shading: cell.tagName === 'TH' ? { fill: 'F1F5F9' } : undefined,
-    })),
-  }));
-  return new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE } });
+  const apa = el.classList?.contains('wx-vtable');
+  const rows = [...el.querySelectorAll('tr')].map((tr) => {
+    const head = tr.parentElement?.tagName === 'THEAD';
+    return new TableRow({
+      tableHeader: apa && head ? true : undefined,
+      cantSplit: apa ? true : undefined,
+      children: [...tr.children].map((cell) => new TableCell({
+        children: [paragraphOf(cell, {}, cell.tagName === 'TH' ? { bold: true } : {})],
+        shading: !apa && cell.tagName === 'TH' ? { fill: 'F1F5F9' } : undefined,
+        borders: apa && head ? { bottom: THIN } : undefined,
+      })),
+    });
+  });
+  const borders = apa ? {
+    top: LINE, bottom: LINE, left: NONE, right: NONE, insideHorizontal: NONE, insideVertical: NONE,
+  } : undefined;
+  return new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE }, borders });
 }
 
 /** Belge gövdesindeki öğeleri docx paragraflarına çevirir. */
@@ -94,6 +115,9 @@ export function blocksToParagraphs(root) {
     } else if (tag === 'TABLE') {
       out.push(tableOf(el));
       out.push(new Paragraph({ children: [] }));
+    } else if (tag === 'P' && el.classList.contains('wx-caption')) {
+      // Tablo başlığı Word'ün "Resim Yazısı" stilinde ve tabloya yapışık.
+      out.push(paragraphOf(el, { style: 'Caption', keepNext: true }));
     } else if (tag === 'BLOCKQUOTE') {
       out.push(paragraphOf(el, { indent: { left: convertMillimetersToTwip(10) } }));
     } else {
@@ -121,6 +145,11 @@ export async function exportDocx({ root, setup, title, pageLabel = 'Sayfa' }) {
       default: {
         document: { run: { font: setup.font, size: setup.fontSize * 2 } },
       },
+      // Word'ün yerleşik "caption" stili: Word başlığı Resim Yazısı olarak tanır.
+      paragraphStyles: [{
+        id: 'Caption', name: 'caption', basedOn: 'Normal', next: 'Normal', quickFormat: true,
+        paragraph: { spacing: { after: 120 } },
+      }],
     },
     numbering: {
       config: [{

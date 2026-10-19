@@ -103,6 +103,10 @@ const AI_WRITER_PANEL_ENABLED = false;
 // Kapalı (19.10.2026): sağ panelde düzenleyici beğenilmedi; tablo/şekil/grafik
 // Word'deki gibi ızgara seçici ve belgede yerinde düzenlemeyle yeniden gelecek.
 const VISUALS_ENABLED = false;
+// Word gibi tablo (WO-025): biçim çubuğunda Tablo ızgarası, belgede düzenleme,
+// tablo araç çubuğu. false iken düğme ve araç çubuğu görünmez; belgedeki
+// tablolar normal tablo olarak kalır.
+const TABLES_ENABLED = true;
 // WO-010'un uygulama kabuğu (ray, sekmeler, Alanım/Kaynaklar/Denetim sayfaları)
 // kullanıcı kararıyla kaldırıldı (15.10.2026, WO-011): araştırma modu eski
 // düzeninde, yeni tasarım yalnız yazar modunda. Eski adresler modeRoutes.js'te
@@ -1286,6 +1290,7 @@ function App() {
                 onConflict={onDraftConflict}
                 panelRequest={writerPanel}
                 visualsEnabled={VISUALS_ENABLED}
+                tablesEnabled={TABLES_ENABLED}
               />
             </Suspense>
             </ErrorBoundary>

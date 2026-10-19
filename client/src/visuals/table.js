@@ -200,3 +200,36 @@ export function captionTitle(text) {
 export function newVisualId(now = Date.now(), random = Math.random) {
   return `v${now.toString(36)}${Math.floor(random() * 1e6).toString(36)}`;
 }
+
+// ---------- Word gibi tablo (WO-025) ----------
+// Belgede düzenlenen tablo: ızgaradan boş tablo, üstünde Word'ün "Resim Yazısı"
+// gibi başlık. Numara ayrı düğümde: yeniden numaralanırken kullanıcının başlık
+// biçimine (italik vb.) dokunulmaz; Word'e SEQ alanı olarak çıkar.
+
+export const PICKER_COLS = 10;
+export const PICKER_ROWS = 8;
+
+/** Boş tablo: ilk satır başlık (th), hücreler boş satırla (imleç girebilsin). */
+export function emptyTableHtml(rows, cols, id, { header = true } = {}) {
+  const r = Math.max(1, Math.min(MAX_ROWS, rows));
+  const c = Math.max(1, Math.min(MAX_COLS, cols));
+  const row = (tag) => `<tr>${Array.from({ length: c }, () => `<${tag}${tag === 'th' ? ' scope="col"' : ''}><br></${tag}>`).join('')}</tr>`;
+  const head = header ? `<thead>${row('th')}</thead>` : '';
+  const bodyRows = header ? r - 1 : r;
+  const body = Array.from({ length: Math.max(bodyRows, header ? 0 : 1) }, () => row('td')).join('');
+  return `<table class="wx-vtable" data-visual-id="${escapeHtml(id)}" data-visual-kind="table">${head}${body ? `<tbody>${body}</tbody>` : ''}</table>`;
+}
+
+/** Başlık paragrafı: "Tablo <numara>. <başlık>"; numara düzenlenemez düğüm. */
+export function captionHtml({ id, word, n, title = '', kind = 'table' }) {
+  const rest = str(title).replace(/\s+/g, ' ').trim();
+  return `<p class="wx-caption" data-caption-for="${escapeHtml(id)}">${escapeHtml(word)} <span data-seq="${escapeHtml(kind)}" data-seq-label="${escapeHtml(word)}" contenteditable="false">${Number(n) || 1}</span>.${rest ? ` ${escapeHtml(rest)}` : ' '}</p>`;
+}
+
+/** Izgara seçici etiketi için boyut: üzerine gelinen hücre (0 tabanlı) → sütun × satır. */
+export function pickerSize(row, col) {
+  return {
+    rows: Math.max(1, Math.min(PICKER_ROWS, row + 1)),
+    cols: Math.max(1, Math.min(PICKER_COLS, col + 1)),
+  };
+}
