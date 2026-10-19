@@ -199,7 +199,7 @@ const HistorySidebar = ({
 
       <MotionAside
         initial={false}
-        animate={{ width: isOpen ? '280px' : (isMobile ? '0px' : '72px'), x: (isMobile && !isOpen) ? -280 : 0 }}
+        animate={{ width: isOpen ? '280px' : (isMobile ? '0px' : '60px'), x: (isMobile && !isOpen) ? -280 : 0 }}
         transition={{ type: 'spring', stiffness: 400, damping: 40 }}
         aria-label={t('sidebar.label')}
         className={`sb${isOpen ? ' is-open' : ''}`}
@@ -234,15 +234,15 @@ const HistorySidebar = ({
 
         {/* Bölümler (WO-017): Araştırma ilk sırada; Yaz aynı kabukta, ayrı mod değil. */}
         <nav aria-label={t('sidebar.sections')} className="sb-group">
-          <SidebarItem kind="nav" icon={<Search size={18} />} label={t('sidebar.research')} isOpen={isOpen} active={section === 'research'} action="nav-research" onClick={() => { onGoResearch?.(); closeOnMobile(); }} />
-          <SidebarItem kind="nav" icon={<PenLine size={18} />} label={t('sidebar.write')} isOpen={isOpen} active={section === 'write'} action="writer-dock" extra={writeExtra} onClick={() => { onOpenWriter?.(); closeOnMobile(); if (!isMobile) setIsOpen(false); }} />
+          <SidebarItem kind="nav" icon={<Search size={17} />} label={t('sidebar.research')} isOpen={isOpen} active={section === 'research'} action="nav-research" onClick={() => { onGoResearch?.(); closeOnMobile(); }} />
+          <SidebarItem kind="nav" icon={<PenLine size={17} />} label={t('sidebar.write')} isOpen={isOpen} active={section === 'write'} action="writer-dock" extra={writeExtra} onClick={() => { onOpenWriter?.(); closeOnMobile(); if (!isMobile) setIsOpen(false); }} />
         </nav>
 
         {/* İçerik sekmeleri */}
         <nav aria-label={t('sidebar.works')} className="sb-group sb-group--tabs">
-          <SidebarItem icon={<FolderOpen size={18} />} label={t('sidebar.works')} isOpen={isOpen} active={activeTab === 'works'} onClick={() => openTab('works')} badge={drafts.length || null} />
-          <SidebarItem icon={<Star size={18} />} label={t('sidebar.favorites')} isOpen={isOpen} active={activeTab === 'favorites'} onClick={() => openTab('favorites')} badge={favorites?.papers?.length || null} />
-          <SidebarItem icon={<BookmarkCheck size={18} />} label={t('basket.title')} isOpen={isOpen} active={activeTab === 'basket'} onClick={() => openTab('basket')} badge={basketPapers.length ? `${basketPapers.length}/${basketLimit}` : null} basketTarget />
+          <SidebarItem icon={<FolderOpen size={17} />} label={t('sidebar.works')} isOpen={isOpen} active={activeTab === 'works'} onClick={() => openTab('works')} badge={drafts.length || null} />
+          <SidebarItem icon={<Star size={17} />} label={t('sidebar.favorites')} isOpen={isOpen} active={activeTab === 'favorites'} onClick={() => openTab('favorites')} badge={favorites?.papers?.length || null} />
+          <SidebarItem icon={<BookmarkCheck size={17} />} label={t('basket.title')} isOpen={isOpen} active={activeTab === 'basket'} onClick={() => openTab('basket')} badge={basketPapers.length ? `${basketPapers.length}/${basketLimit}` : null} basketTarget />
         </nav>
 
         {/* İçerik */}
@@ -262,14 +262,13 @@ const HistorySidebar = ({
                     const name = d.title || t('workspace.untitled');
                     return (
                       <div key={d.id} data-draft-id={d.id} className={`sb-draft${current ? ' is-current' : ''}`}>
-                        <button type="button" className="sb-draft__open" onClick={() => { onOpenDraft?.(d.id); closeOnMobile(); }} data-action="draft-open" title={t('sidebar.openDraft')}>
+                        <button type="button" className="sb-draft__open" onClick={() => { onOpenDraft?.(d.id); closeOnMobile(); }} data-action="draft-open" title={d.section ? `${t('sidebar.openDraft')} · ${t('sidebar.draftSection', { name: d.section })}` : t('sidebar.openDraft')}>
                           <FileText size={14} className="sb-draft__icon" />
                           <span className="sb-draft__text">
                             <span className="sb-draft__name">
                               {name}{current && <small className="sb-draft__badge">· {t('sidebar.activeDraft')}</small>}
                             </span>
                             <span className="sb-meta">{t('sidebar.draftMeta', { n: (d.words || 0).toLocaleString(locale), when: savedText(d.savedAt) })}</span>
-                            {d.section && <span className="sb-meta sb-ellipsis">{t('sidebar.draftSection', { name: d.section })}</span>}
                           </span>
                         </button>
                         <div role="group" aria-label={t('sidebar.draftActions')} className="sb-draft__actions">
@@ -283,8 +282,8 @@ const HistorySidebar = ({
                     );
                   })}
                   {drafts.length > 0 && (
-                    <p data-testid="drafts-local-warn" className="sb-warn">
-                      <AlertTriangle size={13} /> {t('sidebar.localWarn')}
+                    <p data-testid="drafts-local-warn" className="sb-warn sb-warn--short" title={t('sidebar.localWarn')}>
+                      <AlertTriangle size={12} /> {t('sidebar.localWarnShort')}
                     </p>
                   )}
 
@@ -382,8 +381,8 @@ const HistorySidebar = ({
         {/* Hesap: ayarlar ve destek içerik sekmelerinin arasında değil, burada. */}
         <div className="sb-foot">
           <nav aria-label={t('sidebar.account')} className="sb-group sb-group--util">
-            {onOpenAi && <SidebarItem kind="util" icon={<KeyRound size={18} />} label={t('sidebar.ai')} isOpen={isOpen} action="nav-ai" onClick={() => { onOpenAi(); closeOnMobile(); }} />}
-            {onOpenHelp && <SidebarItem kind="util" icon={<LifeBuoy size={18} />} label={t('help.open')} isOpen={isOpen} action="nav-help" onClick={() => { onOpenHelp(); closeOnMobile(); }} />}
+            {onOpenAi && <SidebarItem kind="util" icon={<KeyRound size={17} />} label={t('sidebar.ai')} isOpen={isOpen} action="nav-ai" onClick={() => { onOpenAi(); closeOnMobile(); }} />}
+            {onOpenHelp && <SidebarItem kind="util" icon={<LifeBuoy size={17} />} label={t('help.open')} isOpen={isOpen} action="nav-help" onClick={() => { onOpenHelp(); closeOnMobile(); }} />}
           </nav>
           {user && (
             <div className={`sb-user${isOpen ? '' : ' is-rail'}`}>

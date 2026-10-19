@@ -389,8 +389,8 @@
   line-height: 1.5;
 }
 @media (min-width: 768px) {
-  /* Sol kenar çubuğu sabit ve 72px; metin onun altında kalmasın. */
-  .ui-devbanner { padding-left: 88px; }
+  /* Sol kenar çubuğu sabit ve 60px; metin onun altında kalmasın. */
+  .ui-devbanner { padding-left: 76px; }
 }
 
 /* ---------- Mobil ---------- */

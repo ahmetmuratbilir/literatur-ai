@@ -529,6 +529,7 @@ export default {
     noDrafts: 'No drafts yet. Start a new one.',
     draftMeta: '{n} words · {when}',
     draftSection: 'Where you left off: {name}',
+    localWarnShort: 'This browser only · back up with ⤓',
     localWarn: 'Drafts are stored only in this browser. They are lost if browser data is cleared; download a DOCX backup of important drafts.',
     backup: 'Download DOCX backup',
     backupFailed: 'Backup failed; open the draft and try Export.',

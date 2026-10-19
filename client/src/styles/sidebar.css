@@ -210,3 +210,30 @@
 @media (prefers-reduced-motion: reduce) {
   .sb * { transition: none !important; }
 }
+
+/* ---------- Sade kenar (WO-026 Faz 1, 19.10.2026) ----------
+   Ray 60 px; öğe 40×38. "Yeni arama" rayda dolu mor kutu değil, sade simge
+   (vurgu yalnız seçili öğede). Açıkken de daha ince bir satır. */
+.sb:not(.is-open) .sb-pad { padding: 0 10px 8px; }
+.sb:not(.is-open) .sb-primary { width: 40px; height: 38px; margin: 0 auto; border-radius: 9px; background: transparent; color: var(--sb-text); }
+.sb:not(.is-open) .sb-primary:hover { background: var(--sb-hover); color: var(--sb-strong); }
+.sb:not(.is-open) .sb-item { width: 40px; height: 38px; margin: 0 auto; padding: 0; }
+.sb.is-open .sb-primary { height: 36px; background: transparent; color: var(--sb-strong); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .14); }
+.sb.is-open .sb-primary:hover { background: var(--sb-hover); }
+.sb-item { height: 36px; }
+
+/* Taslaklar sade liste: tek satır ad + kısa bilgi; düğmeler yalnız üzerine
+   gelince ya da odakta, satırın sağında ve satırı büyütmeden. "Kaldığın bölüm"
+   ipucunda; uzun yerel kayıt uyarısı tek satıra indi (tam metin ipucunda). */
+.sb-draft { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 6px 8px; background: transparent; }
+.sb-draft:hover { background: rgb(255 255 255 / .05); }
+.sb-draft.is-current { background: rgb(99 102 241 / .12); border-color: transparent; }
+.sb-draft__open { flex: 1; min-width: 0; width: auto; align-items: center; }
+.sb-draft__icon { margin-top: 0; }
+/* Gizliyken genişlik 0: tıklamayı yakalamaz (yanlışlıkla Sil yok); klavyeyle odaklanınca açılır. */
+.sb-draft__actions { width: 0; overflow: hidden; margin: 0; opacity: 0; }
+.sb-draft.is-current .sb-draft__actions { opacity: 0; }
+.sb-draft:hover .sb-draft__actions, .sb-draft:focus-within .sb-draft__actions { width: auto; opacity: 1; }
+.sb-draft .sb-error { flex-basis: 100%; }
+.sb-warn--short { font-size: 0.72rem; line-height: 1.4; }
+@media (hover: none) { .sb-draft__actions { width: auto; opacity: 1; } }

@@ -532,6 +532,7 @@ export default {
     noDrafts: 'Henüz taslak yok. Yeni taslakla başla.',
     draftMeta: '{n} kelime · {when}',
     draftSection: 'Kaldığın bölüm: {name}',
+    localWarnShort: 'Yalnız bu tarayıcıda · yedek için ⤓',
     localWarn: 'Taslaklar yalnız bu tarayıcıda duruyor. Tarayıcı verisi silinirse kaybolur; önemli taslaklar için DOCX yedeği indir.',
     backup: 'DOCX yedeği indir',
     backupFailed: 'Yedek alınamadı; taslağı açıp Dışa aktar ile dene.',

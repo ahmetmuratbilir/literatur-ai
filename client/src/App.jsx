@@ -651,7 +651,7 @@ function App() {
   // Yazım yüzeyi rayın sağında başlar; ray onun üstünde kalır. Mobilde ray
   // gizli (menü düğmesiyle açılır), yüzey tam genişlik.
   useEffect(() => {
-    document.documentElement.style.setProperty('--shell-rail', isMobile ? '0px' : '72px');
+    document.documentElement.style.setProperty('--shell-rail', isMobile ? '0px' : '60px');
   }, [isMobile]);
 
   // --- Taslaklar (WO-011 Faz 1) ------------------------------------------
@@ -1254,7 +1254,7 @@ function App() {
             görünmüyor ama Tab ile içine gidiliyordu (WO-024): inert. Biçim seçici bu
             görünümün içinde olduğu için o açıkken inert yok. */}
         <main className="app-main" inert={WORKSPACE_ENABLED && !isShared && mode === 'workspace' && Boolean(drafts.active) && !creatingDraft} style={{
-          marginLeft: isMobile ? '0px' : (sidebarOpen ? '280px' : '72px'),
+          marginLeft: isMobile ? '0px' : (sidebarOpen ? '280px' : '60px'),
           marginRight: (!isMobile && AI_WRITER_PANEL_ENABLED && showWriterPanel)
             // AI Yazar ayarları 420px'lik panelde; sonuçlar yanında görünür kalır.
             ? '420px'

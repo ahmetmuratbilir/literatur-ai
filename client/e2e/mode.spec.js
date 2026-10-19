@@ -125,6 +125,7 @@ test('taslak silme onay sormaz; "Geri al" taslağı geri getirir (WO-018)', asyn
   // Geri alınabilen eylem onay sormaz: ne tarayıcı kutusu ne pencere.
   let nativeDialog = false;
   page.on('dialog', (d) => { nativeDialog = true; d.dismiss(); });
+  await page.locator('[data-draft-id]').first().hover(); // düğmeler üzerine gelince görünür (WO-026)
   await page.locator('[data-action="draft-delete"]').click();
   await expect(page.locator('[data-draft-id]')).toHaveCount(0);
   await expect(page.getByTestId('dialog')).toHaveCount(0);

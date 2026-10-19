@@ -47,6 +47,7 @@ test('pencere: 20 Tab odağı dışarı bırakmaz; Esc kapatır, odak açan dü�
   await page.goto('/');
   await openWorks(page);
   const opener = page.locator('[data-action="draft-rename"]').first();
+  await page.locator('[data-draft-id]').first().hover(); // düğmeler üzerine gelince görünür (WO-026)
   await opener.click();
   const dialog = page.getByTestId('dialog');
   await expect(dialog).toBeVisible();
@@ -69,6 +70,7 @@ test('pencerede değişiklik varken dışarı tıklamak kapatmaz; Vazgeç kapat�
   await mockApi(page);
   await page.goto('/');
   await openWorks(page);
+  await page.locator('[data-draft-id]').first().hover(); // düğmeler üzerine gelince görünür (WO-026)
   await page.locator('[data-action="draft-rename"]').first().click();
   await page.locator('[data-action="dialog-input"]').fill('Yarım kalan ad');
   await page.mouse.click(5, 5);
@@ -84,6 +86,7 @@ test('"Geri al" bildirimi üzerine gelince süresi dolsa da kapanmaz', async ({ 
   await mockApi(page);
   await page.goto('/');
   await openWorks(page);
+  await page.locator('[data-draft-id]').first().hover(); // düğmeler üzerine gelince görünür (WO-026)
   await page.locator('[data-action="draft-delete"]').click();
   const undo = page.locator('[data-action="toast-action"]');
   await expect(undo).toBeVisible();
@@ -101,9 +104,12 @@ test('hiçbir akışta tarayıcı kutusu (alert / confirm / prompt) çıkmaz', a
   await mockApi(page);
   await page.goto('/');
   await openWorks(page);
+  await page.locator('[data-draft-id]').first().hover(); // düğmeler üzerine gelince görünür (WO-026)
   await page.locator('[data-action="draft-duplicate"]').first().click();
+  await page.locator('[data-draft-id]').first().hover(); // düğmeler üzerine gelince görünür (WO-026)
   await page.locator('[data-action="draft-rename"]').first().click();
   await page.locator('[data-action="dialog-cancel"]').click();
+  await page.locator('[data-draft-id]').first().hover(); // düğmeler üzerine gelince görünür (WO-026)
   await page.locator('[data-action="draft-delete"]').first().click();
   await page.locator('[data-action="toast-action"]').click();
   await page.locator('[data-action="draft-open"]').first().click();

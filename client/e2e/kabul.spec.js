@@ -83,13 +83,16 @@ test('kabul yolculuğu: araştırmadan teslime', async ({ page }) => {
     }
     const drafts = page.locator('[data-draft-id]');
     await expect(drafts).toHaveCount(1);
+    await page.locator('[data-draft-id]').first().hover(); // düğmeler üzerine gelince görünür (WO-026)
     await page.locator('[data-action="draft-duplicate"]').first().click();
     await expect(drafts).toHaveCount(2);
+    await page.locator('[data-draft-id]').first().hover(); // düğmeler üzerine gelince görünür (WO-026)
     await page.locator('[data-action="draft-rename"]').first().click();
     await expect(page.locator('[data-action="dialog-input"]')).toBeFocused();
     await page.locator('[data-action="dialog-input"]').fill('Kabul — yeniden adlandırıldı');
     await page.locator('[data-action="dialog-confirm"]').click();
     await expect(page.getByTestId('sidebar-works')).toContainText('Kabul — yeniden adlandırıldı');
+    await page.locator('[data-draft-id]').first().hover(); // düğmeler üzerine gelince görünür (WO-026)
     await page.locator('[data-action="draft-delete"]').first().click();
     await expect(drafts).toHaveCount(1);
     await page.locator('[data-action="toast-action"]').click();
