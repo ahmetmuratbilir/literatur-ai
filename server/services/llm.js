@@ -1,7 +1,7 @@
 import { fetch } from 'undici';
 import { resolveChatProvider, chatProvidersInOrder, chatBody } from '../config/aiModels.js';
 import { logAiUsage } from '../utils/aiUsage.js';
-import { noteProviderResponse } from './aiContext.js';
+import { currentAiConnection, noteProviderResponse } from './aiContext.js';
 import { tokenizeBoolean, isWellFormed } from './sourceQuery.js';
 
 /**
@@ -144,7 +144,14 @@ async function requestQueryAnalysis(provider, topic, lang) {
   return result;
 }
 
-export async function analyzeAndExpandQuery(topic, { lang = 'tr', providers = chatProvidersInOrder(QUERY_ANALYSIS_PROVIDER_ORDER) } = {}) {
+// Kullanıcı kendi anahtarını bağladıysa sıra onun sağlayıcısıdır (OpenAI, Kimi,
+// Claude dahil); sabit platform sırası onları dışarıda bırakıyordu (ölçüm, WO-027).
+const analysisProviders = () => {
+  const conn = currentAiConnection();
+  return chatProvidersInOrder(conn?.provider ? [conn.provider] : QUERY_ANALYSIS_PROVIDER_ORDER);
+};
+
+export async function analyzeAndExpandQuery(topic, { lang = 'tr', providers = analysisProviders() } = {}) {
   if (providers.length === 0) {
     throw new Error('Yapılandırılmış bir yapay zekâ sağlayıcısı yok (GROQ / DEEPSEEK / GEMINI anahtarı).');
   }

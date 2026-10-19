@@ -69,7 +69,7 @@ Taslak → Hazır → Çalışıyor → Bitti
 | [WO-024](WO-024-kabuk-denetimi-marka-destek.md) | Kabuk denetimi, marka ve destek: tuş tuş denetim, ipucu, hata sınırı, kenar çubuğu, yardım ve geri bildirim, tanışma soruları, simge seti | P1 | Bitti (18.10.2026, `design/marka-panel-denetimi`) — elle deneme bekliyor |
 | [WO-025](WO-025-word-gibi-tablo.md) | Word gibi tablo: ızgaradan ekle, belgede düzenle, Word'e gerçek başlıkla (WO-019 Faz 1 arayüzünün yerine) | P3 | Çalışıyor (19.10.2026) |
 | [WO-026](WO-026-arayuz-sadelestirme.md) | Arayüz sadeleştirme: taslak satırları, kenar çubuğu K1, yazım çubuğu Y1 + bilgi kartları, arama A2 + AI geçişi | P1 | Çalışıyor (19.10.2026) |
-| [WO-027](WO-027-yapay-zeka-gecidi.md) | Yapay zekâ geçidi: tek kapı, kullanıcının anahtarı her çağrıda, Claude/Kimi/OpenAI; consensus açığı | P1 | Hazır (19.10.2026) |
+| [WO-027](WO-027-yapay-zeka-gecidi.md) | Yapay zekâ geçidi: tek kapı, kullanıcının anahtarı her çağrıda, Claude/Kimi/OpenAI; consensus açığı | P1 | Bitti, gerçek sağlayıcı denemesi bekliyor (19.10.2026, `wo-027-ai-gecit`) |
 | [WO-028](WO-028-sekil-grafik-taslak-alan.md) | Şekil ve grafik: Napkin gibi belgede taslak alan, Tamam ile ekle | P3 | Taslak (19.10.2026) |
 
 **Yol haritası (17.10.2026):** `docs/design/yol-haritasi.md`. Görünür sonuç

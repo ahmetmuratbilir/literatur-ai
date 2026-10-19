@@ -62,11 +62,11 @@ Commit grubu `git revert`. `BYOK_ENABLED=false` iken geçit yalnız platform ana
 ## Onay gereken noktalar
 - Canlı sağlayıcı denemesi Ahmet'in kendi anahtarlarıyla (anahtar sohbete yazılmaz, `server/.env`'e kendisi koyar).
 
-## Bitiş raporu
-- Değişen dosyalar:
-- Teknik kararlar ve gerekçeleri:
-- Çalıştırılan testler ve gerçek çıktıları:
-- Ölçülen etki:
-- Bilinen eksikler:
-- Sonraki adım:
-- **Durum:**
+## Bitiş raporu (19.10.2026, dal `wo-027-ai-gecit`)
+- **Değişen dosyalar:** `server/config/aiModels.js` (chatBody, ek sağlayıcılar, okunamayan anahtar), `services/aiContext.js` (402/404), `services/aiConnectionService.js` (okunamayan → işaret, depo hatasında son bilinen bağlantı, sağlayıcı denemesi), `routes/aiConnections.js`, `models/AiConnection.js` (enum'a ekleme), `services/llm.js`, `utils/translation.js`, `services/citedSentence.js`, `services/languageEdit.js`, `services/deepseek.js`, `services/aiService.js`, `services/embeddingService.js`, `index.js` (consensus); istemci `AiConnections.jsx`, `ConsensusSnapshot.jsx`, `App.jsx`, i18n; testler `aiGatewayOnly.test.js` (yeni), `aiConnections.test.js`.
+- **Plandan sapma:** ayrı `aiGateway.js` + `aiProviders.js` yazılmadı. Bütün çağrılar zaten OpenAI uyumlu biçimde ve `resolveChatProvider` üzerinden; aynı güvence daha küçük değişiklikle sağlandı: anahtar yalnız `keyFor`, gövde yalnız `chatBody`, zorlama testi. Claude yerel Messages API yerine OpenAI uyumlu uçtan ("deneme" etiketi).
+- **Testler (çalıştırıldı):** sunucu 462/462; istemci lint temiz; ai-connections e2e 4/4; yerelde `/api/consensus` girişsiz 401.
+- **Doğrulama ajanı (ölçüm, çalıştırıldı):** sahte sağlayıcılarla 11 giriş noktası × 6 sağlayıcı; kullanıcı bağlamında 48 isteğin 0'ı platform anahtarı taşıdı; okunamayan anahtarda 0 dış istek; Claude gövdesinde sıcaklık/JSON modu yok. **PASS.** Bulduğu iki eksik kapatıldı: sorgu analizi ek sağlayıcılarda çalışmıyordu (sabit sıra); depo hatasında platforma düşme (son bilinen bağlantı kullanılıyor).
+- **Bilinen eksikler:** depo hata verir ve önbellekte kayıt yoksa istek platform anahtarıyla gider (kullanıcının anahtarı olup olmadığı bilinemiyor). Yazar paneli (kapalı) ve vektör araması yalnız DeepSeek/Gemini/Groq ile; diğerlerinde çalışmaz ve söyler. Model adları ve Anthropic'in Bearer kabulü gerçek anahtarla denenmedi.
+- **Sonraki adım:** Ahmet kendi anahtarıyla bir sağlayıcıyı dener (anahtar `server/.env`'e değil, uygulamadaki "Yapay zekâ bağlantıları"na girilir).
+- **Durum:** NEEDS ATTENTION — gerçek sağlayıcı denemesi yapılmadı.

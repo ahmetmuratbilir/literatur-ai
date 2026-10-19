@@ -86,3 +86,42 @@ test('chatBody sağlayıcının desteklemediği alanları atar (Claude: sıcakl�
     assert.deepEqual(body.thinking, { type: 'disabled' });
   });
 });
+
+test('depo geçici hata verirse son bilinen kullanıcı bağlantısı kullanılır (platforma düşülmez)', async () => {
+  const { activeConnection, invalidateConnection } = await import('../services/aiConnectionService.js');
+  const { sealKey } = await import('../services/keyVault.js');
+  const SECRET = 'test-master-secret-0123456789abcdef';
+  const row = { provider: 'openai', ...sealKey('sk-USER-openai-123456', SECRET) };
+  let fail = false;
+  const store = { active: async () => { if (fail) throw new Error('mongo kesildi'); return row; } };
+  invalidateConnection('u-stale');
+  const first = await activeConnection(store, 'u-stale', { now: 0, secret: SECRET });
+  assert.equal(first.provider, 'openai');
+  fail = true;
+  const later = await activeConnection(store, 'u-stale', { now: 10 * 60 * 1000, secret: SECRET });
+  assert.equal(later?.provider, 'openai', 'süresi geçmiş kayıt hata anında kullanılmalı');
+  invalidateConnection('u-stale');
+  await assert.rejects(activeConnection(store, 'u-stale', { now: 0, secret: SECRET }), /mongo kesildi/);
+});
+
+test('sorgu analizi kullanıcının sağlayıcısıyla (OpenAI/Kimi/Claude da)', async () => {
+  const { analyzeAndExpandQuery } = await import('../services/llm.js');
+  const { MockAgent, setGlobalDispatcher, getGlobalDispatcher } = await import('undici');
+  const previous = getGlobalDispatcher();
+  const agent = new MockAgent();
+  agent.disableNetConnect();
+  setGlobalDispatcher(agent);
+  const seen = [];
+  const content = JSON.stringify({ intent: 'x', keywords: [{ label: 'a', term: 'a', weight: 3 }], queries: [{ label: 'A', text: 'a AND b', keywords: ['a'] }], explanation: '' });
+  agent.get('https://api.openai.com').intercept({ path: '/v1/chat/completions', method: 'POST' }).reply((opts) => {
+    seen.push(opts.headers.authorization || opts.headers.Authorization);
+    return { statusCode: 200, data: { choices: [{ message: { content } }], usage: {} } };
+  });
+  try {
+    await runWithAiContext({ connection: { provider: 'openai', key: 'USER-openai' } }, () => analyzeAndExpandQuery('konu', { lang: 'tr' }));
+    assert.deepEqual(seen, ['Bearer USER-openai']);
+  } finally {
+    setGlobalDispatcher(previous);
+    await agent.close();
+  }
+});

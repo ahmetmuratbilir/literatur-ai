@@ -63,7 +63,16 @@ export function invalidateConnection(userId) {
 export async function activeConnection(store, userId, { now = Date.now(), secret } = {}) {
   const hit = cache.get(userId);
   if (hit && now - hit.at < TTL_MS) return hit.conn;
-  const row = await store.active(userId);
+  let row;
+  try {
+    row = await store.active(userId);
+  } catch (error) {
+    // Kayıt deposu geçici olarak hata verirse son bilinen bağlantı kullanılır:
+    // kendi anahtarını bağlamış kullanıcı sessizce platform anahtarına düşmesin
+    // (ölçüm WO-027). Hiç bilinen yoksa hata yukarı gider.
+    if (hit) return hit.conn;
+    throw error;
+  }
   let conn = null;
   if (row) {
     // Çözülemeyen anahtar (ör. KEY_ENCRYPTION_KEY değişti) sessizce platform
