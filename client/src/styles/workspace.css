@@ -1699,3 +1699,20 @@ button.wx-ctl__title { min-height: 24px; }
 /* Bağlamsal tablo çubuğu: masanın üstünde yapışık, ortada; belgeyi itmez. */
 .wx-ttdock { position: sticky; top: 20px; z-index: 12; height: 0; display: flex; align-items: flex-start; justify-content: center; }
 .wx-ttdock .wx-ttbar { position: relative; top: -12px; }
+
+/* ---------- Y1 üst çubuk (WO-026 Faz 3) ----------
+   Başlık + altında bilgi satırı (biçim ▾ · kayıt · kelime). Biçim etiketi artık
+   hap değil, bilgi satırında sade bir düğme. "Atıf ekle" çubukta vurgulu. */
+.wx-top__doc { display: flex; flex-direction: column; gap: 0; flex: 0 1 420px; min-width: 160px; }
+.wx-top__doc .wx-top__title { flex: none; width: 100%; height: 30px; }
+.wx-top__info { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; padding: 0 8px; color: var(--wx-muted); font-size: 12px; line-height: 18px; }
+.wx-top__info .wx-fmtlabel { display: inline-flex; align-items: center; gap: 3px; height: 18px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--wx-ink-2); font-weight: 600; }
+.wx-top__info .wx-fmtlabel:hover { color: var(--wx-accent); }
+.wx-top__info .wx-save { display: inline-flex; align-items: center; gap: 4px; }
+.wx-top__info > * + *::before { content: "·"; margin-right: 10px; color: var(--wx-faint); }
+.wx-top__info .wx-fmtlabel + *::before { margin-left: 0; }
+.wx-count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--wx-warn-soft); color: var(--wx-warn); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.wx-btn--accent { border-color: transparent; background: var(--wx-accent-soft); color: var(--wx-accent); font-weight: 600; }
+.wx-btn--accent:hover { background: #e0e4ff; }
+/* Bilgi satırında kayıt durumu hap değil, düz yazı. */
+.wx-top__info .wx-save { height: auto; padding: 0; border: 0; background: none; font-size: 12px; }

@@ -198,6 +198,13 @@ function App() {
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [deviceId, setDeviceId] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Yazıma (adresle de) geçince açık kenar çubuğu kapanır: yazım ekranının sol
+  // üstünü (başlık, biçim satırı) örtüyordu. "Yaz"a tıklamak zaten kapatıyordu.
+  const [modeSeen, setModeSeen] = useState(mode);
+  if (mode !== modeSeen) {
+    setModeSeen(mode);
+    if (mode === 'workspace' && sidebarOpen && window.innerWidth >= 768) setSidebarOpen(false);
+  }
   // Arama durumu (WO-021): başlangıç anı (gerçek süre için), sınıflanmış hata, iptal.
   const [searchStartedAt, setSearchStartedAt] = useState(null);
   const [searchError, setSearchError] = useState(null);

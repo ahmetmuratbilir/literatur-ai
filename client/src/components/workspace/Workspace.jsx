@@ -2629,6 +2629,8 @@ export default function Workspace({
   );
 
   const sourcesTab = ['list', 'source', 'bib'].includes(sideView);
+  // Teslime hazırla düğmesindeki sayı: Kontrol'deki kritik ve uyarı maddeleri (bilgi değil).
+  const issueCount = checkItems.filter((item) => item.severity !== 'info').length;
   const assistReason = assist?.reason ? t(`workspace.assist.rejected.${assist.reason}`) : '';
   const assistantView = (
     <section className="wx-assist" aria-label={t('workspace.side.assistant')} data-testid="assistant">
@@ -2769,68 +2771,48 @@ export default function Workspace({
               <span className="wx-top__sep" aria-hidden="true" />
             </>
           )}
-          <input
-            className="wx-top__title"
-            value={title}
-            onChange={(e) => { setTitle(e.target.value); markDirty(); }}
-            placeholder={t('workspace.titlePlaceholder')}
-            aria-label={t('workspace.title')}
-            readOnly={readOnly}
-          />
+          {/* Y1 (WO-026 Faz 3): başlık + altında bilgi satırı (biçim · kayıt · kelime),
+              Google Docs gibi. Biçim etiketi ve kayıt durumu buraya taşındı. */}
+          <div className="wx-top__doc">
+            <input
+              className="wx-top__title"
+              value={title}
+              onChange={(e) => { setTitle(e.target.value); markDirty(); }}
+              placeholder={t('workspace.titlePlaceholder')}
+              aria-label={t('workspace.title')}
+              readOnly={readOnly}
+            />
+            <div className="wx-top__info" aria-live="polite">
+              <button
+                type="button"
+                className="wx-fmtlabel"
+                onClick={() => setFmtOpen(true)}
+                disabled={readOnly}
+                title={t('workspace.format.labelHint')}
+                data-action="write-format"
+              >
+                {t('workspace.format.label', { style: bibFormat, size: PAGE_SIZES[setup.size]?.label || setup.size })} <ChevronDown size={12} aria-hidden="true" />
+              </button>
+              {save && (
+                <span
+                  className={`wx-save wx-save--${saveState.kind}`}
+                  title={saveState.kind === 'local' ? t('workspace.saveLocalHint') : undefined}
+                  role={saveState.kind === 'failed' ? 'alert' : undefined}
+                >
+                  <span aria-hidden="true">{save.icon}</span> {save.text}
+                  {saveState.kind === 'failed' && (
+                    <button type="button" className="wx-save__retry" onClick={() => persistRef.current()} data-action="write-save-retry">
+                      {t('workspace.saveRetry')}
+                    </button>
+                  )}
+                </span>
+              )}
+              <span className="wx-top__words">{t('workspace.stat.words', { n: fmt(outline.words) })}</span>
+            </div>
+          </div>
           <span className="wx-top__spacer" />
 
-          <div className="wx-anchor">
-            <button type="button" className="wx-btn" aria-expanded={menu === 'template'} onClick={() => toggleMenu('template')} disabled={readOnly}>
-              <LayoutTemplate size={15} /> <span className="wx-hide-sm">{t('workspace.templates')}</span>
-            </button>
-            <Popover open={menu === 'template'} onClose={closeMenu} label={t('workspace.templatesTitle')} wide>
-              <div className="wx-pop__head">
-                <strong>{t('workspace.templatesTitle')}</strong>
-                <p>{t('workspace.templatesLead')}</p>
-              </div>
-              {TEMPLATES.map((tpl) => (
-                <button key={tpl.id} type="button" className="wx-pop__item" onClick={() => applyTemplate(tpl.id)}>
-                  <strong>{t(`workspace.tpl.${tpl.id}.name`)}</strong>
-                  <small>{t(`workspace.tpl.${tpl.id}.desc`)}</small>
-                  {tpl.sections.length > 0 && (
-                    <small className="wx-pop__meta">
-                      {t('workspace.templateSections', { n: fmt(tpl.sections.length) })}
-                      {' · '}
-                      {t('workspace.templateWords', { n: fmt(templateWords(tpl)) })}
-                    </small>
-                  )}
-                </button>
-              ))}
-            </Popover>
-          </div>
-
-          <div className="wx-anchor">
-            <button type="button" className="wx-btn" aria-expanded={menu === 'insert'} onMouseDown={(e) => e.preventDefault()} onClick={() => toggleMenu('insert')} disabled={readOnly} data-action="write-insert">
-              <PlusSquare size={15} /> <span className="wx-hide-sm">{t('workspace.insert.label')}</span> <ChevronDown size={14} />
-            </button>
-            <Popover open={menu === 'insert'} onClose={closeMenu} label={t('workspace.insert.label')}>
-              <div onMouseDown={(e) => e.preventDefault()}>
-                {visualsEnabled && (
-                  <button type="button" className="wx-pop__item" onClick={startNewTable} data-action="insert-table">
-                    <strong>{t('workspace.visual.menuTable')}</strong><small>{t('workspace.visual.menuTableHint')}</small>
-                  </button>
-                )}
-                <button type="button" className="wx-pop__item" onClick={() => insertCaption('table')} data-action="insert-table-caption">
-                  <strong>{t('workspace.insert.tableCaption')}</strong><small>{t('workspace.insert.captionHint')}</small>
-                </button>
-                <button type="button" className="wx-pop__item" onClick={() => insertCaption('figure')} data-action="insert-figure-caption">
-                  <strong>{t('workspace.insert.figureCaption')}</strong><small>{t('workspace.insert.captionHint')}</small>
-                </button>
-                <button type="button" className="wx-pop__item" onClick={() => { closeMenu(); insertCitation(); }} data-action="insert-citation">
-                  <strong>{t('workspace.cite')}</strong><small>{paper ? inlineCitation(paper, lang) : t('workspace.citeNeedSource')}</small>
-                </button>
-                <button type="button" className="wx-pop__item" onClick={() => { closeMenu(); openImport(); }} data-action="insert-import">
-                  <strong>{t('workspace.imp.short')}</strong>
-                </button>
-              </div>
-            </Popover>
-          </div>
-
+          {/* Şablon ve Ekle biçim çubuğunun sağ ucuna taşındı (Y1). */}
           <button
             type="button"
             className="wx-btn"
@@ -2839,6 +2821,7 @@ export default function Workspace({
             data-action="write-submit"
           >
             <ClipboardCheck size={15} /> <span className="wx-hide-sm">{t('audit.submit.open')}</span>
+            {issueCount > 0 && <span className="wx-count" aria-label={t('workspace.issueCount', { n: fmt(issueCount) })}>{fmt(issueCount)}</span>}
           </button>
 
           <div className="wx-anchor">
@@ -2977,7 +2960,7 @@ export default function Workspace({
               {/* Seçili kaynağın metin içi atfı imlece; künye doğrulanmış kayıttan (CLAUDE.md 3.1). */}
               <button
                 type="button"
-                className="wx-btn wx-btn--ghost"
+                className="wx-btn wx-btn--accent"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={insertCitation}
                 title={paper ? t('workspace.citeHint', { name: inlineCitation(paper, lang) }) : t('workspace.citeNeedSource')}
@@ -2988,6 +2971,52 @@ export default function Workspace({
 
               <span className="wx-ribbon__end">
                 <div className="wx-anchor">
+                  <button type="button" className="wx-btn wx-btn--ghost" aria-expanded={menu === 'insert'} onMouseDown={(e) => e.preventDefault()} onClick={() => toggleMenu('insert')} disabled={readOnly} data-action="write-insert">
+                    <PlusSquare size={15} /> <span className="wx-hide-sm">{t('workspace.insert.label')}</span> <ChevronDown size={14} />
+                  </button>
+                  <Popover open={menu === 'insert'} onClose={closeMenu} label={t('workspace.insert.label')}>
+                    <div onMouseDown={(e) => e.preventDefault()}>
+                      {visualsEnabled && (
+                        <button type="button" className="wx-pop__item" onClick={startNewTable} data-action="insert-table">
+                          <strong>{t('workspace.visual.menuTable')}</strong><small>{t('workspace.visual.menuTableHint')}</small>
+                        </button>
+                      )}
+                      <button type="button" className="wx-pop__item" onClick={() => insertCaption('table')} data-action="insert-table-caption">
+                        <strong>{t('workspace.insert.tableCaption')}</strong><small>{t('workspace.insert.captionHint')}</small>
+                      </button>
+                      <button type="button" className="wx-pop__item" onClick={() => insertCaption('figure')} data-action="insert-figure-caption">
+                        <strong>{t('workspace.insert.figureCaption')}</strong><small>{t('workspace.insert.captionHint')}</small>
+                      </button>
+                      <button type="button" className="wx-pop__item" onClick={() => { closeMenu(); insertCitation(); }} data-action="insert-citation">
+                        <strong>{t('workspace.cite')}</strong><small>{paper ? inlineCitation(paper, lang) : t('workspace.citeNeedSource')}</small>
+                      </button>
+                      <button type="button" className="wx-pop__item" onClick={() => { closeMenu(); openImport(); }} data-action="insert-import">
+                        <strong>{t('workspace.imp.short')}</strong>
+                      </button>
+                    </div>
+                  </Popover>
+                </div>
+                {/* Şablon ⋯ menüsünde (Y1): seyrek kullanılır; açılan pencere aynı çapada. */}
+                <div className="wx-anchor">
+                  <Popover open={menu === 'template'} onClose={closeMenu} label={t('workspace.templatesTitle')} wide>
+                    <div className="wx-pop__head">
+                      <strong>{t('workspace.templatesTitle')}</strong>
+                      <p>{t('workspace.templatesLead')}</p>
+                    </div>
+                    {TEMPLATES.map((tpl) => (
+                      <button key={tpl.id} type="button" className="wx-pop__item" onClick={() => applyTemplate(tpl.id)}>
+                        <strong>{t(`workspace.tpl.${tpl.id}.name`)}</strong>
+                        <small>{t(`workspace.tpl.${tpl.id}.desc`)}</small>
+                        {tpl.sections.length > 0 && (
+                          <small className="wx-pop__meta">
+                            {t('workspace.templateSections', { n: fmt(tpl.sections.length) })}
+                            {' · '}
+                            {t('workspace.templateWords', { n: fmt(templateWords(tpl)) })}
+                          </small>
+                        )}
+                      </button>
+                    ))}
+                  </Popover>
                   <button
                     type="button"
                     className="wx-btn wx-btn--ghost"
@@ -3002,6 +3031,10 @@ export default function Workspace({
                   </button>
                   <Popover open={menu === 'more'} onClose={closeMenu} label={t('workspace.more.label')}>
                     <div className="wx-more" onMouseDown={(e) => { if (e.target.tagName !== 'SELECT' && e.target.tagName !== 'OPTION') e.preventDefault(); }}>
+                      <button type="button" className="wx-pop__item wx-pop__item--row" onClick={() => setMenu('template')} disabled={readOnly} data-action="write-templates">
+                        <LayoutTemplate size={16} />
+                        <span><strong>{t('workspace.templates')}…</strong></span>
+                      </button>
                       <div className="wx-more__row">
                         <Tool icon={<Superscript size={16} />} label={t('workspace.more.sup')} onClick={() => execTag('superscript')} />
                         <Tool icon={<Subscript size={16} />} label={t('workspace.more.sub')} onClick={() => execTag('subscript')} />
@@ -3044,19 +3077,6 @@ export default function Workspace({
                     </div>
                   </Popover>
                 </div>
-                {/* Biçim etiketi (WO-011): atıf stili · sayfa boyutu; tıklayınca biçim
-                    değişir. Belge adının yanından buraya, sayfa ayarlarının yanına
-                    taşındı (kullanıcı kararı 19.10.2026): ikisi de belgenin biçimi. */}
-                <button
-                  type="button"
-                  className="wx-fmtlabel"
-                  onClick={() => setFmtOpen(true)}
-                  disabled={readOnly}
-                  title={t('workspace.format.labelHint')}
-                  data-action="write-format"
-                >
-                  {t('workspace.format.label', { style: bibFormat, size: PAGE_SIZES[setup.size]?.label || setup.size })}
-                </button>
                 <div className="wx-anchor">
                   <button type="button" className="wx-btn wx-btn--ghost" aria-expanded={menu === 'page'} onClick={() => toggleMenu('page')}>
                     <SlidersHorizontal size={15} /> <span className="wx-hide-sm">{t('workspace.pageSettings')}</span>
@@ -3329,22 +3349,8 @@ export default function Workspace({
               {view === 'submit' && (
                 <span title={t('workspace.pageApprox')} data-testid="page-of">{t('workspace.pageOf', { i: fmt(pageInfo.i), n: fmt(pageInfo.n) })}</span>
               )}
-              <span>{t('workspace.stat.words', { n: fmt(outline.words) })}</span>
+              {/* Kelime sayısı ve kayıt durumu başlığın altına taşındı (Y1). */}
               {hint && <span className="wx-hint" data-testid="write-hint">{hint}</span>}
-              {save && (
-                <span
-                  className={`wx-save wx-save--${saveState.kind}`}
-                  title={saveState.kind === 'local' ? t('workspace.saveLocalHint') : undefined}
-                  role={saveState.kind === 'failed' ? 'alert' : undefined}
-                >
-                  <span aria-hidden="true">{save.icon}</span> {save.text}
-                  {saveState.kind === 'failed' && (
-                    <button type="button" className="wx-save__retry" onClick={() => persistRef.current()} data-action="write-save-retry">
-                      {t('workspace.saveRetry')}
-                    </button>
-                  )}
-                </span>
-              )}
               <span className="wx-status__spacer" />
               {/* Görünüm ve ölçek (WO-010 1.2): Taslak · Teslim; Teslim'de sığdır / gerçek boyut. */}
               <div className="wx-seg wx-seg--sm" role="group" aria-label={t('workspace.view.label')}>
