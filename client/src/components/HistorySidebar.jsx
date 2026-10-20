@@ -4,7 +4,7 @@ const MotionAside = motion.aside;
 const MotionDiv = motion.div;
 import {
   Trash2, PlusCircle, Star, BookmarkCheck, PenLine, Download, FolderOpen,
-  FileText, Pencil, Copy, AlertTriangle, Search, KeyRound, LifeBuoy, Database,
+  FileText, Pencil, Copy, AlertTriangle, Search, KeyRound, LifeBuoy, Database, ChevronRight,
 } from 'lucide-react';
 import { toBibTeX, toRIS, downloadText } from '../utils/citationExport.js';
 import { AppUserButton, useAppAuth, useAppUser } from '../auth/clerkBridge.js';
@@ -90,6 +90,9 @@ const HistorySidebar = ({
   };
   const [collections, setCollections] = useState([]);
   const [analyses, setAnalyses] = useState([]);
+  // Son aramalar ve AI analizleri katlanır, varsayılan kapalı; boşken açıklama kutusu yok (WO-030 bulgu 7).
+  const [openLists, setOpenLists] = useState({ recent: false, analyses: false });
+  const toggleList = (key) => setOpenLists((s) => ({ ...s, [key]: !s[key] }));
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   const { user } = useAppUser();
@@ -184,6 +187,13 @@ const HistorySidebar = ({
   }, [fetchHistory, fetchCollections, fetchAnalyses]);
 
   const emptyBox = (msg) => <div className="sb-empty">{msg}</div>;
+  const listHead = (key, label, n, action, emptyHint) => (
+    <button type="button" className="sb-fold" aria-expanded={openLists[key]} onClick={() => toggleList(key)} data-action={action} title={n === 0 ? emptyHint : undefined}>
+      <ChevronRight size={13} className="sb-fold__chev" aria-hidden="true" />
+      <span className="sb-label">{label}</span>
+      {n > 0 && <span className="sb-count">{n}</span>}
+    </button>
+  );
 
   const favorites = collections.find((c) => c.name === FAVORITES);
   const basketPapers = basket?.papers || [];
@@ -288,8 +298,8 @@ const HistorySidebar = ({
                     </p>
                   )}
 
-                  <span className="sb-label sb-label--gap">{t('sidebar.recent')}</span>
-                  {history.length === 0 ? emptyBox(t('sidebar.historyEmpty')) : history.slice(0, 40).map((item) => {
+                  {listHead('recent', t('sidebar.recent'), history.length, 'list-recent', t('sidebar.historyEmpty'))}
+                  {openLists.recent && history.slice(0, 40).map((item) => {
                     const displayTitle = item.mainTopic || item.aiQuery || (Array.isArray(item.keywords) && item.keywords.length > 0 ? item.keywords.join(', ') : t('sidebar.untitledSearch'));
                     return (
                       <div key={item._id} className="sb-row">
@@ -305,8 +315,8 @@ const HistorySidebar = ({
                     );
                   })}
 
-                  <span className="sb-label sb-label--gap">{t('sidebar.aiAnalyses')}</span>
-                  {analyses.length === 0 ? emptyBox(t('sidebar.analysesEmpty')) : analyses.slice(0, 30).map((a) => (
+                  {listHead('analyses', t('sidebar.aiAnalyses'), analyses.length, 'list-analyses', t('sidebar.analysesEmpty'))}
+                  {openLists.analyses && analyses.slice(0, 30).map((a) => (
                     <div key={a._id} className="sb-card">
                       <div className="sb-card__title sb-ellipsis">{a.topic}</div>
                       {a.explanation && <div className="sb-meta sb-clamp2">{a.explanation}</div>}

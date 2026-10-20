@@ -61,3 +61,35 @@ test('AI ile geliştir: beklerken iskelet, yanıt gelince öneri satırları', a
   await expect(page.locator('.ai-row')).toHaveCount(2);
   await expect(page.locator('.ai-row').nth(1)).toHaveCSS('opacity', '1');
 });
+
+test('WO-030 bulgu 7: Son aramalar ve AI analizleri katlanır, varsayılan kapalı; boşken açıklama kutusu yok', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/');
+  await page.locator('[data-action="sidebar-toggle"]').click();
+  await page.getByRole('button', { name: 'Çalışmalarım' }).click();
+  const works = page.getByTestId('sidebar-works');
+  const recent = works.locator('[data-action="list-recent"]');
+  const analyses = works.locator('[data-action="list-analyses"]');
+  await expect(recent).toHaveAttribute('aria-expanded', 'false');
+  await expect(analyses).toHaveAttribute('aria-expanded', 'false');
+  await expect(works.getByText('pasif soğutma')).toHaveCount(0);
+  await recent.click();
+  await expect(recent).toHaveAttribute('aria-expanded', 'true');
+  await expect(works.getByText('pasif soğutma')).toBeVisible();
+  await analyses.click();
+  await expect(works.getByText('SMR güvenliği')).toBeVisible();
+  await analyses.click();
+  await expect(works.getByText('SMR güvenliği')).toHaveCount(0);
+});
+
+test('WO-030 bulgu 7: liste boşken açılınca da açıklama kutusu çıkmaz', async ({ page }) => {
+  await mockApi(page, { history: [], analyses: [] });
+  await page.goto('/');
+  await page.locator('[data-action="sidebar-toggle"]').click();
+  await page.getByRole('button', { name: 'Çalışmalarım' }).click();
+  const works = page.getByTestId('sidebar-works');
+  await works.locator('[data-action="list-recent"]').click();
+  await works.locator('[data-action="list-analyses"]').click();
+  await expect(works.getByText('Henüz arama yapılmadı', { exact: false })).toHaveCount(0);
+  await expect(works.getByText('analizleri burada birikir', { exact: false })).toHaveCount(0);
+});

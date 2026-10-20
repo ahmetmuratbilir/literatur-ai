@@ -386,11 +386,15 @@ test('Çalışmalarım: son arama aramayı yeniden çalıştırır, kayıt silin
   await page.goto('/');
   await openWorks(page);
   const works = page.getByTestId('sidebar-works');
+  // Son aramalar katlanır, varsayılan kapalı (WO-030 bulgu 7).
+  await works.locator('[data-action="list-recent"]').click();
   await works.getByRole('button', { name: 'pasif soğutma' }).click();
   await expect(page.locator('#topic-input')).toHaveValue('pasif soğutma');
   await expect.poll(() => api.searches.length).toBe(1);
 
   await openWorks(page);
+  const recent = works.locator('[data-action="list-recent"]');
+  if ((await recent.getAttribute('aria-expanded')) !== 'true') await recent.click();
   await works.getByRole('button', { name: 'Geçmişten sil' }).first().click();
   await expect.poll(() => api.deletedHistory).toEqual(['h1']);
 });
