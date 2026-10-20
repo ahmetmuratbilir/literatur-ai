@@ -37,9 +37,49 @@ const PALETTES = {
   },
 };
 
+// Rol tabanlı paletler (Ahmet, 20.10.2026): paletin renkleri sütunlara sırayla
+// dağıtılmaz; her renk bir role gider — en koyu: yazı, eksen, kenar (ayrıntı);
+// ana: veri (bütün sütunlar tek renk); vurgu: ikinci seri, oklar; en açık: kutu içi.
+// Renk dörtlüleri masaüstündeki Color Hunt arşivinden puanlanarak seçildi
+// (renk körlüğünde ayrışma, gri baskı, aşırı doygunluk); adlar bizim.
+const mix = (a, b, t) => {
+  const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [x, y] = [p(a), p(b)];
+  return `#${x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('')}`;
+};
+const fromRoles = ({ dark, main, accent, light }) => ({
+  ink: dark, muted: mix(dark, '#ffffff', 0.3), line: mix(dark, '#ffffff', 0.72), soft: light,
+  accent: main, accent2: accent, paper: '#ffffff', grid: mix(light, '#ffffff', 0.4), hatch: mix(main, '#ffffff', 0.5),
+});
+const mono = (hue) => fromRoles({ dark: mix(hue, '#000000', 0.55), main: hue, accent: mix(hue, '#ffffff', 0.45), light: mix(hue, '#ffffff', 0.9) });
+Object.assign(PALETTES, {
+  geceHardal: fromRoles({ dark: '#0B1849', main: '#124D1C', accent: '#E4B028', light: '#EBEDE3' }),
+  kobaltGunes: fromRoles({ dark: '#0A1931', main: '#185ADB', accent: '#FFC947', light: '#EFEFEF' }),
+  geceMandalina: fromRoles({ dark: '#15133C', main: '#73777B', accent: '#EC994B', light: '#F1EEE9' }),
+  morTurkuaz: fromRoles({ dark: '#453C67', main: '#6D67E4', accent: '#46C2CB', light: '#F2F7A1' }),
+  gunBatimi: fromRoles({ dark: '#6A2C70', main: '#B83B5E', accent: '#F08A5D', light: '#EEECDA' }),
+  orman: fromRoles({ dark: '#191A19', main: '#1E5128', accent: '#4E9F3D', light: '#D8E9A8' }),
+  okyanus: fromRoles({ dark: '#06283D', main: '#256D85', accent: '#47B5FF', light: '#DFF6FF' }),
+  bordoBal: fromRoles({ dark: '#3F0713', main: '#B24080', accent: '#ECAC5D', light: '#FFF9B2' }),
+  geceMercan: fromRoles({ dark: '#010059', main: '#52437B', accent: '#FF7A8A', light: '#FCF594' }),
+  lacivertKum: fromRoles({ dark: '#222831', main: '#30475E', accent: '#C1A57B', light: '#ECECEC' }),
+  monoMavi: mono('#1D4ED8'),
+  monoYesil: mono('#15803D'),
+  monoMor: mono('#6D28D9'),
+  monoBordo: mono('#9F1239'),
+  monoTuruncu: mono('#C2410C'),
+  monoPetrol: mono('#0F766E'),
+  monoArduvaz: mono('#475569'),
+});
+
 export const APPEARANCE_DEFAULT = Object.freeze({ palette: 'default', pattern: 'solid', corners: 'round', text: 'normal' });
+/** Seçicide gösterim için her paletin dört rol rengi: ayrıntı, veri, vurgu, zemin. */
+export const paletteSwatch = (key) => {
+  const th = PALETTES[key] || PALETTES.default;
+  return [th.ink, th.accent, th.accent2, th.soft];
+};
 export const APPEARANCE_OPTIONS = Object.freeze({
-  palette: ['default', 'gray', 'cvd', 'bw'],
+  palette: Object.keys(PALETTES),
   pattern: ['solid', 'stripes', 'dots'],
   corners: ['round', 'square'],
   text: ['small', 'normal', 'large'],

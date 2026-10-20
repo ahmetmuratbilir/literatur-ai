@@ -1835,6 +1835,16 @@ button.wx-ctl__title { min-height: 24px; }
 .fd-seg legend, .fd-seg__legend { float: left; padding: 0; font-size: 11.5px; color: var(--wx-muted); }
 .fd-seg legend { width: 74px; margin-right: 6px; }
 .fd-seg:not(.fd-seg--select) { display: flex; }
+/* Palet seçici: ◀ [renkler · ad · 3/21] ▶ */
+.fd-pal { display: grid; gap: 4px; }
+.fd-pal__row { display: flex; align-items: center; gap: 4px; }
+.fd-pal__arrow { width: 28px; height: 30px; display: grid; place-items: center; border: 1px solid var(--wx-line); border-radius: 7px; background: var(--wx-surface); color: var(--wx-ink-2); cursor: pointer; }
+.fd-pal__arrow:hover { background: var(--wx-hover); color: var(--wx-ink); }
+.fd-pal__now { flex: 1; min-width: 0; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border: 1px solid var(--wx-line); border-radius: 7px; background: var(--wx-surface); }
+.fd-pal__chips { display: flex; gap: 2px; flex-shrink: 0; }
+.fd-pal__chips span { width: 14px; height: 14px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .1); }
+.fd-pal__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 600; color: var(--wx-ink); }
+.fd-pal__count { flex-shrink: 0; font-size: 11px; color: var(--wx-faint); font-variant-numeric: tabular-nums; }
 .fd-seg__opts { display: flex; flex: 1; min-width: 0; border: 1px solid var(--wx-line); border-radius: 7px; overflow: hidden; }
 .fd-seg__opt { flex: 1; position: relative; min-width: 0; }
 .fd-seg__opt + .fd-seg__opt { border-left: 1px solid var(--wx-line); }

@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { BarChart3, Check, LineChart, Plus, RefreshCw, Shapes, Trash2, X } from 'lucide-react';
+import { BarChart3, Check, ChevronLeft, ChevronRight, LineChart, Plus, RefreshCw, Shapes, Trash2, X } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import {
   APPEARANCE_OPTIONS, CHART_TYPES, FIGURE_TYPES, PATTERN_TYPES, drawChart, drawCompare, drawCycle, drawSteps, drawTimeline,
-  isDefaultAppearance, newDrawId, normalizeAppearance, sentencesOf,
+  isDefaultAppearance, newDrawId, normalizeAppearance, paletteSwatch, sentencesOf,
 } from '../../visuals/draw.js';
 
 const EMPTY = {
@@ -158,12 +158,29 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
     <details className="fd-look" open={lookOpen} onToggle={(e) => setLookOpen(e.currentTarget.open)} data-fd="look">
       <summary>{k('look.title')}{!isDefaultAppearance(appearance) && <span className="fd-look__dot" aria-hidden="true" />}</summary>
       <div className="fd-look__body">
-        <label className="fd-seg fd-seg--select">
-          <span className="fd-seg__legend">{k('look.palette')}</span>
-          <select value={appearance.palette} onChange={(e) => setLook('palette', e.target.value)} data-fd-look="palette">
-            {APPEARANCE_OPTIONS.palette.map((v) => <option key={v} value={v}>{k(`look.paletteOpts.${v}`)}</option>)}
-          </select>
-        </label>
+        {/* Palet seçici (Ahmet, 20.10.2026): küçük alanda ◀ ▶ ile gezilir, önizleme anında
+            değişir; "Tamam" deyince seçim şekille kalır. */}
+        {(() => {
+          const all = APPEARANCE_OPTIONS.palette;
+          const i = Math.max(0, all.indexOf(appearance.palette));
+          const step = (d) => setLook('palette', all[(i + d + all.length) % all.length]);
+          return (
+            <div className="fd-pal" role="group" aria-label={k('look.palette')}>
+              <span className="fd-seg__legend">{k('look.palette')}</span>
+              <div className="fd-pal__row">
+                <button type="button" className="fd-pal__arrow" onClick={() => step(-1)} aria-label={k('look.palettePrev')} data-fd-look="palette-prev"><ChevronLeft size={15} /></button>
+                <div className="fd-pal__now" aria-live="polite" data-fd-look="palette" data-value={appearance.palette}>
+                  <span className="fd-pal__chips" aria-hidden="true">
+                    {paletteSwatch(appearance.palette).map((c, n) => <span key={n} style={{ background: c }} />)}
+                  </span>
+                  <span className="fd-pal__name">{k(`look.paletteOpts.${appearance.palette}`)}</span>
+                  <small className="fd-pal__count">{i + 1}/{all.length}</small>
+                </div>
+                <button type="button" className="fd-pal__arrow" onClick={() => step(1)} aria-label={k('look.paletteNext')} data-fd-look="palette-next"><ChevronRight size={15} /></button>
+              </div>
+            </div>
+          );
+        })()}
         {segment('pattern', !patternOk)}
         {!patternOk && <small className="fd-look__note">{k('look.patternNone')}</small>}
         {segment('corners')}

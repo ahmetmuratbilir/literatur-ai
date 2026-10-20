@@ -140,7 +140,9 @@ test('görünüm: siyah-beyaz baskı + çizgili seçilir, şekille saklanır, D�
   await expect(look).not.toHaveAttribute('open', '');
   await expect(draft.locator('.fd-svg svg pattern')).toHaveCount(0);
   await look.locator('summary').click();
-  await look.locator('[data-fd-look="palette"]').selectOption('bw');
+  // Palet ◀ ▶ ile gezilir: varsayılan → gri → renk körü dostu → siyah-beyaz.
+  for (let n = 0; n < 3; n += 1) await look.locator('[data-fd-look="palette-next"]').click();
+  await expect(look.locator('[data-fd-look="palette"]')).toContainText('Siyah-beyaz baskı');
   await look.locator('[data-fd-look="pattern-stripes"]').check();
   await expect(draft.locator('.fd-svg svg pattern')).toHaveCount(2);
   await draft.locator('[data-action="fd-done"]').click();
@@ -159,7 +161,7 @@ test('görünüm: siyah-beyaz baskı + çizgili seçilir, şekille saklanır, D�
   await fig.dblclick();
   await expect(draft).toBeVisible();
   await expect(draft.locator('[data-fd="look"]')).toHaveAttribute('open', '');
-  await expect(draft.locator('[data-fd-look="palette"]')).toHaveValue('bw');
+  await expect(draft.locator('[data-fd-look="palette"]')).toHaveAttribute('data-value', 'bw');
   await expect(draft.locator('[data-fd-look="pattern-stripes"]')).toBeChecked();
   await expect(draft.locator('[data-fd-look="corners-round"]')).toBeChecked();
   await expect(draft.locator('[data-fd-look="text-normal"]')).toBeChecked();

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 
 import {
-  APPEARANCE_DEFAULT, drawChart, drawCompare, drawCycle, drawSteps, drawTimeline, isDefaultAppearance, normalizeAppearance,
+  APPEARANCE_DEFAULT, APPEARANCE_OPTIONS, drawChart, drawCompare, drawCycle, drawSteps, drawTimeline, isDefaultAppearance, normalizeAppearance, paletteSwatch,
 } from '../src/visuals/draw.js';
 
 /** WO-030 Faz 4 — şekil/grafik görünümü (palet, desen, köşe, yazı boyutu). */
@@ -90,4 +90,18 @@ test('köşe ve yazı boyutu', () => {
     assert.ok(large[i] > n, 'büyük');
   });
   assert.ok(size(bars({ text: 'large' })).includes(12.1), '10.5 × 1.15 → 12.1');
+});
+
+test('rol tabanlı paletler: her palet tam; sütunlar tek renk (veri rolü), tek renkli paletler var', () => {
+  const keys = APPEARANCE_OPTIONS.palette;
+  assert.ok(keys.length >= 20, 'seçim bol');
+  assert.ok(keys.some((k) => k.startsWith('mono')), 'tek renkli paletler');
+  for (const k of keys) {
+    const sw = paletteSwatch(k);
+    assert.equal(sw.length, 4);
+    for (const c of sw) assert.match(c, /^#[0-9a-f]{6}$/i, `${k}: ${c}`);
+  }
+  const { svg } = drawChart('bar', { rows: [{ label: 'A', value: '3' }, { label: 'B', value: '5' }, { label: 'C', value: '2' }] }, { appearance: { palette: 'gunBatimi' }, uid: 'g1' });
+  const fills = [...svg.matchAll(/<rect [^>]*fill="(#[0-9a-fA-F]{6})"/g)].map((m) => m[1].toLowerCase());
+  assert.equal(fills.filter((c) => c === '#b83b5e').length, 3, 'bütün sütunlar ana renk');
 });
