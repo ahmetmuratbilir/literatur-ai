@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 import { mockApi } from './fixtures.js';
 
 /**
- * Yeni açılış sayfası (ana sayfa v9). Kullanıcı kararı 19.10.2026: eski
- * sayfa varsayılan kalır, yenisi yalnız ?giris=yeni ile açılır. Geliştirmede
+ * Yeni açılış sayfası (ana sayfa v9). Kullanıcı kararı 20.10.2026: yenisi
+ * varsayılan, eskisi ?giris=eski ile açılır. Geliştirmede
  * Clerk kapalı olduğundan açılış sayfası ?landing ile önizlenir.
  */
 
@@ -14,14 +14,14 @@ test.beforeEach(async ({ page }) => {
   await mockApi(page);
 });
 
-test('varsayılan eski açılış sayfası; yenisi yalnız ?giris=yeni ile', async ({ page }) => {
+test('varsayılan yeni açılış sayfası; eskisi ?giris=eski ile', async ({ page }) => {
   await page.goto('/?landing');
-  await expect(page.locator('.lp')).toBeVisible();
-  await expect(page.locator('.ln')).toHaveCount(0);
-
-  await page.goto('/?landing&giris=yeni');
   await expect(page.locator('.ln h1')).toContainText('Yüz makale değil,');
   await expect(page.locator('.lp')).toHaveCount(0);
+
+  await page.goto('/?landing&giris=eski');
+  await expect(page.locator('.lp')).toBeVisible();
+  await expect(page.locator('.ln')).toHaveCount(0);
 });
 
 test('yeni açılış: sınıf sekmesi, menüden bölüme gitme, dil ve tema; kodda olmayan vaat yok', async ({ page }) => {

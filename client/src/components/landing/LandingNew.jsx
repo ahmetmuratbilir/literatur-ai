@@ -7,7 +7,7 @@ import '../../styles/landing-new.css';
 /**
  * Yeni açılış sayfası — ana sayfa v9 (`docs/design/mockup-ana-sayfa-v9.html`).
  *
- * Eski `LandingPage` varsayılan kalır; bu sayfa `?giris=yeni` ile açılır
+ * Varsayılan açılış sayfası (20.10.2026); eski `LandingPage` `?giris=eski` ile açılır
  * (kullanıcı kararı 19.10.2026). Eskisinin silinmesi kullanıcının kararı.
  *
  * Taslaktan ayrılan yerler (tüzük 2.8 — olmayanı vaat etme):

@@ -46,10 +46,10 @@ const WriterPanel = lazy(() => import('./components/WriterPanel'));
 import ShareModal from './components/ShareModal';
 import LandingPage from './components/landing/LandingPage';
 import HomeResume from './components/HomeResume.jsx';
-// Yeni açılış sayfası (ana sayfa v9). Varsayılan değil: yalnız ?giris=yeni ile
-// açılır; eski LandingPage'in silinmesi kullanıcı kararı (19.10.2026).
+// Yeni açılış sayfası (ana sayfa v9) varsayılan (kullanıcı kararı 20.10.2026: yayına al).
+// Eski LandingPage ?giris=eski ile açılır; silinmesi kullanıcı kararı.
 const LandingNew = lazy(() => import('./components/landing/LandingNew.jsx'));
-const wantsNewLanding = () => new URLSearchParams(window.location.search).get('giris') === 'yeni';
+const wantsNewLanding = () => new URLSearchParams(window.location.search).get('giris') !== 'eski';
 import AppTopBar from './components/AppTopBar';
 import ExportMenu from './components/ExportMenu';
 import PublicationTimeline from './components/PublicationTimeline.jsx';
