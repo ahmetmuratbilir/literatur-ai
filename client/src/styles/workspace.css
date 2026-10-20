@@ -329,6 +329,9 @@
   animation: wx-pop .12s ease-out;
 }
 .wx-pop--wide { width: 350px; }
+/* Biçim çubuğu ekranın sol kenarından başlıyor (WO-030): çubuğun solundaki açılır
+   paneller (Tablo ızgarası) sağa doğru açılır; sağ uçtakiler (Ekle, ⋯) sola. */
+.wx-ribbon > .wx-anchor > .wx-pop { left: 0; right: auto; }
 .wx-pop__head { margin-bottom: 4px; padding: 8px 10px 10px; border-bottom: 1px solid var(--wx-line-soft); }
 .wx-pop__head strong { font-size: 14px; font-weight: 600; }
 .wx-pop__head p { margin: 3px 0 0; color: var(--wx-muted); font-size: 12px; line-height: 1.5; }
@@ -1647,7 +1650,16 @@ button.wx-ctl__title { min-height: 24px; }
   background: var(--wx-surface);
   box-shadow: inset 0 0 0 1px var(--wx-line), var(--wx-shadow-sm);
 }
-@media print { .wx-outline-dock { display: none; } }
+/* Sağ panel sekmesi: belge yapısı sekmesinin aynası (WO-030 bulgu 6). */
+.wx-side-dock { position: sticky; top: 0; z-index: 6; height: 0; align-self: stretch; }
+.wx-side-dock .wx-tool {
+  position: absolute;
+  top: -16px;
+  right: -12px;
+  background: var(--wx-surface);
+  box-shadow: inset 0 0 0 1px var(--wx-line), var(--wx-shadow-sm);
+}
+@media print { .wx-outline-dock, .wx-side-dock { display: none; } }
 
 /* ---------- Word gibi tablo (WO-025) ---------- */
 /* APA 7: yalnız yatay çizgiler — üst, başlık satırı altı, alt. Ekranda düzenlerken

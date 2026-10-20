@@ -2969,18 +2969,279 @@ export default function Workspace({
             </Popover>
           </div>
 
+        </header>
+
+        {/* Biçim çubuğu panellerin üstünde, tam genişlikte (WO-030 bulgu 5): belge yapısı
+            ya da sağ panel açılıp kapanınca düğmeler yerinden kaymaz (Docs ve Word düzeni). */}
+        <div ref={ribbonRef} className={`wx-ribbon${tools.labels ? '' : ' wx-ribbon--compact'}`} role="toolbar" aria-label={t('workspace.toolbar')} inert={readOnly || undefined}>
+          {/* Tablo (WO-025): belge yapısı düğmesinin boşalttığı yerde, Word'deki gibi ızgara. */}
+          {tablesEnabled && (
+            <>
+              <div className="wx-anchor">
+                <button
+                  type="button"
+                  className="wx-btn wx-btn--ghost wx-tablebtn"
+                  aria-expanded={menu === 'table'}
+                  aria-haspopup="dialog"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => toggleMenu('table')}
+                  title={t('workspace.table.button')}
+                  data-action="write-table"
+                >
+                  <Table2 size={15} /> <ChevronDown size={13} />
+                </button>
+                <Popover open={menu === 'table'} onClose={closeMenu} label={t('workspace.table.gridLabel')}>
+                  <TableGridPicker onPick={insertWordTable} />
+                </Popover>
+              </div>
+              {/* Şekil ve grafik (WO-028): seçili paragrafın altında taslak alan açar. */}
+              {figuresEnabled && (
+                <>
+                  <button type="button" className="wx-btn wx-btn--ghost wx-tablebtn" onMouseDown={(e) => e.preventDefault()} onClick={() => openFigureDraft('figure')} title={t('workspace.figure.figureButtonHint')} aria-label={t('workspace.figure.figureButton')} data-action="write-figure">
+                    <Shapes size={15} />
+                  </button>
+                  <button type="button" className="wx-btn wx-btn--ghost wx-tablebtn" onMouseDown={(e) => e.preventDefault()} onClick={() => openFigureDraft('chart')} title={t('workspace.figure.chartButtonHint')} aria-label={t('workspace.figure.chartButton')} data-action="write-chart">
+                    <BarChart3 size={15} />
+                  </button>
+                </>
+              )}
+              <span className="wx-divider" />
+            </>
+          )}
+          <select className="wx-sel" defaultValue="p"
+            onChange={(e) => { exec('formatBlock', e.target.value); e.target.value = 'p'; }}
+            aria-label={t('workspace.style')}>
+            <option value="p">{t('workspace.body')}</option>
+            <option value="h1">{t('workspace.heading', { n: 1 })}</option>
+            <option value="h2">{t('workspace.heading', { n: 2 })}</option>
+            <option value="h3">{t('workspace.heading', { n: 3 })}</option>
+            <option value="blockquote">{t('workspace.quote')}</option>
+          </select>
+          <span className="wx-divider" />
+          {/* Faz 2: belgenin yazı tipi, puntosu, satır aralığı (tüm belgeye uygulanır). Dar ekranda "Daha fazla"ya geçer. */}
+          {tools.fonts && (
+            <>
+              <span className="wx-divider" />
+              <select
+              className="wx-sel"
+              value={setup.font}
+              onChange={(e) => updateSetup({ font: e.target.value })}
+              aria-label={t('workspace.docFont')}
+              title={t('workspace.docFontHint')}
+              data-action="write-font"
+            >
+              {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+              </select>
+              <select className="wx-sel" value={setup.fontSize} onMouseDown={rememberSelection} onChange={(e) => applyFontSize(Number(e.target.value))} aria-label={t('workspace.fontSize')} title={t('workspace.fontSizeHint')} data-action="write-font-size">
+              {FONT_SIZES.map((sz) => <option key={sz} value={sz}>{sz} pt</option>)}
+              </select>
+              <select className="wx-sel" value={setup.lineHeight} onChange={(e) => updateSetup({ lineHeight: Number(e.target.value) })} aria-label={t('workspace.lineHeight')} title={t('workspace.lineHeight')} data-action="write-line-height">
+              {LINE_HEIGHTS.map((l) => <option key={l} value={l}>{fmt(l)}</option>)}
+              </select>
+            </>
+          )}
+          <span className="wx-divider" />
+          <Tool icon={<Bold size={16} />} label={t('workspace.bold')} onClick={() => exec('bold')} />
+          <Tool icon={<Italic size={16} />} label={t('workspace.italic')} onClick={() => exec('italic')} />
+          <Tool icon={<Underline size={16} />} label={t('workspace.underline')} onClick={() => exec('underline')} />
+          {tools.align && (
+            <>
+              <span className="wx-divider" />
+              <Tool icon={<AlignLeft size={16} />} label={t('workspace.alignLeft')} onClick={() => exec('justifyLeft')} />
+              <Tool icon={<AlignCenter size={16} />} label={t('workspace.alignCenter')} onClick={() => exec('justifyCenter')} />
+              <Tool icon={<AlignJustify size={16} />} label={t('workspace.alignJustify')} onClick={() => exec('justifyFull')} />
+            </>
+          )}
+          {tools.lists && (
+            <>
+              <span className="wx-divider" />
+              <Tool icon={<List size={16} />} label={t('workspace.bulletList')} onClick={() => exec('insertUnorderedList')} />
+              <Tool icon={<ListOrdered size={16} />} label={t('workspace.numberList')} onClick={() => exec('insertOrderedList')} />
+            </>
+          )}
+          <span className="wx-divider" />
+          <Tool icon={<Undo2 size={16} />} label={t('workspace.undo')} onClick={() => exec('undo')} />
+          <Tool icon={<Redo2 size={16} />} label={t('workspace.redo')} onClick={() => exec('redo')} />
+          <span className="wx-divider" />
+          {/* Seçili kaynağın metin içi atfı imlece; künye doğrulanmış kayıttan (CLAUDE.md 3.1). */}
           <button
             type="button"
-            className="wx-icon"
-            aria-pressed={sideOpen}
-            data-action="write-side"
-            onClick={() => (sideOpen ? setSideOpen(false) : openSidePanel())}
-            title={sideOpen ? t('workspace.closePanel') : t('workspace.openPanel')}
-            aria-label={sideOpen ? t('workspace.closePanel') : t('workspace.openPanel')}
+            className="wx-btn wx-btn--accent"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={insertCitation}
+            title={paper ? t('workspace.citeHint', { name: inlineCitation(paper, lang) }) : t('workspace.citeNeedSource')}
+            data-action="write-cite"
           >
-            {sideOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+            <Quote size={15} /> <span className="wx-hide-md">{t('workspace.cite')}</span>
           </button>
-        </header>
+
+          <span className="wx-ribbon__end">
+            <div className="wx-anchor">
+              <button type="button" className="wx-btn wx-btn--ghost" aria-expanded={menu === 'insert'} onMouseDown={(e) => e.preventDefault()} onClick={() => toggleMenu('insert')} disabled={readOnly} data-action="write-insert">
+                <PlusSquare size={15} /> <span className="wx-hide-sm">{t('workspace.insert.label')}</span> <ChevronDown size={14} />
+              </button>
+              <Popover open={menu === 'insert'} onClose={closeMenu} label={t('workspace.insert.label')}>
+                <div onMouseDown={(e) => e.preventDefault()}>
+                  {visualsEnabled && (
+                    <button type="button" className="wx-pop__item" onClick={startNewTable} data-action="insert-table">
+                      <strong>{t('workspace.visual.menuTable')}</strong><small>{t('workspace.visual.menuTableHint')}</small>
+                    </button>
+                  )}
+                  <button type="button" className="wx-pop__item" onClick={() => insertCaption('table')} data-action="insert-table-caption">
+                    <strong>{t('workspace.insert.tableCaption')}</strong><small>{t('workspace.insert.captionHint')}</small>
+                  </button>
+                  <button type="button" className="wx-pop__item" onClick={() => insertCaption('figure')} data-action="insert-figure-caption">
+                    <strong>{t('workspace.insert.figureCaption')}</strong><small>{t('workspace.insert.captionHint')}</small>
+                  </button>
+                  <button type="button" className="wx-pop__item" onClick={() => { closeMenu(); insertCitation(); }} data-action="insert-citation">
+                    <strong>{t('workspace.cite')}</strong><small>{paper ? inlineCitation(paper, lang) : t('workspace.citeNeedSource')}</small>
+                  </button>
+                  <button type="button" className="wx-pop__item" onClick={() => { closeMenu(); openImport(); }} data-action="insert-import">
+                    <strong>{t('workspace.imp.short')}</strong>
+                  </button>
+                </div>
+              </Popover>
+            </div>
+            {/* Şablon ⋯ menüsünde (Y1): seyrek kullanılır; açılan pencere aynı çapada. */}
+            <div className="wx-anchor">
+              <Popover open={menu === 'template'} onClose={closeMenu} label={t('workspace.templatesTitle')} wide>
+                <div className="wx-pop__head">
+                  <strong>{t('workspace.templatesTitle')}</strong>
+                  <p>{t('workspace.templatesLead')}</p>
+                </div>
+                {TEMPLATES.map((tpl) => (
+                  <button key={tpl.id} type="button" className="wx-pop__item" onClick={() => applyTemplate(tpl.id)}>
+                    <strong>{t(`workspace.tpl.${tpl.id}.name`)}</strong>
+                    <small>{t(`workspace.tpl.${tpl.id}.desc`)}</small>
+                    {tpl.sections.length > 0 && (
+                      <small className="wx-pop__meta">
+                        {t('workspace.templateSections', { n: fmt(tpl.sections.length) })}
+                        {' · '}
+                        {t('workspace.templateWords', { n: fmt(templateWords(tpl)) })}
+                      </small>
+                    )}
+                  </button>
+                ))}
+              </Popover>
+              <button
+                type="button"
+                className="wx-btn wx-btn--ghost"
+                aria-expanded={menu === 'more'}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => toggleMenu('more')}
+                data-action="write-more"
+                title={t('workspace.more.label')}
+                aria-label={t('workspace.more.label')}
+              >
+                <MoreHorizontal size={16} />
+              </button>
+              <Popover open={menu === 'more'} onClose={closeMenu} label={t('workspace.more.label')}>
+                <div className="wx-more" onMouseDown={(e) => { if (e.target.tagName !== 'SELECT' && e.target.tagName !== 'OPTION') e.preventDefault(); }}>
+                  <button type="button" className="wx-pop__item wx-pop__item--row" onClick={() => setMenu('template')} disabled={readOnly} data-action="write-templates">
+                    <LayoutTemplate size={16} />
+                    <span><strong>{t('workspace.templates')}…</strong></span>
+                  </button>
+                  <div className="wx-more__row">
+                    <Tool icon={<Superscript size={16} />} label={t('workspace.more.sup')} onClick={() => execTag('superscript')} />
+                    <Tool icon={<Subscript size={16} />} label={t('workspace.more.sub')} onClick={() => execTag('subscript')} />
+                    <Tool icon={<Highlighter size={16} />} label={t('workspace.more.highlight')} onClick={() => exec('hiliteColor', '#fff3a3')} />
+                    <Tool icon={<RemoveFormatting size={16} />} label={t('workspace.more.clear')} onClick={() => exec('removeFormat')} />
+                  </div>
+                  {!tools.align && (
+                    <div className="wx-more__row" data-group="align">
+                      <Tool icon={<AlignLeft size={16} />} label={t('workspace.alignLeft')} onClick={() => exec('justifyLeft')} />
+                      <Tool icon={<AlignCenter size={16} />} label={t('workspace.alignCenter')} onClick={() => exec('justifyCenter')} />
+                      <Tool icon={<AlignJustify size={16} />} label={t('workspace.alignJustify')} onClick={() => exec('justifyFull')} />
+                    </div>
+                  )}
+                  {!tools.lists && (
+                    <div className="wx-more__row" data-group="lists">
+                      <Tool icon={<List size={16} />} label={t('workspace.bulletList')} onClick={() => exec('insertUnorderedList')} />
+                      <Tool icon={<ListOrdered size={16} />} label={t('workspace.numberList')} onClick={() => exec('insertOrderedList')} />
+                    </div>
+                  )}
+                  {!tools.fonts && (
+                    <div className="wx-more__row wx-more__row--sel" data-group="fonts">
+                      <select
+              className="wx-sel"
+              value={setup.font}
+              onChange={(e) => updateSetup({ font: e.target.value })}
+              aria-label={t('workspace.docFont')}
+              title={t('workspace.docFontHint')}
+              data-action="write-font"
+            >
+              {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                      </select>
+                      <select className="wx-sel" value={setup.fontSize} onMouseDown={rememberSelection} onChange={(e) => applyFontSize(Number(e.target.value))} aria-label={t('workspace.fontSize')} title={t('workspace.fontSizeHint')} data-action="write-font-size">
+              {FONT_SIZES.map((sz) => <option key={sz} value={sz}>{sz} pt</option>)}
+                      </select>
+                      <select className="wx-sel" value={setup.lineHeight} onChange={(e) => updateSetup({ lineHeight: Number(e.target.value) })} aria-label={t('workspace.lineHeight')} title={t('workspace.lineHeight')} data-action="write-line-height">
+              {LINE_HEIGHTS.map((l) => <option key={l} value={l}>{fmt(l)}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </Popover>
+            </div>
+            <div className="wx-anchor">
+              <button type="button" className="wx-btn wx-btn--ghost" aria-expanded={menu === 'page'} onClick={() => toggleMenu('page')} title={t('workspace.pageSettings')} aria-label={t('workspace.pageSettings')}>
+                <SlidersHorizontal size={15} />
+              </button>
+              <Popover open={menu === 'page'} onClose={closeMenu} label={t('workspace.pageSettings')}>
+                <div className="wx-form">
+                  <label>
+                    <span>{t('workspace.pageSize')}</span>
+                    <select value={setup.size} onChange={(e) => updateSetup({ size: e.target.value })}>
+                      {Object.values(PAGE_SIZES).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span>{t('workspace.orientation')}</span>
+                    <select value={setup.landscape ? 'landscape' : 'portrait'} onChange={(e) => updateSetup({ landscape: e.target.value === 'landscape' })}>
+                      <option value="portrait">{t('workspace.portrait')}</option>
+                      <option value="landscape">{t('workspace.landscape')}</option>
+                    </select>
+                  </label>
+                  <label className="wx-form__wide">
+                    <span>{t('workspace.margins')}</span>
+                    <select value={setup.margin} onChange={(e) => updateSetup({ margin: e.target.value })}>
+                      {Object.values(MARGIN_PRESETS).map((m) => (
+                        <option key={m.id} value={m.id}>{t(`workspace.margin.${m.id}`)} · {fmt(m.value)} mm</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="wx-form__wide">
+                    <span>{t('workspace.font')}</span>
+                    <select value={setup.font} onChange={(e) => updateSetup({ font: e.target.value })}>
+                      {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span>{t('workspace.fontSize')}</span>
+                    <select value={setup.fontSize} onChange={(e) => updateSetup({ fontSize: Number(e.target.value) })}>
+                      {FONT_SIZES.map((s) => <option key={s} value={s}>{s} pt</option>)}
+                    </select>
+                  </label>
+                  <label className="wx-form__check">
+                    <input type="checkbox" checked={setup.pageNumbers !== false} onChange={(e) => updateSetup({ pageNumbers: e.target.checked })} data-action="setup-page-numbers" />
+                    <span>{t('workspace.pageNumbers')}</span>
+                  </label>
+                  <label className="wx-form__check">
+                    <input type="checkbox" checked={Boolean(setup.header)} onChange={(e) => updateSetup({ header: e.target.checked })} data-action="setup-header" />
+                    <span>{t('workspace.headerTitle')}</span>
+                  </label>
+                  <label>
+                    <span>{t('workspace.lineHeight')}</span>
+                    <select value={setup.lineHeight} onChange={(e) => updateSetup({ lineHeight: Number(e.target.value) })}>
+                      {LINE_HEIGHTS.map((l) => <option key={l} value={l}>{fmt(l)}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <p className="wx-pop__note">{t('workspace.submitNote')}</p>
+              </Popover>
+            </div>
+          </span>
+        </div>
 
         <div className={bodyClass}>
           {/* --- Belge yapısı (WO-010 1.1): 240 px, araç çubuğundaki düğmeyle açılıp kapanır.
@@ -3007,275 +3268,6 @@ export default function Workspace({
 
           {/* --- Belge --- */}
           <main className="wx-main">
-            <div ref={ribbonRef} className={`wx-ribbon${tools.labels ? '' : ' wx-ribbon--compact'}`} role="toolbar" aria-label={t('workspace.toolbar')} inert={readOnly || undefined}>
-              {/* Tablo (WO-025): belge yapısı düğmesinin boşalttığı yerde, Word'deki gibi ızgara. */}
-              {tablesEnabled && (
-                <>
-                  <div className="wx-anchor">
-                    <button
-                      type="button"
-                      className="wx-btn wx-btn--ghost wx-tablebtn"
-                      aria-expanded={menu === 'table'}
-                      aria-haspopup="dialog"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => toggleMenu('table')}
-                      title={t('workspace.table.button')}
-                      data-action="write-table"
-                    >
-                      <Table2 size={15} /> <ChevronDown size={13} />
-                    </button>
-                    <Popover open={menu === 'table'} onClose={closeMenu} label={t('workspace.table.gridLabel')}>
-                      <TableGridPicker onPick={insertWordTable} />
-                    </Popover>
-                  </div>
-                  {/* Şekil ve grafik (WO-028): seçili paragrafın altında taslak alan açar. */}
-                  {figuresEnabled && (
-                    <>
-                      <button type="button" className="wx-btn wx-btn--ghost wx-tablebtn" onMouseDown={(e) => e.preventDefault()} onClick={() => openFigureDraft('figure')} title={t('workspace.figure.figureButtonHint')} aria-label={t('workspace.figure.figureButton')} data-action="write-figure">
-                        <Shapes size={15} />
-                      </button>
-                      <button type="button" className="wx-btn wx-btn--ghost wx-tablebtn" onMouseDown={(e) => e.preventDefault()} onClick={() => openFigureDraft('chart')} title={t('workspace.figure.chartButtonHint')} aria-label={t('workspace.figure.chartButton')} data-action="write-chart">
-                        <BarChart3 size={15} />
-                      </button>
-                    </>
-                  )}
-                  <span className="wx-divider" />
-                </>
-              )}
-              <select className="wx-sel" defaultValue="p"
-                onChange={(e) => { exec('formatBlock', e.target.value); e.target.value = 'p'; }}
-                aria-label={t('workspace.style')}>
-                <option value="p">{t('workspace.body')}</option>
-                <option value="h1">{t('workspace.heading', { n: 1 })}</option>
-                <option value="h2">{t('workspace.heading', { n: 2 })}</option>
-                <option value="h3">{t('workspace.heading', { n: 3 })}</option>
-                <option value="blockquote">{t('workspace.quote')}</option>
-              </select>
-              <span className="wx-divider" />
-              {/* Faz 2: belgenin yazı tipi, puntosu, satır aralığı (tüm belgeye uygulanır). Dar ekranda "Daha fazla"ya geçer. */}
-              {tools.fonts && (
-                <>
-                  <span className="wx-divider" />
-                  <select
-                  className="wx-sel"
-                  value={setup.font}
-                  onChange={(e) => updateSetup({ font: e.target.value })}
-                  aria-label={t('workspace.docFont')}
-                  title={t('workspace.docFontHint')}
-                  data-action="write-font"
-                >
-                  {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-                  </select>
-                  <select className="wx-sel" value={setup.fontSize} onMouseDown={rememberSelection} onChange={(e) => applyFontSize(Number(e.target.value))} aria-label={t('workspace.fontSize')} title={t('workspace.fontSizeHint')} data-action="write-font-size">
-                  {FONT_SIZES.map((sz) => <option key={sz} value={sz}>{sz} pt</option>)}
-                  </select>
-                  <select className="wx-sel" value={setup.lineHeight} onChange={(e) => updateSetup({ lineHeight: Number(e.target.value) })} aria-label={t('workspace.lineHeight')} title={t('workspace.lineHeight')} data-action="write-line-height">
-                  {LINE_HEIGHTS.map((l) => <option key={l} value={l}>{fmt(l)}</option>)}
-                  </select>
-                </>
-              )}
-              <span className="wx-divider" />
-              <Tool icon={<Bold size={16} />} label={t('workspace.bold')} onClick={() => exec('bold')} />
-              <Tool icon={<Italic size={16} />} label={t('workspace.italic')} onClick={() => exec('italic')} />
-              <Tool icon={<Underline size={16} />} label={t('workspace.underline')} onClick={() => exec('underline')} />
-              {tools.align && (
-                <>
-                  <span className="wx-divider" />
-                  <Tool icon={<AlignLeft size={16} />} label={t('workspace.alignLeft')} onClick={() => exec('justifyLeft')} />
-                  <Tool icon={<AlignCenter size={16} />} label={t('workspace.alignCenter')} onClick={() => exec('justifyCenter')} />
-                  <Tool icon={<AlignJustify size={16} />} label={t('workspace.alignJustify')} onClick={() => exec('justifyFull')} />
-                </>
-              )}
-              {tools.lists && (
-                <>
-                  <span className="wx-divider" />
-                  <Tool icon={<List size={16} />} label={t('workspace.bulletList')} onClick={() => exec('insertUnorderedList')} />
-                  <Tool icon={<ListOrdered size={16} />} label={t('workspace.numberList')} onClick={() => exec('insertOrderedList')} />
-                </>
-              )}
-              <span className="wx-divider" />
-              <Tool icon={<Undo2 size={16} />} label={t('workspace.undo')} onClick={() => exec('undo')} />
-              <Tool icon={<Redo2 size={16} />} label={t('workspace.redo')} onClick={() => exec('redo')} />
-              <span className="wx-divider" />
-              {/* Seçili kaynağın metin içi atfı imlece; künye doğrulanmış kayıttan (CLAUDE.md 3.1). */}
-              <button
-                type="button"
-                className="wx-btn wx-btn--accent"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={insertCitation}
-                title={paper ? t('workspace.citeHint', { name: inlineCitation(paper, lang) }) : t('workspace.citeNeedSource')}
-                data-action="write-cite"
-              >
-                <Quote size={15} /> <span className="wx-hide-md">{t('workspace.cite')}</span>
-              </button>
-
-              <span className="wx-ribbon__end">
-                <div className="wx-anchor">
-                  <button type="button" className="wx-btn wx-btn--ghost" aria-expanded={menu === 'insert'} onMouseDown={(e) => e.preventDefault()} onClick={() => toggleMenu('insert')} disabled={readOnly} data-action="write-insert">
-                    <PlusSquare size={15} /> <span className="wx-hide-sm">{t('workspace.insert.label')}</span> <ChevronDown size={14} />
-                  </button>
-                  <Popover open={menu === 'insert'} onClose={closeMenu} label={t('workspace.insert.label')}>
-                    <div onMouseDown={(e) => e.preventDefault()}>
-                      {visualsEnabled && (
-                        <button type="button" className="wx-pop__item" onClick={startNewTable} data-action="insert-table">
-                          <strong>{t('workspace.visual.menuTable')}</strong><small>{t('workspace.visual.menuTableHint')}</small>
-                        </button>
-                      )}
-                      <button type="button" className="wx-pop__item" onClick={() => insertCaption('table')} data-action="insert-table-caption">
-                        <strong>{t('workspace.insert.tableCaption')}</strong><small>{t('workspace.insert.captionHint')}</small>
-                      </button>
-                      <button type="button" className="wx-pop__item" onClick={() => insertCaption('figure')} data-action="insert-figure-caption">
-                        <strong>{t('workspace.insert.figureCaption')}</strong><small>{t('workspace.insert.captionHint')}</small>
-                      </button>
-                      <button type="button" className="wx-pop__item" onClick={() => { closeMenu(); insertCitation(); }} data-action="insert-citation">
-                        <strong>{t('workspace.cite')}</strong><small>{paper ? inlineCitation(paper, lang) : t('workspace.citeNeedSource')}</small>
-                      </button>
-                      <button type="button" className="wx-pop__item" onClick={() => { closeMenu(); openImport(); }} data-action="insert-import">
-                        <strong>{t('workspace.imp.short')}</strong>
-                      </button>
-                    </div>
-                  </Popover>
-                </div>
-                {/* Şablon ⋯ menüsünde (Y1): seyrek kullanılır; açılan pencere aynı çapada. */}
-                <div className="wx-anchor">
-                  <Popover open={menu === 'template'} onClose={closeMenu} label={t('workspace.templatesTitle')} wide>
-                    <div className="wx-pop__head">
-                      <strong>{t('workspace.templatesTitle')}</strong>
-                      <p>{t('workspace.templatesLead')}</p>
-                    </div>
-                    {TEMPLATES.map((tpl) => (
-                      <button key={tpl.id} type="button" className="wx-pop__item" onClick={() => applyTemplate(tpl.id)}>
-                        <strong>{t(`workspace.tpl.${tpl.id}.name`)}</strong>
-                        <small>{t(`workspace.tpl.${tpl.id}.desc`)}</small>
-                        {tpl.sections.length > 0 && (
-                          <small className="wx-pop__meta">
-                            {t('workspace.templateSections', { n: fmt(tpl.sections.length) })}
-                            {' · '}
-                            {t('workspace.templateWords', { n: fmt(templateWords(tpl)) })}
-                          </small>
-                        )}
-                      </button>
-                    ))}
-                  </Popover>
-                  <button
-                    type="button"
-                    className="wx-btn wx-btn--ghost"
-                    aria-expanded={menu === 'more'}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => toggleMenu('more')}
-                    data-action="write-more"
-                    title={t('workspace.more.label')}
-                    aria-label={t('workspace.more.label')}
-                  >
-                    <MoreHorizontal size={16} />
-                  </button>
-                  <Popover open={menu === 'more'} onClose={closeMenu} label={t('workspace.more.label')}>
-                    <div className="wx-more" onMouseDown={(e) => { if (e.target.tagName !== 'SELECT' && e.target.tagName !== 'OPTION') e.preventDefault(); }}>
-                      <button type="button" className="wx-pop__item wx-pop__item--row" onClick={() => setMenu('template')} disabled={readOnly} data-action="write-templates">
-                        <LayoutTemplate size={16} />
-                        <span><strong>{t('workspace.templates')}…</strong></span>
-                      </button>
-                      <div className="wx-more__row">
-                        <Tool icon={<Superscript size={16} />} label={t('workspace.more.sup')} onClick={() => execTag('superscript')} />
-                        <Tool icon={<Subscript size={16} />} label={t('workspace.more.sub')} onClick={() => execTag('subscript')} />
-                        <Tool icon={<Highlighter size={16} />} label={t('workspace.more.highlight')} onClick={() => exec('hiliteColor', '#fff3a3')} />
-                        <Tool icon={<RemoveFormatting size={16} />} label={t('workspace.more.clear')} onClick={() => exec('removeFormat')} />
-                      </div>
-                      {!tools.align && (
-                        <div className="wx-more__row" data-group="align">
-                          <Tool icon={<AlignLeft size={16} />} label={t('workspace.alignLeft')} onClick={() => exec('justifyLeft')} />
-                          <Tool icon={<AlignCenter size={16} />} label={t('workspace.alignCenter')} onClick={() => exec('justifyCenter')} />
-                          <Tool icon={<AlignJustify size={16} />} label={t('workspace.alignJustify')} onClick={() => exec('justifyFull')} />
-                        </div>
-                      )}
-                      {!tools.lists && (
-                        <div className="wx-more__row" data-group="lists">
-                          <Tool icon={<List size={16} />} label={t('workspace.bulletList')} onClick={() => exec('insertUnorderedList')} />
-                          <Tool icon={<ListOrdered size={16} />} label={t('workspace.numberList')} onClick={() => exec('insertOrderedList')} />
-                        </div>
-                      )}
-                      {!tools.fonts && (
-                        <div className="wx-more__row wx-more__row--sel" data-group="fonts">
-                          <select
-                  className="wx-sel"
-                  value={setup.font}
-                  onChange={(e) => updateSetup({ font: e.target.value })}
-                  aria-label={t('workspace.docFont')}
-                  title={t('workspace.docFontHint')}
-                  data-action="write-font"
-                >
-                  {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-                          </select>
-                          <select className="wx-sel" value={setup.fontSize} onMouseDown={rememberSelection} onChange={(e) => applyFontSize(Number(e.target.value))} aria-label={t('workspace.fontSize')} title={t('workspace.fontSizeHint')} data-action="write-font-size">
-                  {FONT_SIZES.map((sz) => <option key={sz} value={sz}>{sz} pt</option>)}
-                          </select>
-                          <select className="wx-sel" value={setup.lineHeight} onChange={(e) => updateSetup({ lineHeight: Number(e.target.value) })} aria-label={t('workspace.lineHeight')} title={t('workspace.lineHeight')} data-action="write-line-height">
-                  {LINE_HEIGHTS.map((l) => <option key={l} value={l}>{fmt(l)}</option>)}
-                          </select>
-                        </div>
-                      )}
-                    </div>
-                  </Popover>
-                </div>
-                <div className="wx-anchor">
-                  <button type="button" className="wx-btn wx-btn--ghost" aria-expanded={menu === 'page'} onClick={() => toggleMenu('page')} title={t('workspace.pageSettings')} aria-label={t('workspace.pageSettings')}>
-                    <SlidersHorizontal size={15} />
-                  </button>
-                  <Popover open={menu === 'page'} onClose={closeMenu} label={t('workspace.pageSettings')}>
-                    <div className="wx-form">
-                      <label>
-                        <span>{t('workspace.pageSize')}</span>
-                        <select value={setup.size} onChange={(e) => updateSetup({ size: e.target.value })}>
-                          {Object.values(PAGE_SIZES).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-                        </select>
-                      </label>
-                      <label>
-                        <span>{t('workspace.orientation')}</span>
-                        <select value={setup.landscape ? 'landscape' : 'portrait'} onChange={(e) => updateSetup({ landscape: e.target.value === 'landscape' })}>
-                          <option value="portrait">{t('workspace.portrait')}</option>
-                          <option value="landscape">{t('workspace.landscape')}</option>
-                        </select>
-                      </label>
-                      <label className="wx-form__wide">
-                        <span>{t('workspace.margins')}</span>
-                        <select value={setup.margin} onChange={(e) => updateSetup({ margin: e.target.value })}>
-                          {Object.values(MARGIN_PRESETS).map((m) => (
-                            <option key={m.id} value={m.id}>{t(`workspace.margin.${m.id}`)} · {fmt(m.value)} mm</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="wx-form__wide">
-                        <span>{t('workspace.font')}</span>
-                        <select value={setup.font} onChange={(e) => updateSetup({ font: e.target.value })}>
-                          {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-                        </select>
-                      </label>
-                      <label>
-                        <span>{t('workspace.fontSize')}</span>
-                        <select value={setup.fontSize} onChange={(e) => updateSetup({ fontSize: Number(e.target.value) })}>
-                          {FONT_SIZES.map((s) => <option key={s} value={s}>{s} pt</option>)}
-                        </select>
-                      </label>
-                      <label className="wx-form__check">
-                        <input type="checkbox" checked={setup.pageNumbers !== false} onChange={(e) => updateSetup({ pageNumbers: e.target.checked })} data-action="setup-page-numbers" />
-                        <span>{t('workspace.pageNumbers')}</span>
-                      </label>
-                      <label className="wx-form__check">
-                        <input type="checkbox" checked={Boolean(setup.header)} onChange={(e) => updateSetup({ header: e.target.checked })} data-action="setup-header" />
-                        <span>{t('workspace.headerTitle')}</span>
-                      </label>
-                      <label>
-                        <span>{t('workspace.lineHeight')}</span>
-                        <select value={setup.lineHeight} onChange={(e) => updateSetup({ lineHeight: Number(e.target.value) })}>
-                          {LINE_HEIGHTS.map((l) => <option key={l} value={l}>{fmt(l)}</option>)}
-                        </select>
-                      </label>
-                    </div>
-                    <p className="wx-pop__note">{t('workspace.submitNote')}</p>
-                  </Popover>
-                </div>
-              </span>
-            </div>
 
             {/* Faz 2: belge üstünde en fazla bir bilgi şeridi (öncelik: kilit, depolama, kaldığın yer, teslim notu). */}
 
@@ -3347,6 +3339,23 @@ export default function Workspace({
                     data-action="write-outline"
                   >
                     <ListTree size={16} />
+                  </button>
+                </div>
+              )}
+              {/* Sağ panel belge yapısının aynası (WO-030 bulgu 6): açıkken panel
+                  başlığında kapanır, kapalıyken masanın sağ üstünde sekme. */}
+              {!sideOpen && (
+                <div className="wx-side-dock">
+                  <button
+                    type="button"
+                    className="wx-tool"
+                    aria-pressed="false"
+                    onClick={openSidePanel}
+                    title={t('workspace.openPanel')}
+                    aria-label={t('workspace.openPanel')}
+                    data-action="write-side"
+                  >
+                    <PanelRightOpen size={16} />
                   </button>
                 </div>
               )}
@@ -3565,8 +3574,8 @@ export default function Workspace({
                     )}
                   </div>
                 )}
-                <button type="button" className="wx-icon wx-icon--sm wx-panel-head__close" onClick={() => setSideOpen(false)} aria-label={t('workspace.closePanel')} title={t('workspace.closePanel')}>
-                  <X size={15} />
+                <button type="button" className="wx-icon wx-icon--sm wx-panel-head__close" onClick={() => setSideOpen(false)} aria-label={t('workspace.closePanel')} title={t('workspace.closePanel')} data-action="write-side">
+                  <PanelRightClose size={15} />
                 </button>
               </div>
 

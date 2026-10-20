@@ -93,3 +93,36 @@ test('WO-030 bulgu 7: liste boşken açılınca da açıklama kutusu çıkmaz', 
   await expect(works.getByText('Henüz arama yapılmadı', { exact: false })).toHaveCount(0);
   await expect(works.getByText('analizleri burada birikir', { exact: false })).toHaveCount(0);
 });
+
+test('WO-030 bulgu 5–6: belge yapısı ve sağ panel açılıp kapanınca biçim çubuğu kaymaz; sağ panel sekmesi kenarda', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await seedDraft(page, '<h1>Giriş</h1><p>Metin.</p>');
+  await mockApi(page);
+  await page.goto('/#/yaz');
+  const cite = page.locator('[data-action="write-cite"]');
+  const insert = page.locator('[data-action="write-insert"]');
+  await expect(cite).toBeVisible();
+  const x = async (loc) => (await loc.boundingBox()).x;
+  const before = [await x(cite), await x(insert)];
+
+  // Sağ panel düğmesi üst çubukta değil; açıkken panel başlığında.
+  await expect(page.locator('.wx-top [data-action="write-side"]')).toHaveCount(0);
+  const sideBtn = page.locator('[data-action="write-side"]');
+  if ((await page.locator('aside.wx-side').count()) > 0) {
+    await expect(page.locator('aside.wx-side [data-action="write-side"]')).toBeVisible();
+    await sideBtn.click();
+  }
+  await expect(page.locator('aside.wx-side')).toHaveCount(0);
+  await expect(page.locator('.wx-side-dock [data-action="write-side"]')).toBeVisible();
+  expect([await x(cite), await x(insert)]).toEqual(before);
+
+  // Belge yapısını aç/kapa: çubuk yine aynı yerde.
+  const outlineOpen = page.locator('.wx-outline-dock [data-action="write-outline"]');
+  if (await outlineOpen.count()) await outlineOpen.click();
+  else await page.locator('[data-action="write-outline"]').first().click();
+  expect([await x(cite), await x(insert)]).toEqual(before);
+
+  await page.locator('.wx-side-dock [data-action="write-side"]').click();
+  await expect(page.locator('aside.wx-side')).toBeVisible();
+  expect([await x(cite), await x(insert)]).toEqual(before);
+});
