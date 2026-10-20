@@ -2,7 +2,7 @@
 
 | Alan | Değer |
 | --- | --- |
-| Durum | Çalışıyor (20.10.2026) — kullanıcı: "yap knk pipeline çıkar planla sonra yap ve kontrol et" |
+| Durum | Bitti, elle deneme bekliyor (20.10.2026) — kullanıcı: "yap knk pipeline çıkar planla sonra yap ve kontrol et" |
 | Kapsam | İstemci (çalışma alanı, kenar çubuğu, şekil çizici, Word dışa aktarımı) |
 | Dosya değişikliği | İzinli (liste aşağıda) |
 | Tahmini süre | 2 oturum |
@@ -52,17 +52,17 @@ yardımcı dosyalar), `client/src/visuals/`, `client/src/styles/`
 altındaki ilgili testler, notlar dosyası, README, bu dosya.
 
 ## Kabul kriterleri
-- [ ] Faz 1: iki başlık tıklanınca açılır (`aria-expanded`), varsayılan
+- [x] Faz 1: iki başlık tıklanınca açılır (`aria-expanded`), varsayılan
       kapalı, boşken açıklama kutusu yok.
-- [ ] Faz 2: belge yapısı açılıp kapanınca biçim çubuğundaki "Atıf ekle"
+- [x] Faz 2: belge yapısı açılıp kapanınca biçim çubuğundaki "Atıf ekle"
       düğmesinin x konumu değişmez (e2e ölçer). Sağ panel düğmesi biçim
       çubuğunda değil; panel kapalıyken sağ kenar sekmesi açar.
-- [ ] Faz 3: şekle tek tık düzenleyiciyi açmaz. Düzenle düğmesi açar.
+- [x] Faz 3: şekle tek tık düzenleyiciyi açmaz. Düzenle düğmesi açar.
       Öğenin yanında Backspace/Delete öğeyi silmez. Sil siler. Ctrl+Z ve
       Geri al geri getirir. Word çıktısında simge yok.
-- [ ] Faz 4: palet seçimi SVG'ye ve Word'e geçer. Düzenle'de geri gelir.
+- [x] Faz 4: palet seçimi SVG'ye ve Word'e geçer. Düzenle'de geri gelir.
       Varsayılan çıktı değişmez (birim test).
-- [ ] Lint, birim, e2e geçer. Kırılan eski e2e yeni davranışa göre
+- [x] Lint, birim, e2e geçer. Kırılan eski e2e yeni davranışa göre
       güncellenir ve rapora yazılır.
 
 ## Geri alma
@@ -78,7 +78,9 @@ Her faz ayrı commit; tek tek revert edilebilir.
 Yok. Push yok; elle deneme Ahmet'te.
 
 ## Bitiş raporu
-- Değişen dosyalar:
-- Çalıştırılan testler:
-- Bilinen eksikler:
-- **Durum:**
+- Commit'ler: 08571c8 (Faz 1), 7849844 (Faz 2), ea4f7bf (bulgu 8, arama kapsülü — gezinti sırasında eklendi), b63c6ca (Faz 3+4 tek commit: i18n, CSS ve şekil testi iki fazda ortak, temiz bölünmedi).
+- Değişen dosyalar: HistorySidebar.jsx, sidebar.css, Workspace.jsx, workspace.css, FigureDraft.jsx, visuals/draw.js, App.jsx (arama formu), shell.css, i18n tr/en; testler: ui-sade, mode, word-table, figure-chart, object-controls (yeni), drawAppearance (yeni).
+- Ajan kullanımı (Ahmet izni 20.10): arama kapsülü ve Faz 4 Görünüm iki ayrı ajana yazdırıldı; ekran görüntüleri ve testleri ana oturumda yeniden doğrulandı.
+- Çalıştırılan testler (20.10.2026): lint temiz; istemci birim 350/350; sunucu 462/462; e2e 110 geçti, 3 atlandı. Yerel build yalnız --minify false ile alındı (antivirüs esbuild'i kilitliyor), başarılı.
+- Bilinen eksikler: şekil seçimi klavyeyle yalnız şekil başlığına imleç koyarak (sonra Tab); Word 365'in kendi SVG çizicisinde desen dolgusu denenmedi (PNG yedeğinde var); çizgi ve zaman çizelgesinde desen yok; bulgu 3 (yeni şablonlar) galeri seçimini bekliyor; Faz 3 ve 4 tek commit.
+- **Durum:** NEEDS ATTENTION — testler geçti, Ahmet elle denemedi.

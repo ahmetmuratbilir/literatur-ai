@@ -72,7 +72,7 @@ Taslak → Hazır → Çalışıyor → Bitti
 | [WO-027](WO-027-yapay-zeka-gecidi.md) | Yapay zekâ geçidi: tek kapı, kullanıcının anahtarı her çağrıda, Claude/Kimi/OpenAI; consensus açığı | P1 | Bitti, gerçek sağlayıcı denemesi bekliyor (19.10.2026, `wo-027-ai-gecit`) |
 | [WO-028](WO-028-sekil-grafik-taslak-alan.md) | Şekil ve grafik: Napkin gibi belgede taslak alan, Tamam ile ekle | P3 | Bitti, elle deneme bekliyor (19.10.2026, `wo-028-sekil-grafik`) |
 | [WO-029](WO-029-veri-kaynaklari.md) | Veri kaynakları: durum matrisi (`docs/sources.md`) ve atıf penceresi (tüzük 2.7) | P1 | Bitti, elle deneme bekliyor (20.10.2026, `wo-029-veri-kaynaklari`) |
-| [WO-030](WO-030-sadelestirme-turu-1.md) | Sadeleştirme turu 1: nesne denetimi (Düzenle/Sil), sabit biçim çubuğu, panel düğmeleri, kenar listeleri, şekil görünümü | P1 | Çalışıyor (20.10.2026) |
+| [WO-030](WO-030-sadelestirme-turu-1.md) | Sadeleştirme turu 1: nesne denetimi (Düzenle/Sil), sabit biçim çubuğu, panel düğmeleri, kenar listeleri, şekil görünümü | P1 | Bitti, elle deneme bekliyor (20.10.2026, `wo-030-sadelestirme`) |
 
 **Yol haritası (17.10.2026):** `docs/design/yol-haritasi.md`. Görünür sonuç
 sırası: WO-011 kontrolü → galeri kararları → WO-017 → WO-018 → WO-019 →
