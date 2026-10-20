@@ -70,6 +70,11 @@ test('ızgaradan tablo: yerinde yazım, Tab ve son hücrede yeni satır, Ctrl+Z,
   // Araç çubuğu: imleç tablodayken görünür; sütun ekle/sil.
   await doc(page).locator('table td').first().click();
   const bar = page.getByTestId('table-toolbar');
+  // Tek tık araç çubuğunu açmaz (WO-030); Düzenle açar.
+  await expect(bar).toHaveCount(0);
+  await doc(page).locator('table').hover();
+  await page.getByTestId('objbar').locator('[data-action="obj-edit"]').click();
+  await doc(page).locator('table td').first().click();
   await expect(bar).toBeVisible();
   await bar.locator('[data-action="table-col-right"]').click();
   expect(await shape(page)).toEqual({ rows: 3, cols: 3 });

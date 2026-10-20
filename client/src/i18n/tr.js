@@ -895,6 +895,16 @@ export default {
       h1: 'Ürün', h2: 'Kaynaklar', h3: 'Hesap', data: 'Veri kaynakları', contact: 'İletişim',
     },
   },
+  // Belgedeki tablo/şekil/grafik denetimi (WO-030)
+  objbar: {
+    label: '{kind} işlemleri',
+    edit: '{kind} düzenle',
+    remove: '{kind} sil',
+    removed: '{kind} silindi',
+    undo: 'Geri al',
+    kind: { table: 'Tabloyu', figure: 'Şekli', chart: 'Grafiği' },
+    name: { table: 'Tablo', figure: 'Şekil', chart: 'Grafik' },
+  },
   // Veri kaynakları ve atıflar (WO-029; tüzük 2.7)
   dataSources: {
     open: 'Veri kaynakları',
@@ -1236,6 +1246,19 @@ export default {
       cancel: 'Vazgeç',
       done: 'Tamam, belgeye ekle',
       wordPlaceholder: '[Şekil {n} — Word\'e görüntü olarak eklenemedi]',
+      // Görünüm (WO-030 Faz 4)
+      look: {
+        title: 'Görünüm',
+        palette: 'Renkler',
+        pattern: 'Desen',
+        corners: 'Köşe',
+        text: 'Yazı boyutu',
+        paletteOpts: { default: 'Varsayılan', gray: 'Gri tonlar', cvd: 'Renk körü dostu', bw: 'Siyah-beyaz baskı' },
+        patternOpts: { solid: 'Düz', stripes: 'Çizgili', dots: 'Noktalı' },
+        cornersOpts: { round: 'Yuvarlak', square: 'Köşeli' },
+        textOpts: { small: 'Küçük', normal: 'Normal', large: 'Büyük' },
+        patternNone: 'Bu türde desenlenecek alan yok.',
+      },
     },
     // Word gibi tablo (WO-025)
     table: {

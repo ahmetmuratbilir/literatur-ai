@@ -5,7 +5,7 @@ import {
   AlignCenter, AlignJustify, AlignLeft, ArrowLeft, Bold, Check, ChevronDown, ChevronLeft, ChevronRight,
   ClipboardCheck, Download, FileText, History, Info, Italic, LayoutTemplate, Library, List, ListChecks, ListOrdered, ListTree,
   PanelRightClose, PanelRightOpen, Plus, Printer, Quote, Redo2, RefreshCw, RotateCcw, Search, SlidersHorizontal, Table2, Shapes, BarChart3,
-  Underline, Undo2, Upload, X, MoreHorizontal, PlusSquare, Sparkles, Superscript, Subscript, Highlighter, RemoveFormatting,
+  Underline, Undo2, Upload, X, Pencil, Trash2, MoreHorizontal, PlusSquare, Sparkles, Superscript, Subscript, Highlighter, RemoveFormatting,
 } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import {
@@ -459,6 +459,14 @@ export default function Workspace({
   const visualModeRef = useRef(null);
   // Word gibi tablo (WO-025): imlecin bulunduğu belge tablosu ve hücresi.
   const [tableCtx, setTableCtx] = useState(null);
+  // Nesne denetimi (WO-030 bulgu 1, 4): tablo/şekil/grafik üzerine gelince ya da
+  // seçiliyken Düzenle/Sil. Tablo araç çubuğu yalnız Düzenle'den ya da hücrede
+  // yazmaya başlayınca gelir (tek tık düzenleyici açmaz).
+  const [objHover, setObjHover] = useState(null);
+  const [objSel, setObjSel] = useState(null);
+  const [tableEdit, setTableEdit] = useState(null);
+  const [undoNote, setUndoNote] = useState(null);
+  const allowObjDeleteRef = useRef(false);
   // Şekil/grafik taslak alanı (WO-028): { mode, editId, initial, number, sourceText, sourceRows } ya da null.
   const [figDraft, setFigDraft] = useState(null);
   useEffect(() => { visualModeRef.current = visual?.mode || null; }, [visual?.mode]);
@@ -724,12 +732,16 @@ export default function Workspace({
       // İmleç tablodaysa tablo araç çubuğu onun üstünde görünür (WO-025).
       const hit = cellAt(range.startContainer, el);
       setTableCtx((prev) => {
-        if (!hit) return prev ? null : prev;
+        if (!hit) { setTableEdit(null); return prev ? null : prev; }
         if (prev && prev.table === hit.table && prev.row === hit.row && prev.col === hit.col) return prev;
         return { table: hit.table, row: hit.row, col: hit.col };
       });
       const block = topBlock(el, range.startContainer);
       if (!block) return;
+      // İmleç şeklin başlığındaysa şekil seçili sayılır: Tab ile Düzenle/Sil'e ulaşılır.
+      const capOf = block.dataset?.captionFor && block.previousElementSibling?.tagName === 'FIGURE'
+        && block.previousElementSibling.dataset.visualId === block.dataset.captionFor ? block.previousElementSibling : null;
+      if (capOf) setObjSel(capOf);
       // Yeni tablo hazırlanırken belgede başka yere tıklanırsa yer oraya taşınır.
       if (visualModeRef.current === 'new') {
         setVisualTarget(block);
@@ -2029,8 +2041,10 @@ export default function Workspace({
 
   const onPageClick = (e) => {
     // Belgedeki şekle/grafiğe tıklamak taslak alanı yeniden açar (WO-028).
+    // Tek tık yalnız seçer (WO-030 bulgu 1); düzenleyici çift tıkla ya da Düzenle ile açılır.
     const fig = figuresEnabled && !readOnly ? e.target.closest?.('figure.wx-vfig') : null;
-    if (fig && fig.parentNode === pageRef.current) { openFigureDraft(fig.dataset.visualKind === 'chart' ? 'chart' : 'figure', fig); return; }
+    if (fig && fig.parentNode === pageRef.current) { setObjSel(fig); return; }
+    setObjSel(null);
     const table = visualsEnabled && !readOnly ? e.target.closest?.('table') : null;
     if (table && table.parentNode === pageRef.current) openTableEdit(table);
     openCitationAtCaret();
@@ -2091,6 +2105,7 @@ export default function Workspace({
     document.execCommand('insertHTML', false, html);
     const placed = tableById(id);
     if (placed) {
+      setTableEdit(placed);
       selectCell(placed.rows[0]?.cells[0], { collapse: true });
       placed.scrollIntoView({ block: 'nearest' });
     }
@@ -2120,6 +2135,7 @@ export default function Workspace({
     selectRange(range);
     document.execCommand('insertHTML', false, copy.outerHTML + (takeEmpty ? '<p><br></p>' : ''));
     const placed = tableById(copy.dataset.visualId);
+    if (placed) setTableEdit(placed);
     if (placed && target) {
       const row = placed.rows[Math.max(0, Math.min(target.row, placed.rows.length - 1))];
       selectCell(row?.cells[Math.max(0, Math.min(target.col, (row?.cells.length || 1) - 1))], { collapse: true });
@@ -2141,6 +2157,60 @@ export default function Workspace({
     // Tarayıcı silinen başlığın sınıfını komşu paragrafa taşıyabiliyor; onarım çözer.
     syncCaptions(el, t('audit.kind.table'));
     setTableCtx(null);
+  };
+
+  // --- Nesne denetimi (WO-030) -----------------------------------------------
+  const objKind = (obj) => (obj?.tagName === 'TABLE' ? 'table' : (obj?.dataset.visualKind === 'chart' ? 'chart' : 'figure'));
+
+  const onPageDoubleClick = (e) => {
+    const fig = figuresEnabled && !readOnly ? e.target.closest?.('figure.wx-vfig') : null;
+    if (fig && fig.parentNode === pageRef.current) openFigureDraft(objKind(fig), fig);
+  };
+
+  const editObject = (obj) => {
+    if (!obj?.isConnected || readOnly) return;
+    if (obj.tagName === 'TABLE') {
+      setTableEdit(obj);
+      pageRef.current?.focus({ preventScroll: true });
+      selectCell(obj.rows[0]?.cells[0], { collapse: true });
+      return;
+    }
+    openFigureDraft(objKind(obj), obj);
+  };
+
+  /** Nesneyi (ve bağlı başlığını) siler; Ctrl+Z ve "Geri al" geri getirir. */
+  const removeObject = (obj) => {
+    const el = pageRef.current;
+    if (!el || !obj?.isConnected || readOnly) return;
+    const kind = objKind(obj);
+    allowObjDeleteRef.current = true;
+    try {
+      if (obj.tagName === 'TABLE') deleteWordTable(obj);
+      else {
+        const cap = obj.nextElementSibling?.dataset.captionFor === obj.dataset.visualId ? obj.nextElementSibling : null;
+        el.focus({ preventScroll: true });
+        const range = document.createRange();
+        range.setStartBefore(obj);
+        range.setEndAfter(cap || obj);
+        selectRange(range);
+        document.execCommand('delete');
+        syncCaptions(el, t('audit.kind.table'));
+      }
+    } finally {
+      allowObjDeleteRef.current = false;
+    }
+    setObjHover(null);
+    setObjSel(null);
+    setUndoNote({ kind });
+  };
+
+  const undoRemove = () => {
+    const el = pageRef.current;
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    document.execCommand('undo');
+    syncCaptions(el, t('audit.kind.table'));
+    setUndoNote(null);
   };
 
   /** Başlık ekle / kaldır (Word: Resim Yazısı Ekle). */
@@ -2294,6 +2364,101 @@ export default function Workspace({
     setFigDraft(null);
   };
 
+  // Tablo, şekil ve grafik yazı gibi silinmez (WO-030 bulgu 4): yalnız Sil düğmesiyle.
+  // Tek nokta: beforeinput. Silme ya da üstüne yazma bir nesneye değiyorsa durdurulur;
+  // kenarda Backspace/Delete imleci nesnenin öbür yanına atlatır, nesneyi içine alan
+  // seçimde yalnız yazı silinir. Tek hücrenin içindeki düzenleme serbesttir.
+  useEffect(() => {
+    const el = pageRef.current;
+    if (!el || readOnly) return undefined;
+    const objects = () => [...el.children].filter((n) => n.tagName === 'TABLE' || (n.tagName === 'FIGURE' && n.classList.contains('wx-vfig')));
+    const cellOf = (node) => (node?.nodeType === 1 ? node : node?.parentElement)?.closest?.('td, th') || null;
+    const toRange = (sr) => {
+      const r = document.createRange();
+      r.setStart(sr.startContainer, sr.startOffset);
+      r.setEnd(sr.endContainer, sr.endOffset);
+      return r;
+    };
+    const place = (node, atEnd) => {
+      if (!node) return;
+      const r = document.createRange();
+      r.selectNodeContents(node);
+      r.collapse(!atEnd);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+    };
+    const onBeforeInput = (e) => {
+      if (allowObjDeleteRef.current) return;
+      const type = e.inputType || '';
+      if (!/^(delete|insert)/.test(type) || type === 'historyUndo' || type === 'historyRedo') return;
+      const sel = window.getSelection();
+      const ranges = (e.getTargetRanges?.() || []).map(toRange);
+      if (!ranges.length && sel?.rangeCount) ranges.push(sel.getRangeAt(0).cloneRange());
+      const range = ranges[0];
+      if (!range || (range.collapsed && type.startsWith('insert'))) return;
+      const sameCell = cellOf(range.startContainer);
+      if (sameCell && sameCell === cellOf(range.endContainer)) return;
+      const hit = objects().filter((o) => range.intersectsNode(o));
+      if (!hit.length) return;
+      e.preventDefault();
+      // Seçim yokken (kenarda silme): imleç nesnenin öbür yanına geçer.
+      if (sel?.isCollapsed) {
+        const obj = hit[0];
+        if (/Backward/.test(type)) place(obj.previousElementSibling, true);
+        else place(obj.nextElementSibling, false);
+        return;
+      }
+      // Nesneyi içine alan seçim: yalnız aradaki yazı silinir, sondan başa.
+      const segments = [];
+      let start = [range.startContainer, range.startOffset];
+      for (const obj of hit) {
+        if (!obj.contains(start[0])) {
+          const before = obj.previousElementSibling;
+          if (before && before.compareDocumentPosition(start[0]) !== Node.DOCUMENT_POSITION_FOLLOWING) {
+            const seg = document.createRange();
+            seg.setStart(...start);
+            seg.setEnd(before, before.childNodes.length);
+            if (!seg.collapsed) segments.push(seg);
+          }
+        }
+        const after = obj.nextElementSibling;
+        start = after ? [after, 0] : null;
+        if (!start) break;
+      }
+      const last = hit[hit.length - 1];
+      if (start && !last.contains(range.endContainer)) {
+        const seg = document.createRange();
+        seg.setStart(...start);
+        seg.setEnd(range.endContainer, range.endOffset);
+        if (!seg.collapsed) segments.push(seg);
+      }
+      allowObjDeleteRef.current = true;
+      try {
+        for (const seg of segments.reverse()) {
+          sel.removeAllRanges();
+          sel.addRange(seg);
+          document.execCommand('delete');
+        }
+        if (type === 'insertText' && e.data) document.execCommand('insertText', false, e.data);
+      } finally {
+        allowObjDeleteRef.current = false;
+      }
+    };
+    // Nesneyi sürükleyip bırakmak onu kopyalar/siler: sürükleme kapalı.
+    const onDragStart = (e) => {
+      const sel = window.getSelection();
+      const r = sel?.rangeCount ? sel.getRangeAt(0) : null;
+      if (e.target.closest?.('table, figure') || (r && !r.collapsed && objects().some((o) => r.intersectsNode(o)))) e.preventDefault();
+    };
+    el.addEventListener('beforeinput', onBeforeInput);
+    el.addEventListener('dragstart', onDragStart);
+    return () => {
+      el.removeEventListener('beforeinput', onBeforeInput);
+      el.removeEventListener('dragstart', onDragStart);
+    };
+  }, [readOnly]);
+
   /** Hücre içinde klavye (Word): Tab gezinir, son hücrede yeni satır; Enter satır sonu; Alt+Shift+↑↓ satırı taşır. */
   const onPageKeyDown = (e) => {
     if (!tablesEnabled || readOnly || e.isComposing) return;
@@ -2301,6 +2466,8 @@ export default function Workspace({
     if (!sel?.rangeCount) return;
     const hit = cellAt(sel.anchorNode, pageRef.current);
     if (!hit) return;
+    // Hücrede yazmaya başlamak tablo araç çubuğunu getirir (WO-030).
+    if (!e.ctrlKey && !e.metaKey && (e.key.length === 1 || ['Tab', 'Enter', 'Backspace', 'Delete'].includes(e.key))) setTableEdit(hit.table);
     if (e.key === 'Tab' && !e.altKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       const cells = [...hit.table.querySelectorAll('th, td')];
@@ -3362,7 +3529,7 @@ export default function Workspace({
               {/* Tablo araç çubuğu (WO-025): Word'ün bağlamsal "Tablo" sekmesi gibi;
                   imleç tablodayken masanın üstünde yapışık durur, tablonun çevresindeki
                   metni örtmez (tablonun üstüne konunca önceki paragrafı örtüyordu). */}
-              {tablesEnabled && !readOnly && tableCtx?.table?.isConnected && (() => {
+              {tablesEnabled && !readOnly && tableCtx?.table?.isConnected && tableEdit === tableCtx.table && (() => {
                 const table = tableCtx.table;
                 const shape = tableShape(table);
                 const rowEl = table.rows[tableCtx.row];
@@ -3432,8 +3599,47 @@ export default function Workspace({
                   onInput={onInput}
                   onBlur={flush}
                   onClick={onPageClick}
+                  onDoubleClick={onPageDoubleClick}
                   onKeyDown={onPageKeyDown}
+                  onMouseOver={(e) => {
+                    const obj = e.target.closest?.('table, figure.wx-vfig');
+                    setObjHover(obj && obj.parentNode === pageRef.current ? obj : null);
+                  }}
+                  onMouseLeave={(e) => { if (!e.relatedTarget?.closest?.('.wx-objbar')) setObjHover(null); }}
                 />
+                {/* Nesne denetimi (WO-030): üzerine gelince ya da seçiliyken sağ üstte Düzenle / Sil.
+                    Belgenin dışında durur; Word'e ve baskıya girmez. */}
+                {!readOnly && (() => {
+                  const obj = [objHover, objSel, tableCtx?.table].find((o) => o?.isConnected && o.parentNode === pageRef.current) || null;
+                  if (!obj || (figDraft && objKind(obj) !== 'table')) return null;
+                  const kind = objKind(obj);
+                  const name = t(`objbar.kind.${kind}`);
+                  return (
+                    <div
+                      className="wx-objbar"
+                      role="toolbar"
+                      aria-label={t('objbar.label', { kind: t(`objbar.name.${kind}`) })}
+                      style={{ top: obj.offsetTop + 6, left: obj.offsetLeft + obj.offsetWidth - 6 }}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => setObjHover(obj)}
+                      data-testid="objbar"
+                    >
+                      <button type="button" className="wx-objbar__btn" onClick={() => editObject(obj)} title={t('objbar.edit', { kind: name })} aria-label={t('objbar.edit', { kind: name })} data-action="obj-edit">
+                        <Pencil size={14} />
+                      </button>
+                      <button type="button" className="wx-objbar__btn wx-objbar__btn--danger" onClick={() => removeObject(obj)} title={t('objbar.remove', { kind: name })} aria-label={t('objbar.remove', { kind: name })} data-action="obj-delete">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  );
+                })()}
+                {undoNote && (
+                  <div className="wx-undonote" role="status" data-testid="undo-note">
+                    <span>{t('objbar.removed', { kind: t(`objbar.name.${undoNote.kind}`) })}</span>
+                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={undoRemove} data-action="obj-undo">{t('objbar.undo')}</button>
+                    <button type="button" className="wx-undonote__x" onClick={() => setUndoNote(null)} aria-label={t('common.close')}><X size={13} /></button>
+                  </div>
+                )}
                 {/* Şekil/grafik taslak alanı (WO-028): belgedeki yer tutucunun üstünde, belgenin dışında. */}
                 {figuresEnabled && figDraft?.spacer?.isConnected && (() => {
                   const { spacer } = figDraft;

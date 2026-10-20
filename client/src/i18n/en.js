@@ -892,6 +892,16 @@ export default {
       h1: 'Product', h2: 'Sources', h3: 'Account', data: 'Data sources', contact: 'Contact',
     },
   },
+  // Table/figure/chart controls in the document (WO-030)
+  objbar: {
+    label: '{kind} actions',
+    edit: 'Edit {kind}',
+    remove: 'Delete {kind}',
+    removed: '{kind} deleted',
+    undo: 'Undo',
+    kind: { table: 'table', figure: 'figure', chart: 'chart' },
+    name: { table: 'Table', figure: 'Figure', chart: 'Chart' },
+  },
   // Data sources and credits (WO-029; charter 2.7)
   dataSources: {
     open: 'Data sources',
@@ -1233,6 +1243,19 @@ export default {
       cancel: 'Cancel',
       done: 'Done, add to document',
       wordPlaceholder: '[Figure {n} — could not be added to Word as an image]',
+      // Appearance (WO-030 Phase 4)
+      look: {
+        title: 'Appearance',
+        palette: 'Colors',
+        pattern: 'Pattern',
+        corners: 'Corners',
+        text: 'Text size',
+        paletteOpts: { default: 'Default', gray: 'Grayscale', cvd: 'Colorblind-safe', bw: 'Black-and-white print' },
+        patternOpts: { solid: 'Solid', stripes: 'Striped', dots: 'Dotted' },
+        cornersOpts: { round: 'Rounded', square: 'Square' },
+        textOpts: { small: 'Small', normal: 'Normal', large: 'Large' },
+        patternNone: 'This type has no areas to pattern.',
+      },
     },
     // Word-like table (WO-025)
     table: {

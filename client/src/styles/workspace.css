@@ -1661,6 +1661,53 @@ button.wx-ctl__title { min-height: 24px; }
 }
 @media print { .wx-outline-dock, .wx-side-dock { display: none; } }
 
+/* Nesne denetimi (WO-030 bulgu 1): tablo/şekil/grafiğin sağ üstünde küçük Düzenle / Sil. */
+.wx-objbar {
+  position: absolute;
+  z-index: 9;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  transform: translateX(-100%);
+  border: 1px solid var(--wx-line);
+  border-radius: 8px;
+  background: var(--wx-surface);
+  box-shadow: var(--wx-shadow-sm);
+}
+.wx-objbar__btn {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--wx-ink-2);
+  cursor: pointer;
+}
+.wx-objbar__btn:hover { background: var(--wx-hover); color: var(--wx-ink); }
+.wx-objbar__btn--danger:hover { color: #b42318; background: #fef3f2; }
+.wx-page figure.wx-vfig { cursor: default; }
+.wx-undonote {
+  position: sticky;
+  bottom: 16px;
+  z-index: 12;
+  width: max-content;
+  margin: 12px auto 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 14px;
+  border-radius: 10px;
+  background: var(--wx-ink);
+  color: var(--wx-surface);
+  font-size: 13px;
+  box-shadow: var(--wx-shadow-pop);
+}
+.wx-undonote button { border: 0; background: transparent; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.wx-undonote__x { display: grid; place-items: center; text-decoration: none !important; opacity: .7; }
+@media print { .wx-objbar, .wx-undonote { display: none; } }
+
 /* ---------- Word gibi tablo (WO-025) ---------- */
 /* APA 7: yalnız yatay çizgiler — üst, başlık satırı altı, alt. Ekranda düzenlerken
    hücre sınırları soluk kesik çizgiyle görünür (Word "Kılavuz çizgileri"),
@@ -1777,4 +1824,24 @@ button.wx-ctl__title { min-height: 24px; }
 .fd-icon:hover:not(:disabled) { background: var(--wx-hover); color: var(--wx-ink); }
 .fd-icon:disabled { opacity: .35; }
 .fd-caption { display: flex; align-items: center; gap: 6px; flex: 1; font-size: 12.5px; font-weight: 700; color: var(--wx-ink); }
+/* Görünüm (WO-030 Faz 4): taslak alanda katlanır küçük bölüm. */
+.fd-look { margin-top: 10px; border-top: 1px solid var(--wx-line); padding-top: 8px; }
+.fd-look > summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--wx-ink-2); border-radius: 6px; padding: 2px 4px; }
+.fd-look > summary:focus-visible { outline: 2px solid var(--wx-accent); outline-offset: 2px; }
+.fd-look__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--wx-accent); }
+.fd-look__body { display: grid; gap: 7px; margin-top: 7px; }
+.fd-look__note { margin-top: -4px; color: var(--wx-muted); font-size: 11px; }
+.fd-seg { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.fd-seg legend, .fd-seg__legend { float: left; padding: 0; font-size: 11.5px; color: var(--wx-muted); }
+.fd-seg legend { width: 74px; margin-right: 6px; }
+.fd-seg:not(.fd-seg--select) { display: flex; }
+.fd-seg__opts { display: flex; flex: 1; min-width: 0; border: 1px solid var(--wx-line); border-radius: 7px; overflow: hidden; }
+.fd-seg__opt { flex: 1; position: relative; min-width: 0; }
+.fd-seg__opt + .fd-seg__opt { border-left: 1px solid var(--wx-line); }
+.fd-seg__opt input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.fd-seg__opt span { display: block; padding: 5px 4px; text-align: center; font-size: 11.5px; color: var(--wx-ink-2); background: var(--wx-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fd-seg__opt input:checked + span { background: var(--wx-accent-soft); color: var(--wx-accent); font-weight: 700; }
+.fd-seg__opt input:focus-visible + span { outline: 2px solid var(--wx-accent); outline-offset: -2px; }
+.fd-seg:disabled .fd-seg__opts { opacity: .45; }
+.fd-seg select { height: 28px; min-width: 0; padding: 0 6px; border: 1px solid var(--wx-line); border-radius: 7px; background: var(--wx-surface); color: var(--wx-ink); font: 12.5px system-ui, sans-serif; }
 @media (max-width: 760px) { .fd-body { grid-template-columns: 1fr; } .fd-edit { border-right: 0; border-bottom: 1px solid var(--wx-line); } }

@@ -60,8 +60,10 @@ test('şekil: taslak belgede değil; paragraftan al, Tamam, geri al, yeniden dü
   await page.keyboard.press('Control+y');
   await expect(doc(page).locator('figure')).toHaveCount(1);
 
-  // Şekle tıklayınca aynı taslak alan dolu açılır; değişiklik yerinde yazılır.
+  // Tek tık yalnız seçer (WO-030); çift tıklayınca aynı taslak alan dolu açılır; değişiklik yerinde yazılır.
   await doc(page).locator('figure').click();
+  await expect(draft).toHaveCount(0);
+  await doc(page).locator('figure').dblclick();
   await expect(draft.locator('[data-fd="item"]').first()).toHaveValue('Isı çekirdekten alınır');
   await draft.locator('[data-fd="item"]').first().fill('Çekirdek ısısı');
   await draft.locator('[data-action="fd-done"]').click();
@@ -118,4 +120,60 @@ test('şekildeki yazılar kelime sayısına ve iddia taramasına girmez', async 
   const n = (s) => Number(String(s).replace(/\D/g, ''));
   await expect.poll(async () => n(await page.locator('.wx-top__words').textContent())).toBe(n(before) + 2);
   await expect(doc(page).locator('figure [data-mark]')).toHaveCount(0);
+});
+
+test('görünüm: siyah-beyaz baskı + çizgili seçilir, şekille saklanır, Düzenle\'de geri gelir, Word\'e geçer', async ({ page }) => {
+  test.setTimeout(60_000);
+  await seedDraft(page, DOC, 'Görünüm denemesi');
+  await mockApi(page);
+  await page.goto('/#/yaz');
+  await doc(page).getByText('Sonraki paragraf').click();
+  await page.locator('[data-action="write-chart"]').click();
+  const draft = page.getByTestId('figure-draft');
+  const rows = draft.locator('.fd-row:not(.fd-row--head)');
+  await rows.nth(0).locator('[data-fd="chart-label"]').fill('Deney');
+  await rows.nth(0).locator('[data-fd="chart-value"]').fill('3,4');
+  await rows.nth(1).locator('[data-fd="chart-label"]').fill('Kontrol');
+  await rows.nth(1).locator('[data-fd="chart-value"]').fill('2,9');
+  // Varsayılan: bölüm kapalı, desen yok.
+  const look = draft.locator('[data-fd="look"]');
+  await expect(look).not.toHaveAttribute('open', '');
+  await expect(draft.locator('.fd-svg svg pattern')).toHaveCount(0);
+  await look.locator('summary').click();
+  await look.locator('[data-fd-look="palette"]').selectOption('bw');
+  await look.locator('[data-fd-look="pattern-stripes"]').check();
+  await expect(draft.locator('.fd-svg svg pattern')).toHaveCount(2);
+  await draft.locator('[data-action="fd-done"]').click();
+  await expect(draft).toHaveCount(0);
+
+  const fig = doc(page).locator('figure');
+  await expect(fig).toHaveCount(1);
+  await expect(fig.locator('svg pattern')).toHaveCount(2);
+  const state = JSON.parse(await fig.getAttribute('data-visual-state'));
+  expect(state.data.appearance).toEqual({ palette: 'bw', pattern: 'stripes', corners: 'round', text: 'normal' });
+  // Desen kimlikleri şekle özgü; çubuklar kendi SVG'sindeki tanıma başvurur.
+  const patternIds = await fig.locator('svg pattern').evaluateAll((ps) => ps.map((p) => p.id));
+  expect(patternIds.every((id) => /^v\w+-p\d$/.test(id))).toBe(true);
+
+  // Yeniden aç: seçimler geri gelir, bölüm açık.
+  await fig.dblclick();
+  await expect(draft).toBeVisible();
+  await expect(draft.locator('[data-fd="look"]')).toHaveAttribute('open', '');
+  await expect(draft.locator('[data-fd-look="palette"]')).toHaveValue('bw');
+  await expect(draft.locator('[data-fd-look="pattern-stripes"]')).toBeChecked();
+  await expect(draft.locator('[data-fd-look="corners-round"]')).toBeChecked();
+  await expect(draft.locator('[data-fd-look="text-normal"]')).toBeChecked();
+  // Önizlemenin desen kimlikleri belgedeki şekilden farklı (aynı sayfada çakışmasın).
+  const draftIds = await draft.locator('.fd-svg svg pattern').evaluateAll((ps) => ps.map((p) => p.id));
+  expect(draftIds.some((id) => patternIds.includes(id))).toBe(false);
+  await draft.locator('[data-action="fd-cancel"]').click();
+
+  // Word: SVG desenle gider; PNG yedeği de üretilir.
+  await page.getByRole('button', { name: /Dışa aktar/ }).first().click();
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 15_000 }), page.getByRole('button', { name: /Word/ }).first().click()]);
+  const zip = await JSZip.loadAsync(fs.readFileSync(await download.path()));
+  const media = Object.keys(zip.files).filter((f) => f.startsWith('word/media/'));
+  const svgFile = media.find((f) => f.endsWith('.svg'));
+  expect(media.some((f) => f.endsWith('.png'))).toBe(true);
+  expect(await zip.file(svgFile).async('string')).toMatch(/<pattern id="v\w+-p0"/);
 });

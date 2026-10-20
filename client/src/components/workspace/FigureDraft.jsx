@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { BarChart3, Check, LineChart, Plus, RefreshCw, Shapes, Trash2, X } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import {
-  CHART_TYPES, FIGURE_TYPES, drawChart, drawCompare, drawCycle, drawSteps, drawTimeline, sentencesOf,
+  APPEARANCE_OPTIONS, CHART_TYPES, FIGURE_TYPES, PATTERN_TYPES, drawChart, drawCompare, drawCycle, drawSteps, drawTimeline,
+  isDefaultAppearance, newDrawId, normalizeAppearance, sentencesOf,
 } from '../../visuals/draw.js';
 
 const EMPTY = {
@@ -15,23 +16,24 @@ const EMPTY = {
 const lines = (s) => String(s || '').split('\n').map((l) => l.trim()).filter(Boolean);
 
 /** Taslağın SVG'si; içerik yoksa null (Tamam pasif). */
-function renderDraft(type, data, label, locale) {
+function renderDraft(type, data, label, locale, appearance, uid) {
+  const o = { label, appearance, uid };
   if (type === 'steps' || type === 'cycle') {
     const items = data.items.map((s) => s.trim()).filter(Boolean);
     if (items.length < 2) return null;
-    return { svg: type === 'steps' ? drawSteps(items, { label }) : drawCycle(items, { label }) };
+    return { svg: type === 'steps' ? drawSteps(items, o) : drawCycle(items, o) };
   }
   if (type === 'compare') {
     const c = data.compare;
     if (!c.leftTitle.trim() || !c.rightTitle.trim() || (!lines(c.left).length && !lines(c.right).length)) return null;
-    return { svg: drawCompare({ leftTitle: c.leftTitle, rightTitle: c.rightTitle, left: lines(c.left), right: lines(c.right) }, { label }) };
+    return { svg: drawCompare({ leftTitle: c.leftTitle, rightTitle: c.rightTitle, left: lines(c.left), right: lines(c.right) }, o) };
   }
   if (type === 'timeline') {
     const rows = data.timeline.filter((r) => r.date.trim() || r.text.trim());
     if (rows.length < 2) return null;
-    return { svg: drawTimeline(rows, { label }) };
+    return { svg: drawTimeline(rows, o) };
   }
-  const r = drawChart(type, data.chart, { label, locale });
+  const r = drawChart(type, data.chart, { ...o, locale });
   return r.count ? { svg: r.svg, skipped: r.skipped } : null;
 }
 
@@ -41,7 +43,8 @@ function renderDraft(type, data, label, locale) {
  * kullanıcıdan ya da paragraftan; model yok, uydurma yok (2.8).
  *
  * @param mode 'figure' | 'chart'
- * @param initial Düzenlenen görselin kayıtlı durumu ({ type, data, title }) ya da null
+ * @param initial Düzenlenen görselin kayıtlı durumu ({ type, data, title }) ya da null.
+ *   Görünüm (WO-030 Faz 4) `data.appearance` içinde saklanır; varsayılansa hiç yazılmaz.
  * @param sourceText Hedef paragrafın metni ("Paragraftan al")
  * @param sourceRows Hedef tablo varsa satırları ("Tablodan al")
  */
@@ -51,9 +54,16 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
   const k = (key, p) => t(`workspace.figure.${key}`, p);
   const types = mode === 'chart' ? CHART_TYPES : FIGURE_TYPES;
   const [type, setType] = useState(initial?.type || types[0]);
-  const [data, setData] = useState(() => ({ ...EMPTY, ...(initial?.data || {}) }));
+  const [data, setData] = useState(() => {
+    const { appearance: _saved, ...rest } = initial?.data || {};
+    return { ...EMPTY, ...rest };
+  });
+  const [appearance, setAppearance] = useState(() => normalizeAppearance(initial?.data?.appearance));
+  const [lookOpen, setLookOpen] = useState(() => !isDefaultAppearance(initial?.data?.appearance));
+  // Taslağa özgü desen kimliği: düzenlenen şekil belgede dururken önizlemenin desenleri onunkilerle çakışmasın.
+  const [uid] = useState(newDrawId);
   const [title, setTitle] = useState(initial?.title || '');
-  const preview = useMemo(() => renderDraft(type, data, title, locale), [type, data, title, locale]);
+  const preview = useMemo(() => renderDraft(type, data, title, locale, appearance, uid), [type, data, title, locale, appearance, uid]);
   const patch = (key, value) => setData((d) => ({ ...d, [key]: value }));
   const word = t('audit.kind.figure');
 
@@ -129,6 +139,38 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
   );
 
   const editor = type === 'compare' ? compareEditor : type === 'timeline' ? timelineEditor : CHART_TYPES.includes(type) ? chartEditor : itemsEditor;
+  const setLook = (key, value) => setAppearance((a) => ({ ...a, [key]: value }));
+  const patternOk = PATTERN_TYPES.includes(type);
+  const segment = (key, disabled = false) => (
+    <fieldset className="fd-seg" disabled={disabled}>
+      <legend>{k(`look.${key}`)}</legend>
+      <div className="fd-seg__opts">
+        {APPEARANCE_OPTIONS[key].map((v) => (
+          <label key={v} className="fd-seg__opt">
+            <input type="radio" name={`${uid}-${key}`} value={v} checked={appearance[key] === v} onChange={() => setLook(key, v)} data-fd-look={`${key}-${v}`} />
+            <span>{k(`look.${key}Opts.${v}`)}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+  const look = (
+    <details className="fd-look" open={lookOpen} onToggle={(e) => setLookOpen(e.currentTarget.open)} data-fd="look">
+      <summary>{k('look.title')}{!isDefaultAppearance(appearance) && <span className="fd-look__dot" aria-hidden="true" />}</summary>
+      <div className="fd-look__body">
+        <label className="fd-seg fd-seg--select">
+          <span className="fd-seg__legend">{k('look.palette')}</span>
+          <select value={appearance.palette} onChange={(e) => setLook('palette', e.target.value)} data-fd-look="palette">
+            {APPEARANCE_OPTIONS.palette.map((v) => <option key={v} value={v}>{k(`look.paletteOpts.${v}`)}</option>)}
+          </select>
+        </label>
+        {segment('pattern', !patternOk)}
+        {!patternOk && <small className="fd-look__note">{k('look.patternNone')}</small>}
+        {segment('corners')}
+        {segment('text')}
+      </div>
+    </details>
+  );
   const icon = (ty) => (ty === 'bar' ? <BarChart3 size={14} /> : ty === 'line' ? <LineChart size={14} /> : <Shapes size={14} />);
 
   return (
@@ -143,7 +185,7 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
         <button type="button" className="fd-icon" onClick={onCancel} aria-label={k('cancel')} title={k('cancel')}><X size={15} /></button>
       </header>
       <div className="fd-body">
-        <div className="fd-edit">{editor}</div>
+        <div className="fd-edit">{editor}{look}</div>
         <div className="fd-preview" aria-live="polite">
           {/* Önizleme bizim çizicimizin, kaçışlı SVG'si. */}
           {preview ? <div className="fd-svg" dangerouslySetInnerHTML={{ __html: preview.svg }} /> : <p className="fd-empty">{k(CHART_TYPES.includes(type) ? 'needData' : 'needItems')}</p>}
@@ -156,7 +198,7 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={k('captionPlaceholder')} aria-label={k('captionLabel')} data-fd="caption" />
         </label>
         <button type="button" className="fd-btn" onClick={onCancel} data-action="fd-cancel">{k('cancel')}</button>
-        <button type="button" className="fd-btn fd-btn--primary" onClick={() => preview && onDone({ type, data, title, svg: preview.svg })} disabled={!preview} data-action="fd-done">
+        <button type="button" className="fd-btn fd-btn--primary" onClick={() => preview && onDone({ type, data: isDefaultAppearance(appearance) ? data : { ...data, appearance }, title, svg: preview.svg })} disabled={!preview} data-action="fd-done">
           <Check size={14} /> {k('done')}
         </button>
       </footer>
