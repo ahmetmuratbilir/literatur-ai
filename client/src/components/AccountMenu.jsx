@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { KeyRound, LifeBuoy, MoreHorizontal } from 'lucide-react';
+import { Database, KeyRound, LifeBuoy, MoreHorizontal } from 'lucide-react';
 import { useI18n } from '../i18n/context.js';
 import { useLayer } from './ui/useLayer.js';
 
@@ -8,7 +8,7 @@ import { useLayer } from './ui/useLayer.js';
  * bağlantıları" ve "Yardım ve destek" kenar çubuğunun ana listesinden buraya.
  * Esc ve dışarı tıklama kapatır (WO-018 katman yığını); kapanınca odak düğmeye döner.
  */
-export default function AccountMenu({ onOpenAi, onOpenHelp, onPicked }) {
+export default function AccountMenu({ onOpenAi, onOpenHelp, onOpenSources, onPicked }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -58,6 +58,11 @@ export default function AccountMenu({ onOpenAi, onOpenHelp, onPicked }) {
           {onOpenHelp && (
             <button type="button" role="menuitem" className="sb-menu__item" onClick={pick(onOpenHelp)} data-action="nav-help">
               <LifeBuoy size={15} /> {t('help.open')}
+            </button>
+          )}
+          {onOpenSources && (
+            <button type="button" role="menuitem" className="sb-menu__item" onClick={pick(onOpenSources)} data-action="nav-sources">
+              <Database size={15} /> {t('dataSources.open')}
             </button>
           )}
         </div>

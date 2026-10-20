@@ -71,6 +71,7 @@ Taslak → Hazır → Çalışıyor → Bitti
 | [WO-026](WO-026-arayuz-sadelestirme.md) | Arayüz sadeleştirme: taslak satırları, kenar çubuğu K1, yazım çubuğu Y1 + bilgi kartları, arama A2 + AI geçişi | P1 | Çalışıyor (19.10.2026) |
 | [WO-027](WO-027-yapay-zeka-gecidi.md) | Yapay zekâ geçidi: tek kapı, kullanıcının anahtarı her çağrıda, Claude/Kimi/OpenAI; consensus açığı | P1 | Bitti, gerçek sağlayıcı denemesi bekliyor (19.10.2026, `wo-027-ai-gecit`) |
 | [WO-028](WO-028-sekil-grafik-taslak-alan.md) | Şekil ve grafik: Napkin gibi belgede taslak alan, Tamam ile ekle | P3 | Bitti, elle deneme bekliyor (19.10.2026, `wo-028-sekil-grafik`) |
+| [WO-029](WO-029-veri-kaynaklari.md) | Veri kaynakları: durum matrisi (`docs/sources.md`) ve atıf penceresi (tüzük 2.7) | P1 | Bitti, elle deneme bekliyor (20.10.2026, `wo-029-veri-kaynaklari`) |
 
 **Yol haritası (17.10.2026):** `docs/design/yol-haritasi.md`. Görünür sonuç
 sırası: WO-011 kontrolü → galeri kararları → WO-017 → WO-018 → WO-019 →

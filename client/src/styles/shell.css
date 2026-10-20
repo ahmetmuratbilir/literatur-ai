@@ -109,6 +109,19 @@
 .ui-help__done { display: grid; justify-items: center; gap: 6px; padding: var(--space-6) 0 0; text-align: center; color: var(--score-high); }
 .ui-help__done p { margin: 0; color: var(--text-main); }
 .ui-help__done .ui-dialog__actions { margin-top: var(--space-4); }
+/* Veri kaynakları (WO-029) */
+.ui-sources { max-height: min(86vh, 760px); overflow-y: auto; }
+.ui-sources__lead, .ui-sources__note { margin: 0 0 var(--space-3); color: var(--text-muted); font-size: var(--fs-sm); line-height: 1.55; }
+.ui-sources__note { margin: var(--space-3) 0 0; font-size: var(--fs-xs); }
+.ui-sources__list { display: grid; margin: 0; padding: 0; list-style: none; border-block: 1px solid var(--slate-100); }
+.ui-sources__item { display: grid; gap: 2px; padding: 10px 2px; border-bottom: 1px solid var(--slate-100); }
+.ui-sources__item:last-child { border-bottom: 0; }
+.ui-sources__row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.ui-sources__row a { color: var(--text-main); text-decoration: none; }
+.ui-sources__row a:hover, .ui-sources__row a:focus-visible { color: var(--brand-primary); text-decoration: underline; }
+.ui-sources__lic { color: var(--text-light); font-size: var(--fs-xs); }
+.ui-sources__use { color: var(--text-muted); font-size: var(--fs-sm); }
+.ui-sources__credit { color: var(--text-light); font-size: var(--fs-xs); font-style: italic; line-height: 1.5; }
 
 /* ---------- Tanışma ---------- */
 .ui-onb { display: grid; gap: var(--space-4); padding: var(--space-6); }

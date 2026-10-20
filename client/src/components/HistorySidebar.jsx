@@ -4,7 +4,7 @@ const MotionAside = motion.aside;
 const MotionDiv = motion.div;
 import {
   Trash2, PlusCircle, Star, BookmarkCheck, PenLine, Download, FolderOpen,
-  FileText, Pencil, Copy, AlertTriangle, Search, KeyRound, LifeBuoy,
+  FileText, Pencil, Copy, AlertTriangle, Search, KeyRound, LifeBuoy, Database,
 } from 'lucide-react';
 import { toBibTeX, toRIS, downloadText } from '../utils/citationExport.js';
 import { AppUserButton, useAppAuth, useAppUser } from '../auth/clerkBridge.js';
@@ -65,7 +65,7 @@ const HistorySidebar = ({
   isOpen, setIsOpen, deviceId, apiUrl, onSelectHistory, onDeleteHistoryEntry, onNewSearch, basket, onOpenWriter,
   drafts = [], activeDraftId = null, onOpenDraft, onNewDraft, onRenameDraft, onDuplicateDraft, onDeleteDraft,
   // Tek panel kabuk (WO-017): rayın en üstünde bölümler; sidebar yazım yüzeyinin üstüne açılabilsin diye `raised`.
-  section = 'research', onGoResearch, writeExtra = null, raised = false, onOpenAi, onOpenHelp,
+  section = 'research', onGoResearch, writeExtra = null, raised = false, onOpenAi, onOpenHelp, onOpenSources,
 }) => {
   const { t, lang } = useI18n();
   const locale = lang === 'tr' ? 'tr-TR' : 'en-US';
@@ -387,6 +387,7 @@ const HistorySidebar = ({
             <nav aria-label={t('sidebar.account')} className="sb-group sb-group--util">
               {onOpenAi && <SidebarItem kind="util" icon={<KeyRound size={17} />} label={t('sidebar.ai')} isOpen={isOpen} action="nav-ai" onClick={() => { onOpenAi(); closeOnMobile(); }} />}
               {onOpenHelp && <SidebarItem kind="util" icon={<LifeBuoy size={17} />} label={t('help.open')} isOpen={isOpen} action="nav-help" onClick={() => { onOpenHelp(); closeOnMobile(); }} />}
+              {onOpenSources && isOpen && <SidebarItem kind="util" icon={<Database size={17} />} label={t('dataSources.open')} isOpen={isOpen} action="nav-sources" onClick={() => { onOpenSources(); closeOnMobile(); }} />}
             </nav>
           )}
           {user && (
@@ -398,7 +399,7 @@ const HistorySidebar = ({
                   <span className="sb-meta">{t('sidebar.freePlan')}</span>
                 </div>
               )}
-              {isOpen && <AccountMenu onOpenAi={onOpenAi} onOpenHelp={onOpenHelp} onPicked={closeOnMobile} />}
+              {isOpen && <AccountMenu onOpenAi={onOpenAi} onOpenHelp={onOpenHelp} onOpenSources={onOpenSources} onPicked={closeOnMobile} />}
             </div>
           )}
         </div>

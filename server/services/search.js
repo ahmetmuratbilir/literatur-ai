@@ -112,7 +112,9 @@ export function classifySourceError(reason) {
  * hatayi veriyor). Aramayi yavaslatmiyor -- kaynaklar Promise.allSettled ile
  * paralel cagriliyor ve elsevier.js 401'de yeniden denemiyor -- ama her
  * aramada kullaniciya bir kimlik hatasi uyarisi gosteriyor ve bu gurultu
- * gercek arizalari maskeliyor. Ticari asamada SCOPUS_ENABLED=true yapilir.
+ * gercek arizalari maskeliyor. Acmak icin yalniz SCOPUS_ENABLED=true yetmez:
+ * CLAUDE.md 2.7 Kademe 3 -- Elsevier'den yazili onay ya da ticari lisans
+ * olmadan Scopus entegrasyonu acilmaz (ticari asama bunun yerine gecmez).
  */
 const isScopusEnabled = () => process.env.SCOPUS_ENABLED === 'true';
 

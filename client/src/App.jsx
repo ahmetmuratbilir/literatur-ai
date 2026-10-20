@@ -65,6 +65,7 @@ const CitationChecker = lazy(() => import('./components/CitationChecker'));
 import BrandMark from './components/ui/BrandMark.jsx';
 import ErrorBoundary from './components/ui/ErrorBoundary.jsx';
 import HelpDialog from './components/HelpDialog.jsx';
+import DataSources from './components/DataSources.jsx';
 import OnboardingDialog from './components/OnboardingDialog.jsx';
 import AuthorPanel from './components/AuthorPanel';
 // Çalışma alanı editörüyle birlikte geliyor; sekmeye ilk girişte yüklenir,
@@ -250,6 +251,7 @@ function App() {
   const [activeReaderPaper, setActiveReaderPaper] = useState(null);
   // Kendi yapay zekâ anahtarın (WO-023): bağlantı paneli ve "anahtarın çalışmadı" bildirimi.
   const [showAi, setShowAi] = useState(false);
+  const [showSources, setShowSources] = useState(false);
   useEffect(() => {
     let lastAt = 0;
     const onHeaders = (headers) => {
@@ -1281,6 +1283,7 @@ function App() {
           raised={mode === 'workspace'}
           onOpenAi={() => setShowAi(true)}
           onOpenHelp={() => openHelp()}
+          onOpenSources={() => setShowSources(true)}
           drafts={drafts.items}
           activeDraftId={drafts.active?.id || null}
           onOpenDraft={openDraft}
@@ -1389,6 +1392,7 @@ function App() {
           <AiConnections open={showAi} onClose={() => setShowAi(false)} apiUrl={defaultApiUrl} getToken={getToken} />
         </ErrorBoundary>
         <Toasts toasts={toasts} onDismiss={dismissToast} />
+        <DataSources open={showSources} onClose={() => setShowSources(false)} />
         <HelpDialog open={Boolean(help)} onClose={() => setHelp(null)} apiUrl={defaultApiUrl} context={help?.context} initialKind={help?.kind} />
         <OnboardingDialog apiUrl={defaultApiUrl} enabled={!isShared} />
       </AuthedOnly>
