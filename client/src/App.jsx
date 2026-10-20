@@ -924,7 +924,7 @@ function App() {
 
   const searchContent = (
     <>
-            <section className="ui-panel query-panel" style={{ marginBottom: 'var(--space-6)' }}>
+            <section className={`ui-panel query-panel${isShared ? '' : ' query-panel--bare'}`} style={{ marginBottom: 'var(--space-6)' }}>
               {isShared ? (
                 <div style={{ textAlign: 'center', padding: '0.5rem' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'var(--score-high-bg)', color: 'var(--score-high)', padding: '6px 14px', borderRadius: '999px', fontSize: 'var(--fs-sm)', fontWeight: 600, marginBottom: 'var(--space-3)' }}>
@@ -936,8 +936,8 @@ function App() {
                   </button>
                 </div>
               ) : (
-                // Sonuç varken (masaüstü, konu araması) kutu ve "Ara" tek satır: sonuçlar
-                // ekrana sığsın (WO-024). Etiket ekran okuyucu için yerinde kalır.
+                // Kutu ve "Ara" her zaman tek kapsülde; sonuç varken panel sıkışır ki
+                // sonuçlar ekrana sığsın (WO-024). Etiket ekran okuyucu için yerinde kalır.
                 <form className={`query-form${data && !isCompact && searchMode === 'topic' ? ' query-form--inline' : ''}`} onSubmit={handleSearch}>
                   {AUTHOR_MODE_ENABLED && !AUTHOR_PANEL_ENABLED && (
                     <div className="ui-mode-tabs" role="tablist" aria-label={t('search.modeLabel')}>
@@ -961,21 +961,14 @@ function App() {
                   )}
 
                   <div>
-                    <label htmlFor="topic-input" className="ui-field-label">{t(searchMode === 'author' ? 'search.authorTopicLabel' : 'search.topicLabel')}</label>
-                    <div className="input-wrapper query-input-shell" style={{ position: 'relative' }}>
-                      <Search style={{ position: 'absolute', left: '16px', top: isCompact ? '26px' : '50%', transform: 'translateY(-50%)', color: 'var(--slate-400)' }} size={18} />
+                    {/* Tek kapsül (WO-030 bulgu 8): büyüteç, kutu, "✦ AI", "Ara". Etiket ekran okuyucu için yerinde. */}
+                    <label htmlFor="topic-input" className="ui-sr-only">{t(searchMode === 'author' ? 'search.authorTopicLabel' : 'search.topicLabel')}</label>
+                    <div className="query-pill">
+                      <Search className="query-pill__icon" size={18} aria-hidden="true" />
                       <input
                         id="topic-input"
                         type="text"
-                        className="input"
-                        style={{
-                          height: '52px',
-                          paddingLeft: '46px',
-                          paddingRight: isCompact || searchMode === 'author' ? '16px' : '170px',
-                          fontSize: 'var(--fs-md)',
-                          borderRadius: 'var(--radius-md)',
-                          width: '100%'
-                        }}
+                        className="query-pill__input"
                         placeholder={t(searchMode === 'author' ? 'search.authorTopicPlaceholder' : 'search.topicPlaceholder')}
                         value={mainTopic}
                         onChange={(e) => setMainTopic(e.target.value)}
@@ -991,15 +984,26 @@ function App() {
                           type="button"
                           onClick={handleAiSuggest}
                           disabled={aiLoading}
-                          className="ui-btn ui-btn--outline"
-                          style={isCompact
-                            ? { width: '100%', marginTop: 'var(--space-2)', height: '42px', color: 'var(--brand-primary)' }
-                            : { position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--brand-primary)' }}
+                          data-action="ai-improve"
+                          className="query-pill__ai"
+                          aria-label={t('search.aiImprove')}
+                          title={t('search.aiImprove')}
+                          aria-busy={aiLoading || undefined}
                         >
-                          {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                          {aiLoading ? t('search.aiAnalyzing') : t('search.aiImprove')}
+                          {aiLoading ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Sparkles size={15} aria-hidden="true" />}
+                          <span aria-hidden="true">AI</span>
                         </button>
                       )}
+                      <button
+                        type="submit"
+                        disabled={loading || !canSubmitSearch}
+                        data-action="search-submit"
+                        className="ui-btn ui-btn--primary query-pill__submit"
+                      >
+                        {/* 300 ms altında hiçbir şey değişmez (titremesin); sonra düğmede "Aranıyor…" (§3.1). */}
+                        {loading && searchElapsed >= 300 && <Loader2 className="animate-spin" size={16} aria-hidden="true" />}
+                        {loading && searchElapsed >= 300 ? t('search.submitting') : t('search.submit')}
+                      </button>
                     </div>
                     {searchMode === 'author' && <p className="ui-author-note" style={{ marginTop: 'var(--space-2)' }}>{t('search.authorNote')}</p>}
                     {aiError && (
@@ -1008,16 +1012,6 @@ function App() {
                       </div>
                     )}
                   </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading || !canSubmitSearch}
-                    className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block"
-                  >
-                    {/* 300 ms altında hiçbir şey değişmez (titremesin); sonra düğmede "Aranıyor…" (§3.1). */}
-                    {loading && searchElapsed >= 300 ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
-                    {loading && searchElapsed >= 300 ? t('search.submitting') : t('search.submit')}
-                  </button>
                 </form>
               )}
             </section>

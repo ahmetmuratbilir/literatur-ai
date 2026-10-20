@@ -142,14 +142,55 @@
 .ui-page-head--compact .ui-page-head__logo { font-size: 1.2rem; gap: 10px; }
 .ui-page-head--compact .ui-page-head__mark { border-radius: 9px; box-shadow: none; }
 
-/* ---------- Arama formu: sonuç varken tek satır ---------- */
+/* ---------- Arama formu: tek kapsül (WO-030 bulgu 8); sonuç varken panel sıkışır ---------- */
 .query-form { display: flex; flex-direction: column; gap: var(--space-5); }
-.query-form--inline { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--space-3); }
-.query-form--inline .ui-field-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.query-form--inline > .ui-btn--block { width: auto; height: 52px; padding: 0 24px; }
 .query-panel:has(.query-form--inline) { padding-block: var(--space-4); }
+
+.query-pill {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; min-width: 0; min-height: 56px;
+  padding: 6px 6px 6px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.query-pill:hover:not(:focus-within) { border-color: var(--slate-300); }
+.query-pill:focus-within {
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-md), 0 0 0 4px rgba(79, 70, 229, 0.14);
+}
+.query-pill__icon { flex: 0 0 auto; color: var(--text-light); }
+.query-pill__input {
+  flex: 1 1 auto; min-width: 0; height: 42px;
+  padding: 0 4px; border: 0; outline: none; background: transparent;
+  font: inherit; font-size: var(--fs-md); color: var(--text-main);
+  text-overflow: ellipsis;
+}
+.query-pill__input::placeholder { color: var(--text-light); opacity: 1; }
+.query-pill__ai {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px;
+  height: 40px; padding: 0 10px;
+  border: 0; border-radius: 10px; background: transparent;
+  color: var(--brand-primary); font: inherit; font-size: var(--fs-sm); font-weight: 600;
+  cursor: pointer;
+}
+.query-pill__ai:hover:not(:disabled) { background: var(--brand-primary-soft); }
+.query-pill__ai:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 1px; }
+.query-pill__ai:disabled { cursor: progress; opacity: .7; }
+.query-pill__submit.ui-btn { flex: 0 0 auto; height: 44px; padding: 0 22px; border-radius: 12px; font-size: var(--fs-md); }
+@media (max-width: 480px) {
+  .query-pill { padding-left: 12px; gap: 2px; }
+  .query-pill__ai { padding: 0 8px; }
+  .query-pill__submit.ui-btn { padding: 0 16px; }
+}
 
 /* ---------- Puan rozeti: 12 px yazıda en az 4.5:1 (eskiden 3.07–4.41) ---------- */
 .ui-score--high { color: #047857; }
 .ui-score--med { color: #b45309; }
 .ui-score--low { color: #b91c1c; }
+
+/* Arama kapsülü tek başına durur; çevresindeki kart kalktı (WO-030 bulgu 8: kutu içinde kutu). */
+.query-panel--bare { padding: 0; border: 0; background: transparent; box-shadow: none; }
+.query-panel--bare:has(.query-form--inline) { padding-block: 0; }

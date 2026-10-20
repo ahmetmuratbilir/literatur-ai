@@ -189,7 +189,7 @@ export default {
     subtitle: 'Open scholarly sources, ranked with a transparent method whose reasons you can see.',
     sourcesLine: 'Searches OpenAlex, Crossref, Semantic Scholar, Europe PMC, OpenAIRE, DataCite, DOAJ, arXiv and CORE',
     topicLabel: 'Research topic',
-    topicPlaceholder: 'e.g. passive cooling in small modular reactors',
+    topicPlaceholder: 'Type your research topic',
     aiImprove: 'Improve with AI',
     aiAnalyzing: 'Analyzing…',
     aiNeedTopic: 'Enter a topic first.',

@@ -190,7 +190,7 @@ export default {
     subtitle: 'Açık akademik kaynaklar, nedenini görebildiğin şeffaf bir yöntemle sıralanır.',
     sourcesLine: 'OpenAlex, Crossref, Semantic Scholar, Europe PMC, OpenAIRE, DataCite, DOAJ, arXiv ve CORE taranır',
     topicLabel: 'Araştırma konusu',
-    topicPlaceholder: 'Örn: küçük modüler reaktörlerde pasif soğutma',
+    topicPlaceholder: 'Araştırma konunu yaz',
     aiImprove: 'AI ile geliştir',
     aiAnalyzing: 'Analiz ediliyor…',
     aiNeedTopic: 'Önce bir konu gir.',
