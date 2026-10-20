@@ -50,7 +50,7 @@ Taslak → Hazır → Çalışıyor → Bitti
 | [WO-002](WO-002-arastirmaci-paneli.md) | Araştırmacı paneli: arama kartından ayrı panel | P1 | Çalışıyor — istisna |
 | [WO-003](WO-003-calisma-alani-iskeleti.md) | Çalışma alanı iskeleti: belge editörü ve sayfa ayarları | P1 | Taslak — istisna |
 | WO-004 | Belge yüzeyi: ProseMirror/TipTap ve cümle çapaları | P1 | Yazılmadı |
-| WO-005 | Kanıt paneli: pasaj arama ve doğrulama | P2 | Yazılmadı |
+| [WO-005](WO-005-kanit-dogrulama.md) | Kanıt doğrulama: yazarın cümlesini sepetteki kaynağın pasajına bağla (PR3) | P2 | Taslak (20.10.2026) — onay bekliyor |
 | [WO-006](WO-006-istatistik-cekirdegi.md) | İstatistik çekirdeği ve çapraz doğrulama | P3 | **Bitti** (14.10.2026, `wo-006-istatistik`) |
 | WO-007 | Analiz sekmesi: veri girişi ve belgeye ekleme | P3 | Yazılmadı |
 | [WO-008](WO-008-sekillerin-word-pdf-gomulmesi.md) | Şekillerin Word ve PDF'e gömülmesi (SVG + PNG yedeği, gömülü Noto Sans, satır kırma, dış istek 0, elle doğrulama: Ahmet) | P3 | Taslak, kararlar işlendi (17.10.2026) — uygulama kullanıcı WO-011 kontrolünden dönünce |
@@ -72,6 +72,7 @@ Taslak → Hazır → Çalışıyor → Bitti
 | [WO-027](WO-027-yapay-zeka-gecidi.md) | Yapay zekâ geçidi: tek kapı, kullanıcının anahtarı her çağrıda, Claude/Kimi/OpenAI; consensus açığı | P1 | Bitti, gerçek sağlayıcı denemesi bekliyor (19.10.2026, `wo-027-ai-gecit`) |
 | [WO-028](WO-028-sekil-grafik-taslak-alan.md) | Şekil ve grafik: Napkin gibi belgede taslak alan, Tamam ile ekle | P3 | Bitti, elle deneme bekliyor (19.10.2026, `wo-028-sekil-grafik`) |
 | [WO-029](WO-029-veri-kaynaklari.md) | Veri kaynakları: durum matrisi (`docs/sources.md`) ve atıf penceresi (tüzük 2.7) | P1 | Bitti, elle deneme bekliyor (20.10.2026, `wo-029-veri-kaynaklari`) |
+| [WO-030](WO-030-sadelestirme-turu-1.md) | Sadeleştirme turu 1: nesne denetimi (Düzenle/Sil), sabit biçim çubuğu, panel düğmeleri, kenar listeleri, şekil görünümü | P1 | Çalışıyor (20.10.2026) |
 
 **Yol haritası (17.10.2026):** `docs/design/yol-haritasi.md`. Görünür sonuç
 sırası: WO-011 kontrolü → galeri kararları → WO-017 → WO-018 → WO-019 →
