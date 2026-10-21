@@ -257,4 +257,22 @@ test('WO-033 renk teması: galeriden seçilir; fırça galeriyi açar; "bütün 
   expect(states).toEqual(['orman', 'orman']);
   await expect(doc(page).locator('figure').nth(1).locator('svg')).toContainText('Bir');
   await expect(doc(page).locator('figure').nth(1).locator('svg [stroke="#1E5128"]').first()).toBeAttached();
+
+  // Geri alınabilir: Ctrl+Z son yeniden çizimi (ikinci şekil) geri alır.
+  await doc(page).getByText('Sonra.').click();
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => doc(page).locator('figure').nth(1).evaluate((e) => JSON.parse(e.dataset.visualState).data.appearance?.palette ?? null)).toBe(null);
+  await expect(doc(page).locator('figure')).toHaveCount(2);
+
+  // Şablon şeridi seçili şablona kayar: şeridin sonlarındaki Venn düzenlemeye açılınca görünür.
+  await doc(page).getByText('Sonra.').click();
+  await page.locator('[data-action="write-figure"]').click();
+  await draft.locator('[data-fd-type="venn"]').click();
+  await draft.locator('[data-fd="item"]').nth(0).fill('Mühendislik: modelleme');
+  await draft.locator('[data-fd="item"]').nth(1).fill('Tıp: tanı');
+  await draft.locator('[data-action="fd-done"]').click();
+  await expect(doc(page).locator('figure')).toHaveCount(3);
+  await doc(page).locator('figure').nth(2).dblclick();
+  await expect.poll(() => draft.locator('.fd-types').evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+  await expect(draft.locator('[data-fd-type="venn"]')).toBeInViewport();
 });

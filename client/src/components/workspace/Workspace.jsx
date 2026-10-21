@@ -37,9 +37,6 @@ import TableToolbar from './TableToolbar.jsx';
 import { flagsOf, themeCss } from './tableThemes.js';
 import { renderFigure } from '../../visuals/render.js';
 import { isDefaultAppearance, newDrawId, normalizeAppearance } from '../../visuals/draw.js';
-
-// Tablo temaları (WO-031): ekran kuralları tek seferde üretilir; Word çıktısı aynı veriden.
-const TABLE_THEME_CSS = themeCss();
 import FigureDraft from './FigureDraft.jsx';
 import {
   captionHtml, captionLine, captionTitle, createGrid, emptyTableHtml, gridFromRows, newVisualId, tableHtml,
@@ -157,6 +154,12 @@ function serialize(el) {
 const isEmptyBlock = (block) => block?.tagName === 'P' && !block.textContent.trim() && !block.querySelector('img, table, svg');
 /** Öznitelik değeri için kaçış (şekil durumu JSON'u data-visual-state içinde). */
 const escapeAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/** Belgedeki şekil/grafik öğesi (WO-028): tek yerde kurulur; taslak "Tamam"ı ve tema yeniden çizimi bunu kullanır. */
+const figureHtml = ({ id, kind, state, svg }) =>
+  `<figure class="wx-vfig" data-visual-id="${id}" data-visual-kind="${kind}" data-visual-state="${escapeAttr(JSON.stringify(state))}" contenteditable="false">${svg}</figure>`;
+
+// Tablo temaları (WO-031): ekran kuralları tek seferde üretilir; Word çıktısı aynı veriden.
+const TABLE_THEME_CSS = themeCss();
 
 /** Hedef bloğa girecek tablonun numarası (WO-019): öncesindeki tablo başlıkları + 1. */
 function tableNumberAt(el, block) {
@@ -2258,7 +2261,7 @@ export default function Workspace({
     }
   };
 
-  const tableAction = (kind, at = null) => {
+  const tableAction = (kind, at = null, arg = null) => {
     const ctx = at || (tableCtx?.table?.isConnected ? tableCtx : null);
     if (!ctx || readOnly) return;
     const { table, row, col } = ctx;
@@ -2276,16 +2279,10 @@ export default function Workspace({
       case 'header': replaceTable(table, (c) => { setHeaderRow(c, !tableShape(c).header); return { row, col }; }); break;
       case 'caption': toggleTableCaption(table); break;
       case 'delete': deleteWordTable(table); break;
-      default:
-        // Tablo tasarımı (WO-031): tema ve seçenekler tabloya veri olarak yazılır; geri alınabilir.
-        if (kind.startsWith('theme:')) {
-          const id = kind.slice(6);
-          replaceTable(table, (c) => { if (id === 'apa') delete c.dataset.theme; else c.dataset.theme = id; return { row, col }; });
-        } else if (kind.startsWith('flag:')) {
-          const flag = kind.slice(5);
-          replaceTable(table, (c) => { if (c.dataset[flag] === '1') delete c.dataset[flag]; else c.dataset[flag] = '1'; return { row, col }; });
-        }
-        break;
+      // Tablo tasarımı (WO-031): tema ve seçenekler tabloya veri olarak yazılır; geri alınabilir.
+      case 'theme': replaceTable(table, (c) => { if (arg === 'apa') delete c.dataset.theme; else c.dataset.theme = arg; return { row, col }; }); break;
+      case 'flag': replaceTable(table, (c) => { if (c.dataset[arg] === '1') delete c.dataset[arg]; else c.dataset[arg] = '1'; return { row, col }; }); break;
+      default: break;
     }
   };
 
@@ -2352,7 +2349,7 @@ export default function Workspace({
     const id = figDraft.editId || newVisualId();
     const state = { mode: figDraft.mode, type, data, title };
     const word = t('audit.kind.figure');
-    const html = `<figure class="wx-vfig" data-visual-id="${id}" data-visual-kind="${figDraft.mode}" data-visual-state="${escapeAttr(JSON.stringify(state))}" contenteditable="false">${svg}</figure>`
+    const html = figureHtml({ id, kind: figDraft.mode, state, svg })
       + captionHtml({ id, word, n: figDraft.number, title, kind: 'figure' });
     el.focus({ preventScroll: true });
     const range = document.createRange();
@@ -2406,7 +2403,7 @@ export default function Workspace({
       if (!drawn) continue;
       const next = { ...state, data };
       const cap = fig.nextElementSibling?.dataset.captionFor === fig.dataset.visualId ? fig.nextElementSibling : null;
-      const html = `<figure class="wx-vfig" data-visual-id="${fig.dataset.visualId}" data-visual-kind="${fig.dataset.visualKind || 'figure'}" data-visual-state="${escapeAttr(JSON.stringify(next))}" contenteditable="false">${drawn.svg}</figure>${cap ? cap.outerHTML : ''}`;
+      const html = figureHtml({ id: fig.dataset.visualId, kind: fig.dataset.visualKind || 'figure', state: next, svg: drawn.svg }) + (cap ? cap.outerHTML : '');
       const range = document.createRange();
       range.setStartBefore(fig);
       range.setEndAfter(cap || fig);
@@ -3600,7 +3597,7 @@ export default function Workspace({
                         theme: table.dataset.theme || 'apa',
                         flags: flagsOf(table),
                       }}
-                      onAction={(kind) => tableAction(kind)}
+                      onAction={(kind, arg) => tableAction(kind, null, arg)}
                       designOpen={tableDesignOpen}
                       onDesignOpen={setTableDesignOpen}
                     />

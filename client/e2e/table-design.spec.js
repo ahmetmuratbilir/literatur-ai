@@ -75,3 +75,39 @@ test('tema + seçenekler ekranda, geri alınır, Word\'e gölge ve tblLook olara
   expect(xml).toMatch(/<w:tblLook [^>]*w:lastRow="(1|true)"/);
   expect(xml).toMatch(/<w:tblLook [^>]*w:noHBand="(0|false)"/);
 });
+
+test('APA: bant kutusu pasif (APA gölgelendirme kullanmaz); temasız tablonun Word çıktısı eski APA yolu (gölge yok, tblLook yok)', async ({ page }) => {
+  test.setTimeout(60_000);
+  await seedDraft(page, '<p>Önce bir paragraf.</p><p>Sonra.</p>', 'APA tablo');
+  await mockApi(page);
+  await page.goto('/#/yaz');
+  await doc(page).getByText('Önce').click();
+  await page.keyboard.press('End');
+  await page.locator('[data-action="write-table"]').click();
+  const cell = page.locator('[data-action="table-grid"] [data-cell="2:1"]');
+  await cell.hover();
+  await cell.click();
+  await page.keyboard.type('Grup');
+  await page.locator('[data-action="table-design"]').click();
+  const design = page.getByTestId('table-design');
+  await expect(design.locator('[data-action="table-flag-band"]')).toBeDisabled();
+  await design.locator('[data-theme-id="booktabs"]').click();
+  await expect(design.locator('[data-action="table-flag-band"]')).toBeDisabled();
+  await design.locator('[data-theme-id="izgara"]').click();
+  await expect(design.locator('[data-action="table-flag-band"]')).toBeEnabled();
+  await design.locator('[data-theme-id="apa"]').click();
+  await expect(doc(page).locator('table')).not.toHaveAttribute('data-theme', /.+/);
+
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /Dışa aktar/ }).first().click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download', { timeout: 15_000 }),
+    page.getByRole('button', { name: /Word/ }).first().click(),
+  ]);
+  const zip = await JSZip.loadAsync(fs.readFileSync(await download.path()));
+  const xml = await zip.file('word/document.xml').async('string');
+  const tbl = xml.slice(xml.indexOf('<w:tbl>'), xml.indexOf('</w:tbl>'));
+  expect(tbl).not.toMatch(/<w:shd /);
+  expect(tbl).not.toMatch(/<w:tblLook /);
+  expect(tbl).toMatch(/<w:top w:val="single" w:color="000000" w:sz="8"\/>/);
+});

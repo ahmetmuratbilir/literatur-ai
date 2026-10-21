@@ -378,4 +378,4 @@ export function sentencesOf(text) {
 }
 
 /** Yeni şablonlar (WO-032, `drawMore.js`) için çizim yardımcıları; dışarıdan kullanılmaz. */
-export const drawKit = { look, textBlock, wrapText, svg, arrowDef, clean, esc, mix, FONT, CHAR_W };
+export const drawKit = { look, textBlock, wrapText, svg, arrowDef, clean, esc, mix, FONT };

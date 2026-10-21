@@ -18,6 +18,7 @@
 - Birim: 26 türün hepsi taslakta çizilir (`drawMore.test.js`).
 - e2e `figure-chart.spec.js`: fırça galeriyi açar, 21 tema, küçük resim SVG, tema seçimi önizlemeye geçer, "bütün şekillere uygula" ikinci şekli aynı temayla ve aynı içerikle yeniden çizer.
 - Tam kontrol: lint temiz; istemci birim 362/362; e2e 113 geçti, 3 atlandı.
+- İnceleme düzeltmesi (21.10.2026): "bütün şekillere uygula" sonrası Ctrl+Z ve şablon şeridinin seçili şablona kayması artık testli (e2e). Şekil HTML'i tek yardımcıdan (`figureHtml`).
 
 ## Bilinen eksikler
 - Belge teması kalıcı bir ayar değil; "uygula" o anki şekilleri boyar, sonra eklenen şekil varsayılanla başlar.

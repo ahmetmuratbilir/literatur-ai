@@ -4,7 +4,7 @@ import {
   BetweenVerticalEnd, BetweenVerticalStart, Captions, Paintbrush, PanelTop, Trash2,
 } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
-import { TABLE_THEMES } from './tableThemes.js';
+import { TABLE_THEMES, themeById } from './tableThemes.js';
 
 /** Galerideki küçük önizleme: gerçek tablo kuralıyla (aynı CSS) çizilir. */
 const Preview = ({ id, flags }) => (
@@ -55,17 +55,23 @@ const TableToolbar = forwardRef(function TableToolbar({ ctx, style, onAction, de
       {icon}
     </button>
   );
-  const option = (key) => (
-    <label key={key} className="wx-ttheme__opt">
-      <input
-        type="checkbox"
-        checked={Boolean(flags[key])}
-        onChange={() => onAction(key === 'header' ? 'header' : `flag:${key}`)}
-        data-action={`table-flag-${key}`}
-      />
-      {k(`flag.${key}`)}
-    </label>
-  );
+  // APA gölgelendirme kullanmaz: APA temalarında bant kutusu pasif ve nedenini söyler.
+  const apaTheme = themeById(ctx.theme).apa;
+  const option = (key) => {
+    const off = key === 'band' && apaTheme;
+    return (
+      <label key={key} className="wx-ttheme__opt" title={off ? k('bandApa') : undefined} aria-disabled={off || undefined}>
+        <input
+          type="checkbox"
+          checked={Boolean(flags[key]) && !off}
+          disabled={off}
+          onChange={() => (key === 'header' ? onAction('header') : onAction('flag', key))}
+          data-action={`table-flag-${key}`}
+        />
+        {k(`flag.${key}`)}
+      </label>
+    );
+  };
   return (
     <div ref={ref} className="wx-ttbar" role="toolbar" aria-label={k('toolbar')} style={style} onMouseDown={(e) => e.preventDefault()} data-testid="table-toolbar">
       <span className="wx-ttheme__anchor">
@@ -90,7 +96,7 @@ const TableToolbar = forwardRef(function TableToolbar({ ctx, style, onAction, de
                   type="button"
                   className="wx-ttheme__item"
                   aria-pressed={(ctx.theme || 'apa') === th.id}
-                  onClick={() => onAction(`theme:${th.id}`)}
+                  onClick={() => onAction('theme', th.id)}
                   data-theme-id={th.id}
                   title={k(`theme.${th.id}`)}
                 >

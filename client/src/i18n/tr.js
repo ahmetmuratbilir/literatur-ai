@@ -1320,6 +1320,7 @@ export default {
       designTitle: 'Tablo tasarımı',
       designNote: 'APA 7 gölgelendirme ve dikey çizgi kullanmaz; dergin APA istiyorsa APA ya da Kitap çizgisi seç. Seçim Word’e aynen geçer.',
       notApa: 'APA dışı',
+      bandApa: 'APA gölgelendirme kullanmaz; bantlı satır için APA dışı bir tema seç.',
       flag: { header: 'Başlık satırı', total: 'Toplam satırı', band: 'Bantlı satırlar', firstcol: 'İlk sütun' },
       theme: { apa: 'APA', booktabs: 'Kitap çizgisi', izgara: 'Akademik ızgara', baski: 'Baskı grisi', lacivert: 'Lacivert', denizYesili: 'Deniz yeşili', kiremit: 'Kiremit', civit: 'Çivit', murdum: 'Mürdüm', komur: 'Koyu kömür', wordMavi: 'Word mavisi', civitGece: 'Çivit gece', lacivertKum: 'Lacivert ve kum', denizci: 'Denizci', petrol: 'Petrol', orman: 'Orman yeşili', morGece: 'Mor gece', tasAdacayi: 'Taş ve adaçayı', geceKirmizi: 'Gece ve kırmızı', gunBatimi: 'Gün batımı' },
       deleteTable: 'Tabloyu sil',

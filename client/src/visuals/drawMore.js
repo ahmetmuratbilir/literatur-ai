@@ -383,7 +383,7 @@ export function drawVenn(items, { label = '', appearance, uid } = {}) {
     s.parts.slice(0, 3).forEach((p, j) => { body += textBlock(p, lx, ly - 8 + j * 18, 110, { size: L.fs(11), maxLines: 1, fill: th.ink }); });
   });
   if (common && n >= 2) {
-    const cx = n === 3 ? W / 2 : W / 2; const cy = n === 3 ? 225 : H / 2;
+    const cx = W / 2; const cy = n === 3 ? 225 : H / 2;
     body += textBlock((common.parts.length ? common.parts : [common.head]).slice(0, 3).join(', '), cx, cy, n === 3 ? 70 : 90, { size: L.fs(11), weight: 700, maxLines: 4, fill: th.ink });
   }
   return { svg: out(W, H, body, label || shown.map((s) => s.head).join(' ∩ '), L), hidden };
@@ -416,7 +416,7 @@ export function drawConcept(items, { label = '', appearance, uid } = {}) {
   });
   shown.forEach((name) => {
     const [x, y] = pos[name]; const hi = name === hub && degree[hub] > 1;
-    body += card(L, x - 62, y - 26, 124, 52, { fill: hi ? th.accent : th.soft, stroke: hi ? th.accent : th.accent, sw: hi ? 1.6 : 1.2, rx: 12 });
+    body += card(L, x - 62, y - 26, 124, 52, { fill: hi ? th.accent : th.soft, stroke: th.accent, sw: hi ? 1.6 : 1.2, rx: 12 });
     body += textBlock(name, x, y, 110, { size: L.fs(12), weight: hi ? 700 : 600, maxLines: 2, fill: hi ? inkOn(th.accent, th) : th.ink });
   });
   return { svg: out(W, H, body, label || shown.join(', '), L), hidden };

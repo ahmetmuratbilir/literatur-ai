@@ -2,7 +2,7 @@
 
 | Alan | Değer |
 | --- | --- |
-| Durum | Bitti, elle deneme bekliyor (21.10.2026) — kullanıcı: "şekilleri ve grafikleri ekle", galeriden "Hepsi" |
+| Durum | Bitti, elle deneme bekliyor (21.10.2026) — kullanıcı: "şekilleri ve grafikleri ekle", galeriden "Hepsi (18 yeni)". Galerideki 24 şablonun 4'ü zaten vardı; gerçek sayı 20 |
 | Kapsam | İstemci (çizici, taslak alanı) |
 | Yol haritası aşaması | P3 |
 | Dal | `wo-031-tablo-tasarimi` (WO-031'in ardından aynı dal) |
@@ -18,7 +18,7 @@
   - İlişki: Kavram haritası (en çok bağlı kavram vurgulu), Argüman haritası (+ gerekçe / − itiraz).
   - Zaman: Dikey zaman.
   - Grafik: Yatay çubuk, Yüzde halkası, Sayı kartları.
-- Bütün şablonlar rol tabanlı paletleri kullanır: ayrıntı, veri, vurgu, zemin. Hepsine 21 palet, köşe ve yazı boyutu uygulanır; alanı olanlara desen de.
+- Bütün şablonlar rol tabanlı paletleri kullanır: ayrıntı, veri, vurgu, zemin. Hepsine 21 palet, köşe ve yazı boyutu uygulanır. Desen yalnız dolgulu çubuk ve kutu şablonlarında: Akış, Döngü, İki sütun, Çubuk, Basamak, Merkez + uydu, Piramit, Huni, Yatay çubuk, Yüzde halkası (`PATTERN_TYPES`). Numaralı liste, çok sütun, matris ve sayı kartlarında desen yok; seçici orada pasif.
 - Taslak alanı:
   - Şablon şeridi ailelere ayrıldı ve yatay kayar.
   - Liste tabanlı bütün şablonlar aynı `items` verisini kullanır; şablon değişince içerik korunur (SmartArt "Düzeni değiştir").

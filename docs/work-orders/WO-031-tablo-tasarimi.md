@@ -18,6 +18,7 @@
 - `client/tests/tableThemes.test.js` 4/4.
 - `client/e2e/table-design.spec.js`: tema, seçenekler, ekran renkleri, Ctrl+Z, Word XML'i (gölge, beyaz yazı, tblLook).
 - word-table ve object-controls e2e geçti.
+- İnceleme düzeltmesi (21.10.2026): APA ve Kitap çizgisi temalarında "Bantlı satırlar" pasif (APA gölgelendirme kullanmaz; neden ipucunda). "Temasız tablonun Word çıktısı eski APA yolu" artık testli: gölge yok, tblLook yok, üst çizgi 8 (e2e).
 
 ## Bilinen eksikler
 - Ctrl+Z sonrası galeri kapanabiliyor (tablo yeniden yerine konuyor); yeniden açılır.

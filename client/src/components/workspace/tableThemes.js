@@ -48,6 +48,8 @@ const BY_ID = Object.fromEntries(TABLE_THEMES.map((th) => [th.id, th]));
 export const DEFAULT_TABLE_THEME = 'apa';
 export const FLAGS = ['total', 'band', 'firstcol'];
 
+/** Kimliğe göre tema; bilinmeyen ya da yoksa APA. */
+export const themeById = (id) => BY_ID[id] || BY_ID.apa;
 /** Tablonun teması; bilinmeyen ya da yoksa APA. */
 export const themeOf = (table) => BY_ID[table?.dataset?.theme] || BY_ID.apa;
 /** Tablonun seçenekleri: başlık (thead), toplam, bant, ilk sütun. */
