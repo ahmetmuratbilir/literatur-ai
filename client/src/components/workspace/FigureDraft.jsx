@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, Check, ChevronLeft, ChevronRight, CornerDownRight, LineChart, Maximize2, Plus, RefreshCw, Shapes, Trash2, X } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import {
-  APPEARANCE_OPTIONS, CHART_TYPES, FIGURE_TYPES, PATTERN_TYPES, WIDTH_RANGE,
+  APPEARANCE_OPTIONS, CHART_TYPES, FIGURE_TYPES, PATTERN_TYPES, PT_RANGE, WIDTH_RANGE, pointSize,
   isDefaultAppearance, newDrawId, normalizeAppearance, paletteSwatch, sentencesOf,
 } from '../../visuals/draw.js';
 import { LEVELED_TYPES, MAX_LEVEL, ROOTED_TYPES, outlineNumbers, renderFigure } from '../../visuals/render.js';
@@ -223,6 +223,24 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
     e.preventDefault();
     setLook('width', Math.max(WIDTH_RANGE.min, Math.min(WIDTH_RANGE.max, appearance.width + d * WIDTH_RANGE.step)));
   };
+  /** Yazı punto kutusu (Ahmet, 21.10.2026): şeklin belgedeki puntosu; boş bırakılırsa otomatik. */
+  const ptBox = (
+    <label className="fd-pt" title={k('look.ptHint')}>
+      <span className="fd-seg__legend">{k('look.pt')}</span>
+      <input
+        type="number"
+        inputMode="decimal"
+        min={PT_RANGE.min}
+        max={PT_RANGE.max}
+        step={PT_RANGE.step}
+        value={appearance.textPt ?? ''}
+        placeholder={String(pointSize(appearance))}
+        onChange={(e) => setLook('textPt', e.target.value === '' ? null : Number(String(e.target.value).replace(',', '.')))}
+        data-fd="pt"
+      />
+      <small>pt</small>
+    </label>
+  );
   const segment = (key, disabled = false) => (
     <fieldset className="fd-seg" disabled={disabled}>
       <legend>{k(`look.${key}`)}</legend>
@@ -300,7 +318,7 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
         {segment('pattern', !patternOk)}
         {!patternOk && <small className="fd-look__note">{k('look.patternNone')}</small>}
         {segment('corners')}
-        {segment('text')}
+        {ptBox}
       </div>
     </details>
   );
@@ -333,7 +351,7 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
               <input type="range" min={WIDTH_RANGE.min} max={WIDTH_RANGE.max} step={WIDTH_RANGE.step} value={appearance.width} onChange={(e) => setLook('width', Number(e.target.value))} data-fd="width" />
               <output>%{appearance.width}</output>
             </label>
-            {segment('text')}
+            {ptBox}
             {segment('corners')}
             {segment('pattern', !patternOk)}
             <button type="button" className="fd-btn" onClick={() => setLook('width', 100)} disabled={appearance.width === 100} data-fd="width-reset">{k('big.reset')}</button>

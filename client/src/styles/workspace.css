@@ -1943,3 +1943,9 @@ table.wx-ttheme__mini:not([data-theme]) thead th { border-bottom: 1px solid #000
 .fd-big__bar .fd-seg__opts { display: flex; flex: none; }
 .fd-big__bar .fd-seg__opt { flex: none; }
 .fd-big__bar .fd-seg__opt span { padding: 0 9px; white-space: nowrap; overflow: visible; text-overflow: clip; }
+
+/* Punto kutusu (21.10.2026): Küçük/Normal/Büyük yerine kullanıcının yazdığı punto. */
+.fd-pt { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--wx-muted); }
+.fd-pt input { width: 62px; height: 28px; padding: 0 6px; border: 1px solid var(--wx-line); border-radius: 7px; font: inherit; color: var(--wx-ink); background: var(--wx-surface); }
+.fd-pt input:focus { outline: 2px solid var(--wx-accent); outline-offset: 0; }
+.fd-pt small { color: var(--wx-faint); }

@@ -152,7 +152,7 @@ test('görünüm: siyah-beyaz baskı + çizgili seçilir, şekille saklanır, D�
   await expect(fig).toHaveCount(1);
   await expect(fig.locator('svg pattern')).toHaveCount(2);
   const state = JSON.parse(await fig.getAttribute('data-visual-state'));
-  expect(state.data.appearance).toEqual({ palette: 'bw', pattern: 'stripes', corners: 'round', text: 'normal', width: 100 });
+  expect(state.data.appearance).toEqual({ palette: 'bw', pattern: 'stripes', corners: 'round', text: 'normal', width: 100, textPt: null });
   // Desen kimlikleri şekle özgü; çubuklar kendi SVG'sindeki tanıma başvurur.
   const patternIds = await fig.locator('svg pattern').evaluateAll((ps) => ps.map((p) => p.id));
   expect(patternIds.every((id) => /^v\w+-p\d$/.test(id))).toBe(true);
@@ -164,7 +164,7 @@ test('görünüm: siyah-beyaz baskı + çizgili seçilir, şekille saklanır, D�
   await expect(draft.locator('[data-fd-look="palette"]')).toHaveAttribute('data-value', 'bw');
   await expect(draft.locator('[data-fd-look="pattern-stripes"]')).toBeChecked();
   await expect(draft.locator('[data-fd-look="corners-round"]')).toBeChecked();
-  await expect(draft.locator('[data-fd-look="text-normal"]')).toBeChecked();
+  await expect(draft.locator('[data-fd="pt"]')).toHaveValue('');
   // Önizlemenin desen kimlikleri belgedeki şekilden farklı (aynı sayfada çakışmasın).
   const draftIds = await draft.locator('.fd-svg svg pattern').evaluateAll((ps) => ps.map((p) => p.id));
   expect(draftIds.some((id) => patternIds.includes(id))).toBe(false);
@@ -349,4 +349,25 @@ test('WO-035 büyük düzenleme: minik Düzenle, tutamaçla genişlik, Esc panel
   const zip = await JSZip.loadAsync(fs.readFileSync(await download.path()));
   const xml = await zip.file('word/document.xml').async('string');
   expect(xml).toMatch(/<wp:extent cx="3314700"/);
+});
+
+test('punto kutusu: otomatik değer ipucu; yazılan punto kaydedilir ve düzenlemede geri gelir', async ({ page }) => {
+  await seedDraft(page, '<p>Önce. Isı alınır. Su döner.</p>', 'Punto');
+  await mockApi(page);
+  await page.goto('/#/yaz');
+  await doc(page).getByText('Önce.').click();
+  await page.locator('[data-action="write-figure"]').click();
+  const draft = page.getByTestId('figure-draft');
+  await draft.locator('[data-action="fd-from-paragraph"]').click();
+  await draft.locator('[data-fd="look"] summary').click();
+  const pt = draft.locator('[data-fd="pt"]');
+  await expect(pt).toHaveAttribute('placeholder', '8.5');
+  await pt.fill('11');
+  await draft.locator('[data-fd="big-edit"]').click();
+  await expect(draft.locator('[data-fd="pt"]')).toHaveValue('11');
+  await draft.locator('[data-fd="big-done"]').click();
+  await draft.locator('[data-action="fd-done"]').click();
+  await expect(doc(page).locator('figure')).toHaveAttribute('data-visual-state', /"textPt":11/);
+  await doc(page).locator('figure').dblclick();
+  await expect(draft.locator('[data-fd="pt"]')).toHaveValue('11');
 });

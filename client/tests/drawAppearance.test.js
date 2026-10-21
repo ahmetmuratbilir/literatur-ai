@@ -117,3 +117,19 @@ test('belgedeki genişlik: 30–100, 5\'in katına yuvarlanır; bilinmeyen 100; 
   const items = ['A', 'B', 'C'];
   assert.equal(drawSteps(items, { appearance: { width: 60 }, uid: 'w' }), drawSteps(items, { uid: 'w' }));
 });
+
+test('punto: kullanıcının yazdığı punto Word\'de aynı boyut; şekil küçülse de yazı aynı puntoda; boşsa otomatik', async () => {
+  const { pointSize } = await import('../src/visuals/draw.js');
+  // Otomatik: %100 genişlikte kutu yazısı ≈ 8,5 pt (12,5 birim × 580/640 px × 0,75).
+  assert.equal(pointSize({}), 8.5);
+  assert.equal(normalizeAppearance({ textPt: '11' }).textPt, 11);
+  assert.equal(normalizeAppearance({ textPt: 2 }).textPt, 6);
+  assert.equal(normalizeAppearance({ textPt: '' }).textPt, null);
+  // Kutu yazısının çizimdeki boyutu × birimin belgedeki puntosu = yazılan punto.
+  const sizeIn = (svg) => Number(svg.match(/font-size="([\d.]+)" font-weight="500"/)[1]);
+  const full = sizeIn(drawSteps(['Bir', 'İki'], { appearance: { textPt: 11 }, uid: 'p' }));
+  const half = sizeIn(drawSteps(['Bir', 'İki'], { appearance: { textPt: 11, width: 50 }, uid: 'p' }));
+  const ptOf = (units, width) => units * ((580 * width) / 100 / 640) * 0.75;
+  assert.ok(Math.abs(ptOf(full, 100) - 11) < 0.15, `100%: ${ptOf(full, 100)}`);
+  assert.ok(Math.abs(ptOf(half, 50) - 11) < 0.15, `50%: ${ptOf(half, 50)}`);
+});

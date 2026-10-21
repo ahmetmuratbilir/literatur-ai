@@ -1291,6 +1291,8 @@ export default {
         palettePrev: 'Önceki palet',
         paletteNext: 'Sonraki palet',
         group: { color: 'Renkli', mono: 'Tek renk', print: 'Baskı' },
+        pt: 'Yazı (punto)',
+        ptHint: 'Şeklin belgedeki ve Word’deki yazı boyutu. Boş bırakırsan genişliğe göre otomatik; şekli küçültsen de yazdığın puntoda kalır.',
         applyAll: 'Bu temayı belgedeki bütün şekil ve grafiklere uygula',
         patternOpts: { solid: 'Düz', stripes: 'Çizgili', dots: 'Noktalı' },
         cornersOpts: { round: 'Yuvarlak', square: 'Köşeli' },

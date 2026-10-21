@@ -1288,6 +1288,8 @@ export default {
         palettePrev: 'Previous palette',
         paletteNext: 'Next palette',
         group: { color: 'Colour', mono: 'Single colour', print: 'Print' },
+        pt: 'Text (pt)',
+        ptHint: 'Text size of the figure in the document and in Word. Leave empty for automatic; it stays at this size even if you shrink the figure.',
         applyAll: 'Apply this theme to every figure and chart in the document',
         patternOpts: { solid: 'Solid', stripes: 'Striped', dots: 'Dotted' },
         cornersOpts: { round: 'Rounded', square: 'Square' },

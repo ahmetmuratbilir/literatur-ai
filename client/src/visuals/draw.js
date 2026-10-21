@@ -77,7 +77,20 @@ Object.assign(PALETTES, {
 });
 
 // width: şeklin belgedeki genişliği, sayfa sütununun yüzdesi (WO-035; 30–100, 5'in katı).
-export const APPEARANCE_DEFAULT = Object.freeze({ palette: 'default', pattern: 'solid', corners: 'round', text: 'normal', width: 100 });
+// textPt: kullanıcının yazdığı punto (Ahmet, 21.10.2026); null ise `text` seçeneği. Punto, şeklin belgedeki
+// genişliğine göre çevrilir: şekil küçülse de yazı o puntoda kalır (Word'de 580 px sütun).
+export const APPEARANCE_DEFAULT = Object.freeze({ palette: 'default', pattern: 'solid', corners: 'round', text: 'normal', width: 100, textPt: null });
+export const PT_RANGE = Object.freeze({ min: 6, max: 28, step: 0.5 });
+const BODY_UNITS = 12.5; // kutu yazısının çizimdeki boyutu (640 birimlik şekil)
+const COLUMN_PX = 580; // Word'deki yazı sütunu (exportDocument figureImage)
+/** Çizim biriminin belgede kaç punto ettiği: genişliğe bağlı. */
+const unitPt = (width) => ((COLUMN_PX * width) / 100 / 640) * 0.75;
+/** Şeklin kutu yazısının belgedeki puntosu (gösterim için; seçenek ya da kullanıcının yazdığı). */
+export function pointSize(a) {
+  const ap = normalizeAppearance(a);
+  if (ap.textPt) return ap.textPt;
+  return Math.round(BODY_UNITS * TEXT_SCALE[ap.text] * unitPt(ap.width) * 2) / 2;
+}
 export const WIDTH_RANGE = Object.freeze({ min: 30, max: 100, step: 5 });
 /** Seçicide gösterim için her paletin dört rol rengi: ayrıntı, veri, vurgu, zemin. */
 export const paletteSwatch = (key) => {
@@ -98,11 +111,13 @@ const TEXT_SCALE = { small: 0.88, normal: 1, large: 1.15, xlarge: 1.3 };
 export function normalizeAppearance(a) {
   const out = {};
   for (const key of Object.keys(APPEARANCE_DEFAULT)) {
-    if (key === 'width') continue;
+    if (key === 'width' || key === 'textPt') continue;
     out[key] = APPEARANCE_OPTIONS[key].includes(a?.[key]) ? a[key] : APPEARANCE_DEFAULT[key];
   }
   const w = Math.round(Number(a?.width) / WIDTH_RANGE.step) * WIDTH_RANGE.step;
   out.width = Number.isFinite(w) ? Math.max(WIDTH_RANGE.min, Math.min(WIDTH_RANGE.max, w)) : APPEARANCE_DEFAULT.width;
+  const pt = Math.round(Number(a?.textPt) / PT_RANGE.step) * PT_RANGE.step;
+  out.textPt = a?.textPt != null && a.textPt !== '' && Number.isFinite(pt) ? Math.max(PT_RANGE.min, Math.min(PT_RANGE.max, pt)) : null;
   return out;
 }
 export const isDefaultAppearance = (a) => {
@@ -125,7 +140,7 @@ const DOTS = [{ s: 7, r: 1.6 }, { s: 10, r: 3 }, { s: 5, r: 1 }, { s: 12, r: 2.2
 function look(appearance, uid) {
   const ap = normalizeAppearance(appearance);
   const th = PALETTES[ap.palette];
-  const ts = TEXT_SCALE[ap.text];
+  const ts = ap.textPt ? round1(ap.textPt / (BODY_UNITS * unitPt(ap.width)) * 100) / 100 : TEXT_SCALE[ap.text];
   const id = uid || newDrawId();
   const patterns = new Map(); // anahtar → { id, def }
   const fs = (v) => (ts === 1 ? v : round1(v * ts));
