@@ -34,6 +34,10 @@ import { SUPPORT_SHAPES, isSettled, locateSpan, refusalKey, supportLabel } from 
 import VisualPanel from './VisualPanel.jsx';
 import TableGridPicker from './TableGridPicker.jsx';
 import TableToolbar from './TableToolbar.jsx';
+import { flagsOf, themeCss } from './tableThemes.js';
+
+// Tablo temaları (WO-031): ekran kuralları tek seferde üretilir; Word çıktısı aynı veriden.
+const TABLE_THEME_CSS = themeCss();
 import FigureDraft from './FigureDraft.jsx';
 import {
   captionHtml, captionLine, captionTitle, createGrid, emptyTableHtml, gridFromRows, newVisualId, tableHtml,
@@ -465,6 +469,7 @@ export default function Workspace({
   const [objHover, setObjHover] = useState(null);
   const [objSel, setObjSel] = useState(null);
   const [tableEdit, setTableEdit] = useState(null);
+  const [tableDesignOpen, setTableDesignOpen] = useState(false);
   const [undoNote, setUndoNote] = useState(null);
   const allowObjDeleteRef = useRef(false);
   // Şekil/grafik taslak alanı (WO-028): { mode, editId, initial, number, sourceText, sourceRows } ya da null.
@@ -732,7 +737,7 @@ export default function Workspace({
       // İmleç tablodaysa tablo araç çubuğu onun üstünde görünür (WO-025).
       const hit = cellAt(range.startContainer, el);
       setTableCtx((prev) => {
-        if (!hit) { setTableEdit(null); return prev ? null : prev; }
+        if (!hit) { setTableEdit(null); setTableDesignOpen(false); return prev ? null : prev; }
         if (prev && prev.table === hit.table && prev.row === hit.row && prev.col === hit.col) return prev;
         return { table: hit.table, row: hit.row, col: hit.col };
       });
@@ -2267,7 +2272,16 @@ export default function Workspace({
       case 'header': replaceTable(table, (c) => { setHeaderRow(c, !tableShape(c).header); return { row, col }; }); break;
       case 'caption': toggleTableCaption(table); break;
       case 'delete': deleteWordTable(table); break;
-      default: break;
+      default:
+        // Tablo tasarımı (WO-031): tema ve seçenekler tabloya veri olarak yazılır; geri alınabilir.
+        if (kind.startsWith('theme:')) {
+          const id = kind.slice(6);
+          replaceTable(table, (c) => { if (id === 'apa') delete c.dataset.theme; else c.dataset.theme = id; return { row, col }; });
+        } else if (kind.startsWith('flag:')) {
+          const flag = kind.slice(5);
+          replaceTable(table, (c) => { if (c.dataset[flag] === '1') delete c.dataset[flag]; else c.dataset[flag] = '1'; return { row, col }; });
+        }
+        break;
     }
   };
 
@@ -3057,6 +3071,7 @@ export default function Workspace({
 
       {/* "Teslime hazırla" açıkken ona yer ayrılır: belge solda görünür kalır. */}
       <div className={`wx-shell${prepOpen ? ' wx-shell--prep' : ''}`}>
+        <style>{TABLE_THEME_CSS}</style>
         {/* --- Üst çubuk: çıkış, belge kimliği ve belge düzeyindeki eylemler --- */}
         <header className="wx-top">
           {onExit && (
@@ -3544,8 +3559,12 @@ export default function Workspace({
                         inHeader: rowEl?.parentElement?.tagName === 'THEAD',
                         hasCaption: Boolean(linkedCaption(table)),
                         align: cell?.style.textAlign || 'left',
+                        theme: table.dataset.theme || 'apa',
+                        flags: flagsOf(table),
                       }}
                       onAction={(kind) => tableAction(kind)}
+                      designOpen={tableDesignOpen}
+                      onDesignOpen={setTableDesignOpen}
                     />
                   </div>
                 );

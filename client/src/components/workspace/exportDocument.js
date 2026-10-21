@@ -1,9 +1,10 @@
 import {
   AlignmentType, BorderStyle, Document, Footer, Header, HeadingLevel, ImageRun, Packer, PageNumber, Paragraph, SequentialIdentifier,
-  Table, TableCell, TableRow, TextRun, WidthType, convertMillimetersToTwip,
+  ShadingType, Table, TableCell, TableRow, TextRun, WidthType, convertMillimetersToTwip,
 } from 'docx';
 import { saveAs } from 'file-saver';
 import { pageGeometry } from './pageSetup.js';
+import { FLAGS, cellLook, flagsOf, tableBorders, themeOf, wordSize } from './tableThemes.js';
 
 // Belgedeki biçim .docx'e taşınır: başlık düzeyi, kalın/italik/altı çizili,
 // hizalama, listeler ve sayfa ayarları. Metin modelden geçmez, olduğu gibi
@@ -79,8 +80,52 @@ const NONE = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
  * her sayfada tekrarlanır, satır sayfa arasında bölünmez. Yapıştırılan diğer
  * tablolar eskisi gibi tam ızgarayla.
  */
+const lineOf = (spec) => (spec ? { style: BorderStyle.SINGLE, size: wordSize(spec[1]), color: spec[0] } : NONE);
+
+/**
+ * Tasarımlı tablo (WO-031): tema ve seçenekler hücre hücre gölge, yazı rengi ve
+ * kenarlık olarak yazılır (Word, LibreOffice ve Google Docs'ta aynı görünür);
+ * ayrıca `tableLook` Word'ün Tablo Tasarımı kutularını işaretler.
+ */
+function themedTableOf(el) {
+  const th = themeOf(el);
+  const flags = flagsOf(el);
+  const bodyRows = [...el.querySelectorAll('tbody > tr, :scope > tr')];
+  const rows = [...el.querySelectorAll('tr')].map((tr) => {
+    const head = tr.parentElement?.tagName === 'THEAD';
+    const rowInBody = bodyRows.indexOf(tr);
+    return new TableRow({
+      tableHeader: head ? true : undefined,
+      cantSplit: true,
+      children: [...tr.children].map((cell, col) => {
+        const look = cellLook(th, flags, { head, rowInBody, lastBody: rowInBody === bodyRows.length - 1, col });
+        const inherited = {};
+        if (look.bold || cell.tagName === 'TH') inherited.bold = true;
+        if (look.ink) inherited.color = look.ink;
+        const borders = {};
+        for (const [side, spec] of Object.entries(look.borders)) borders[side] = lineOf(spec);
+        return new TableCell({
+          children: [paragraphOf(cell, {}, inherited)],
+          shading: look.fill ? { fill: look.fill, type: ShadingType.CLEAR, color: 'auto' } : undefined,
+          borders: Object.keys(borders).length ? borders : undefined,
+        });
+      }),
+    });
+  });
+  const b = tableBorders(th);
+  const borders = Object.fromEntries(Object.entries(b).map(([side, spec]) => [side, lineOf(spec)]));
+  return new Table({
+    rows,
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders,
+    tableLook: { firstRow: flags.header, lastRow: flags.total, firstColumn: flags.firstcol, noHBand: !flags.band, noVBand: true },
+  });
+}
+
 function tableOf(el) {
   const apa = el.classList?.contains('wx-vtable');
+  // Tema ya da seçenek seçilmiş tablo: tasarımlı çıktı. Seçilmemiş tablo bugünkü APA çıktısıyla aynı kalır.
+  if (apa && (el.dataset.theme || FLAGS.some((f) => el.dataset[f] === '1'))) return themedTableOf(el);
   const rows = [...el.querySelectorAll('tr')].map((tr) => {
     const head = tr.parentElement?.tagName === 'THEAD';
     return new TableRow({
