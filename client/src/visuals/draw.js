@@ -11,8 +11,12 @@
 // Renk anlamı tek başına taşımaz: öğeler etiketlidir; desen seçilince öğeler
 // dönüşümlü desenle de ayrışır (siyah-beyaz baskı, renk körlüğü).
 
-export const FIGURE_TYPES = ['steps', 'cycle', 'compare', 'timeline'];
-export const CHART_TYPES = ['bar', 'line'];
+// WO-032: galeriden gelen şablonlar `drawMore.js`te; liste sırası seçicideki sıra.
+export const FIGURE_TYPES = [
+  'steps', 'stairs', 'roadmap', 'numlist', 'cycle', 'hub', 'feedback', 'chain', 'fishbone',
+  'tree', 'mind', 'pyramid', 'funnel', 'compare', 'columns', 'matrix', 'venn', 'concept', 'argument', 'timeline', 'vtimeline',
+];
+export const CHART_TYPES = ['bar', 'line', 'barh', 'ring', 'kpi'];
 
 const FONT = 'Inter, "Segoe UI", system-ui, sans-serif';
 const THEME = {
@@ -85,7 +89,7 @@ export const APPEARANCE_OPTIONS = Object.freeze({
   text: ['small', 'normal', 'large'],
 });
 /** Desenin etkilediği türler (alanı/kutusu olanlar). Çizgi ve zaman çizelgesinde desen yok. */
-export const PATTERN_TYPES = ['bar', 'steps', 'cycle', 'compare'];
+export const PATTERN_TYPES = ['bar', 'steps', 'cycle', 'compare', 'stairs', 'hub', 'pyramid', 'funnel', 'barh', 'ring'];
 const TEXT_SCALE = { small: 0.88, normal: 1, large: 1.15 };
 
 /** Bilinmeyen ya da eksik değerleri varsayılana çeker. */
@@ -372,3 +376,6 @@ export function drawChart(type, { rows = [], unit = '', xTitle = '', yTitle = ''
 export function sentencesOf(text) {
   return clean(text).split(/(?<=[.!?…])\s+(?=[A-ZÇĞİÖŞÜ0-9“"(])/u).map((s) => s.replace(/[.!?…]+$/u, '').trim()).filter(Boolean);
 }
+
+/** Yeni şablonlar (WO-032, `drawMore.js`) için çizim yardımcıları; dışarıdan kullanılmaz. */
+export const drawKit = { look, textBlock, wrapText, svg, arrowDef, clean, esc, mix, FONT, CHAR_W };

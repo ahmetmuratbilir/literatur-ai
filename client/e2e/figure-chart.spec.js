@@ -179,3 +179,44 @@ test('görünüm: siyah-beyaz baskı + çizgili seçilir, şekille saklanır, D�
   expect(media.some((f) => f.endsWith('.png'))).toBe(true);
   expect(await zip.file(svgFile).async('string')).toMatch(/<pattern id="v\w+-p0"/);
 });
+
+test('WO-032 şablon şeridi: şablon değişince içerik korunur, sığmayan öğe sayılır, ipucu görünür; yeni grafikler', async ({ page }) => {
+  test.setTimeout(60_000);
+  await seedDraft(page, DOC, 'Şablon şeridi');
+  await mockApi(page);
+  await page.goto('/#/yaz');
+  await doc(page).getByText('Isı çekirdekten').click();
+  await page.locator('[data-action="write-figure"]').click();
+  const draft = page.getByTestId('figure-draft');
+  const items = ['Sistematik derleme', 'Randomize deney', 'Kohort', 'Vaka-kontrol', 'Kesitsel', 'Vaka serisi', 'Uzman görüşü'];
+  const inputs = draft.locator('[data-fd="item"]');
+  for (let i = 0; i < items.length; i += 1) {
+    if (i >= (await inputs.count())) await draft.getByRole('button', { name: /Öğe ekle/ }).click();
+    await inputs.nth(i).fill(items[i]);
+  }
+  // Piramit 6 katman alır: 1 öğe görünmez, silinmez.
+  await draft.locator('[data-fd-type="pyramid"]').click();
+  await expect(draft.locator('.fd-svg svg')).toContainText('Randomize deney');
+  await expect(draft.locator('[data-fd="hidden"]')).toContainText('1 öğe');
+  // Yol haritasına geçince yedi öğe de görünür; içerik aynı.
+  await draft.locator('[data-fd-type="roadmap"]').click();
+  await expect(draft.locator('[data-fd="hidden"]')).toHaveCount(0);
+  await expect(draft.locator('.fd-svg svg')).toContainText('Uzman görüşü');
+  await expect(inputs).toHaveCount(7);
+  // Sözdizimli şablonda ipucu.
+  await draft.locator('[data-fd-type="concept"]').click();
+  await expect(draft.locator('[data-fd="hint"]')).toContainText('->');
+  await draft.locator('[data-fd-type="argument"]').click();
+  await draft.locator('[data-action="fd-done"]').click();
+  await expect(doc(page).locator('figure')).toHaveCount(1);
+  await expect(doc(page).locator('figure')).toHaveAttribute('data-visual-state', /"type":"argument"/);
+
+  // Grafik: yeni türler.
+  await doc(page).getByText('Sonraki paragraf.').click();
+  await page.locator('[data-action="write-chart"]').click();
+  for (const ty of ['barh', 'ring', 'kpi']) await expect(draft.locator(`[data-fd-type="${ty}"]`)).toBeVisible();
+  await draft.locator('[data-fd="chart-label"]').first().fill('Açık erişim');
+  await draft.locator('[data-fd="chart-value"]').first().fill('39');
+  await draft.locator('[data-fd-type="ring"]').click();
+  await expect(draft.locator('.fd-svg svg')).toContainText('%39');
+});

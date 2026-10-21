@@ -5,6 +5,30 @@ import {
   APPEARANCE_OPTIONS, CHART_TYPES, FIGURE_TYPES, PATTERN_TYPES, drawChart, drawCompare, drawCycle, drawSteps, drawTimeline,
   isDefaultAppearance, newDrawId, normalizeAppearance, paletteSwatch, sentencesOf,
 } from '../../visuals/draw.js';
+import {
+  drawArgument, drawBarH, drawChain, drawColumns, drawConcept, drawFeedback, drawFishbone, drawFunnel, drawHub, drawKpi,
+  drawMatrix, drawMind, drawNumList, drawPyramid, drawRing, drawRoadmap, drawStairs, drawTree, drawVTimeline, drawVenn,
+} from '../../visuals/drawMore.js';
+
+// Galeriden gelen şablonlar (WO-032): hepsi aynı `items` listesini kullanır; şablon
+// değişince içerik korunur (SmartArt'ın "Düzeni değiştir"i gibi).
+const ITEM_DRAW = {
+  stairs: drawStairs, roadmap: drawRoadmap, numlist: drawNumList, hub: drawHub, feedback: drawFeedback, chain: drawChain,
+  fishbone: drawFishbone, tree: drawTree, mind: drawMind, pyramid: drawPyramid, funnel: drawFunnel, columns: drawColumns,
+  matrix: drawMatrix, venn: drawVenn, concept: drawConcept, argument: drawArgument,
+};
+const CHART_DRAW = { barh: drawBarH, ring: drawRing, kpi: drawKpi };
+// Şablon şeridindeki aileler (galeri ile aynı).
+const FAMILIES = [
+  ['seq', ['steps', 'stairs', 'roadmap', 'numlist']],
+  ['cycle', ['cycle', 'hub', 'feedback']],
+  ['cause', ['chain', 'fishbone']],
+  ['structure', ['tree', 'mind', 'pyramid', 'funnel']],
+  ['compare', ['compare', 'columns', 'matrix', 'venn']],
+  ['relation', ['concept', 'argument']],
+  ['time', ['timeline', 'vtimeline']],
+];
+const MAX_ITEMS = 10;
 
 const EMPTY = {
   items: ['', '', ''],
@@ -23,6 +47,13 @@ function renderDraft(type, data, label, locale, appearance, uid) {
     if (items.length < 2) return null;
     return { svg: type === 'steps' ? drawSteps(items, o) : drawCycle(items, o) };
   }
+  if (ITEM_DRAW[type]) {
+    const items = data.items.map((s) => s.trim()).filter(Boolean);
+    if (items.length < 2 && type !== 'concept') return null;
+    const r = ITEM_DRAW[type](items, o);
+    if (type === 'concept' && !/<line /.test(r.svg)) return null;
+    return { svg: r.svg, hidden: r.hidden };
+  }
   if (type === 'compare') {
     const c = data.compare;
     if (!c.leftTitle.trim() || !c.rightTitle.trim() || (!lines(c.left).length && !lines(c.right).length)) return null;
@@ -31,9 +62,10 @@ function renderDraft(type, data, label, locale, appearance, uid) {
   if (type === 'timeline') {
     const rows = data.timeline.filter((r) => r.date.trim() || r.text.trim());
     if (rows.length < 2) return null;
+    if (type === 'vtimeline') { const r = drawVTimeline(rows, o); return { svg: r.svg, hidden: r.hidden }; }
     return { svg: drawTimeline(rows, o) };
   }
-  const r = drawChart(type, data.chart, { ...o, locale });
+  const r = (CHART_DRAW[type] ? CHART_DRAW[type](data.chart, { ...o, locale }) : drawChart(type, data.chart, { ...o, locale }));
   return r.count ? { svg: r.svg, skipped: r.skipped } : null;
 }
 
@@ -72,18 +104,19 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
       {data.items.map((v, i) => (
         <div key={i} className="fd-row">
           <span className="fd-n">{i + 1}</span>
-          <input value={v} onChange={(e) => patch('items', data.items.map((x, j) => (j === i ? e.target.value : x)))} placeholder={k('itemPlaceholder')} aria-label={k('item', { n: i + 1 })} data-fd="item" />
+          <input value={v} onChange={(e) => patch('items', data.items.map((x, j) => (j === i ? e.target.value : x)))} placeholder={t(`workspace.figure.ph.${type}`) !== `workspace.figure.ph.${type}` ? k(`ph.${type}`) : k('itemPlaceholder')} aria-label={k('item', { n: i + 1 })} data-fd="item" />
           <button type="button" className="fd-icon" onClick={() => patch('items', data.items.filter((_, j) => j !== i))} disabled={data.items.length <= 2} aria-label={k('remove')} title={k('remove')}><Trash2 size={13} /></button>
         </div>
       ))}
       <div className="fd-acts">
-        <button type="button" className="fd-btn" onClick={() => patch('items', [...data.items, ''])} disabled={data.items.length >= 8}><Plus size={13} /> {k('addItem')}</button>
+        <button type="button" className="fd-btn" onClick={() => patch('items', [...data.items, ''])} disabled={data.items.length >= MAX_ITEMS}><Plus size={13} /> {k('addItem')}</button>
         {sourceText && (
           <button type="button" className="fd-btn" onClick={() => patch('items', sentencesOf(sourceText).slice(0, 8))} data-action="fd-from-paragraph" title={k('fromParagraphHint')}>
             <RefreshCw size={13} /> {k('fromParagraph')}
           </button>
         )}
       </div>
+      {t(`workspace.figure.hint.${type}`) !== `workspace.figure.hint.${type}` && <small className="fd-hint" data-fd="hint">{k(`hint.${type}`)}</small>}
     </div>
   );
 
@@ -138,7 +171,7 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
     </div>
   );
 
-  const editor = type === 'compare' ? compareEditor : type === 'timeline' ? timelineEditor : CHART_TYPES.includes(type) ? chartEditor : itemsEditor;
+  const editor = type === 'compare' ? compareEditor : (type === 'timeline' || type === 'vtimeline') ? timelineEditor : CHART_TYPES.includes(type) ? chartEditor : itemsEditor;
   const setLook = (key, value) => setAppearance((a) => ({ ...a, [key]: value }));
   const patternOk = PATTERN_TYPES.includes(type);
   const segment = (key, disabled = false) => (
@@ -188,15 +221,22 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
       </div>
     </details>
   );
-  const icon = (ty) => (ty === 'bar' ? <BarChart3 size={14} /> : ty === 'line' ? <LineChart size={14} /> : <Shapes size={14} />);
+  const icon = (ty) => (ty === 'bar' || ty === 'barh' ? <BarChart3 size={14} /> : ty === 'line' ? <LineChart size={14} /> : <Shapes size={14} />);
+  const typeBtn = (ty) => (
+    <button key={ty} type="button" aria-pressed={type === ty} onClick={() => setType(ty)} data-fd-type={ty}>{icon(ty)} {k(`types.${ty}`)}</button>
+  );
 
   return (
     <section className="fd" style={style} aria-label={k(mode === 'chart' ? 'chartTitle' : 'figureTitle')} data-testid="figure-draft" onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onCancel(); } }}>
       <header className="fd-head">
         <span className="fd-badge">{k('draftBadge')}</span>
+        {/* Şablon şeridi (WO-032): tek satır, yatay kaydırılır; aileler başlıkla ayrılır. */}
         <div className="fd-types" role="group" aria-label={k('type')}>
-          {types.map((ty) => (
-            <button key={ty} type="button" aria-pressed={type === ty} onClick={() => setType(ty)} data-fd-type={ty}>{icon(ty)} {k(`types.${ty}`)}</button>
+          {mode === 'chart' ? types.map(typeBtn) : FAMILIES.map(([fam, list]) => (
+            <span key={fam} className="fd-fam">
+              <small className="fd-fam__label">{k(`family.${fam}`)}</small>
+              {list.map(typeBtn)}
+            </span>
           ))}
         </div>
         <button type="button" className="fd-icon" onClick={onCancel} aria-label={k('cancel')} title={k('cancel')}><X size={15} /></button>
@@ -207,6 +247,7 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
           {/* Önizleme bizim çizicimizin, kaçışlı SVG'si. */}
           {preview ? <div className="fd-svg" dangerouslySetInnerHTML={{ __html: preview.svg }} /> : <p className="fd-empty">{k(CHART_TYPES.includes(type) ? 'needData' : 'needItems')}</p>}
           {preview?.skipped > 0 && <small className="fd-warn">{k('skipped', { n: preview.skipped })}</small>}
+          {preview?.hidden > 0 && <small className="fd-warn" data-fd="hidden">{k('hiddenItems', { n: preview.hidden })}</small>}
         </div>
       </div>
       <footer className="fd-foot">
