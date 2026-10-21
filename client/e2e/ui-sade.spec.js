@@ -117,9 +117,10 @@ test('WO-030 bulgu 5–6: belge yapısı ve sağ panel açılıp kapanınca biç
   expect([await x(cite), await x(insert)]).toEqual(before);
 
   // Belge yapısını aç/kapa: çubuk yine aynı yerde.
-  const outlineOpen = page.locator('.wx-outline-dock [data-action="write-outline"]');
-  if (await outlineOpen.count()) await outlineOpen.click();
-  else await page.locator('[data-action="write-outline"]').first().click();
+  // Belge yapısı düğmesi tek ve çubuğun en solunda (21.10.2026).
+  await expect(page.locator('[data-action="write-outline"]')).toHaveCount(1);
+  await expect(page.locator('.wx-ribbon [data-action="write-outline"]')).toBeVisible();
+  await page.locator('[data-action="write-outline"]').click();
   expect([await x(cite), await x(insert)]).toEqual(before);
 
   await page.locator('.wx-side-dock [data-action="write-side"]').click();

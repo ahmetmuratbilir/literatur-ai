@@ -3191,7 +3191,22 @@ export default function Workspace({
         {/* Biçim çubuğu panellerin üstünde, tam genişlikte (WO-030 bulgu 5): belge yapısı
             ya da sağ panel açılıp kapanınca düğmeler yerinden kaymaz (Docs ve Word düzeni). */}
         <div ref={ribbonRef} className={`wx-ribbon${tools.labels ? '' : ' wx-ribbon--compact'}`} role="toolbar" aria-label={t('workspace.toolbar')} inert={readOnly || undefined}>
-          {/* Tablo (WO-025): belge yapısı düğmesinin boşalttığı yerde, Word'deki gibi ızgara. */}
+          {/* Belge yapısı (Ahmet, 21.10.2026): çubuğun en solunda, her zaman görünür; Word'ün
+              Gezinti bölmesi gibi. Tek aç/kapa düğmesi (köşedeki simge ve panel başlığındaki kalktı). */}
+          <button
+            type="button"
+            className="wx-tool"
+            aria-pressed={navPanel === 'sections'}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => toggleNav('sections')}
+            title={navPanel === 'sections' ? t('workspace.outlineHide') : t('workspace.outlineShow')}
+            aria-label={navPanel === 'sections' ? t('workspace.outlineHide') : t('workspace.outlineShow')}
+            data-action="write-outline"
+          >
+            <ListTree size={16} />
+          </button>
+          <span className="wx-divider" aria-hidden="true" />
+          {/* Tablo (WO-025): Word'deki gibi ızgara. */}
           {tablesEnabled && (
             <>
               <div className="wx-anchor">
@@ -3477,7 +3492,6 @@ export default function Workspace({
               onStep={stepSection}
               onAdd={addSection}
               onRevealCaption={revealSentenceKey}
-              onClose={() => setNavPanel(null)}
               renaming={renamingSection}
               setRenaming={setRenamingSection}
             />
@@ -3542,23 +3556,6 @@ export default function Workspace({
                 trackSection();
               }}
             >
-              {/* Belge yapısı tek düğmeyle açılıp kapanır (kullanıcı kararı 19.10.2026):
-                  açıkken panel başlığında, kapalıyken masanın sol üstünde durur. */}
-              {!navPanel && (
-                <div className="wx-outline-dock">
-                  <button
-                    type="button"
-                    className="wx-tool"
-                    aria-pressed="false"
-                    onClick={() => toggleNav('sections')}
-                    title={t('workspace.outlineShow')}
-                    aria-label={t('workspace.outlineShow')}
-                    data-action="write-outline"
-                  >
-                    <ListTree size={16} />
-                  </button>
-                </div>
-              )}
               {/* Sağ panel belge yapısının aynası (WO-030 bulgu 6): açıkken panel
                   başlığında kapanır, kapalıyken masanın sağ üstünde sekme. */}
               {!sideOpen && (

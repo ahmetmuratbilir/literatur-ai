@@ -1642,14 +1642,6 @@ button.wx-ctl__title { min-height: 24px; }
 .wx-panel-head__toggle { margin-left: auto; }
 .wx-panel-head > small + .wx-panel-head__toggle { margin-left: 0; }
 .wx-panel-head__toggle[aria-pressed="true"] { background: var(--wx-hover); color: var(--wx-ink); }
-.wx-outline-dock { position: sticky; top: 0; left: 0; z-index: 6; height: 0; }
-.wx-outline-dock .wx-tool {
-  position: absolute;
-  top: -16px;
-  left: -12px;
-  background: var(--wx-surface);
-  box-shadow: inset 0 0 0 1px var(--wx-line), var(--wx-shadow-sm);
-}
 /* Sağ panel sekmesi: belge yapısı sekmesinin aynası (WO-030 bulgu 6). */
 .wx-side-dock { position: sticky; top: 0; z-index: 6; height: 0; align-self: stretch; }
 .wx-side-dock .wx-tool {
@@ -1659,7 +1651,7 @@ button.wx-ctl__title { min-height: 24px; }
   background: var(--wx-surface);
   box-shadow: inset 0 0 0 1px var(--wx-line), var(--wx-shadow-sm);
 }
-@media print { .wx-outline-dock, .wx-side-dock { display: none; } }
+@media print { .wx-side-dock { display: none; } }
 
 /* Nesne denetimi (WO-030 bulgu 1): tablo/şekil/grafiğin sağ üstünde küçük Düzenle / Sil. */
 .wx-objbar {
@@ -1913,3 +1905,6 @@ table.wx-ttheme__mini:not([data-theme]) thead th { border-bottom: 1px solid #000
 .fd-mini:hover:not(:disabled) { background: var(--wx-accent-soft); border-color: var(--wx-accent); }
 .fd-mini:disabled { opacity: 0 !important; cursor: default; }
 @media (hover: none) { .fd-mini { opacity: .8; } }
+
+/* Belge yapısı düğmesi (21.10.2026): açıkken basılı görünür. */
+.wx-ribbon > .wx-tool[aria-pressed="true"] { background: var(--wx-accent-soft); color: var(--wx-accent); }

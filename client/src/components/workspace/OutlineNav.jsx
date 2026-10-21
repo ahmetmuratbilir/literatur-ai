@@ -11,7 +11,7 @@ import { useI18n } from '../../i18n/context.js';
  */
 export default function OutlineNav({
   headings, numbers, current, words, captions, readOnly,
-  onGo, onRename, onMove, onStep, onAdd, onRevealCaption, onClose,
+  onGo, onRename, onMove, onStep, onAdd, onRevealCaption,
   renaming, setRenaming,
 }) {
   const { t, lang } = useI18n();
@@ -45,10 +45,7 @@ export default function OutlineNav({
       <div className="wx-panel-head">
         <strong>{t('workspace.outline')}</strong>
         {words > 0 && <small>{t('workspace.stat.words', { n: fmt(words) })}</small>}
-        {/* Aç/kapa tek düğme: kapalıyken aynı simge masanın sol üstünde (Workspace). */}
-        <button type="button" className="wx-tool wx-panel-head__toggle" onClick={onClose} aria-pressed="true" aria-label={t('workspace.outlineHide')} title={t('workspace.outlineHide')} data-action="write-outline">
-          <ListTree size={16} />
-        </button>
+        {/* Aç/kapa düğmesi biçim çubuğunun en solunda (Workspace, 21.10.2026). */}
       </div>
       <div className="wx-nav__body">
         {headings.length === 0 && <p className="wx-muted">{t('workspace.noSections')}</p>}
