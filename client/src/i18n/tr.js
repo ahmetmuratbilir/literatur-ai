@@ -904,6 +904,7 @@ export default {
     undo: 'Geri al',
     kind: { table: 'Tabloyu', figure: 'Şekli', chart: 'Grafiği' },
     name: { table: 'Tablo', figure: 'Şekil', chart: 'Grafik' },
+    theme: 'Renk teması',
   },
   // Veri kaynakları ve atıflar (WO-029; tüzük 2.7)
   dataSources: {
@@ -1284,6 +1285,8 @@ export default {
         paletteOpts: { default: 'Varsayılan', gray: 'Gri tonlar', cvd: 'Renk körü dostu', bw: 'Siyah-beyaz baskı', geceHardal: 'Gece ve hardal', kobaltGunes: 'Kobalt ve güneş', geceMandalina: 'Gece ve mandalina', morTurkuaz: 'Mor ve turkuaz', gunBatimi: 'Gün batımı', orman: 'Orman', okyanus: 'Okyanus', bordoBal: 'Bordo ve bal', geceMercan: 'Gece ve mercan', lacivertKum: 'Lacivert ve kum', monoMavi: 'Tek renk: mavi', monoYesil: 'Tek renk: yeşil', monoMor: 'Tek renk: mor', monoBordo: 'Tek renk: bordo', monoTuruncu: 'Tek renk: turuncu', monoPetrol: 'Tek renk: petrol', monoArduvaz: 'Tek renk: arduvaz' },
         palettePrev: 'Önceki palet',
         paletteNext: 'Sonraki palet',
+        group: { color: 'Renkli', mono: 'Tek renk', print: 'Baskı' },
+        applyAll: 'Bu temayı belgedeki bütün şekil ve grafiklere uygula',
         patternOpts: { solid: 'Düz', stripes: 'Çizgili', dots: 'Noktalı' },
         cornersOpts: { round: 'Yuvarlak', square: 'Köşeli' },
         textOpts: { small: 'Küçük', normal: 'Normal', large: 'Büyük' },

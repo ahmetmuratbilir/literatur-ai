@@ -220,3 +220,41 @@ test('WO-032 şablon şeridi: şablon değişince içerik korunur, sığmayan ö
   await draft.locator('[data-fd-type="ring"]').click();
   await expect(draft.locator('.fd-svg svg')).toContainText('%39');
 });
+
+test('WO-033 renk teması: galeriden seçilir; fırça galeriyi açar; "bütün şekillere uygula" öteki şekli de boyar', async ({ page }) => {
+  test.setTimeout(60_000);
+  await seedDraft(page, '<p>Önce. Isı alınır. Su döner.</p><p>Arada. Bir. İki.</p><p>Sonra.</p>', 'Tema');
+  await mockApi(page);
+  await page.goto('/#/yaz');
+  const draft = page.getByTestId('figure-draft');
+  const addCycle = async (text) => {
+    await doc(page).getByText(text).click();
+    await page.locator('[data-action="write-figure"]').click();
+    await draft.locator('[data-fd-type="cycle"]').click();
+    await draft.locator('[data-action="fd-from-paragraph"]').click();
+    await draft.locator('[data-action="fd-done"]').click();
+    await expect(draft).toHaveCount(0);
+  };
+  await addCycle('Önce.');
+  await addCycle('Arada.');
+  await expect(doc(page).locator('figure')).toHaveCount(2);
+
+  // Fırça: taslak alanı galeri açık gelir; küçük resimler şeklin kendisiyle çizilir.
+  await doc(page).locator('figure').first().hover();
+  await page.getByTestId('objbar').locator('[data-action="obj-theme"]').click();
+  const themes = draft.locator('[data-fd="themes"]');
+  await expect(themes).toBeVisible();
+  await expect(themes.locator('[data-fd-theme]')).toHaveCount(21);
+  await expect(themes.locator('[data-fd-theme="orman"] svg')).toHaveCount(1);
+  await themes.locator('[data-fd-theme="orman"]').click();
+  await expect(draft.locator('[data-fd-look="palette"]')).toHaveAttribute('data-value', 'orman');
+  await expect(draft.locator('.fd-svg svg [stroke="#1E5128"]').first()).toBeVisible();
+
+  // Bütün şekillere uygula → ikinci şekil de aynı temayla yeniden çizilir; içeriği aynı kalır.
+  await draft.locator('[data-fd="apply-all"]').check();
+  await draft.locator('[data-action="fd-done"]').click();
+  const states = await doc(page).locator('figure').evaluateAll((els) => els.map((e) => JSON.parse(e.dataset.visualState).data.appearance?.palette));
+  expect(states).toEqual(['orman', 'orman']);
+  await expect(doc(page).locator('figure').nth(1).locator('svg')).toContainText('Bir');
+  await expect(doc(page).locator('figure').nth(1).locator('svg [stroke="#1E5128"]').first()).toBeAttached();
+});

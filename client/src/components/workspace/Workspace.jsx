@@ -5,7 +5,7 @@ import {
   AlignCenter, AlignJustify, AlignLeft, ArrowLeft, Bold, Check, ChevronDown, ChevronLeft, ChevronRight,
   ClipboardCheck, Download, FileText, History, Info, Italic, LayoutTemplate, Library, List, ListChecks, ListOrdered, ListTree,
   PanelRightClose, PanelRightOpen, Plus, Printer, Quote, Redo2, RefreshCw, RotateCcw, Search, SlidersHorizontal, Table2, Shapes, BarChart3,
-  Underline, Undo2, Upload, X, Pencil, Trash2, MoreHorizontal, PlusSquare, Sparkles, Superscript, Subscript, Highlighter, RemoveFormatting,
+  Underline, Undo2, Upload, X, Pencil, Trash2, Paintbrush, MoreHorizontal, PlusSquare, Sparkles, Superscript, Subscript, Highlighter, RemoveFormatting,
 } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import {
@@ -35,6 +35,8 @@ import VisualPanel from './VisualPanel.jsx';
 import TableGridPicker from './TableGridPicker.jsx';
 import TableToolbar from './TableToolbar.jsx';
 import { flagsOf, themeCss } from './tableThemes.js';
+import { renderFigure } from '../../visuals/render.js';
+import { isDefaultAppearance, newDrawId, normalizeAppearance } from '../../visuals/draw.js';
 
 // Tablo temaları (WO-031): ekran kuralları tek seferde üretilir; Word çıktısı aynı veriden.
 const TABLE_THEME_CSS = themeCss();
@@ -470,6 +472,8 @@ export default function Workspace({
   const [objSel, setObjSel] = useState(null);
   const [tableEdit, setTableEdit] = useState(null);
   const [tableDesignOpen, setTableDesignOpen] = useState(false);
+  // Şekil teması (WO-033): "bütün şekillere uygula" seçimi taslak alanı açıkken.
+  const [figApplyAll, setFigApplyAll] = useState(false);
   const [undoNote, setUndoNote] = useState(null);
   const allowObjDeleteRef = useRef(false);
   // Şekil/grafik taslak alanı (WO-028): { mode, editId, initial, number, sourceText, sourceRows } ya da null.
@@ -2297,7 +2301,7 @@ export default function Workspace({
     el?.querySelectorAll('[data-draft-spacer]').forEach((n) => n.remove());
   };
 
-  const openFigureDraft = (mode, figure = null) => {
+  const openFigureDraft = (mode, figure = null, { look = false } = {}) => {
     closeMenu();
     const el = pageRef.current;
     if (!el || readOnly) return;
@@ -2330,7 +2334,9 @@ export default function Workspace({
     const number = figure
       ? (captionOf(figure.nextElementSibling?.textContent)?.n || figs.length)
       : [...el.children].slice(0, [...el.children].indexOf(spacer)).filter((b) => captionOf(b.textContent)?.kind === 'figure').length + 1;
-    setFigDraft({ mode: initial?.mode || mode, editId: figure?.dataset.visualId || null, initial, number, sourceText, sourceRows, spacer, tick: Date.now() });
+    const others = [...el.querySelectorAll(':scope > figure.wx-vfig')].filter((x) => x !== figure).length;
+    setFigApplyAll(false);
+    setFigDraft({ mode: initial?.mode || mode, editId: figure?.dataset.visualId || null, initial, number, sourceText, sourceRows, spacer, others, openLook: look, tick: Date.now() });
     requestAnimationFrame(() => spacer.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
   };
 
@@ -2375,7 +2381,39 @@ export default function Workspace({
     // birleştiriyor ve numara düğümü kayboluyordu (e2e ile yakalandı).
     document.execCommand('insertHTML', false, html + (trailing || !editing ? '<p><br></p>' : ''));
     syncCaptions(el, t('audit.kind.table'));
+    if (figApplyAll) restyleFigures(normalizeAppearance(data?.appearance).palette, id);
     setFigDraft(null);
+  };
+
+  /**
+   * Belgedeki öteki şekil ve grafikleri aynı renk temasıyla yeniden çizer (WO-033).
+   * Her şekil kendi kayıtlı içeriğinden çizilir (içerik değişmez); başlığı olduğu
+   * gibi kalır. Her biri tarayıcının geri al yığınına girer.
+   */
+  const restyleFigures = (palette, exceptId) => {
+    const el = pageRef.current;
+    if (!el) return;
+    const locale = lang === 'tr' ? 'tr-TR' : 'en-US';
+    for (const fig of [...el.querySelectorAll(':scope > figure.wx-vfig')]) {
+      if (fig.dataset.visualId === exceptId) continue;
+      let state;
+      try { state = JSON.parse(fig.dataset.visualState || 'null'); } catch { state = null; }
+      if (!state?.type) continue;
+      const appearance = { ...normalizeAppearance(state.data?.appearance), palette };
+      const data = { ...(state.data || {}) };
+      if (isDefaultAppearance(appearance)) delete data.appearance; else data.appearance = appearance;
+      const drawn = renderFigure(state.type, data, state.title || '', locale, appearance, newDrawId());
+      if (!drawn) continue;
+      const next = { ...state, data };
+      const cap = fig.nextElementSibling?.dataset.captionFor === fig.dataset.visualId ? fig.nextElementSibling : null;
+      const html = `<figure class="wx-vfig" data-visual-id="${fig.dataset.visualId}" data-visual-kind="${fig.dataset.visualKind || 'figure'}" data-visual-state="${escapeAttr(JSON.stringify(next))}" contenteditable="false">${drawn.svg}</figure>${cap ? cap.outerHTML : ''}`;
+      const range = document.createRange();
+      range.setStartBefore(fig);
+      range.setEndAfter(cap || fig);
+      selectRange(range);
+      document.execCommand('insertHTML', false, html);
+    }
+    syncCaptions(el, t('audit.kind.table'));
   };
 
   // Tablo, şekil ve grafik yazı gibi silinmez (WO-030 bulgu 4): yalnız Sil düğmesiyle.
@@ -3646,6 +3684,11 @@ export default function Workspace({
                       <button type="button" className="wx-objbar__btn" onClick={() => editObject(obj)} title={t('objbar.edit', { kind: name })} aria-label={t('objbar.edit', { kind: name })} data-action="obj-edit">
                         <Pencil size={14} />
                       </button>
+                      {kind !== 'table' && (
+                        <button type="button" className="wx-objbar__btn" onClick={() => openFigureDraft(kind, obj, { look: true })} title={t('objbar.theme')} aria-label={t('objbar.theme')} data-action="obj-theme">
+                          <Paintbrush size={14} />
+                        </button>
+                      )}
                       <button type="button" className="wx-objbar__btn wx-objbar__btn--danger" onClick={() => removeObject(obj)} title={t('objbar.remove', { kind: name })} aria-label={t('objbar.remove', { kind: name })} data-action="obj-delete">
                         <Trash2 size={14} />
                       </button>
@@ -3673,6 +3716,9 @@ export default function Workspace({
                       style={{ top: spacer.offsetTop, left: spacer.offsetLeft, width: spacer.offsetWidth, height: DRAFT_H }}
                       onDone={finishFigureDraft}
                       onCancel={cancelFigureDraft}
+                      openLook={figDraft.openLook}
+                      applyAll={figApplyAll}
+                      onApplyAllChange={figDraft.others > 0 ? setFigApplyAll : undefined}
                     />
                   );
                 })()}

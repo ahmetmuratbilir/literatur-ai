@@ -75,6 +75,7 @@ Taslak → Hazır → Çalışıyor → Bitti
 | [WO-030](WO-030-sadelestirme-turu-1.md) | Sadeleştirme turu 1: nesne denetimi (Düzenle/Sil), sabit biçim çubuğu, panel düğmeleri, kenar listeleri, şekil görünümü | P1 | Bitti, elle deneme bekliyor (20.10.2026, `wo-030-sadelestirme`) |
 | [WO-031](WO-031-tablo-tasarimi.md) | Tablo tasarımı: Word gibi tema galerisi (20 tema) + Başlık/Toplam/Bantlı/İlk sütun; Word’e gölge ve tblLook | P3 | Bitti, elle deneme bekliyor (21.10.2026, `wo-031-tablo-tasarimi`) |
 | [WO-032](WO-032-sekil-sablonlari.md) | Şekil ve grafik şablonları: galerinin tamamı (20 yeni), şablon şeridi, içerik korunarak şablon değiştirme | P3 | Bitti, elle deneme bekliyor (21.10.2026, `wo-031-tablo-tasarimi`) |
+| [WO-033](WO-033-sekil-renk-temalari.md) | Şekil ve grafik renk temaları: küçük resimli galeri (21 tema), bütün şekillere uygula, belgede fırça | P3 | Bitti, elle deneme bekliyor (21.10.2026, `wo-031-tablo-tasarimi`) |
 
 **Yol haritası (17.10.2026):** `docs/design/yol-haritasi.md`. Görünür sonuç
 sırası: WO-011 kontrolü → galeri kararları → WO-017 → WO-018 → WO-019 →

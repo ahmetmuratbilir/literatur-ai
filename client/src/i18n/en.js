@@ -901,6 +901,7 @@ export default {
     undo: 'Undo',
     kind: { table: 'table', figure: 'figure', chart: 'chart' },
     name: { table: 'Table', figure: 'Figure', chart: 'Chart' },
+    theme: 'Colour theme',
   },
   // Data sources and credits (WO-029; charter 2.7)
   dataSources: {
@@ -1281,6 +1282,8 @@ export default {
         paletteOpts: { default: 'Default', gray: 'Grayscale', cvd: 'Colorblind-safe', bw: 'Black-and-white print', geceHardal: 'Night and mustard', kobaltGunes: 'Cobalt and sun', geceMandalina: 'Night and tangerine', morTurkuaz: 'Violet and turquoise', gunBatimi: 'Sunset', orman: 'Forest', okyanus: 'Ocean', bordoBal: 'Burgundy and honey', geceMercan: 'Night and coral', lacivertKum: 'Navy and sand', monoMavi: 'Single colour: blue', monoYesil: 'Single colour: green', monoMor: 'Single colour: violet', monoBordo: 'Single colour: burgundy', monoTuruncu: 'Single colour: orange', monoPetrol: 'Single colour: teal', monoArduvaz: 'Single colour: slate' },
         palettePrev: 'Previous palette',
         paletteNext: 'Next palette',
+        group: { color: 'Colour', mono: 'Single colour', print: 'Print' },
+        applyAll: 'Apply this theme to every figure and chart in the document',
         patternOpts: { solid: 'Solid', stripes: 'Striped', dots: 'Dotted' },
         cornersOpts: { round: 'Rounded', square: 'Square' },
         textOpts: { small: 'Small', normal: 'Normal', large: 'Large' },

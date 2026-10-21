@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, Check, ChevronLeft, ChevronRight, LineChart, Plus, RefreshCw, Shapes, Trash2, X } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import {
@@ -18,6 +18,12 @@ const FAMILIES = [
   ['time', ['timeline', 'vtimeline']],
 ];
 const MAX_ITEMS = 10;
+// Tema galerisinin grupları (WO-033): sıra paletin listedeki sırasıdır.
+const THEME_GROUPS = [
+  ['color', APPEARANCE_OPTIONS.palette.filter((p) => p !== 'bw' && p !== 'gray' && !p.startsWith('mono'))],
+  ['mono', APPEARANCE_OPTIONS.palette.filter((p) => p === 'gray' || p.startsWith('mono'))],
+  ['print', ['bw']],
+];
 
 const EMPTY = {
   items: ['', '', ''],
@@ -37,7 +43,7 @@ const EMPTY = {
  * @param sourceText Hedef paragrafın metni ("Paragraftan al")
  * @param sourceRows Hedef tablo varsa satırları ("Tablodan al")
  */
-export default function FigureDraft({ mode, initial, sourceText, sourceRows, number, style, onDone, onCancel }) {
+export default function FigureDraft({ mode, initial, sourceText, sourceRows, number, style, onDone, onCancel, openLook = false, applyAll = false, onApplyAllChange }) {
   const { t, lang } = useI18n();
   const locale = lang === 'tr' ? 'tr-TR' : 'en-US';
   const k = (key, p) => t(`workspace.figure.${key}`, p);
@@ -48,12 +54,26 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
     return { ...EMPTY, ...rest };
   });
   const [appearance, setAppearance] = useState(() => normalizeAppearance(initial?.data?.appearance));
-  const [lookOpen, setLookOpen] = useState(() => !isDefaultAppearance(initial?.data?.appearance));
+  const [lookOpen, setLookOpen] = useState(() => openLook || !isDefaultAppearance(initial?.data?.appearance));
   // Taslağa özgü desen kimliği: düzenlenen şekil belgede dururken önizlemenin desenleri onunkilerle çakışmasın.
   const [uid] = useState(newDrawId);
   const [title, setTitle] = useState(initial?.title || '');
   const preview = useMemo(() => renderFigure(type, data, title, locale, appearance, uid), [type, data, title, locale, appearance, uid]);
+  // Galeri küçük resimleri: aynı içerik, her temayla (yalnız Görünüm açıkken çizilir).
+  const thumbs = useMemo(() => {
+    if (!lookOpen || !preview) return {};
+    const out = {};
+    APPEARANCE_OPTIONS.palette.forEach((key, i) => { out[key] = renderFigure(type, data, '', locale, { ...appearance, palette: key }, `${uid}t${i}`)?.svg || null; });
+    return out;
+  }, [lookOpen, preview, type, data, locale, appearance, uid]);
   const patch = (key, value) => setData((d) => ({ ...d, [key]: value }));
+  // Seçili şablon şeritte görünsün (düzenlemeye açılınca şerit baştan başlıyordu).
+  const stripRef = useRef(null);
+  useEffect(() => {
+    const strip = stripRef.current;
+    const btn = strip?.querySelector('[aria-pressed="true"]');
+    if (strip && btn) strip.scrollLeft = Math.max(0, btn.offsetLeft - strip.offsetLeft - strip.clientWidth / 2 + btn.offsetWidth / 2);
+  }, [type]);
   const word = t('audit.kind.figure');
 
   const itemsEditor = (
@@ -171,6 +191,40 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
             </div>
           );
         })()}
+        {/* Tema galerisi (WO-033; tablodaki Tasarım gibi): küçük resimler senin şeklinin o
+            temayla çizilmiş hali; gruplar renkli / tek renk / baskı. */}
+        {lookOpen && (
+          <div className="fd-themes" data-fd="themes">
+            {THEME_GROUPS.map(([group, keys]) => (
+              <div key={group} className="fd-themes__group">
+                <small className="fd-fam__label">{k(`look.group.${group}`)}</small>
+                <div className="fd-themes__grid">
+                  {keys.map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className="fd-theme"
+                      aria-pressed={appearance.palette === key}
+                      onClick={() => setLook('palette', key)}
+                      title={k(`look.paletteOpts.${key}`)}
+                      data-fd-theme={key}
+                    >
+                      {thumbs[key] && <span className="fd-theme__img" dangerouslySetInnerHTML={{ __html: thumbs[key] }} />}
+                      <span className="fd-theme__chips" aria-hidden="true">{paletteSwatch(key).map((c, n) => <span key={n} style={{ background: c }} />)}</span>
+                      <span className="fd-theme__name">{k(`look.paletteOpts.${key}`)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {onApplyAllChange && (
+              <label className="fd-applyall">
+                <input type="checkbox" checked={applyAll} onChange={(e) => onApplyAllChange(e.target.checked)} data-fd="apply-all" />
+                {k('look.applyAll')}
+              </label>
+            )}
+          </div>
+        )}
         {segment('pattern', !patternOk)}
         {!patternOk && <small className="fd-look__note">{k('look.patternNone')}</small>}
         {segment('corners')}
@@ -188,7 +242,7 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
       <header className="fd-head">
         <span className="fd-badge">{k('draftBadge')}</span>
         {/* Şablon şeridi (WO-032): tek satır, yatay kaydırılır; aileler başlıkla ayrılır. */}
-        <div className="fd-types" role="group" aria-label={k('type')}>
+        <div ref={stripRef} className="fd-types" role="group" aria-label={k('type')}>
           {mode === 'chart' ? types.map(typeBtn) : FAMILIES.map(([fam, list]) => (
             <span key={fam} className="fd-fam">
               <small className="fd-fam__label">{k(`family.${fam}`)}</small>

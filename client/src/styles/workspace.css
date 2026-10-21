@@ -1884,3 +1884,18 @@ table.wx-ttheme__mini:not([data-theme]) thead th { border-bottom: 1px solid #000
 .fd-seg:disabled .fd-seg__opts { opacity: .45; }
 .fd-seg select { height: 28px; min-width: 0; padding: 0 6px; border: 1px solid var(--wx-line); border-radius: 7px; background: var(--wx-surface); color: var(--wx-ink); font: 12.5px system-ui, sans-serif; }
 @media (max-width: 760px) { .fd-body { grid-template-columns: 1fr; } .fd-edit { border-right: 0; border-bottom: 1px solid var(--wx-line); } }
+
+/* Şekil tema galerisi (WO-033): küçük resimler şeklin kendisiyle çizilir. */
+.fd-themes { display: grid; gap: 8px; max-height: 230px; overflow-y: auto; padding: 2px 2px 4px; scrollbar-width: thin; }
+.fd-themes__group { display: grid; gap: 4px; }
+.fd-themes__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.fd-theme { display: grid; gap: 3px; padding: 4px; border: 1px solid var(--wx-line); border-radius: 8px; background: var(--wx-surface); cursor: pointer; text-align: left; min-width: 0; }
+.fd-theme:hover { border-color: var(--wx-accent); }
+.fd-theme[aria-pressed="true"] { border-color: var(--wx-accent); box-shadow: 0 0 0 2px var(--wx-accent-soft); }
+.fd-theme__img { display: block; height: 60px; overflow: hidden; border-radius: 4px; background: #fff; pointer-events: none; }
+.fd-theme__img svg { display: block; width: 100%; height: 100%; }
+.fd-theme__chips { display: flex; gap: 2px; height: 8px; }
+.fd-theme__chips span { flex: 1; height: 8px; border-radius: 2px; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .08); }
+.fd-theme__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; font-weight: 600; color: var(--wx-ink); }
+.fd-applyall { display: flex; gap: 6px; align-items: flex-start; font-size: 11.5px; color: var(--wx-ink); cursor: pointer; }
+.fd-applyall input { margin-top: 2px; accent-color: var(--wx-accent); }
