@@ -2,22 +2,11 @@ import { useMemo, useState } from 'react';
 import { BarChart3, Check, ChevronLeft, ChevronRight, LineChart, Plus, RefreshCw, Shapes, Trash2, X } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import {
-  APPEARANCE_OPTIONS, CHART_TYPES, FIGURE_TYPES, PATTERN_TYPES, drawChart, drawCompare, drawCycle, drawSteps, drawTimeline,
+  APPEARANCE_OPTIONS, CHART_TYPES, FIGURE_TYPES, PATTERN_TYPES,
   isDefaultAppearance, newDrawId, normalizeAppearance, paletteSwatch, sentencesOf,
 } from '../../visuals/draw.js';
-import {
-  drawArgument, drawBarH, drawChain, drawColumns, drawConcept, drawFeedback, drawFishbone, drawFunnel, drawHub, drawKpi,
-  drawMatrix, drawMind, drawNumList, drawPyramid, drawRing, drawRoadmap, drawStairs, drawTree, drawVTimeline, drawVenn,
-} from '../../visuals/drawMore.js';
+import { renderFigure } from '../../visuals/render.js';
 
-// Galeriden gelen şablonlar (WO-032): hepsi aynı `items` listesini kullanır; şablon
-// değişince içerik korunur (SmartArt'ın "Düzeni değiştir"i gibi).
-const ITEM_DRAW = {
-  stairs: drawStairs, roadmap: drawRoadmap, numlist: drawNumList, hub: drawHub, feedback: drawFeedback, chain: drawChain,
-  fishbone: drawFishbone, tree: drawTree, mind: drawMind, pyramid: drawPyramid, funnel: drawFunnel, columns: drawColumns,
-  matrix: drawMatrix, venn: drawVenn, concept: drawConcept, argument: drawArgument,
-};
-const CHART_DRAW = { barh: drawBarH, ring: drawRing, kpi: drawKpi };
 // Şablon şeridindeki aileler (galeri ile aynı).
 const FAMILIES = [
   ['seq', ['steps', 'stairs', 'roadmap', 'numlist']],
@@ -36,38 +25,6 @@ const EMPTY = {
   timeline: [{ date: '', text: '' }, { date: '', text: '' }],
   chart: { rows: [{ label: '', value: '' }, { label: '', value: '' }, { label: '', value: '' }], unit: '', xTitle: '', yTitle: '' },
 };
-
-const lines = (s) => String(s || '').split('\n').map((l) => l.trim()).filter(Boolean);
-
-/** Taslağın SVG'si; içerik yoksa null (Tamam pasif). */
-function renderDraft(type, data, label, locale, appearance, uid) {
-  const o = { label, appearance, uid };
-  if (type === 'steps' || type === 'cycle') {
-    const items = data.items.map((s) => s.trim()).filter(Boolean);
-    if (items.length < 2) return null;
-    return { svg: type === 'steps' ? drawSteps(items, o) : drawCycle(items, o) };
-  }
-  if (ITEM_DRAW[type]) {
-    const items = data.items.map((s) => s.trim()).filter(Boolean);
-    if (items.length < 2 && type !== 'concept') return null;
-    const r = ITEM_DRAW[type](items, o);
-    if (type === 'concept' && !/<line /.test(r.svg)) return null;
-    return { svg: r.svg, hidden: r.hidden };
-  }
-  if (type === 'compare') {
-    const c = data.compare;
-    if (!c.leftTitle.trim() || !c.rightTitle.trim() || (!lines(c.left).length && !lines(c.right).length)) return null;
-    return { svg: drawCompare({ leftTitle: c.leftTitle, rightTitle: c.rightTitle, left: lines(c.left), right: lines(c.right) }, o) };
-  }
-  if (type === 'timeline') {
-    const rows = data.timeline.filter((r) => r.date.trim() || r.text.trim());
-    if (rows.length < 2) return null;
-    if (type === 'vtimeline') { const r = drawVTimeline(rows, o); return { svg: r.svg, hidden: r.hidden }; }
-    return { svg: drawTimeline(rows, o) };
-  }
-  const r = (CHART_DRAW[type] ? CHART_DRAW[type](data.chart, { ...o, locale }) : drawChart(type, data.chart, { ...o, locale }));
-  return r.count ? { svg: r.svg, skipped: r.skipped } : null;
-}
 
 /**
  * Napkin gibi taslak alan (WO-028). Belgede seçili paragrafın altında açılır;
@@ -95,7 +52,7 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
   // Taslağa özgü desen kimliği: düzenlenen şekil belgede dururken önizlemenin desenleri onunkilerle çakışmasın.
   const [uid] = useState(newDrawId);
   const [title, setTitle] = useState(initial?.title || '');
-  const preview = useMemo(() => renderDraft(type, data, title, locale, appearance, uid), [type, data, title, locale, appearance, uid]);
+  const preview = useMemo(() => renderFigure(type, data, title, locale, appearance, uid), [type, data, title, locale, appearance, uid]);
   const patch = (key, value) => setData((d) => ({ ...d, [key]: value }));
   const word = t('audit.kind.figure');
 

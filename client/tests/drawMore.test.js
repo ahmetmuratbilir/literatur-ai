@@ -82,3 +82,18 @@ test('sayılar uydurulmaz: huni farkı girilen sayılardan, sayı kartı yazıld
   assert.match(M.drawKpi({ rows: [{ label: 'Yıl', value: '2019' }] }).svg, />2019</);
   assert.match(M.drawBarH({ rows: [{ label: 'A', value: '42' }], unit: '%' }).svg, />%42</);
 });
+
+test('taslak çizimi her şablon türünde çalışır (dikey zaman dahil; önceden hiç çizilmiyordu)', async () => {
+  const { renderFigure } = await import('../src/visuals/render.js');
+  const data = {
+    items: ['A: x', 'B: y', 'C -> D : z', '+ e'],
+    compare: { leftTitle: 'L', rightTitle: 'R', left: 'a', right: 'b' },
+    timeline: [{ date: '2019', text: 'a' }, { date: '2020', text: 'b' }],
+    chart: { rows: [{ label: 'A', value: '3' }, { label: 'B', value: '5' }], unit: '', xTitle: '', yTitle: '' },
+  };
+  for (const type of [...FIGURE_TYPES, ...CHART_TYPES]) {
+    const r = renderFigure(type, data, '', 'tr-TR', undefined, 't1');
+    assert.ok(r && /^<svg /.test(r.svg), `${type} çizilmedi`);
+  }
+  assert.match(renderFigure('vtimeline', data, '', 'tr-TR', undefined, 't1').svg, /2019/);
+});
