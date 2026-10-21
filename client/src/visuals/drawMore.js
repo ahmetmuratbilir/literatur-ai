@@ -50,6 +50,24 @@ export function splitRelation(line) {
   return m ? { from: m[1].trim(), to: m[2].trim(), label: (m[3] || '').trim() } : null;
 }
 const cap = (list, max) => ({ shown: list.slice(0, max), hidden: Math.max(0, list.length - max) });
+/**
+ * Grup: katmanlı listeden gelen { head, parts: [{ text, depth }] } ya da eski
+ * yazım "Başlık: a, b". depth 0 doğrudan alt öğe, 1 onun altı (1.1.1) …
+ */
+export function asGroup(x) {
+  if (x && typeof x === 'object') return { head: clean(x.head), parts: (x.parts || []).map((p) => ({ text: clean(p.text), depth: p.depth || 0 })) };
+  const g = splitHead(x);
+  return { head: g.head, parts: g.parts.map((t) => ({ text: t, depth: 0 })) };
+}
+/** Kök şablonlarının ilk satırı düz metin; geri kalanı grup. */
+const rootAndGroups = (items) => {
+  const list = items.filter((x) => (typeof x === 'string' ? clean(x) : x?.head));
+  return { root: clean(typeof list[0] === 'string' ? list[0] : list[0]?.head), groups: list.slice(1).map(asGroup) };
+};
+/** Alt öğenin önüne katman işareti: 1.1.1 için "– ", daha derini için "· ". */
+const nestMark = (depth) => (depth >= 2 ? '· ' : depth === 1 ? '– ' : '');
+/** Görünen alt öğe sayısını aşanlar (sessizce düşmesin, sayılsın). */
+const overflow = (groups, max) => groups.reduce((n, g) => n + Math.max(0, g.parts.length - max), 0);
 const card = (L, x, y, w, h, { fill, stroke, sw = 1.2, rx = 10 } = {}) =>
   `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" rx="${L.rx(rx)}" fill="${fill}" stroke="${stroke}" stroke-width="${L.sw(sw)}"/>`;
 const leftText = (text, x, cy, width, opts) => {
@@ -206,8 +224,7 @@ export function drawChain(items, { label = '', appearance, uid } = {}) {
 /** Balık kılçığı: sağda sonuç; omurgaya bağlı kategoriler (üst/alt dönüşümlü), altında nedenler. */
 export function drawFishbone(items, { label = '', appearance, uid } = {}) {
   const L = look(appearance, uid); const { th } = L;
-  const list = items.map(clean).filter(Boolean);
-  const effect = list[0] || ''; const { shown, hidden } = cap(list.slice(1).map(splitHead), 6);
+  const { root: effect, groups } = rootAndGroups(items); const { shown, hidden } = cap(groups, 6);
   const W = 680; const H = 380; const spineY = H / 2; const headX = W - 150;
   let body = `<line x1="24" y1="${spineY}" x2="${headX}" y2="${spineY}" stroke="${th.ink}" stroke-width="${L.sw(3)}"/>`;
   body += `<path d="M${headX} ${spineY - 46} L${W - 14} ${spineY} L${headX} ${spineY + 46} Z" fill="${th.accent}"/>`;
@@ -219,13 +236,14 @@ export function drawFishbone(items, { label = '', appearance, uid } = {}) {
     body += `<line x1="${r1(x - 60)}" y1="${tipY}" x2="${r1(x)}" y2="${spineY}" stroke="${th.accent}" stroke-width="${L.sw(2)}"/>`;
     body += card(L, x - 60 - 58, tipY - (up ? 34 : -6), 116, 28, { fill: th.accent, stroke: th.accent, rx: 6 });
     body += textBlock(cat.head, x - 60, tipY - (up ? 20 : -20), 108, { size: L.fs(11.5), weight: 700, maxLines: 1, fill: inkOn(th.accent, th) });
-    cat.parts.slice(0, 3).forEach((p, j) => {
-      const t = (j + 1) / 4; const px = x - 60 + 60 * t; const py = tipY + (spineY - tipY) * t;
+    const causes = cat.parts.slice(0, 5);
+    causes.forEach((p, j) => {
+      const t = (j + 1) / (causes.length + 1); const px = x - 60 + 60 * t; const py = tipY + (spineY - tipY) * t;
       body += `<line x1="${r1(px)}" y1="${r1(py)}" x2="${r1(px - 40)}" y2="${r1(py)}" stroke="${th.line}" stroke-width="${L.sw(1)}"/>`;
-      body += `<text x="${r1(px - 44)}" y="${r1(py)}" font-family='${FONT}' font-size="${L.fs(10.5)}" fill="${th.ink}" text-anchor="end" dominant-baseline="middle">${esc(wrapText(p, 110, { size: L.fs(10.5), maxLines: 1 }).lines[0])}</text>`;
+      body += `<text x="${r1(px - 44 - p.depth * 10)}" y="${r1(py)}" font-family='${FONT}' font-size="${L.fs(p.depth ? 9.5 : 10.5)}" fill="${p.depth ? th.muted : th.ink}" text-anchor="end" dominant-baseline="middle">${esc(nestMark(p.depth) + wrapText(p.text, 110, { size: L.fs(10.5), maxLines: 1 }).lines[0])}</text>`;
     });
   });
-  return { svg: out(W, H, body, label || effect, L), hidden };
+  return { svg: out(W, H, body, label || effect, L), hidden: hidden + overflow(shown, 5) };
 }
 
 // --- Yapı ----------------------------------------------------------------------
@@ -233,10 +251,9 @@ export function drawFishbone(items, { label = '', appearance, uid } = {}) {
 /** Ağaç: ilk satır kök; "Dal: alt1, alt2" satırları dallar ve yapraklar. */
 export function drawTree(items, { label = '', appearance, uid } = {}) {
   const L = look(appearance, uid); const { th } = L;
-  const list = items.map(clean).filter(Boolean);
-  const root = list[0] || ''; const { shown, hidden } = cap(list.slice(1).map(splitHead), 5);
+  const { root, groups } = rootAndGroups(items); const { shown, hidden } = cap(groups, 5);
   const n = Math.max(1, shown.length); const W = 680; const colW = (W - 40) / n;
-  const leafMax = Math.max(0, ...shown.map((b) => Math.min(b.parts.length, 4)));
+  const leafMax = Math.max(0, ...shown.map((b) => Math.min(b.parts.length, 10)));
   const H = 200 + leafMax * 40;
   let body = card(L, W / 2 - 90, 16, 180, 50, { fill: th.accent, stroke: th.accent });
   body += textBlock(root, W / 2, 41, 166, { size: L.fs(13.5), weight: 700, maxLines: 2, fill: inkOn(th.accent, th) });
@@ -245,21 +262,21 @@ export function drawTree(items, { label = '', appearance, uid } = {}) {
     body += `<path d="M${W / 2} 66 V88 H${r1(x)} V${y}" fill="none" stroke="${th.ink}" stroke-width="${L.sw(1.4)}"/>`;
     body += card(L, x - colW / 2 + 6, y, colW - 12, 44, { fill: th.soft, stroke: th.accent });
     body += textBlock(b.head, x, y + 22, colW - 26, { size: L.fs(12), weight: 700, maxLines: 2, fill: th.ink });
-    b.parts.slice(0, 4).forEach((p, j) => {
+    b.parts.slice(0, 10).forEach((p, j) => {
       const ly = y + 62 + j * 40;
-      body += `<path d="M${r1(x - colW / 2 + 18)} ${y + 44} V${ly + 16} H${r1(x - colW / 2 + 28)}" fill="none" stroke="${th.line}" stroke-width="${L.sw(1.2)}"/>`;
-      body += card(L, x - colW / 2 + 28, ly, colW - 40, 32, { fill: th.paper, stroke: th.line, rx: 6 });
-      body += leftText(p, x - colW / 2 + 36, ly + 16, colW - 56, { size: L.fs(11), maxLines: 2, fill: th.ink });
+      const ind = Math.min(p.depth, 3) * 14; // 1.1.1 kartı bir basamak içeride
+      body += `<path d="M${r1(x - colW / 2 + 18 + ind)} ${p.depth ? ly - 8 : y + 44} V${ly + 16} H${r1(x - colW / 2 + 28 + ind)}" fill="none" stroke="${th.line}" stroke-width="${L.sw(1.2)}"/>`;
+      body += card(L, x - colW / 2 + 28 + ind, ly, colW - 40 - ind, 32, { fill: p.depth ? th.soft : th.paper, stroke: th.line, rx: 6 });
+      body += leftText(p.text, x - colW / 2 + 36 + ind, ly + 16, colW - 56 - ind, { size: L.fs(p.depth ? 10.5 : 11), maxLines: 2, fill: th.ink });
     });
   });
-  return { svg: out(W, H, body, label || root, L), hidden };
+  return { svg: out(W, H, body, label || root, L), hidden: hidden + overflow(shown, 10) };
 }
 
 /** Zihin haritası: merkez; dallar sağa ve sola, dalın alt öğeleri yanında. */
 export function drawMind(items, { label = '', appearance, uid } = {}) {
   const L = look(appearance, uid); const { th } = L;
-  const list = items.map(clean).filter(Boolean);
-  const center = list[0] || ''; const { shown, hidden } = cap(list.slice(1).map(splitHead), 6);
+  const { root: center, groups } = rootAndGroups(items); const { shown, hidden } = cap(groups, 6);
   const W = 700; const H = 420; const cx = W / 2; const cy = H / 2;
   let body = '';
   const sides = [shown.filter((_, i) => i % 2 === 0), shown.filter((_, i) => i % 2 === 1)];
@@ -270,16 +287,17 @@ export function drawMind(items, { label = '', appearance, uid } = {}) {
       body += `<path d="M${cx + dir * 70} ${cy} C${cx + dir * 120} ${cy}, ${r1(bx - dir * 70)} ${r1(by)}, ${r1(bx - dir * 60)} ${r1(by)}" fill="none" stroke="${th.accent}" stroke-width="${L.sw(2.4)}"/>`;
       body += card(L, bx - 60, by - 20, 120, 40, { fill: th.soft, stroke: th.accent, rx: 20 });
       body += textBlock(b.head, bx, by, 108, { size: L.fs(12), weight: 700, maxLines: 2, fill: th.ink });
-      b.parts.slice(0, 3).forEach((p, k) => {
-        const py = by - 22 + k * 22; const px = bx + dir * 72;
-        body += `<line x1="${bx + dir * 60}" y1="${r1(by)}" x2="${px}" y2="${r1(py)}" stroke="${th.line}" stroke-width="${L.sw(1)}"/>`;
-        body += `<text x="${px + dir * 4}" y="${r1(py)}" font-family='${FONT}' font-size="${L.fs(10.5)}" fill="${th.ink}" text-anchor="${dir > 0 ? 'start' : 'end'}" dominant-baseline="middle">${esc(wrapText(p, 110, { size: L.fs(10.5), maxLines: 1 }).lines[0])}</text>`;
+      const kids = b.parts.slice(0, 5);
+      kids.forEach((p, k) => {
+        const py = by - ((kids.length - 1) * 18) / 2 + k * 18; const px = bx + dir * (72 + p.depth * 14);
+        if (!p.depth) body += `<line x1="${bx + dir * 60}" y1="${r1(by)}" x2="${px}" y2="${r1(py)}" stroke="${th.line}" stroke-width="${L.sw(1)}"/>`;
+        body += `<text x="${px + dir * 4}" y="${r1(py)}" font-family='${FONT}' font-size="${L.fs(10.5)}" fill="${th.ink}" text-anchor="${dir > 0 ? 'start' : 'end'}" dominant-baseline="middle">${esc(nestMark(p.depth) + wrapText(p.text, 110, { size: L.fs(10.5), maxLines: 1 }).lines[0])}</text>`;
       });
     });
   });
   body += `<ellipse cx="${cx}" cy="${cy}" rx="78" ry="44" fill="${th.accent}"/>`;
   body += textBlock(center, cx, cy, 136, { size: L.fs(14), weight: 700, maxLines: 2, fill: inkOn(th.accent, th) });
-  return { svg: out(W, H, body, label || center, L), hidden };
+  return { svg: out(W, H, body, label || center, L), hidden: hidden + overflow(shown, 5) };
 }
 
 /** Piramit: ilk öğe tepede; katmanlar aşağı doğru genişler, renk koyudan açığa. */
@@ -326,28 +344,31 @@ export function drawFunnel(items, { label = '', appearance, uid } = {}) {
 /** Çok sütunlu karşılaştırma: her satır "Başlık: madde; madde". */
 export function drawColumns(items, { label = '', appearance, uid } = {}) {
   const L = look(appearance, uid); const { th } = L;
-  const { shown, hidden } = cap(items.map(splitHead).filter((x) => x.head), 5);
+  const { shown, hidden } = cap(items.map(asGroup).filter((x) => x.head), 5);
   const n = Math.max(1, shown.length); const W = 680; const gap = 12; const cw = (W - 40 - gap * (n - 1)) / n;
-  const rowsMax = Math.max(1, ...shown.map((c) => Math.min(6, c.parts.length))); const H = 90 + rowsMax * 40;
+  const rowsMax = Math.max(1, ...shown.map((c) => Math.min(10, c.parts.length))); const H = 90 + rowsMax * 40;
   let body = '';
   shown.forEach((c, i) => {
     const x = 20 + i * (cw + gap);
     body += card(L, x, 16, cw, H - 32, { fill: th.paper, stroke: th.line });
     body += `<rect x="${r1(x)}" y="16" width="${r1(cw)}" height="44" rx="${L.rx(10)}" fill="${th.accent}"/><rect x="${r1(x)}" y="48" width="${r1(cw)}" height="12" fill="${th.accent}"/>`;
     body += textBlock(c.head, x + cw / 2, 38, cw - 16, { size: L.fs(12.5), weight: 700, maxLines: 2, fill: inkOn(th.accent, th) });
-    c.parts.slice(0, 6).forEach((p, j) => {
+    c.parts.slice(0, 10).forEach((p, j) => {
       const y = 82 + j * 40;
-      body += `<circle cx="${r1(x + 14)}" cy="${y}" r="3" fill="${th.accent2}"/>`;
-      body += leftText(p, x + 24, y, cw - 32, { size: L.fs(11.5), maxLines: 2, fill: th.ink });
+      const ind = Math.min(p.depth, 3) * 14;
+      body += p.depth
+        ? `<circle cx="${r1(x + 14 + ind)}" cy="${y}" r="2.4" fill="none" stroke="${th.accent2}" stroke-width="1.2"/>`
+        : `<circle cx="${r1(x + 14)}" cy="${y}" r="3" fill="${th.accent2}"/>`;
+      body += leftText(p.text, x + 24 + ind, y, cw - 32 - ind, { size: L.fs(p.depth ? 10.5 : 11.5), maxLines: 2, fill: th.ink });
     });
   });
-  return { svg: out(W, H, body, label || shown.map((c) => c.head).join(' / '), L), hidden };
+  return { svg: out(W, H, body, label || shown.map((c) => c.head).join(' / '), L), hidden: hidden + overflow(shown, 10) };
 }
 
 /** Dörtlü matris: dört "Başlık: açıklama" kutusu, eksen okları. */
 export function drawMatrix(items, { label = '', appearance, uid } = {}) {
   const L = look(appearance, uid); const { th } = L;
-  const { shown, hidden } = cap(items.map(splitHead).filter((x) => x.head), 4);
+  const { shown, hidden } = cap(items.map(asGroup).filter((x) => x.head), 4);
   const W = 600; const H = 460; const x0 = 60; const y0 = 20; const qw = (W - x0 - 20) / 2; const qh = (H - y0 - 50) / 2;
   let body = arrowDef(L);
   const at = [[0, 0], [1, 0], [0, 1], [1, 1]];
@@ -355,7 +376,7 @@ export function drawMatrix(items, { label = '', appearance, uid } = {}) {
     const [c, r] = at[i]; const x = x0 + c * qw; const y = y0 + r * qh; const hi = i === 1;
     body += card(L, x + 4, y + 4, qw - 8, qh - 8, { fill: hi ? mix(th.accent2, '#ffffff', 0.78) : th.soft, stroke: hi ? th.accent2 : th.line, sw: hi ? 1.8 : 1 });
     body += textBlock(q.head, x + qw / 2, y + 40, qw - 30, { size: L.fs(14), weight: 700, maxLines: 2, fill: th.ink });
-    if (q.parts.length) body += textBlock(q.parts.join(', '), x + qw / 2, y + qh / 2 + 20, qw - 36, { size: L.fs(11.5), maxLines: 4, fill: th.ink });
+    if (q.parts.length) body += textBlock(q.parts.map((p) => p.text).join(', '), x + qw / 2, y + qh / 2 + 20, qw - 36, { size: L.fs(11.5), maxLines: 4, fill: th.ink });
   });
   body += `<line x1="${x0 - 18}" y1="${H - 30}" x2="${x0 - 18}" y2="${y0}" stroke="${th.ink}" stroke-width="${L.sw(1.6)}" marker-end="url(#${L.markerId})"/>`;
   body += `<line x1="${x0 - 18}" y1="${H - 30}" x2="${W - 10}" y2="${H - 30}" stroke="${th.ink}" stroke-width="${L.sw(1.6)}" marker-end="url(#${L.markerId})"/>`;
@@ -365,7 +386,7 @@ export function drawMatrix(items, { label = '', appearance, uid } = {}) {
 /** Venn (2–3 küme): "Küme: öğe, öğe"; "Ortak: …" satırı kesişime yazılır. */
 export function drawVenn(items, { label = '', appearance, uid } = {}) {
   const L = look(appearance, uid); const { th } = L;
-  const all = items.map(splitHead).filter((x) => x.head);
+  const all = items.map(asGroup).filter((x) => x.head);
   const common = all.find((x) => /^(ortak|kesişim|common|overlap)$/i.test(x.head));
   const { shown, hidden } = cap(all.filter((x) => x !== common), 3);
   const n = shown.length; const W = 620; const H = n === 3 ? 470 : 340; const R = n === 3 ? 140 : 150;
@@ -380,13 +401,13 @@ export function drawVenn(items, { label = '', appearance, uid } = {}) {
     const [x, y] = centers[i]; const away = n === 3 ? [[-55, -30], [55, -30], [0, 55]][i] : [[-70, 0], [70, 0]][i];
     const lx = x + away[0]; const ly = y + away[1];
     body += textBlock(s.head, lx, ly - 34, 110, { size: L.fs(13.5), weight: 800, maxLines: 1, fill: th.ink });
-    s.parts.slice(0, 3).forEach((p, j) => { body += textBlock(p, lx, ly - 8 + j * 18, 110, { size: L.fs(11), maxLines: 1, fill: th.ink }); });
+    s.parts.slice(0, 5).forEach((p, j) => { body += textBlock(nestMark(p.depth) + p.text, lx, ly - 8 + j * 16, 110, { size: L.fs(11), maxLines: 1, fill: th.ink }); });
   });
   if (common && n >= 2) {
     const cx = W / 2; const cy = n === 3 ? 225 : H / 2;
-    body += textBlock((common.parts.length ? common.parts : [common.head]).slice(0, 3).join(', '), cx, cy, n === 3 ? 70 : 90, { size: L.fs(11), weight: 700, maxLines: 4, fill: th.ink });
+    body += textBlock((common.parts.length ? common.parts.map((p) => p.text) : [common.head]).slice(0, 3).join(', '), cx, cy, n === 3 ? 70 : 90, { size: L.fs(11), weight: 700, maxLines: 4, fill: th.ink });
   }
-  return { svg: out(W, H, body, label || shown.map((s) => s.head).join(' ∩ '), L), hidden };
+  return { svg: out(W, H, body, label || shown.map((s) => s.head).join(' ∩ '), L), hidden: hidden + overflow(shown, 5) };
 }
 
 // --- İlişki --------------------------------------------------------------------

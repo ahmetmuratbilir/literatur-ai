@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart3, Check, ChevronLeft, ChevronRight, LineChart, Plus, RefreshCw, Shapes, Trash2, X } from 'lucide-react';
+import { BarChart3, Check, ChevronLeft, ChevronRight, CornerDownRight, LineChart, Plus, RefreshCw, Shapes, Trash2, X } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import {
   APPEARANCE_OPTIONS, CHART_TYPES, FIGURE_TYPES, PATTERN_TYPES,
   isDefaultAppearance, newDrawId, normalizeAppearance, paletteSwatch, sentencesOf,
 } from '../../visuals/draw.js';
-import { renderFigure } from '../../visuals/render.js';
+import { LEVELED_TYPES, MAX_LEVEL, ROOTED_TYPES, outlineNumbers, renderFigure } from '../../visuals/render.js';
 
 // Şablon şeridindeki aileler (galeri ile aynı).
 const FAMILIES = [
@@ -17,7 +17,8 @@ const FAMILIES = [
   ['relation', ['concept', 'argument']],
   ['time', ['timeline', 'vtimeline']],
 ];
-const MAX_ITEMS = 10;
+// Sayı sınırı yok gibidir (Ahmet: "isterse 1.10'a kadar uzatsın"); çizime sığmayan öğe "görünmüyor" notunda sayılır.
+const MAX_ITEMS = 60;
 // Tema galerisinin grupları (WO-033): sıra paletin listedeki sırasıdır.
 const THEME_GROUPS = [
   ['color', APPEARANCE_OPTIONS.palette.filter((p) => p !== 'bw' && p !== 'gray' && !p.startsWith('mono'))],
@@ -27,6 +28,7 @@ const THEME_GROUPS = [
 
 const EMPTY = {
   items: ['', '', ''],
+  levels: [],
   compare: { leftTitle: '', rightTitle: '', left: '', right: '' },
   timeline: [{ date: '', text: '' }, { date: '', text: '' }],
   chart: { rows: [{ label: '', value: '' }, { label: '', value: '' }, { label: '', value: '' }], unit: '', xTitle: '', yTitle: '' },
@@ -76,19 +78,65 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
   }, [type]);
   const word = t('audit.kind.figure');
 
+  // Katmanlı liste (Ahmet, 21.10.2026): öğe girintiyle başka öğenin altına alınır (1, 1.1, 1.1.1).
+  // Katmanlar her şablonda saklanır; yalnız yapısı olan şablonlarda (ağaç, zihin haritası, balık
+  // kılçığı, çok sütun, Venn, matris) gösterilir ve çizimde kullanılır.
+  const leveled = LEVELED_TYPES.includes(type);
+  const levelAt = (i) => Math.max(0, Math.min(MAX_LEVEL, Number(data.levels?.[i]) || 0));
+  const levels = data.items.map((_, i) => levelAt(i));
+  // Kök şablonlarında ilk satır kök/merkez/sonuçtur; numara daldan 1 diye başlar.
+  const rooted = ROOTED_TYPES.includes(type);
+  const numbers = !leveled ? data.items.map((_, i) => String(i + 1))
+    : rooted ? [k(`root.${type}`), ...outlineNumbers(levels.slice(1))] : outlineNumbers(levels);
+  const setRows = (items, lv) => setData((d) => ({ ...d, items, levels: lv }));
+  const shift = (i, d) => {
+    if (rooted && i === 0) return; // kök girintilenmez
+    const prev = i === 0 || (rooted && i === 1) ? -1 : levels[i - 1];
+    const next = Math.max(0, Math.min(MAX_LEVEL, levels[i] + d, prev + 1));
+    setRows(data.items, levels.map((l, j) => (j === i ? next : l)));
+  };
+  const addChild = (i) => {
+    // Kökün "altı" yeni bir daldır: sona, ana katmanda.
+    if (rooted && i === 0) { setRows([...data.items, ''], [...levels, 0]); return; }
+    const lv = Math.min(MAX_LEVEL, levels[i] + 1);
+    let at = i + 1;
+    while (at < levels.length && levels[at] > levels[i]) at += 1; // son alt öğenin arkasına
+    setRows([...data.items.slice(0, at), '', ...data.items.slice(at)], [...levels.slice(0, at), lv, ...levels.slice(at)]);
+  };
   const itemsEditor = (
     <div className="fd-list">
       {data.items.map((v, i) => (
-        <div key={i} className="fd-row">
-          <span className="fd-n">{i + 1}</span>
-          <input value={v} onChange={(e) => patch('items', data.items.map((x, j) => (j === i ? e.target.value : x)))} placeholder={t(`workspace.figure.ph.${type}`) !== `workspace.figure.ph.${type}` ? k(`ph.${type}`) : k('itemPlaceholder')} aria-label={k('item', { n: i + 1 })} data-fd="item" />
-          <button type="button" className="fd-icon" onClick={() => patch('items', data.items.filter((_, j) => j !== i))} disabled={data.items.length <= 2} aria-label={k('remove')} title={k('remove')}><Trash2 size={13} /></button>
+        <div key={i} className={`fd-row${leveled ? ' fd-row--lv' : ''}${leveled && rooted && i === 0 ? ' fd-row--root' : ''}`} style={leveled && !(rooted && i === 0) ? { paddingLeft: levels[i] * 16 } : undefined} data-level={leveled ? levels[i] : undefined}>
+          <span className="fd-n">{numbers[i]}</span>
+          <input
+            value={v}
+            onChange={(e) => patch('items', data.items.map((x, j) => (j === i ? e.target.value : x)))}
+            onKeyDown={(e) => { if (leveled && e.key === 'Tab') { e.preventDefault(); shift(i, e.shiftKey ? -1 : 1); } }}
+            placeholder={t(`workspace.figure.ph.${type}`) !== `workspace.figure.ph.${type}` ? k(`ph.${type}`) : k('itemPlaceholder')}
+            aria-label={k('item', { n: numbers[i] })}
+            data-fd="item"
+          />
+          {/* Minik "alt öğe ekle" (Ahmet, 21.10.2026): satırın üzerine gelince ya da odakta görünür. İçeri/dışarı: Tab / Shift+Tab. */}
+          {leveled && (
+            <button
+              type="button"
+              className="fd-mini"
+              onClick={() => addChild(i)}
+              disabled={data.items.length >= MAX_ITEMS || (!(rooted && i === 0) && levels[i] >= MAX_LEVEL)}
+              aria-label={k('addChild', { n: numbers[i] })}
+              title={k('addChild', { n: numbers[i] })}
+              data-fd="add-child"
+            >
+              <CornerDownRight size={11} />
+            </button>
+          )}
+          <button type="button" className="fd-icon" onClick={() => setRows(data.items.filter((_, j) => j !== i), levels.filter((_, j) => j !== i))} disabled={data.items.length <= 2} aria-label={k('remove')} title={k('remove')}><Trash2 size={13} /></button>
         </div>
       ))}
       <div className="fd-acts">
-        <button type="button" className="fd-btn" onClick={() => patch('items', [...data.items, ''])} disabled={data.items.length >= MAX_ITEMS}><Plus size={13} /> {k('addItem')}</button>
+        <button type="button" className="fd-btn" onClick={() => setRows([...data.items, ''], [...levels, 0])} disabled={data.items.length >= MAX_ITEMS}><Plus size={13} /> {k('addItem')}</button>
         {sourceText && (
-          <button type="button" className="fd-btn" onClick={() => patch('items', sentencesOf(sourceText).slice(0, 8))} data-action="fd-from-paragraph" title={k('fromParagraphHint')}>
+          <button type="button" className="fd-btn" onClick={() => setRows(sentencesOf(sourceText).slice(0, 8), [])} data-action="fd-from-paragraph" title={k('fromParagraphHint')}>
             <RefreshCw size={13} /> {k('fromParagraph')}
           </button>
         )}

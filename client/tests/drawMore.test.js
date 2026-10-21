@@ -97,3 +97,26 @@ test('taslak çizimi her şablon türünde çalışır (dikey zaman dahil; önce
   }
   assert.match(renderFigure('vtimeline', data, '', 'tr-TR', undefined, 't1').svg, /2019/);
 });
+
+test('katmanlı liste: numaralar, kök kaydırma, iç içe çizim, sınır yok (sığmayan sayılır), eski yazım çalışır', async () => {
+  const { outlineOf, outlineNumbers, outlineToLines, renderFigure } = await import('../src/visuals/render.js');
+  assert.deepEqual(outlineNumbers([0, 1, 2, 2, 1, 0, 1]), ['1', '1.1', '1.1.1', '1.1.2', '1.2', '2', '2.1']);
+  // Katman bir öncekinin bir fazlasını geçemez.
+  assert.deepEqual(outlineOf(['a', 'b', 'c'], [0, 3, 3]).map((o) => o.level), [0, 1, 2]);
+  // Kök şablonu: dallar köke girintiliyse bir katman yukarı alınır.
+  const nat = outlineToLines('tree', outlineOf(['Kök', 'Dal', 'yaprak', 'alt'], [0, 1, 2, 3]));
+  assert.equal(nat[0], 'Kök');
+  assert.deepEqual(nat[1], { head: 'Dal', parts: [{ text: 'yaprak', depth: 0 }, { text: 'alt', depth: 1 }] });
+  // Eski "Başlık: a, b" yazımı katmansız kayıtta aynen.
+  assert.deepEqual(outlineToLines('tree', outlineOf(['Kök', 'Dal: a, b'], [])), ['Kök', 'Dal: a, b']);
+  // 1.10'a kadar ve ötesi: 12 yaprak; 10'u çizilir, 2'si "görünmüyor"da sayılır.
+  const items = ['Kök', 'Dal', ...Array.from({ length: 12 }, (_, i) => `y${i + 1}`)];
+  const levels = [0, 0, ...Array(12).fill(1)];
+  const r = renderFigure('tree', { items, levels }, '', 'tr-TR', undefined, 'k1');
+  assert.match(r.svg, />y10</);
+  assert.equal(r.hidden, 2);
+  // Çok sütun: 1.1.1 maddesi içi boş halkayla, içeride.
+  const c = renderFigure('columns', { items: ['A', 'a1', 'a1x', 'B', 'b1'], levels: [0, 1, 2, 0, 1] }, '', 'tr-TR', undefined, 'k2');
+  assert.match(c.svg, /fill="none" stroke="[^"]+" stroke-width="1.2"\/>/);
+  assert.match(c.svg, />a1x</);
+});

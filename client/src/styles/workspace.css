@@ -1899,3 +1899,17 @@ table.wx-ttheme__mini:not([data-theme]) thead th { border-bottom: 1px solid #000
 .fd-theme__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; font-weight: 600; color: var(--wx-ink); }
 .fd-applyall { display: flex; gap: 6px; align-items: flex-start; font-size: 11.5px; color: var(--wx-ink); cursor: pointer; }
 .fd-applyall input { margin-top: 2px; accent-color: var(--wx-accent); }
+
+/* Katmanlı liste (WO-034): minik "alt öğe ekle" — satırın üzerine gelince ya da odakta. */
+.fd-row--lv { position: relative; }
+.fd-row--lv .fd-n { min-width: 30px; font-variant-numeric: tabular-nums; }
+.fd-row--root .fd-n { color: var(--wx-accent); font-weight: 700; }
+.fd-mini {
+  width: 18px; height: 18px; display: grid; place-items: center; flex-shrink: 0;
+  padding: 0; border: 1px solid var(--wx-line); border-radius: 5px; background: var(--wx-surface);
+  color: var(--wx-accent); cursor: pointer; opacity: 0; transition: opacity .12s ease;
+}
+.fd-row--lv:hover .fd-mini, .fd-row--lv:focus-within .fd-mini, .fd-mini:focus-visible { opacity: 1; }
+.fd-mini:hover:not(:disabled) { background: var(--wx-accent-soft); border-color: var(--wx-accent); }
+.fd-mini:disabled { opacity: 0 !important; cursor: default; }
+@media (hover: none) { .fd-mini { opacity: .8; } }

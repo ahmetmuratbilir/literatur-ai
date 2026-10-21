@@ -276,3 +276,38 @@ test('WO-033 renk teması: galeriden seçilir; fırça galeriyi açar; "bütün 
   await expect.poll(() => draft.locator('.fd-types').evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
   await expect(draft.locator('[data-fd-type="venn"]')).toBeInViewport();
 });
+
+test('katmanlı liste: minik ↳ ile alt öğe (1.1, 1.1.1), Tab/Shift+Tab, kök etiketi, ağaç iç içe çizer; şablon değişince katman korunur', async ({ page }) => {
+  await seedDraft(page, '<p>Yöntem.</p>', 'Katman');
+  await mockApi(page);
+  await page.goto('/#/yaz');
+  await doc(page).getByText('Yöntem.').click();
+  await page.locator('[data-action="write-figure"]').click();
+  const draft = page.getByTestId('figure-draft');
+  await draft.locator('[data-fd-type="tree"]').click();
+  const it = draft.locator('[data-fd="item"]');
+  await it.nth(0).fill('Yöntemler');
+  await it.nth(1).fill('Nicel');
+  await it.nth(2).fill('Nitel');
+  await expect(draft.locator('.fd-row .fd-n').first()).toHaveText('Kök');
+  // Nicel'in altına alt öğe, onun altına bir katman daha.
+  await it.nth(1).hover();
+  await draft.locator('[data-fd="add-child"]').nth(1).click();
+  await it.nth(2).fill('Deney');
+  await it.nth(2).hover();
+  await draft.locator('[data-fd="add-child"]').nth(2).click();
+  await it.nth(3).fill('Ön test');
+  await expect(draft.locator('.fd-row .fd-n')).toHaveText(['Kök', '1', '1.1', '1.1.1', '2']);
+  // Shift+Tab bir katman dışarı, Tab geri içeri.
+  await it.nth(3).press('Shift+Tab');
+  await expect(draft.locator('.fd-row .fd-n').nth(3)).toHaveText('1.2');
+  await it.nth(3).press('Tab');
+  await expect(draft.locator('.fd-row .fd-n').nth(3)).toHaveText('1.1.1');
+  await expect(draft.locator('.fd-svg svg')).toContainText('Ön test');
+  // Şablon değişince katmanlar korunur: zihin haritasında da "Ön test" var, liste numaraları aynı.
+  await draft.locator('[data-fd-type="mind"]').click();
+  await expect(draft.locator('.fd-svg svg')).toContainText('Ön test');
+  await expect(draft.locator('.fd-row .fd-n').nth(3)).toHaveText('1.1.1');
+  await draft.locator('[data-action="fd-done"]').click();
+  await expect(doc(page).locator('figure')).toHaveAttribute('data-visual-state', /"levels":\[0,0,1,2,0\]/);
+});
