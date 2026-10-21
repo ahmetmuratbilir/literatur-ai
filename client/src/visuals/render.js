@@ -28,6 +28,8 @@ export const GROUPED_TYPES = ['columns', 'venn', 'matrix'];
 export const LEVELED_TYPES = [...ROOTED_TYPES, ...GROUPED_TYPES];
 // 1 → 1.1 → 1.1.1 → 1.1.1.1 (Ahmet: "1.1'in altına da 1.1.1 açabileyim"; sayı sınırı yok).
 export const MAX_LEVEL = 3;
+// Kutuları sürüklenebilen şablonlar (WO-036). Konumlar şablon başına saklanır: data.layout[tür].
+export const MOVABLE_TYPES = ['steps', 'cycle', 'hub', 'feedback', 'chain', 'concept', 'argument', 'tree', 'mind'];
 
 /** Boş satırlar atılır; katmanı olmayan eski kayıtta her öğe ana satırdır. Katman, bir öncekinin bir fazlasını geçemez. */
 export function outlineOf(items = [], levels = []) {
@@ -78,8 +80,8 @@ export function outlineToLines(type, outline) {
 }
 
 /** Taslağın SVG'si; içerik yoksa null (Tamam pasif). */
-export function renderFigure(type, data, label, locale, appearance, uid) {
-  const o = { label, appearance, uid };
+export function renderFigure(type, data, label, locale, appearance, uid, { editable = false } = {}) {
+  const o = { label, appearance, uid, layout: data.layout?.[type] || null, editable };
   if (type === 'steps' || type === 'cycle') {
     const items = data.items.map((s) => s.trim()).filter(Boolean);
     if (items.length < 2) return null;

@@ -78,6 +78,7 @@ Taslak → Hazır → Çalışıyor → Bitti
 | [WO-033](WO-033-sekil-renk-temalari.md) | Şekil ve grafik renk temaları: küçük resimli galeri (21 tema), bütün şekillere uygula, belgede fırça | P3 | Bitti, elle deneme bekliyor (21.10.2026, `wo-031-tablo-tasarimi`) |
 | [WO-034](WO-034-katmanli-liste.md) | Şekil taslağında katmanlı liste: minik ↳ ile 1.1, 1.1.1; sayı sınırı yok; görseller iç içe çizer | P3 | Bitti, elle deneme bekliyor (21.10.2026, `wo-031-tablo-tasarimi`) |
 | [WO-035](WO-035-sekil-buyuk-duzenleme.md) | Şekil için büyük düzenleme (Napkin gibi): minik Düzenle, tutamaçla genişlik, belgede ve Word’de aynı oran | P3 | Bitti, elle deneme bekliyor (21.10.2026, `wo-031-tablo-tasarimi`) |
+| [WO-036](WO-036-kutu-tasima.md) | Şekilde kutuları sürükleyerek taşıma: 9 şablon, oklar kutuyla gider, Sıfırla | P3 | Bitti, elle deneme bekliyor (21.10.2026, `wo-031-tablo-tasarimi`) |
 
 **Yol haritası (17.10.2026):** `docs/design/yol-haritasi.md`. Görünür sonuç
 sırası: WO-011 kontrolü → galeri kararları → WO-017 → WO-018 → WO-019 →

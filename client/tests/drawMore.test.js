@@ -120,3 +120,33 @@ test('katmanlı liste: numaralar, kök kaydırma, iç içe çizim, sınır yok (
   assert.match(c.svg, /fill="none" stroke="[^"]+" stroke-width="1.2"\/>/);
   assert.match(c.svg, />a1x</);
 });
+
+test('kutu taşıma: kaydırma kutuyu taşır, ok yeniden hesaplanır; alan dışına çıkınca görünüm genişler; taşıma yoksa çıktı aynı', async () => {
+  const { drawSteps } = await import('../src/visuals/draw.js');
+  const { renderFigure, MOVABLE_TYPES } = await import('../src/visuals/render.js');
+  const items = ['A', 'B', 'C'];
+  const plain = drawSteps(items, { uid: 'm' });
+  // Boş ya da sıfır kaydırma: bayt bayt aynı.
+  assert.equal(drawSteps(items, { uid: 'm', layout: {} }), plain);
+  assert.equal(drawSteps(items, { uid: 'm', layout: { i1: [0, 0] } }), plain);
+  // B kutusu 80 aşağı: rect y'si 80 artar, B'ye giren ve çıkan ok düz çizgi olur.
+  const ys = (svg) => [...svg.matchAll(/<rect x="[\d.]+" y="([\d.]+)" width="[\d.]+" height="74"/g)].map((m) => Number(m[1]));
+  const moved = drawSteps(items, { uid: 'm', layout: { i1: [0, 80] } });
+  assert.deepEqual(ys(moved).map((y, i) => y - ys(plain)[i]), [0, 80, 0]);
+  assert.equal((moved.match(/<line /g) || []).length, 2);
+  // Alanın altına taşınca görünüm alanı genişler.
+  const far = drawSteps(items, { uid: 'm', layout: { i2: [0, 300] } });
+  const [, , , h] = far.match(/viewBox="([-\d.]+) ([-\d.]+) ([\d.]+) ([\d.]+)"/).slice(1).map(Number);
+  assert.ok(h > 300, `görünüm yüksekliği ${h}`);
+  // Düzenleme ekranı çizimi sürüklenebilir kutuları işaretler; kaydedilen çizim işaretsiz.
+  for (const type of MOVABLE_TYPES) {
+    const data = { items: ['Kök', 'A -> B : x', '+ e', 'Dal: a', '- f'], levels: [], compare: {}, timeline: [], chart: { rows: [] } };
+    const ed = renderFigure(type, data, '', 'tr-TR', undefined, 'e1', { editable: true });
+    const saved = renderFigure(type, data, '', 'tr-TR', undefined, 'e1');
+    assert.match(ed.svg, /data-el="/, `${type} sürüklenebilir değil`);
+    assert.doesNotMatch(saved.svg, /data-el=/, `${type} kayıtta işaret var`);
+  }
+  // Konumlar şablon başına: başka şablonun kaydırması etkilemez.
+  const d2 = { items, levels: [], layout: { cycle: { i1: [0, 80] } } };
+  assert.equal(renderFigure('steps', d2, '', 'tr-TR', undefined, 'm').svg, plain);
+});

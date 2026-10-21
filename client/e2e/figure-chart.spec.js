@@ -371,3 +371,42 @@ test('punto kutusu: otomatik değer ipucu; yazılan punto kaydedilir ve düzenle
   await doc(page).locator('figure').dblclick();
   await expect(draft.locator('[data-fd="pt"]')).toHaveValue('11');
 });
+
+test('WO-036 kutu taşıma: büyük düzenlemede kutu sürüklenir, oklar gelir; Sıfırla temizler; konum belgeye ve düzenlemeye kalır', async ({ page }) => {
+  test.setTimeout(60_000);
+  await seedDraft(page, '<p>Önce. Isı alınır. Su döner.</p><p>Sonra.</p>', 'Taşıma');
+  await mockApi(page);
+  await page.goto('/#/yaz');
+  await doc(page).getByText('Önce.').click();
+  await page.locator('[data-action="write-figure"]').click();
+  const draft = page.getByTestId('figure-draft');
+  await draft.locator('[data-action="fd-from-paragraph"]').click();
+  await draft.locator('[data-fd="big-edit"]').click();
+  const drag = async (key, dy) => {
+    const b = await draft.locator(`[data-el="${key}"]`).boundingBox();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2 + dy, { steps: 6 });
+    await page.mouse.up();
+  };
+  await drag('i1', 60);
+  await expect(draft.locator('.fd-big .fd-svg svg line')).toHaveCount(2);
+  // Sıfırla: oklar eski haline (düz yatay), düğme pasif.
+  await draft.locator('[data-fd="pos-reset"]').click();
+  await expect(draft.locator('.fd-big .fd-svg svg line')).toHaveCount(2);
+  await expect(draft.locator('[data-fd="pos-reset"]')).toBeDisabled();
+  await drag('i1', 60);
+  await expect(draft.locator('[data-fd="pos-reset"]')).toBeEnabled();
+  await draft.locator('[data-fd="big-done"]').click();
+  await draft.locator('[data-action="fd-done"]').click();
+  const state = await doc(page).locator('figure').evaluate((el) => JSON.parse(el.dataset.visualState));
+  const [dx, dy] = state.data.layout.steps.i1;
+  expect(dx).toBe(0);
+  expect(dy).toBeGreaterThan(30);
+  // Belgedeki çizimde sürükleme işareti yok; kutu yerinde.
+  await expect(doc(page).locator('figure [data-el]')).toHaveCount(0);
+  // Yeniden açınca konum geri gelir.
+  await doc(page).locator('figure').dblclick();
+  await draft.locator('[data-fd="big-edit"]').click();
+  await expect(draft.locator('[data-fd="pos-reset"]')).toBeEnabled();
+});

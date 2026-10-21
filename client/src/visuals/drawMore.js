@@ -17,7 +17,7 @@
  */
 import { drawKit, parseNumber } from './draw.js';
 
-const { look, textBlock, wrapText, svg, arrowDef, clean, esc, mix, FONT } = drawKit;
+const { look, textBlock, wrapText, svg, arrowDef, clean, esc, mix, FONT, offOf, isMoved, elWrap, boxLink, fitView } = drawKit;
 
 // --- Yardımcılar --------------------------------------------------------------
 
@@ -78,7 +78,7 @@ const leftText = (text, x, cy, width, opts) => {
 };
 const badge = (L, x, y, n, color) =>
   `<circle cx="${r1(x)}" cy="${r1(y)}" r="13" fill="${color}"/><text x="${r1(x)}" y="${r1(y)}" font-family='${FONT}' font-size="${L.fs(12)}" font-weight="700" fill="${inkOn(color, L.th)}" text-anchor="middle" dominant-baseline="central">${esc(n)}</text>`;
-const out = (W, H, body, label, L) => svg(W, H, body, label, L.defs());
+const out = (W, H, body, label, L, vb = null) => svg(W, H, body, label, L.defs(), vb);
 
 // --- Sıra ----------------------------------------------------------------------
 
@@ -136,48 +136,65 @@ export function drawNumList(items, { label = '', appearance, uid } = {}) {
 // --- Döngü ---------------------------------------------------------------------
 
 /** Merkez + uydu: ilk öğe merkezde, diğerleri çevresinde. */
-export function drawHub(items, { label = '', appearance, uid } = {}) {
+export function drawHub(items, { label = '', appearance, uid, layout = null, editable = false } = {}) {
   const L = look(appearance, uid); const { th } = L;
   const list = items.map(clean).filter(Boolean);
   const center = list[0] || ''; const { shown, hidden } = cap(list.slice(1), 8);
   const W = 600; const H = 440; const cx = W / 2; const cy = H / 2; const R = 160; const n = Math.max(1, shown.length);
   let body = '';
-  const pts = shown.map((_, i) => { const a = -Math.PI / 2 + (2 * Math.PI * i) / n; return [cx + R * Math.cos(a), cy + R * 0.82 * Math.sin(a)]; });
-  pts.forEach(([x, y]) => { body += `<line x1="${cx}" y1="${cy}" x2="${r1(x)}" y2="${r1(y)}" stroke="${th.line}" stroke-width="${L.sw(1.6)}"/>`; });
-  pts.forEach(([x, y], i) => {
-    body += card(L, x - 64, y - 26, 128, 52, { fill: L.fill(i, th.soft, th.hatch, 1), stroke: th.accent, rx: 26 });
-    body += textBlock(shown[i], x, y, 112, { size: L.fs(12), maxLines: 2, fill: th.ink });
+  const pts = shown.map((_, i) => {
+    const a = -Math.PI / 2 + (2 * Math.PI * i) / n; const [dx, dy] = offOf(layout, `i${i}`);
+    return [cx + R * Math.cos(a) + dx, cy + R * 0.82 * Math.sin(a) + dy];
   });
-  body += `<circle cx="${cx}" cy="${cy}" r="66" fill="${th.accent}"/>`;
-  body += textBlock(center, cx, cy, 108, { size: L.fs(14), weight: 700, maxLines: 3, fill: inkOn(th.accent, th) });
-  return { svg: out(W, H, body, label || center, L), hidden };
+  const [cdx, cdy] = offOf(layout, 'c'); const mx = cx + cdx; const my = cy + cdy;
+  pts.forEach(([x, y]) => { body += `<line x1="${mx}" y1="${my}" x2="${r1(x)}" y2="${r1(y)}" stroke="${th.line}" stroke-width="${L.sw(1.6)}"/>`; });
+  pts.forEach(([x, y], i) => {
+    body += elWrap(editable, `i${i}`, card(L, x - 64, y - 26, 128, 52, { fill: L.fill(i, th.soft, th.hatch, 1), stroke: th.accent, rx: 26 })
+      + textBlock(shown[i], x, y, 112, { size: L.fs(12), maxLines: 2, fill: th.ink }));
+  });
+  body += elWrap(editable, 'c', `<circle cx="${mx}" cy="${my}" r="66" fill="${th.accent}"/>`
+    + textBlock(center, mx, my, 108, { size: L.fs(14), weight: 700, maxLines: 3, fill: inkOn(th.accent, th) }));
+  const vb = fitView(W, H, [...pts.map(([x, y]) => ({ x: x - 64, y: y - 26, w: 128, h: 52 })), { x: mx - 66, y: my - 66, w: 132, h: 132 }]);
+  return { svg: out(W, H, body, label || center, L, vb), hidden };
 }
 
 /** Geri besleme: çember üzerinde düğümler, oklarda +/−; ortada döngü türü (R pekiştiren, B dengeleyen). */
-export function drawFeedback(items, { label = '', appearance, uid } = {}) {
+export function drawFeedback(items, { label = '', appearance, uid, layout = null, editable = false } = {}) {
   const L = look(appearance, uid); const { th } = L;
   const { shown, hidden } = cap(items.map(splitSign).filter((x) => x.text), 6);
   const n = Math.max(2, shown.length);
   const W = 560; const H = 420; const cx = W / 2; const cy = H / 2; const R = 145;
   let body = arrowDef(L);
-  const pts = shown.map((_, i) => { const a = -Math.PI / 2 + (2 * Math.PI * i) / n; return { x: cx + R * Math.cos(a), y: cy + R * Math.sin(a), a }; });
+  const pts = shown.map((_, i) => {
+    const a = -Math.PI / 2 + (2 * Math.PI * i) / n; const [dx, dy] = offOf(layout, `i${i}`);
+    return { x: cx + R * Math.cos(a) + dx, y: cy + R * Math.sin(a) + dy, a };
+  });
   pts.forEach((p, i) => {
     if (shown.length < 2) return;
     const q = pts[(i + 1) % shown.length];
     const a1 = p.a + 0.34; const a2 = (i + 1 === shown.length ? q.a + 2 * Math.PI : q.a) - 0.34;
-    const x1 = cx + R * Math.cos(a1); const y1 = cy + R * Math.sin(a1); const x2 = cx + R * Math.cos(a2); const y2 = cy + R * Math.sin(a2);
-    body += `<path d="M${r1(x1)} ${r1(y1)} A${R} ${R} 0 0 1 ${r1(x2)} ${r1(y2)}" fill="none" stroke="${th.accent}" stroke-width="${L.sw(1.8)}" marker-end="url(#${L.markerId})"/>`;
+    const moved = isMoved(layout, `i${i}`) || isMoved(layout, `i${(i + 1) % shown.length}`);
+    let sx; let sy;
+    if (moved) {
+      // Taşınmış düğüm çember üzerinde değil: ok iki kutuyu düz birleştirir, işaret ortasında.
+      const k = boxLink({ x: p.x - 62, y: p.y - 26 }, { x: q.x - 62, y: q.y - 26 }, 124, 52);
+      body += `<line x1="${k.x1}" y1="${k.y1}" x2="${k.x2}" y2="${k.y2}" stroke="${th.accent}" stroke-width="${L.sw(1.8)}" marker-end="url(#${L.markerId})"/>`;
+      sx = (k.x1 + k.x2) / 2 + 14; sy = (k.y1 + k.y2) / 2 - 14;
+    } else {
+      const x1 = cx + R * Math.cos(a1); const y1 = cy + R * Math.sin(a1); const x2 = cx + R * Math.cos(a2); const y2 = cy + R * Math.sin(a2);
+      body += `<path d="M${r1(x1)} ${r1(y1)} A${R} ${R} 0 0 1 ${r1(x2)} ${r1(y2)}" fill="none" stroke="${th.accent}" stroke-width="${L.sw(1.8)}" marker-end="url(#${L.markerId})"/>`;
+      const am = (a1 + a2) / 2; sx = cx + (R + 20) * Math.cos(am); sy = cy + (R + 20) * Math.sin(am);
+    }
     const sign = shown[i].sign;
     if (sign) {
-      const am = (a1 + a2) / 2; const sx = cx + (R + 20) * Math.cos(am); const sy = cy + (R + 20) * Math.sin(am);
       body += `<circle cx="${r1(sx)}" cy="${r1(sy)}" r="11" fill="${sign === '+' ? th.accent2 : th.paper}" stroke="${th.ink}" stroke-width="${L.sw(1)}"/>`;
       body += `<text x="${r1(sx)}" y="${r1(sy)}" font-family='${FONT}' font-size="${L.fs(14)}" font-weight="800" fill="${sign === '+' ? inkOn(th.accent2, th) : th.ink}" text-anchor="middle" dominant-baseline="central">${sign}</text>`;
     }
   });
   shown.forEach((it, i) => {
     const { x, y } = pts[i];
-    body += card(L, x - 62, y - 26, 124, 52, { fill: th.paper, stroke: th.ink, rx: 12 });
-    body += textBlock(it.text, x, y, 108, { size: L.fs(12), maxLines: 2, fill: th.ink });
+    body += elWrap(editable, `i${i}`, card(L, x - 62, y - 26, 124, 52, { fill: th.paper, stroke: th.ink, rx: 12 })
+      + textBlock(it.text, x, y, 108, { size: L.fs(12), maxLines: 2, fill: th.ink }));
   });
   // Döngü türü yalnız bütün oklar işaretliyse: eksi sayısı tekse dengeleyen (B), çiftse pekiştiren (R).
   if (shown.length >= 2 && shown.every((s) => s.sign)) {
@@ -185,13 +202,13 @@ export function drawFeedback(items, { label = '', appearance, uid } = {}) {
     body += `<circle cx="${cx}" cy="${cy}" r="26" fill="${th.soft}" stroke="${th.accent}" stroke-width="${L.sw(1.4)}"/>`;
     body += `<text x="${cx}" y="${cy}" font-family='${FONT}' font-size="${L.fs(20)}" font-weight="800" fill="${th.accent}" text-anchor="middle" dominant-baseline="central">${neg % 2 ? 'B' : 'R'}</text>`;
   }
-  return { svg: out(W, H, body, label || shown.map((s) => s.text).join(' → '), L), hidden };
+  return { svg: out(W, H, body, label || shown.map((s) => s.text).join(' → '), L, fitView(W, H, pts.map((p) => ({ x: p.x - 62, y: p.y - 26, w: 124, h: 52 })))), hidden };
 }
 
 // --- Neden ---------------------------------------------------------------------
 
 /** Etki zinciri: kutular oklarla; okta +/− etkinin yönü. */
-export function drawChain(items, { label = '', appearance, uid } = {}) {
+export function drawChain(items, { label = '', appearance, uid, layout = null, editable = false } = {}) {
   const L = look(appearance, uid); const { th } = L;
   const { shown, hidden } = cap(items.map(splitSign).filter((x) => x.text), 8);
   const n = Math.max(1, shown.length); const perRow = n <= 4 ? n : Math.ceil(n / 2); const rows = Math.ceil(n / perRow);
@@ -200,14 +217,21 @@ export function drawChain(items, { label = '', appearance, uid } = {}) {
   let body = arrowDef(L);
   const pos = shown.map((_, i) => {
     const r = Math.floor(i / perRow); const c = i % perRow; const rowW = perRow * bw + (perRow - 1) * gap;
-    return { x: (W - rowW) / 2 + c * (bw + gap), y: 20 + r * (bh + 52) };
+    const [dx, dy] = offOf(layout, `i${i}`);
+    return { x: (W - rowW) / 2 + c * (bw + gap) + dx, y: 20 + r * (bh + 52) + dy };
   });
   shown.forEach((it, i) => {
     const { x, y } = pos[i];
-    body += card(L, x, y, bw, bh, { fill: i === n - 1 ? th.accent : th.soft, stroke: th.accent });
-    body += textBlock(it.text, x + bw / 2, y + bh / 2, bw - 16, { size: L.fs(12), maxLines: 3, fill: i === n - 1 ? inkOn(th.accent, th) : th.ink, weight: i === n - 1 ? 700 : 500 });
+    body += elWrap(editable, `i${i}`, card(L, x, y, bw, bh, { fill: i === n - 1 ? th.accent : th.soft, stroke: th.accent })
+      + textBlock(it.text, x + bw / 2, y + bh / 2, bw - 16, { size: L.fs(12), maxLines: 3, fill: i === n - 1 ? inkOn(th.accent, th) : th.ink, weight: i === n - 1 ? 700 : 500 }));
     if (i < shown.length - 1) {
       const a = pos[i]; const b = pos[i + 1];
+      if (isMoved(layout, `i${i}`) || isMoved(layout, `i${i + 1}`)) {
+        const k = boxLink(a, b, bw, bh);
+        body += `<line x1="${k.x1}" y1="${k.y1}" x2="${k.x2}" y2="${k.y2}" stroke="${th.ink}" stroke-width="${L.sw(1.6)}" marker-end="url(#${L.markerId})"/>`;
+        if (it.sign) body += `<text x="${r1((k.x1 + k.x2) / 2 + 10)}" y="${r1((k.y1 + k.y2) / 2 - 8)}" font-family='${FONT}' font-size="${L.fs(15)}" font-weight="800" fill="${th.ink}" text-anchor="middle">${it.sign}</text>`;
+        return;
+      }
       const d = a.y === b.y
         ? `M${r1(a.x + bw + 4)} ${r1(a.y + bh / 2)} H${r1(b.x - 4)}`
         : `M${r1(a.x + bw / 2)} ${r1(a.y + bh + 4)} V${r1(a.y + bh + 26)} H${r1(b.x + bw / 2)} V${r1(b.y - 4)}`;
@@ -218,7 +242,7 @@ export function drawChain(items, { label = '', appearance, uid } = {}) {
       }
     }
   });
-  return { svg: out(W, H, body, label || shown.map((s) => s.text).join(' → '), L), hidden };
+  return { svg: out(W, H, body, label || shown.map((s) => s.text).join(' → '), L, fitView(W, H, pos.map((p) => ({ ...p, w: bw, h: bh })))), hidden };
 }
 
 /** Balık kılçığı: sağda sonuç; omurgaya bağlı kategoriler (üst/alt dönüşümlü), altında nedenler. */
@@ -249,55 +273,70 @@ export function drawFishbone(items, { label = '', appearance, uid } = {}) {
 // --- Yapı ----------------------------------------------------------------------
 
 /** Ağaç: ilk satır kök; "Dal: alt1, alt2" satırları dallar ve yapraklar. */
-export function drawTree(items, { label = '', appearance, uid } = {}) {
+export function drawTree(items, { label = '', appearance, uid, layout = null, editable = false } = {}) {
   const L = look(appearance, uid); const { th } = L;
   const { root, groups } = rootAndGroups(items); const { shown, hidden } = cap(groups, 5);
   const n = Math.max(1, shown.length); const W = 680; const colW = (W - 40) / n;
   const leafMax = Math.max(0, ...shown.map((b) => Math.min(b.parts.length, 10)));
   const H = 200 + leafMax * 40;
-  let body = card(L, W / 2 - 90, 16, 180, 50, { fill: th.accent, stroke: th.accent });
-  body += textBlock(root, W / 2, 41, 166, { size: L.fs(13.5), weight: 700, maxLines: 2, fill: inkOn(th.accent, th) });
+  // Kök 'r', dal 'b<i>' (dal taşınınca yaprakları da gider).
+  const [rdx, rdy] = offOf(layout, 'r'); const rx = W / 2 + rdx; const ry = 16 + rdy;
+  let body = elWrap(editable, 'r', card(L, rx - 90, ry, 180, 50, { fill: th.accent, stroke: th.accent })
+    + textBlock(root, rx, ry + 25, 166, { size: L.fs(13.5), weight: 700, maxLines: 2, fill: inkOn(th.accent, th) }));
+  const rects = [{ x: rx - 90, y: ry, w: 180, h: 50 }];
   shown.forEach((b, i) => {
-    const x = 20 + i * colW + colW / 2; const y = 110;
-    body += `<path d="M${W / 2} 66 V88 H${r1(x)} V${y}" fill="none" stroke="${th.ink}" stroke-width="${L.sw(1.4)}"/>`;
-    body += card(L, x - colW / 2 + 6, y, colW - 12, 44, { fill: th.soft, stroke: th.accent });
-    body += textBlock(b.head, x, y + 22, colW - 26, { size: L.fs(12), weight: 700, maxLines: 2, fill: th.ink });
+    const [bdx, bdy] = offOf(layout, `b${i}`);
+    const x = 20 + i * colW + colW / 2 + bdx; const y = 110 + bdy;
+    const mid = isMoved(layout, 'r') || isMoved(layout, `b${i}`) ? r1((ry + 50 + y) / 2) : 88;
+    body += `<path d="M${r1(rx)} ${ry + 50} V${mid} H${r1(x)} V${y}" fill="none" stroke="${th.ink}" stroke-width="${L.sw(1.4)}"/>`;
+    let branch = card(L, x - colW / 2 + 6, y, colW - 12, 44, { fill: th.soft, stroke: th.accent })
+      + textBlock(b.head, x, y + 22, colW - 26, { size: L.fs(12), weight: 700, maxLines: 2, fill: th.ink });
+    rects.push({ x: x - colW / 2 + 6, y, w: colW - 12, h: 62 + Math.min(b.parts.length, 10) * 40 });
     b.parts.slice(0, 10).forEach((p, j) => {
       const ly = y + 62 + j * 40;
       const ind = Math.min(p.depth, 3) * 14; // 1.1.1 kartı bir basamak içeride
-      body += `<path d="M${r1(x - colW / 2 + 18 + ind)} ${p.depth ? ly - 8 : y + 44} V${ly + 16} H${r1(x - colW / 2 + 28 + ind)}" fill="none" stroke="${th.line}" stroke-width="${L.sw(1.2)}"/>`;
-      body += card(L, x - colW / 2 + 28 + ind, ly, colW - 40 - ind, 32, { fill: p.depth ? th.soft : th.paper, stroke: th.line, rx: 6 });
-      body += leftText(p.text, x - colW / 2 + 36 + ind, ly + 16, colW - 56 - ind, { size: L.fs(p.depth ? 10.5 : 11), maxLines: 2, fill: th.ink });
+      branch += `<path d="M${r1(x - colW / 2 + 18 + ind)} ${p.depth ? ly - 8 : y + 44} V${ly + 16} H${r1(x - colW / 2 + 28 + ind)}" fill="none" stroke="${th.line}" stroke-width="${L.sw(1.2)}"/>`;
+      branch += card(L, x - colW / 2 + 28 + ind, ly, colW - 40 - ind, 32, { fill: p.depth ? th.soft : th.paper, stroke: th.line, rx: 6 });
+      branch += leftText(p.text, x - colW / 2 + 36 + ind, ly + 16, colW - 56 - ind, { size: L.fs(p.depth ? 10.5 : 11), maxLines: 2, fill: th.ink });
     });
+    body += elWrap(editable, `b${i}`, branch);
   });
-  return { svg: out(W, H, body, label || root, L), hidden: hidden + overflow(shown, 10) };
+  return { svg: out(W, H, body, label || root, L, fitView(W, H, rects)), hidden: hidden + overflow(shown, 10) };
 }
 
 /** Zihin haritası: merkez; dallar sağa ve sola, dalın alt öğeleri yanında. */
-export function drawMind(items, { label = '', appearance, uid } = {}) {
+export function drawMind(items, { label = '', appearance, uid, layout = null, editable = false } = {}) {
   const L = look(appearance, uid); const { th } = L;
   const { root: center, groups } = rootAndGroups(items); const { shown, hidden } = cap(groups, 6);
   const W = 700; const H = 420; const cx = W / 2; const cy = H / 2;
   let body = '';
+  // Merkez 'c', dal 'b<i>' (dal taşınınca alt öğeleri de gider).
+  const [cdx, cdy] = offOf(layout, 'c'); const mx = cx + cdx; const my = cy + cdy;
+  const rects = [{ x: mx - 78, y: my - 44, w: 156, h: 88 }];
   const sides = [shown.filter((_, i) => i % 2 === 0), shown.filter((_, i) => i % 2 === 1)];
   sides.forEach((side, s) => {
-    const dir = s === 0 ? 1 : -1; const bx = cx + dir * 170;
+    const dir = s === 0 ? 1 : -1;
     side.forEach((b, j) => {
-      const by = side.length === 1 ? cy : 70 + (j * (H - 140)) / (side.length - 1);
-      body += `<path d="M${cx + dir * 70} ${cy} C${cx + dir * 120} ${cy}, ${r1(bx - dir * 70)} ${r1(by)}, ${r1(bx - dir * 60)} ${r1(by)}" fill="none" stroke="${th.accent}" stroke-width="${L.sw(2.4)}"/>`;
-      body += card(L, bx - 60, by - 20, 120, 40, { fill: th.soft, stroke: th.accent, rx: 20 });
-      body += textBlock(b.head, bx, by, 108, { size: L.fs(12), weight: 700, maxLines: 2, fill: th.ink });
+      const key = `b${j * 2 + s}`; const [bdx, bdy] = offOf(layout, key);
+      const bx = cx + dir * 170 + bdx;
+      const by = (side.length === 1 ? cy : 70 + (j * (H - 140)) / (side.length - 1)) + bdy;
+      body += `<path d="M${mx + dir * 70} ${my} C${mx + dir * 120} ${my}, ${r1(bx - dir * 70)} ${r1(by)}, ${r1(bx - dir * 60)} ${r1(by)}" fill="none" stroke="${th.accent}" stroke-width="${L.sw(2.4)}"/>`;
+      let branch = card(L, bx - 60, by - 20, 120, 40, { fill: th.soft, stroke: th.accent, rx: 20 })
+        + textBlock(b.head, bx, by, 108, { size: L.fs(12), weight: 700, maxLines: 2, fill: th.ink });
+      rects.push({ x: Math.min(bx - 60, bx + dir * 190), y: by - 50, w: 250, h: 100 });
       const kids = b.parts.slice(0, 5);
       kids.forEach((p, k) => {
         const py = by - ((kids.length - 1) * 18) / 2 + k * 18; const px = bx + dir * (72 + p.depth * 14);
-        if (!p.depth) body += `<line x1="${bx + dir * 60}" y1="${r1(by)}" x2="${px}" y2="${r1(py)}" stroke="${th.line}" stroke-width="${L.sw(1)}"/>`;
-        body += `<text x="${px + dir * 4}" y="${r1(py)}" font-family='${FONT}' font-size="${L.fs(10.5)}" fill="${th.ink}" text-anchor="${dir > 0 ? 'start' : 'end'}" dominant-baseline="middle">${esc(nestMark(p.depth) + wrapText(p.text, 110, { size: L.fs(10.5), maxLines: 1 }).lines[0])}</text>`;
+        if (!p.depth) branch += `<line x1="${bx + dir * 60}" y1="${r1(by)}" x2="${px}" y2="${r1(py)}" stroke="${th.line}" stroke-width="${L.sw(1)}"/>`;
+        branch += `<text x="${px + dir * 4}" y="${r1(py)}" font-family='${FONT}' font-size="${L.fs(10.5)}" fill="${th.ink}" text-anchor="${dir > 0 ? 'start' : 'end'}" dominant-baseline="middle">${esc(nestMark(p.depth) + wrapText(p.text, 110, { size: L.fs(10.5), maxLines: 1 }).lines[0])}</text>`;
       });
+      body += elWrap(editable, key, branch);
     });
   });
-  body += `<ellipse cx="${cx}" cy="${cy}" rx="78" ry="44" fill="${th.accent}"/>`;
-  body += textBlock(center, cx, cy, 136, { size: L.fs(14), weight: 700, maxLines: 2, fill: inkOn(th.accent, th) });
-  return { svg: out(W, H, body, label || center, L), hidden: hidden + overflow(shown, 5) };
+  body += elWrap(editable, 'c', `<ellipse cx="${mx}" cy="${my}" rx="78" ry="44" fill="${th.accent}"/>`
+    + textBlock(center, mx, my, 136, { size: L.fs(14), weight: 700, maxLines: 2, fill: inkOn(th.accent, th) }));
+  const moved = isMoved(layout, 'c') || shown.some((_, i) => isMoved(layout, `b${i}`));
+  return { svg: out(W, H, body, label || center, L, moved ? fitView(W, H, rects) : null), hidden: hidden + overflow(shown, 5) };
 }
 
 /** Piramit: ilk öğe tepede; katmanlar aşağı doğru genişler, renk koyudan açığa. */
@@ -413,13 +452,16 @@ export function drawVenn(items, { label = '', appearance, uid } = {}) {
 // --- İlişki --------------------------------------------------------------------
 
 /** Kavram haritası: "A -> B : etiket" satırları; en çok bağlı kavram vurgulanır. */
-export function drawConcept(items, { label = '', appearance, uid } = {}) {
+export function drawConcept(items, { label = '', appearance, uid, layout = null, editable = false } = {}) {
   const L = look(appearance, uid); const { th } = L;
   const rels = items.map(splitRelation).filter(Boolean);
   const names = []; rels.forEach((r) => [r.from, r.to].forEach((x) => { if (!names.includes(x)) names.push(x); }));
   const { shown, hidden } = cap(names, 8);
   const W = 680; const H = 440; const cx = W / 2; const cy = H / 2; const n = Math.max(1, shown.length);
-  const pos = Object.fromEntries(shown.map((name, i) => { const a = -Math.PI / 2 + (2 * Math.PI * i) / n; return [name, [cx + 240 * Math.cos(a), cy + 160 * Math.sin(a)]]; }));
+  const pos = Object.fromEntries(shown.map((name, i) => {
+    const a = -Math.PI / 2 + (2 * Math.PI * i) / n; const [dx, dy] = offOf(layout, `n${i}`);
+    return [name, [cx + 240 * Math.cos(a) + dx, cy + 160 * Math.sin(a) + dy]];
+  }));
   const degree = Object.fromEntries(shown.map((x) => [x, rels.filter((r) => r.from === x || r.to === x).length]));
   const hub = shown.reduce((a, b) => (degree[b] > degree[a] ? b : a), shown[0]);
   let body = arrowDef(L);
@@ -435,16 +477,16 @@ export function drawConcept(items, { label = '', appearance, uid } = {}) {
       body += `<text x="${r1(mx)}" y="${r1(my)}" font-family='${FONT}' font-size="${L.fs(10.5)}" font-style="italic" fill="${th.muted}" text-anchor="middle" dominant-baseline="middle">${esc(t)}</text>`;
     }
   });
-  shown.forEach((name) => {
+  shown.forEach((name, i) => {
     const [x, y] = pos[name]; const hi = name === hub && degree[hub] > 1;
-    body += card(L, x - 62, y - 26, 124, 52, { fill: hi ? th.accent : th.soft, stroke: th.accent, sw: hi ? 1.6 : 1.2, rx: 12 });
-    body += textBlock(name, x, y, 110, { size: L.fs(12), weight: hi ? 700 : 600, maxLines: 2, fill: hi ? inkOn(th.accent, th) : th.ink });
+    body += elWrap(editable, `n${i}`, card(L, x - 62, y - 26, 124, 52, { fill: hi ? th.accent : th.soft, stroke: th.accent, sw: hi ? 1.6 : 1.2, rx: 12 })
+      + textBlock(name, x, y, 110, { size: L.fs(12), weight: hi ? 700 : 600, maxLines: 2, fill: hi ? inkOn(th.accent, th) : th.ink }));
   });
-  return { svg: out(W, H, body, label || shown.join(', '), L), hidden };
+  return { svg: out(W, H, body, label || shown.join(', '), L, fitView(W, H, shown.map((name) => ({ x: pos[name][0] - 62, y: pos[name][1] - 26, w: 124, h: 52 })))), hidden };
 }
 
 /** Argüman haritası: ilk satır iddia; "+ gerekçe" solda, "- itiraz" sağda. */
-export function drawArgument(items, { label = '', appearance, uid } = {}) {
+export function drawArgument(items, { label = '', appearance, uid, layout = null, editable = false } = {}) {
   const L = look(appearance, uid); const { th } = L;
   const list = items.map(clean).filter(Boolean);
   const claim = (list[0] || '').replace(/^[+\-−]\s*/, '');
@@ -452,19 +494,32 @@ export function drawArgument(items, { label = '', appearance, uid } = {}) {
   const pros = cap(rest.filter((r) => r.pro), 4); const cons = cap(rest.filter((r) => !r.pro), 4);
   const rows = Math.max(1, pros.shown.length, cons.shown.length); const W = 680; const H = 140 + rows * 70;
   let body = arrowDef(L);
-  body += card(L, W / 2 - 170, 16, 340, 64, { fill: th.accent, stroke: th.accent });
-  body += textBlock(claim, W / 2, 48, 316, { size: L.fs(13.5), weight: 700, maxLines: 3, fill: inkOn(th.accent, th) });
-  const col = (arr, x, pro) => arr.forEach((r, i) => {
-    const y = 120 + i * 70; const color = pro ? th.accent : th.accent2;
-    if (i === 0) body += `<path d="M${r1(x + 150)} ${y} V100 H${r1(W / 2 + (pro ? -24 : 24))} V84" fill="none" stroke="${color}" stroke-width="${L.sw(1.6)}" marker-end="url(#${L.markerId})"/>`;
-    if (i > 0) body += `<line x1="${r1(x + 150)}" y1="${y - 14}" x2="${r1(x + 150)}" y2="${y}" stroke="${color}" stroke-width="${L.sw(1.6)}"/>`;
-    body += card(L, x, y, 300, 56, { fill: th.paper, stroke: th.line });
-    body += `<rect x="${x}" y="${y}" width="6" height="56" rx="3" fill="${color}"/>`;
-    body += badge(L, x + 26, y + 28, pro ? '+' : '−', color);
-    body += leftText(r.text, x + 48, y + 28, 242, { size: L.fs(11.5), maxLines: 3, fill: th.ink });
+  const [cdx, cdy] = offOf(layout, 'c'); const claimBox = { x: W / 2 - 170 + cdx, y: 16 + cdy };
+  const anyMoved = isMoved(layout, 'c') || pros.shown.some((_, i) => isMoved(layout, `p${i}`)) || cons.shown.some((_, i) => isMoved(layout, `q${i}`));
+  const rects = [{ ...claimBox, w: 340, h: 64 }];
+  const cards = [];
+  const col = (arr, x0, pro) => arr.forEach((r, i) => {
+    const key = `${pro ? 'p' : 'q'}${i}`; const [dx, dy] = offOf(layout, key);
+    const x = x0 + dx; const y = 120 + i * 70 + dy; const color = pro ? th.accent : th.accent2;
+    if (anyMoved) {
+      const k = boxLink({ x, y }, claimBox, 300, 56, 4, 340, 64);
+      body += `<line x1="${k.x1}" y1="${k.y1}" x2="${k.x2}" y2="${k.y2}" stroke="${color}" stroke-width="${L.sw(1.6)}" marker-end="url(#${L.markerId})"/>`;
+    } else {
+      if (i === 0) body += `<path d="M${r1(x + 150)} ${y} V100 H${r1(W / 2 + (pro ? -24 : 24))} V84" fill="none" stroke="${color}" stroke-width="${L.sw(1.6)}" marker-end="url(#${L.markerId})"/>`;
+      if (i > 0) body += `<line x1="${r1(x + 150)}" y1="${y - 14}" x2="${r1(x + 150)}" y2="${y}" stroke="${color}" stroke-width="${L.sw(1.6)}"/>`;
+    }
+    cards.push(elWrap(editable, key, card(L, x, y, 300, 56, { fill: th.paper, stroke: th.line })
+      + `<rect x="${x}" y="${y}" width="6" height="56" rx="3" fill="${color}"/>`
+      + badge(L, x + 26, y + 28, pro ? '+' : '−', color)
+      + leftText(r.text, x + 48, y + 28, 242, { size: L.fs(11.5), maxLines: 3, fill: th.ink })));
+    rects.push({ x, y, w: 300, h: 56 });
   });
   col(pros.shown, 20, true); col(cons.shown, W - 320, false);
-  return { svg: out(W, H, body, label || claim, L), hidden: pros.hidden + cons.hidden };
+  // Kartlar okların üstünde; iddia en üstte.
+  body += cards.join('');
+  body += elWrap(editable, 'c', card(L, claimBox.x, claimBox.y, 340, 64, { fill: th.accent, stroke: th.accent })
+    + textBlock(claim, claimBox.x + 170, claimBox.y + 32, 316, { size: L.fs(13.5), weight: 700, maxLines: 3, fill: inkOn(th.accent, th) }));
+  return { svg: out(W, H, body, label || claim, L, fitView(W, H, rects)), hidden: pros.hidden + cons.hidden };
 }
 
 // --- Zaman ---------------------------------------------------------------------

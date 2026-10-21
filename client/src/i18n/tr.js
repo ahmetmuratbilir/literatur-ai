@@ -1252,7 +1252,7 @@ export default {
       indent: 'İçeri al (alt öğe yap) — Tab',
       outdent: 'Dışarı al — Shift+Tab',
       root: { tree: 'Kök', mind: 'Merkez', fishbone: 'Sonuç' },
-      big: { open: 'Düzenle', title: 'Şekli düzenle', width: 'Belgedeki genişlik', reset: 'Tam genişlik', done: 'Tamam', note: 'Sağ kenardaki tutamacı sürükle ya da ok tuşlarıyla ayarla. Beyaz alan belgenin yazı sütunu; şekil belgede ve Word’de bu genişlikte durur.' },
+      big: { open: 'Düzenle', title: 'Şekli düzenle', width: 'Belgedeki genişlik', reset: 'Tam genişlik', posReset: 'Konumları sıfırla', moveNote: 'Kutuları tutup sürükleyerek taşı; oklar kutuyla birlikte gider.', done: 'Tamam', note: 'Sağ kenardaki tutamacı sürükle ya da ok tuşlarıyla ayarla. Beyaz alan belgenin yazı sütunu; şekil belgede ve Word’de bu genişlikte durur.' },
       addItem: 'Öğe ekle',
       remove: 'Kaldır',
       fromParagraph: 'Paragraftan al',

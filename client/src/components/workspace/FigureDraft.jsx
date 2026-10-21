@@ -5,7 +5,7 @@ import {
   APPEARANCE_OPTIONS, CHART_TYPES, FIGURE_TYPES, PATTERN_TYPES, PT_RANGE, WIDTH_RANGE, pointSize,
   isDefaultAppearance, newDrawId, normalizeAppearance, paletteSwatch, sentencesOf,
 } from '../../visuals/draw.js';
-import { LEVELED_TYPES, MAX_LEVEL, ROOTED_TYPES, outlineNumbers, renderFigure } from '../../visuals/render.js';
+import { LEVELED_TYPES, MAX_LEVEL, MOVABLE_TYPES, ROOTED_TYPES, outlineNumbers, renderFigure } from '../../visuals/render.js';
 
 // Şablon şeridindeki aileler (galeri ile aynı).
 const FAMILIES = [
@@ -202,6 +202,29 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
   const editor = type === 'compare' ? compareEditor : (type === 'timeline' || type === 'vtimeline') ? timelineEditor : CHART_TYPES.includes(type) ? chartEditor : itemsEditor;
   const setLook = (key, value) => setAppearance((a) => ({ ...a, [key]: value }));
   const patternOk = PATTERN_TYPES.includes(type);
+  const movable = MOVABLE_TYPES.includes(type);
+  const bigSvg = useMemo(
+    () => (big ? renderFigure(type, data, title, locale, appearance, `${uid}b`, { editable: movable })?.svg || null : null),
+    [big, type, data, title, locale, appearance, uid, movable],
+  );
+  const layoutNow = data.layout?.[type] || {};
+  const setPos = (key, v) => setData((d) => ({ ...d, layout: { ...(d.layout || {}), [type]: { ...(d.layout?.[type] || {}), [key]: v } } }));
+  const resetPos = () => setData((d) => { const l = { ...(d.layout || {}) }; delete l[type]; return { ...d, layout: l }; });
+  /** Kutuyu tutup sürükle (WO-036; Napkin gibi): kaydırma çizim biriminde saklanır, oklar yeniden hesaplanır. */
+  const onDragStart = (e) => {
+    const el = e.target.closest?.('[data-el]');
+    const svgEl = el?.closest('svg');
+    if (!el || !svgEl) return;
+    e.preventDefault();
+    const key = el.getAttribute('data-el');
+    const scale = svgEl.viewBox.baseVal.width / (svgEl.getBoundingClientRect().width || 1);
+    const start = layoutNow[key] || [0, 0];
+    const x0 = e.clientX; const y0 = e.clientY;
+    const move = (ev) => setPos(key, [Math.round(start[0] + (ev.clientX - x0) * scale), Math.round(start[1] + (ev.clientY - y0) * scale)]);
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
   /** Sağ kenardaki tutamaçla genişlik: şekil ortalı, genişlik = 2 × merkezden uzaklık / sayfa sütunu. */
   const onHandleDown = (e) => {
     const frame = stageRef.current;
@@ -355,13 +378,14 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
             {segment('corners')}
             {segment('pattern', !patternOk)}
             <button type="button" className="fd-btn" onClick={() => setLook('width', 100)} disabled={appearance.width === 100} data-fd="width-reset">{k('big.reset')}</button>
+            {movable && <button type="button" className="fd-btn" onClick={resetPos} disabled={!Object.keys(layoutNow).length} data-fd="pos-reset">{k('big.posReset')}</button>}
             <button type="button" className="fd-btn fd-btn--primary" onClick={() => setBig(false)} data-fd="big-done"><Check size={14} /> {k('big.done')}</button>
           </div>
           {/* Sahne: beyaz sayfa sütunu; şekil o sütunun yüzdesi kadar, ortalı (belgede ve Word'de de böyle). */}
           <div className="fd-big__stage">
             <div ref={stageRef} className="fd-big__page">
               <div className="fd-big__fig" style={{ width: `${appearance.width}%` }}>
-                <div className="fd-svg" dangerouslySetInnerHTML={{ __html: preview.svg }} />
+                <div className={`fd-svg${movable ? ' fd-svg--move' : ''}`} onPointerDown={movable ? onDragStart : undefined} dangerouslySetInnerHTML={{ __html: bigSvg || preview.svg }} />
                 <span
                   className="fd-big__handle"
                   role="slider"
@@ -376,7 +400,7 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
                 />
               </div>
             </div>
-            <small className="fd-big__note">{k('big.note')}</small>
+            <small className="fd-big__note">{movable ? `${k('big.moveNote')} ` : ''}{k('big.note')}</small>
           </div>
         </div>
       ) : (

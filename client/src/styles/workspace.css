@@ -1949,3 +1949,8 @@ table.wx-ttheme__mini:not([data-theme]) thead th { border-bottom: 1px solid #000
 .fd-pt input { width: 62px; height: 28px; padding: 0 6px; border: 1px solid var(--wx-line); border-radius: 7px; font: inherit; color: var(--wx-ink); background: var(--wx-surface); }
 .fd-pt input:focus { outline: 2px solid var(--wx-accent); outline-offset: 0; }
 .fd-pt small { color: var(--wx-faint); }
+
+/* Kutu taşıma (WO-036): sürüklenebilir kutular büyük düzenleme ekranında. */
+.fd-svg--move [data-el] { cursor: move; }
+.fd-svg--move [data-el]:hover > :first-child { filter: drop-shadow(0 0 2px var(--wx-accent)); }
+.fd-svg--move { touch-action: none; user-select: none; }

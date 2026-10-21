@@ -222,11 +222,41 @@ function textBlock(text, cx, cy, width, opts = {}) {
     lines.map((l, i) => `<tspan x="${cx}" dy="${i ? lh : 0}">${esc(l)}</tspan>`).join('')}</text>`;
 }
 
-const svg = (w, h, body, label, defs = '') => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="${esc(label)}"><rect width="${w}" height="${h}" fill="${THEME.paper}"/>${defs}${body}</svg>`;
+const svg = (w, h, body, label, defs = '', vb = null) => (vb
+  // Taşınan kutu alanın dışına çıktıysa görünüm alanı genişler (WO-036); taşıma yoksa eski çıktı.
+  ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" width="${vb.w}" height="${vb.h}" role="img" aria-label="${esc(label)}"><rect x="${vb.x}" y="${vb.y}" width="${vb.w}" height="${vb.h}" fill="${THEME.paper}"/>${defs}${body}</svg>`
+  : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="${esc(label)}"><rect width="${w}" height="${h}" fill="${THEME.paper}"/>${defs}${body}</svg>`);
+
+// --- Kutu taşıma (WO-036; Napkin gibi) -----------------------------------------
+// layout: { anahtar: [dx, dy] } — kutunun hesaplanan yerine eklenen kaydırma (çizim birimi).
+// editable: yalnız büyük düzenleme ekranında; kutular <g data-el> ile sarılır ki sürüklenebilsin.
+// Kaydedilen SVG'de sarmal yok; taşıma yoksa çıktı bayt bayt eskisiyle aynı.
+const offOf = (layout, key) => {
+  const v = layout?.[key];
+  return Array.isArray(v) ? [Number(v[0]) || 0, Number(v[1]) || 0] : [0, 0];
+};
+const isMoved = (layout, key) => { const [x, y] = offOf(layout, key); return x !== 0 || y !== 0; };
+const elWrap = (editable, key, inner) => (editable ? `<g data-el="${key}" style="cursor:move">${inner}</g>` : inner);
+/** İki kutunun merkezlerini birleştiren, kutu kenarlarında başlayıp biten düz çizgi. a, b: { x, y } sol üst. */
+function boxLink(a, b, w, h, gap = 4, w2 = w, h2 = h) {
+  const ax = a.x + w / 2; const ay = a.y + h / 2; const bx = b.x + w2 / 2; const by = b.y + h2 / 2;
+  const dx = bx - ax; const dy = by - ay; const len = Math.hypot(dx, dy) || 1;
+  const t1 = Math.min(Math.abs(dx) > 0 ? (w / 2) / Math.abs(dx) : Infinity, Math.abs(dy) > 0 ? (h / 2) / Math.abs(dy) : Infinity);
+  const t2 = Math.min(Math.abs(dx) > 0 ? (w2 / 2) / Math.abs(dx) : Infinity, Math.abs(dy) > 0 ? (h2 / 2) / Math.abs(dy) : Infinity);
+  const g = gap / len;
+  return { x1: round1(ax + dx * (t1 + g)), y1: round1(ay + dy * (t1 + g)), x2: round1(bx - dx * (t2 + g)), y2: round1(by - dy * (t2 + g)) };
+}
+/** Taşınmış kutular alanın dışına çıktıysa görünüm alanı (kenar payıyla); çıkmadıysa null. */
+function fitView(W, H, rects, pad = 12) {
+  let x0 = 0; let y0 = 0; let x1 = W; let y1 = H;
+  rects.forEach(({ x, y, w, h }) => { x0 = Math.min(x0, x - pad); y0 = Math.min(y0, y - pad); x1 = Math.max(x1, x + w + pad); y1 = Math.max(y1, y + h + pad); });
+  if (x0 === 0 && y0 === 0 && x1 === W && y1 === H) return null;
+  return { x: round1(x0), y: round1(y0), w: round1(x1 - x0), h: round1(y1 - y0) };
+}
 const arrowDef = (L) => `<defs><marker id="${L.markerId}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${L.th.accent}"/></marker></defs>`;
 
 /** Akış: kutular soldan sağa, oklarla; 4'ten fazlası iki satıra iner. */
-export function drawSteps(items, { label = '', appearance, uid } = {}) {
+export function drawSteps(items, { label = '', appearance, uid, layout = null, editable = false } = {}) {
   const L = look(appearance, uid); const { th } = L;
   const list = items.map(clean).filter(Boolean);
   const n = Math.max(1, list.length);
@@ -238,25 +268,31 @@ export function drawSteps(items, { label = '', appearance, uid } = {}) {
   const pos = list.map((_, i) => {
     const r = Math.floor(i / perRow); const c = i % perRow;
     const rowW = perRow * boxW + (perRow - 1) * gap;
-    return { x: (W - rowW) / 2 + c * (boxW + gap), y: 20 + r * (boxH + 44) };
+    const [dx, dy] = offOf(layout, `i${i}`);
+    return { x: (W - rowW) / 2 + c * (boxW + gap) + dx, y: 20 + r * (boxH + 44) + dy };
   });
   list.forEach((t, i) => {
     const { x, y } = pos[i];
-    body += `<rect x="${x}" y="${y}" width="${boxW}" height="${boxH}" rx="${L.rx(10)}" fill="${L.fill(i, th.soft, th.hatch, 1)}" stroke="${th.accent}" stroke-width="${L.sw(1.2)}"/>`;
-    body += `<text x="${x + 10}" y="${y + 13}" font-family='${FONT}' font-size="${L.fs(10)}" font-weight="700" fill="${th.accent}">${i + 1}</text>`;
-    body += textBlock(t, x + boxW / 2, y + boxH / 2 + 3, boxW - 18, { size: L.fs(12.5), maxLines: 3, fill: th.ink });
+    body += elWrap(editable, `i${i}`, `<rect x="${x}" y="${y}" width="${boxW}" height="${boxH}" rx="${L.rx(10)}" fill="${L.fill(i, th.soft, th.hatch, 1)}" stroke="${th.accent}" stroke-width="${L.sw(1.2)}"/>`
+      + `<text x="${x + 10}" y="${y + 13}" font-family='${FONT}' font-size="${L.fs(10)}" font-weight="700" fill="${th.accent}">${i + 1}</text>`
+      + textBlock(t, x + boxW / 2, y + boxH / 2 + 3, boxW - 18, { size: L.fs(12.5), maxLines: 3, fill: th.ink }));
     if (i < list.length - 1) {
       const a = pos[i]; const b = pos[i + 1];
+      if (isMoved(layout, `i${i}`) || isMoved(layout, `i${i + 1}`)) {
+        const k = boxLink(a, b, boxW, boxH);
+        body += `<line x1="${k.x1}" y1="${k.y1}" x2="${k.x2}" y2="${k.y2}" stroke="${th.accent}" stroke-width="${L.sw(1.6)}" marker-end="url(#${L.markerId})"/>`;
+        return;
+      }
       body += a.y === b.y
         ? `<line x1="${a.x + boxW + 4}" y1="${a.y + boxH / 2}" x2="${b.x - 4}" y2="${b.y + boxH / 2}" stroke="${th.accent}" stroke-width="${L.sw(1.6)}" marker-end="url(#${L.markerId})"/>`
         : `<path d="M${a.x + boxW / 2} ${a.y + boxH + 4} V${a.y + boxH + 22} H${b.x + boxW / 2} V${b.y - 4}" fill="none" stroke="${th.accent}" stroke-width="${L.sw(1.6)}" marker-end="url(#${L.markerId})"/>`;
     }
   });
-  return svg(W, H, body, label || list.join(' → '), L.defs());
+  return svg(W, H, body, label || list.join(' → '), L.defs(), fitView(W, H, pos.map((p) => ({ ...p, w: boxW, h: boxH }))));
 }
 
 /** Döngü: öğeler çember üzerinde, saat yönünde oklarla; son öğe ilke döner. */
-export function drawCycle(items, { label = '', appearance, uid } = {}) {
+export function drawCycle(items, { label = '', appearance, uid, layout = null, editable = false } = {}) {
   const L = look(appearance, uid); const { th } = L;
   const list = items.map(clean).filter(Boolean);
   const n = Math.max(1, list.length);
@@ -264,12 +300,19 @@ export function drawCycle(items, { label = '', appearance, uid } = {}) {
   let body = arrowDef(L) + `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${th.line}" stroke-dasharray="4 5"/>`;
   const pts = list.map((_, i) => {
     const ang = -Math.PI / 2 + (2 * Math.PI * i) / n;
-    return { x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang), ang };
+    const [dx, dy] = offOf(layout, `i${i}`);
+    return { x: cx + R * Math.cos(ang) + dx, y: cy + R * Math.sin(ang) + dy, ang };
   });
   // Oklar kutuların arasındaki yay üzerinde.
   pts.forEach((p, i) => {
     if (n < 2) return;
     const q = pts[(i + 1) % n];
+    // Taşınmış kutu çember üzerinde değil: ok iki kutuyu düz birleştirir.
+    if (isMoved(layout, `i${i}`) || isMoved(layout, `i${(i + 1) % n}`)) {
+      const k = boxLink({ x: p.x - boxW / 2, y: p.y - boxH / 2 }, { x: q.x - boxW / 2, y: q.y - boxH / 2 }, boxW, boxH);
+      body += `<line x1="${k.x1}" y1="${k.y1}" x2="${k.x2}" y2="${k.y2}" stroke="${th.accent}" stroke-width="${L.sw(1.8)}" marker-end="url(#${L.markerId})"/>`;
+      return;
+    }
     const a1 = p.ang + 0.32; const a2 = (i + 1 === n ? q.ang + 2 * Math.PI : q.ang) - 0.32;
     const x1 = cx + R * Math.cos(a1); const y1 = cy + R * Math.sin(a1);
     const x2 = cx + R * Math.cos(a2); const y2 = cy + R * Math.sin(a2);
@@ -277,10 +320,10 @@ export function drawCycle(items, { label = '', appearance, uid } = {}) {
   });
   list.forEach((t, i) => {
     const { x, y } = pts[i];
-    body += `<rect x="${x - boxW / 2}" y="${y - boxH / 2}" width="${boxW}" height="${boxH}" rx="${L.rx(12)}" fill="${L.fill(i, th.paper, th.hatch, 1)}" stroke="${th.accent}" stroke-width="${L.sw(1.3)}"/>`;
-    body += textBlock(t, x, y, boxW - 16, { size: L.fs(12.5), maxLines: 3, fill: th.ink });
+    body += elWrap(editable, `i${i}`, `<rect x="${x - boxW / 2}" y="${y - boxH / 2}" width="${boxW}" height="${boxH}" rx="${L.rx(12)}" fill="${L.fill(i, th.paper, th.hatch, 1)}" stroke="${th.accent}" stroke-width="${L.sw(1.3)}"/>`
+      + textBlock(t, x, y, boxW - 16, { size: L.fs(12.5), maxLines: 3, fill: th.ink }));
   });
-  return svg(W, H, body, label || list.join(' → '), L.defs());
+  return svg(W, H, body, label || list.join(' → '), L.defs(), fitView(W, H, pts.map((p) => ({ x: p.x - boxW / 2, y: p.y - boxH / 2, w: boxW, h: boxH }))));
 }
 
 /** Karşılaştırma: iki sütun, başlık + maddeler. */
@@ -398,4 +441,4 @@ export function sentencesOf(text) {
 }
 
 /** Yeni şablonlar (WO-032, `drawMore.js`) için çizim yardımcıları; dışarıdan kullanılmaz. */
-export const drawKit = { look, textBlock, wrapText, svg, arrowDef, clean, esc, mix, FONT };
+export const drawKit = { look, textBlock, wrapText, svg, arrowDef, clean, esc, mix, FONT, offOf, isMoved, elWrap, boxLink, fitView };

@@ -1249,7 +1249,7 @@ export default {
       indent: 'Indent (make sub-item) — Tab',
       outdent: 'Outdent — Shift+Tab',
       root: { tree: 'Root', mind: 'Centre', fishbone: 'Effect' },
-      big: { open: 'Edit', title: 'Edit figure', width: 'Width in document', reset: 'Full width', done: 'Done', note: 'Drag the handle on the right edge or use the arrow keys. The white area is the text column; the figure keeps this width in the document and in Word.' },
+      big: { open: 'Edit', title: 'Edit figure', width: 'Width in document', reset: 'Full width', posReset: 'Reset positions', moveNote: 'Drag boxes to move them; arrows follow.', done: 'Done', note: 'Drag the handle on the right edge or use the arrow keys. The white area is the text column; the figure keeps this width in the document and in Word.' },
       addItem: 'Add item',
       remove: 'Remove',
       fromParagraph: 'From paragraph',
