@@ -155,8 +155,12 @@ const isEmptyBlock = (block) => block?.tagName === 'P' && !block.textContent.tri
 /** Öznitelik değeri için kaçış (şekil durumu JSON'u data-visual-state içinde). */
 const escapeAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 /** Belgedeki şekil/grafik öğesi (WO-028): tek yerde kurulur; taslak "Tamam"ı ve tema yeniden çizimi bunu kullanır. */
-const figureHtml = ({ id, kind, state, svg }) =>
-  `<figure class="wx-vfig" data-visual-id="${id}" data-visual-kind="${kind}" data-visual-state="${escapeAttr(JSON.stringify(state))}" contenteditable="false">${svg}</figure>`;
+const figureHtml = ({ id, kind, state, svg }) => {
+  // Belgedeki genişlik (WO-035): sayfa sütununun yüzdesi; 100 ise öznitelik yok (eski kayıtla aynı).
+  const w = normalizeAppearance(state?.data?.appearance).width;
+  const size = w < 100 ? ` data-width="${w}" style="width:${w}%"` : '';
+  return `<figure class="wx-vfig" data-visual-id="${id}" data-visual-kind="${kind}" data-visual-state="${escapeAttr(JSON.stringify(state))}"${size} contenteditable="false">${svg}</figure>`;
+};
 
 // Tablo temaları (WO-031): ekran kuralları tek seferde üretilir; Word çıktısı aynı veriden.
 const TABLE_THEME_CSS = themeCss();

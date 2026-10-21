@@ -152,7 +152,7 @@ test('görünüm: siyah-beyaz baskı + çizgili seçilir, şekille saklanır, D�
   await expect(fig).toHaveCount(1);
   await expect(fig.locator('svg pattern')).toHaveCount(2);
   const state = JSON.parse(await fig.getAttribute('data-visual-state'));
-  expect(state.data.appearance).toEqual({ palette: 'bw', pattern: 'stripes', corners: 'round', text: 'normal' });
+  expect(state.data.appearance).toEqual({ palette: 'bw', pattern: 'stripes', corners: 'round', text: 'normal', width: 100 });
   // Desen kimlikleri şekle özgü; çubuklar kendi SVG'sindeki tanıma başvurur.
   const patternIds = await fig.locator('svg pattern').evaluateAll((ps) => ps.map((p) => p.id));
   expect(patternIds.every((id) => /^v\w+-p\d$/.test(id))).toBe(true);
@@ -310,4 +310,43 @@ test('katmanlı liste: minik ↳ ile alt öğe (1.1, 1.1.1), Tab/Shift+Tab, kök
   await expect(draft.locator('.fd-row .fd-n').nth(3)).toHaveText('1.1.1');
   await draft.locator('[data-action="fd-done"]').click();
   await expect(doc(page).locator('figure')).toHaveAttribute('data-visual-state', /"levels":\[0,0,1,2,0\]/);
+});
+
+test('WO-035 büyük düzenleme: minik Düzenle, tutamaçla genişlik, Esc panele döner, belgede ve Word\'de aynı oran', async ({ page }) => {
+  test.setTimeout(60_000);
+  await seedDraft(page, '<p>Önce. Isı alınır. Su döner.</p><p>Sonra.</p>', 'Genişlik');
+  await mockApi(page);
+  await page.goto('/#/yaz');
+  await doc(page).getByText('Önce.').click();
+  await page.locator('[data-action="write-figure"]').click();
+  const draft = page.getByTestId('figure-draft');
+  await draft.locator('[data-action="fd-from-paragraph"]').click();
+  await draft.locator('[data-fd="big-edit"]').click();
+  await expect(draft.locator('[data-fd="big"]')).toBeVisible();
+  // Tutamaç klavyeyle: 8 adım sola = %60.
+  const handle = draft.locator('[data-fd="handle"]');
+  await handle.focus();
+  for (let i = 0; i < 8; i += 1) await handle.press('ArrowLeft');
+  await expect(draft.locator('[data-fd="width"]')).toHaveValue('60');
+  // Esc taslağı kapatmaz, panele döner; seçim kalır.
+  await page.keyboard.press('Escape');
+  await expect(draft.locator('[data-fd="big"]')).toHaveCount(0);
+  await expect(draft).toBeVisible();
+  await draft.locator('[data-fd="big-edit"]').click();
+  await expect(draft.locator('[data-fd="width"]')).toHaveValue('60');
+  await draft.locator('[data-fd="big-done"]').click();
+  await draft.locator('[data-action="fd-done"]').click();
+  const fig = doc(page).locator('figure');
+  await expect(fig).toHaveAttribute('data-width', '60');
+  await expect(fig).toHaveAttribute('style', /width:\s*60%/);
+
+  // Word: 580 px sütunun %60'ı = 348 px → 348 × 9525 EMU.
+  await page.getByRole('button', { name: /Dışa aktar/ }).first().click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download', { timeout: 15_000 }),
+    page.getByRole('button', { name: /Word/ }).first().click(),
+  ]);
+  const zip = await JSZip.loadAsync(fs.readFileSync(await download.path()));
+  const xml = await zip.file('word/document.xml').async('string');
+  expect(xml).toMatch(/<wp:extent cx="3314700"/);
 });

@@ -76,7 +76,9 @@ Object.assign(PALETTES, {
   monoArduvaz: mono('#475569'),
 });
 
-export const APPEARANCE_DEFAULT = Object.freeze({ palette: 'default', pattern: 'solid', corners: 'round', text: 'normal' });
+// width: şeklin belgedeki genişliği, sayfa sütununun yüzdesi (WO-035; 30–100, 5'in katı).
+export const APPEARANCE_DEFAULT = Object.freeze({ palette: 'default', pattern: 'solid', corners: 'round', text: 'normal', width: 100 });
+export const WIDTH_RANGE = Object.freeze({ min: 30, max: 100, step: 5 });
 /** Seçicide gösterim için her paletin dört rol rengi: ayrıntı, veri, vurgu, zemin. */
 export const paletteSwatch = (key) => {
   const th = PALETTES[key] || PALETTES.default;
@@ -86,18 +88,21 @@ export const APPEARANCE_OPTIONS = Object.freeze({
   palette: Object.keys(PALETTES),
   pattern: ['solid', 'stripes', 'dots'],
   corners: ['round', 'square'],
-  text: ['small', 'normal', 'large'],
+  text: ['small', 'normal', 'large', 'xlarge'],
 });
 /** Desenin etkilediği türler (alanı/kutusu olanlar). Çizgi ve zaman çizelgesinde desen yok. */
 export const PATTERN_TYPES = ['bar', 'steps', 'cycle', 'compare', 'stairs', 'hub', 'pyramid', 'funnel', 'barh', 'ring'];
-const TEXT_SCALE = { small: 0.88, normal: 1, large: 1.15 };
+const TEXT_SCALE = { small: 0.88, normal: 1, large: 1.15, xlarge: 1.3 };
 
 /** Bilinmeyen ya da eksik değerleri varsayılana çeker. */
 export function normalizeAppearance(a) {
   const out = {};
   for (const key of Object.keys(APPEARANCE_DEFAULT)) {
+    if (key === 'width') continue;
     out[key] = APPEARANCE_OPTIONS[key].includes(a?.[key]) ? a[key] : APPEARANCE_DEFAULT[key];
   }
+  const w = Math.round(Number(a?.width) / WIDTH_RANGE.step) * WIDTH_RANGE.step;
+  out.width = Number.isFinite(w) ? Math.max(WIDTH_RANGE.min, Math.min(WIDTH_RANGE.max, w)) : APPEARANCE_DEFAULT.width;
   return out;
 }
 export const isDefaultAppearance = (a) => {

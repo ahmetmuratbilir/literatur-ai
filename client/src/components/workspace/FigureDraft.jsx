@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart3, Check, ChevronLeft, ChevronRight, CornerDownRight, LineChart, Plus, RefreshCw, Shapes, Trash2, X } from 'lucide-react';
+import { BarChart3, Check, ChevronLeft, ChevronRight, CornerDownRight, LineChart, Maximize2, Plus, RefreshCw, Shapes, Trash2, X } from 'lucide-react';
 import { useI18n } from '../../i18n/context.js';
 import {
-  APPEARANCE_OPTIONS, CHART_TYPES, FIGURE_TYPES, PATTERN_TYPES,
+  APPEARANCE_OPTIONS, CHART_TYPES, FIGURE_TYPES, PATTERN_TYPES, WIDTH_RANGE,
   isDefaultAppearance, newDrawId, normalizeAppearance, paletteSwatch, sentencesOf,
 } from '../../visuals/draw.js';
 import { LEVELED_TYPES, MAX_LEVEL, ROOTED_TYPES, outlineNumbers, renderFigure } from '../../visuals/render.js';
@@ -56,6 +56,9 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
     return { ...EMPTY, ...rest };
   });
   const [appearance, setAppearance] = useState(() => normalizeAppearance(initial?.data?.appearance));
+  // Büyük düzenleme (WO-035; Napkin gibi): önizleme taslak alanının tamamına büyür.
+  const [big, setBig] = useState(false);
+  const stageRef = useRef(null);
   const [lookOpen, setLookOpen] = useState(() => openLook || !isDefaultAppearance(initial?.data?.appearance));
   // Taslağa özgü desen kimliği: düzenlenen şekil belgede dururken önizlemenin desenleri onunkilerle çakışmasın.
   const [uid] = useState(newDrawId);
@@ -199,6 +202,27 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
   const editor = type === 'compare' ? compareEditor : (type === 'timeline' || type === 'vtimeline') ? timelineEditor : CHART_TYPES.includes(type) ? chartEditor : itemsEditor;
   const setLook = (key, value) => setAppearance((a) => ({ ...a, [key]: value }));
   const patternOk = PATTERN_TYPES.includes(type);
+  /** Sağ kenardaki tutamaçla genişlik: şekil ortalı, genişlik = 2 × merkezden uzaklık / sayfa sütunu. */
+  const onHandleDown = (e) => {
+    const frame = stageRef.current;
+    if (!frame) return;
+    e.preventDefault();
+    const box = frame.getBoundingClientRect();
+    const move = (ev) => {
+      const pct = (Math.abs(ev.clientX - (box.left + box.width / 2)) * 2 * 100) / box.width;
+      const w = Math.round(pct / WIDTH_RANGE.step) * WIDTH_RANGE.step;
+      setLook('width', Math.max(WIDTH_RANGE.min, Math.min(WIDTH_RANGE.max, w)));
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  const onHandleKey = (e) => {
+    const d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    setLook('width', Math.max(WIDTH_RANGE.min, Math.min(WIDTH_RANGE.max, appearance.width + d * WIDTH_RANGE.step)));
+  };
   const segment = (key, disabled = false) => (
     <fieldset className="fd-seg" disabled={disabled}>
       <legend>{k(`look.${key}`)}</legend>
@@ -286,7 +310,7 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
   );
 
   return (
-    <section className="fd" style={style} aria-label={k(mode === 'chart' ? 'chartTitle' : 'figureTitle')} data-testid="figure-draft" onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onCancel(); } }}>
+    <section className="fd" style={style} aria-label={k(mode === 'chart' ? 'chartTitle' : 'figureTitle')} data-testid="figure-draft" onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); if (big) setBig(false); else onCancel(); } }}>
       <header className="fd-head">
         <span className="fd-badge">{k('draftBadge')}</span>
         {/* Şablon şeridi (WO-032): tek satır, yatay kaydırılır; aileler başlıkla ayrılır. */}
@@ -300,15 +324,60 @@ export default function FigureDraft({ mode, initial, sourceText, sourceRows, num
         </div>
         <button type="button" className="fd-icon" onClick={onCancel} aria-label={k('cancel')} title={k('cancel')}><X size={15} /></button>
       </header>
+      {big && preview ? (
+        <div className="fd-big" data-fd="big">
+          <div className="fd-big__bar">
+            <strong className="fd-big__title">{k('big.title')}</strong>
+            <label className="fd-big__width">
+              <span>{k('big.width')}</span>
+              <input type="range" min={WIDTH_RANGE.min} max={WIDTH_RANGE.max} step={WIDTH_RANGE.step} value={appearance.width} onChange={(e) => setLook('width', Number(e.target.value))} data-fd="width" />
+              <output>%{appearance.width}</output>
+            </label>
+            {segment('text')}
+            {segment('corners')}
+            {segment('pattern', !patternOk)}
+            <button type="button" className="fd-btn" onClick={() => setLook('width', 100)} disabled={appearance.width === 100} data-fd="width-reset">{k('big.reset')}</button>
+            <button type="button" className="fd-btn fd-btn--primary" onClick={() => setBig(false)} data-fd="big-done"><Check size={14} /> {k('big.done')}</button>
+          </div>
+          {/* Sahne: beyaz sayfa sütunu; şekil o sütunun yüzdesi kadar, ortalı (belgede ve Word'de de böyle). */}
+          <div className="fd-big__stage">
+            <div ref={stageRef} className="fd-big__page">
+              <div className="fd-big__fig" style={{ width: `${appearance.width}%` }}>
+                <div className="fd-svg" dangerouslySetInnerHTML={{ __html: preview.svg }} />
+                <span
+                  className="fd-big__handle"
+                  role="slider"
+                  tabIndex={0}
+                  aria-label={k('big.width')}
+                  aria-valuemin={WIDTH_RANGE.min}
+                  aria-valuemax={WIDTH_RANGE.max}
+                  aria-valuenow={appearance.width}
+                  onPointerDown={onHandleDown}
+                  onKeyDown={onHandleKey}
+                  data-fd="handle"
+                />
+              </div>
+            </div>
+            <small className="fd-big__note">{k('big.note')}</small>
+          </div>
+        </div>
+      ) : (
       <div className="fd-body">
         <div className="fd-edit">{editor}{look}</div>
         <div className="fd-preview" aria-live="polite">
+          {/* Önizlemenin sağ üstünde minik "Düzenle" (WO-035): büyük düzenleme ekranını açar. */}
+          {preview && (
+            <button type="button" className="fd-bigbtn" onClick={() => setBig(true)} title={k('big.open')} data-fd="big-edit">
+              <Maximize2 size={12} /> {k('big.open')}
+            </button>
+          )}
           {/* Önizleme bizim çizicimizin, kaçışlı SVG'si. */}
           {preview ? <div className="fd-svg" dangerouslySetInnerHTML={{ __html: preview.svg }} /> : <p className="fd-empty">{k(CHART_TYPES.includes(type) ? 'needData' : 'needItems')}</p>}
           {preview?.skipped > 0 && <small className="fd-warn">{k('skipped', { n: preview.skipped })}</small>}
           {preview?.hidden > 0 && <small className="fd-warn" data-fd="hidden">{k('hiddenItems', { n: preview.hidden })}</small>}
         </div>
       </div>
+      )}
       <footer className="fd-foot">
         <label className="fd-caption">
           <span>{word} {number}.</span>

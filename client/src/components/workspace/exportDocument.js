@@ -224,7 +224,9 @@ export async function exportDocx({ root, setup, title, pageLabel = 'Sayfa', figu
   for (const fig of root.querySelectorAll(':scope > figure.wx-vfig')) {
     const svgEl = fig.querySelector('svg');
     if (!svgEl) continue;
-    const image = await figureImage(svgEl.outerHTML);
+    // Belgedeki genişlik (WO-035) Word'de de aynı oran: 580 px sütunun yüzdesi.
+    const pct = Number(fig.dataset.width) || 100;
+    const image = await figureImage(svgEl.outerHTML, { maxWidth: Math.round((580 * pct) / 100) });
     if (image) images.set(fig, image);
   }
   const g = pageGeometry(setup);

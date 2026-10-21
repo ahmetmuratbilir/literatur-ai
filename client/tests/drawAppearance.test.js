@@ -105,3 +105,15 @@ test('rol tabanlı paletler: her palet tam; sütunlar tek renk (veri rolü), tek
   const fills = [...svg.matchAll(/<rect [^>]*fill="(#[0-9a-fA-F]{6})"/g)].map((m) => m[1].toLowerCase());
   assert.equal(fills.filter((c) => c === '#b83b5e').length, 3, 'bütün sütunlar ana renk');
 });
+
+test('belgedeki genişlik: 30–100, 5\'in katına yuvarlanır; bilinmeyen 100; çizimi değiştirmez', () => {
+  assert.equal(normalizeAppearance({ width: 62 }).width, 60);
+  assert.equal(normalizeAppearance({ width: 5 }).width, 30);
+  assert.equal(normalizeAppearance({ width: 140 }).width, 100);
+  assert.equal(normalizeAppearance({ width: 'geniş' }).width, 100);
+  assert.equal(normalizeAppearance(undefined).width, 100);
+  assert.ok(isDefaultAppearance({ width: 100 }));
+  assert.ok(!isDefaultAppearance({ width: 60 }));
+  const items = ['A', 'B', 'C'];
+  assert.equal(drawSteps(items, { appearance: { width: 60 }, uid: 'w' }), drawSteps(items, { uid: 'w' }));
+});
