@@ -6,6 +6,7 @@ import {
   isPlaceholderValue,
   validateEnvironment,
   formatEnvReport,
+  isUsableMongoUri,
 } from '../config/envValidation.js';
 
 test('.env.example sablon metinleri yer tutucu olarak taninir', () => {
@@ -115,4 +116,13 @@ test('tam gecerli ortam hata uretmez', () => {
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.warnings, []);
   assert.match(formatEnvReport(result), /geçerli görünüyor/);
+});
+
+test('sablon veya bicimsiz MongoDB adresine baglanilmaz (yerelde 30 sn de bir hata dokumu)', () => {
+  assert.equal(isUsableMongoUri('mongodb+srv://username:password@cluster.mongodb.net/literature-ai'), false);
+  assert.equal(isUsableMongoUri('postgres://u:p@host/db'), false);
+  assert.equal(isUsableMongoUri(''), false);
+  assert.equal(isUsableMongoUri(undefined), false);
+  assert.equal(isUsableMongoUri('mongodb+srv://appuser:s3cret@prod-shard.ab12c.mongodb.net/db'), true);
+  assert.equal(isUsableMongoUri('mongodb://localhost:27017/literatur'), true);
 });

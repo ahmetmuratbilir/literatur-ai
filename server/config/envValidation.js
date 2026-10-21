@@ -127,6 +127,14 @@ export function inspectEnvValue(name, rawValue) {
 }
 
 /**
+ * Şablon veya biçimsiz bir adresle bağlanmayı denemek, yerelde 30 saniyede bir
+ * uzun bir ENOTFOUND dökümü üretiyordu; açılış raporu sorunu zaten söylüyor.
+ */
+export function isUsableMongoUri(value) {
+  return inspectEnvValue('MONGODB_URI', value).state === 'configured';
+}
+
+/**
  * Tüm ortamı doğrular.
  *
  * @returns {{ errors: string[], warnings: string[], report: Record<string, object> }}

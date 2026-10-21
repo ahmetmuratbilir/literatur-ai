@@ -32,7 +32,7 @@ import { vaultReady } from './services/keyVault.js';
 import { runWithAiContext } from './services/aiContext.js';
 import { planBasketAdd, collectLegacyPapers } from './services/basketService.js';
 import { getWriterFlags } from './config/writerFlags.js';
-import { validateEnvironment, formatEnvReport } from './config/envValidation.js';
+import { validateEnvironment, formatEnvReport, isUsableMongoUri } from './config/envValidation.js';
 import { probeAllServices } from './services/keyHealthService.js';
 import { getZeroStreaks } from './services/sourceZeroTracker.js';
 import { resolveRankingWeights, parseWeightsParam, listProfiles } from './services/ahpProfiles.js';
@@ -182,7 +182,8 @@ const corsOrigin = (origin, callback) => {
 };
 
 // MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI;
+// Şablon/biçimsiz adres bağlanmayı denemez (açılış raporu nedenini zaten yazıyor).
+const MONGODB_URI = isUsableMongoUri(process.env.MONGODB_URI) ? process.env.MONGODB_URI : undefined;
 const MONGO_RETRY_MS = 30 * 1000;
 let mongoRetryTimer = null;
 
@@ -213,7 +214,7 @@ if (MONGODB_URI && !IS_TEST_MODE) {
   connectMongo();
   mongoose.connection.on('disconnected', scheduleMongoReconnect);
 } else if (!MONGODB_URI && !IS_TEST_MODE) {
-  console.warn('MONGODB_URI is not defined in .env. Search history will not be saved.');
+  console.warn('MONGODB_URI is missing or still the .env.example template; MongoDB is off. Search history will not be saved.');
 }
 
 // Ikinci MongoDB (MONGODB_URI_2): gece yedegi + DergiPark dizini.
