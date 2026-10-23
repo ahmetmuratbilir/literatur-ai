@@ -111,20 +111,16 @@ test('boş sonuç: taranan kaynakları söyler, "çalışma yok" demez, örnek v
   await expect(page.getByText('Örnek veri gösteriliyor')).toHaveCount(0);
 });
 
-test('kısmi sonuç: yanıt vermeyen kaynak adıyla; sonuçlar görünür', async ({ page }) => {
+test('kısmi sonuç: yanıt vermeyen kaynak kartı gösterilmez (Ahmet 23.10); sonuçlar görünür', async ({ page }) => {
   await mockApi(page);
   await routeSearch(page, (route) => route.fulfill({ json: { ...SEARCH_RESULT, sourcesQueried: ['OpenAlex', 'Crossref', 'SemanticScholar'], failedSources: [{ name: 'SemanticScholar', type: 'timeout' }] } }));
   await page.goto('/');
   await search(page);
-  const partial = page.getByTestId('search-partial');
-  await expect(partial).toBeVisible();
-  await expect(partial).toContainText('1 kaynak yanıt vermedi: Semantic Scholar');
-  // Sayı yalnız yanıt verenler: 3 sorgulandı, 1 düştü → 2 (eskiden 3 yazıyordu).
-  await expect(partial).toContainText('Sonuçlar yanıt veren 2 kaynaktan.');
   await expect(page.getByRole('button', { name: 'Makalene ekle' })).toHaveCount(2);
+  await expect(page.getByTestId('search-partial')).toHaveCount(0);
 });
 
-test('boş sonuç + düşen kaynak: düşen kaynak "taranan" sayılmaz, adıyla söylenir (2.8)', async ({ page }) => {
+test('boş sonuç + düşen kaynak: düşen kaynak "taranan" sayılmaz; uyarı kartı yok (Ahmet 23.10)', async ({ page }) => {
   await mockApi(page);
   await routeSearch(page, (route) => route.fulfill({ json: {
     results: [], totalFound: 0, analyzedCount: 0, empty: true,
@@ -134,9 +130,7 @@ test('boş sonuç + düşen kaynak: düşen kaynak "taranan" sayılmaz, adıyla 
   } }));
   await page.goto('/');
   await search(page);
-  const partial = page.getByTestId('search-partial');
-  await expect(partial).toContainText('2 kaynak yanıt vermedi: CORE, Semantic Scholar');
-  await expect(partial).not.toContainText('Sonuçlar yanıt veren');
+  await expect(page.getByTestId('search-partial')).toHaveCount(0);
   const empty = page.getByTestId('search-empty');
   await expect(empty).toContainText('taranan 2 kaynakta kayıt bulunamadı');
   await expect(empty).toContainText('Taranan kaynaklar: OpenAlex, DOAJ.');
